@@ -2,7 +2,8 @@
 <!--
   Synthetic test credit note. Every party, identifier and amount is invented.
   Shape: a credit note that uses almost every business group the model knows about —
-  extensions, references, payee, tax representative, delivery, two tax totals (EUR document
+  extensions, references (with BT-11 carried as an AdditionalDocumentReference with type
+  code 50, as UBL 2.1 credit notes require), payee, tax representative, delivery, two tax totals (EUR document
   currency plus RSD VAT accounting currency), document-level allowance and charge, an
   embedded attachment, an invoiced object identifier, and two lines with line-level
   allowance, price discount, period, classification and attributes.
@@ -50,9 +51,6 @@
   <cac:ReceiptDocumentReference>
     <cbc:ID>PRJ-3</cbc:ID>
   </cac:ReceiptDocumentReference>
-  <cac:OriginatorDocumentReference>
-    <cbc:ID>TENDER-1</cbc:ID>
-  </cac:OriginatorDocumentReference>
   <cac:ContractDocumentReference>
     <cbc:ID>UG-2025-11</cbc:ID>
   </cac:ContractDocumentReference>
@@ -70,9 +68,13 @@
       </cac:ExternalReference>
     </cac:Attachment>
   </cac:AdditionalDocumentReference>
-  <cac:ProjectReference>
+  <cac:AdditionalDocumentReference>
     <cbc:ID>PRJ-42</cbc:ID>
-  </cac:ProjectReference>
+    <cbc:DocumentTypeCode>50</cbc:DocumentTypeCode>
+  </cac:AdditionalDocumentReference>
+  <cac:OriginatorDocumentReference>
+    <cbc:ID>TENDER-1</cbc:ID>
+  </cac:OriginatorDocumentReference>
   <cac:AccountingSupplierParty>
     <cac:Party>
       <cbc:EndpointID schemeID="0088">7300010000001</cbc:EndpointID>
