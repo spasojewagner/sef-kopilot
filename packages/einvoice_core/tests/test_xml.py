@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import io
 from pathlib import Path
 
@@ -37,8 +38,11 @@ def test_loads_from_bytes_path_and_stream(tmp_path: Path) -> None:
 
 def test_a_str_is_a_path_not_xml_text() -> None:
     """Passing XML text as ``str`` must not silently parse it (it would bypass the path branch)."""
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(OSError, match="<Invoice xmlns=") as raised:
         load_document(MINIMAL)
+
+    # No such file on POSIX; on Windows `<`, `>`, `:` and `"` make the name invalid.
+    assert raised.value.errno in {errno.ENOENT, errno.EINVAL}
 
 
 def test_rejects_documents_over_the_byte_limit() -> None:
