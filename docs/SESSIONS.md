@@ -137,3 +137,27 @@ Process note: as on the previous branch, the gitleaks hook was skipped with the 
 approval and the same gitleaks 8.30.1 scan ran on each commit's staged changes.
 
 Next: `feat/core-srb-cius-party-rules`.
+
+## 2026-11-04 — `feat/core-srb-cius-party-rules` (7 commits, stacked on `feat/core-srb-cius-rules`)
+
+Outcome: ten more SRB-CIUS rules, SRB-010 to SRB-019: the public-procurement buyer reference
+(BT-10), the preceding invoice's issue date (BT-26), legal registration numbers (BT-30, BT-47,
+BT-61), the seller's VAT registration status (BT-32, presence and value), cities (BT-37, BT-52,
+BT-66) and post codes (BT-38, BT-67, BT-53), the delivery date when BT-8 makes VAT due on
+supply or on collection (BT-72), and the notation of payment models (BT-83). The synthetic
+SRB invoice now states the seller's VAT status and writes its payment model as SRB-CIUS
+prescribes. Interview notes.
+
+Verification: 1 083 tests green; core coverage 100 % (branches included). On the official
+examples: SRB-013 (warning) on all 16 schema-valid documents, SRB-017 (warning) on the eight
+that omit the buyer's post code, SRB-009 on the placeholder PIBs; nothing else. 19 rules take
+0.5–0.7 ms per invoice.
+
+Decisions: the severity policy of ADR-0006 applied for the first time — a missing VAT status
+and a missing buyer post code are warnings, a wrong VAT status is fatal, which is why those
+requirements are rules of their own; residency read from the country code; SRB-019 fires only
+on text that names a model.
+
+Process note: gitleaks hook skipped with approval, scan run on each commit's staged changes.
+
+Next: `feat/core-srb-cius-vat-rules`.
