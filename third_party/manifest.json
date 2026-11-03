@@ -48,7 +48,7 @@
         "guide/bis/introduction.adoc",
         "README.adoc"
       ],
-      "notice": "OpenPeppol publishes only Schematron sources (no compiled XSLT) for BIS Billing 3.0; SEF Kopilot compiles them to XSLT at build time (see the M1 architecture decision on the Schematron runner). Published specification: https://docs.peppol.eu/poacc/billing/3.0/"
+      "notice": "OpenPeppol publishes only Schematron sources (no compiled XSLT) for BIS Billing 3.0; SEF Kopilot compiles them to XSLT with the pinned iso-schematron pipeline on first use and caches the result (see docs/adr/0005-schematron-runner.md). Published specification: https://docs.peppol.eu/poacc/billing/3.0/"
     },
     {
       "name": "iso-schematron",

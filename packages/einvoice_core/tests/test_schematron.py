@@ -1,4 +1,4 @@
-"""The Schematron runner: Saxon integration and the mapping of SVRL reports to violations.
+"""The Schematron runner: Saxon integration, SVRL mapping, the compile pipeline and its cache.
 
 These tests run small stylesheets written here, in a temporary rule-set directory, so that
 every branch of the runner is exercised in isolation and quickly. Conformance with the
@@ -8,6 +8,8 @@ official rule sets and their published unit tests is in ``test_schematron_confor
 from __future__ import annotations
 
 import json
+import os
+import stat
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -95,6 +97,7 @@ def test_every_published_rule_set_is_in_its_fetched_package(rule_set: RuleSet) -
         pytest.skip(f"{rule_set.package} not fetched (run `make rulesets`)")
 
     assert path.is_file()
+    assert rule_set.is_source is (path.suffix == ".sch")
 
 
 def test_unknown_rule_set_names_are_rejected_with_the_known_names() -> None:
@@ -329,6 +332,190 @@ def test_a_report_that_is_not_svrl_is_reported(tmp_path: Path, output: str, mess
 
     with pytest.raises(SchematronError, match=message):
         validator.validate(_invoice())
+
+
+# --- compiling Schematron sources, with the cache ---------------------------------------
+
+# A stand-in for the ISO pipeline with the same three steps: the first resolves includes
+# against the source's directory, the second marks the schema as expanded, the third writes a
+# stylesheet whose messages show what the earlier steps and the parameters did.
+FAKE_COMPILER = {
+    "iso_dsdl_include.xsl": """<xsl:stylesheet version="2.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+  <xsl:template match="include"><xsl:apply-templates select="document(@href, .)/*"/></xsl:template>
+</xsl:stylesheet>""",
+    "iso_abstract_expand.xsl": """<xsl:stylesheet version="2.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:template match="@* | node()">
+    <xsl:copy><xsl:apply-templates select="@* | node()"/></xsl:copy>
+  </xsl:template>
+  <xsl:template match="/*">
+    <xsl:copy><xsl:attribute name="expanded" select="'yes'"/><xsl:apply-templates/></xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>""",
+    "iso_svrl_for_xslt2.xsl": """<xsl:stylesheet version="2.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:axsl="urn:example:alias"
+    xmlns:svrl="http://purl.oclc.org/dsdl/svrl">
+  <xsl:namespace-alias stylesheet-prefix="axsl" result-prefix="xsl"/>
+  <xsl:param name="allow-foreign" select="'false'"/>
+  <xsl:param name="generate-fired-rule" select="'true'"/>
+  <xsl:template match="/">
+    <axsl:stylesheet version="2.0">
+      <axsl:template match="/">
+        <svrl:schematron-output>
+          <xsl:for-each select="//rule">
+            <svrl:failed-assert id="{@id}" flag="fatal" location="{@location}">
+              <svrl:text><xsl:value-of select="@message,
+                concat('expanded=', /*/@expanded),
+                concat('allow-foreign=', $allow-foreign),
+                concat('generate-fired-rule=', $generate-fired-rule)"/></svrl:text>
+            </svrl:failed-assert>
+          </xsl:for-each>
+        </svrl:schematron-output>
+      </axsl:template>
+    </axsl:stylesheet>
+  </xsl:template>
+</xsl:stylesheet>""",
+    "iso_schematron_skeleton_for_saxon.xsl": "<!-- imported by the real generator -->",
+}
+COMPILER_PREFIX = "trunk/schematron/code/"
+
+
+def _source_package(root: Path, message: str = "Included rule") -> RuleSet:
+    _package(
+        root,
+        schematron.COMPILER_PACKAGE,
+        {COMPILER_PREFIX + n: t for n, t in FAKE_COMPILER.items()},
+    )
+    _package(
+        root,
+        "pkg",
+        {
+            "sch/main.sch": '<schema><include href="parts/rule.sch"/></schema>',
+            "sch/parts/rule.sch": f'<rule id="FAKE-1" location="{ROOT_STEP}" message="{message}"/>',
+        },
+    )
+    return RuleSet(name="fake", package="pkg", path="sch/main.sch", description="Compiled.")
+
+
+def _cached(root: Path) -> list[Path]:
+    return sorted((root / schematron.CACHE_DIR).glob("*"))
+
+
+def test_sources_are_compiled_with_the_three_step_pipeline(tmp_path: Path) -> None:
+    rule_set = _source_package(tmp_path)
+
+    (violation,) = SchematronValidator(rule_set, root=tmp_path).validate(_invoice())
+
+    assert violation.rule_id == "FAKE-1"
+    assert violation.message == (
+        "Included rule expanded=yes allow-foreign=true generate-fired-rule=false"
+    )
+    assert violation.xpath == "/ubl:Invoice"
+
+
+def test_compiled_sources_are_cached_and_the_cache_is_used(tmp_path: Path) -> None:
+    rule_set = _source_package(tmp_path)
+    SchematronValidator(rule_set, root=tmp_path)
+    (cached,) = _cached(tmp_path)
+    assert cached.name.startswith("fake-")
+    assert cached.suffix == ".xslt"
+    cached.write_text(_stylesheet(_failed(ROOT_STEP, "FROM-CACHE")), encoding="utf-8")
+
+    (violation,) = SchematronValidator(rule_set, root=tmp_path).validate(_invoice())
+
+    assert violation.rule_id == "FROM-CACHE"
+
+
+def test_a_changed_source_is_compiled_again(tmp_path: Path) -> None:
+    rule_set = _source_package(tmp_path, message="First")
+    SchematronValidator(rule_set, root=tmp_path)
+    _source_package(tmp_path, message="Second")
+
+    (violation,) = SchematronValidator(rule_set, root=tmp_path).validate(_invoice())
+
+    assert violation.message.startswith("Second ")
+    assert len(_cached(tmp_path)) == 2
+
+
+def test_a_changed_compiler_invalidates_the_cache(tmp_path: Path) -> None:
+    rule_set = _source_package(tmp_path)
+    SchematronValidator(rule_set, root=tmp_path)
+    skeleton = ruleset_path(schematron.COMPILER_PACKAGE, root=tmp_path) / (
+        COMPILER_PREFIX + "iso_schematron_skeleton_for_saxon.xsl"
+    )
+    skeleton.write_text("<!-- a new release of the skeleton -->", encoding="utf-8")
+
+    SchematronValidator(rule_set, root=tmp_path)
+
+    assert len(_cached(tmp_path)) == 2
+
+
+def test_an_unwritable_cache_is_not_an_error(tmp_path: Path) -> None:
+    rule_set = _source_package(tmp_path)
+    (tmp_path / schematron.CACHE_DIR).write_text("not a directory", encoding="utf-8")
+
+    (violation,) = SchematronValidator(rule_set, root=tmp_path).validate(_invoice())
+
+    assert violation.rule_id == "FAKE-1"
+
+
+def test_the_cache_holds_no_partial_files(tmp_path: Path) -> None:
+    SchematronValidator(_source_package(tmp_path), root=tmp_path)
+
+    assert [path.suffix for path in _cached(tmp_path)] == [".xslt"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions")
+def test_cached_stylesheets_are_readable_by_other_users(tmp_path: Path) -> None:
+    """A cache written while building an image must be readable by the service's user."""
+    SchematronValidator(_source_package(tmp_path), root=tmp_path)
+
+    (cached,) = _cached(tmp_path)
+    assert stat.S_IMODE(cached.stat().st_mode) == 0o644
+
+
+def test_compile_schematron_returns_the_generated_stylesheet(tmp_path: Path) -> None:
+    rule_set = _source_package(tmp_path)
+    source = ruleset_path("pkg", root=tmp_path) / rule_set.path
+    compiler = ruleset_path(schematron.COMPILER_PACKAGE, root=tmp_path) / COMPILER_PREFIX
+
+    text = schematron.compile_schematron(source, compiler)
+
+    assert text.lstrip().startswith("<?xml")
+    assert 'id="FAKE-1"' in text
+
+
+def test_a_source_that_does_not_compile_is_reported(tmp_path: Path) -> None:
+    rule_set = _source_package(tmp_path)
+    (ruleset_path("pkg", root=tmp_path) / rule_set.path).write_text("<schema>", encoding="utf-8")
+
+    with pytest.raises(SchematronError, match=r"cannot compile Schematron .*main\.sch"):
+        SchematronValidator(rule_set, root=tmp_path)
+
+
+def test_a_source_that_compiles_to_nothing_is_reported(tmp_path: Path) -> None:
+    rule_set = _source_package(tmp_path)
+    compiler = ruleset_path(schematron.COMPILER_PACKAGE, root=tmp_path) / COMPILER_PREFIX
+    (compiler / "iso_dsdl_include.xsl").write_text(
+        '<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">'
+        '<xsl:output method="text"/><xsl:template match="/"/></xsl:stylesheet>',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SchematronError, match="produced no stylesheet"):
+        SchematronValidator(rule_set, root=tmp_path)
+
+
+def test_sources_need_the_compiler_package(tmp_path: Path) -> None:
+    _package(tmp_path, "pkg", {"main.sch": "<schema/>"})
+    rule_set = RuleSet(name="fake", package="pkg", path="main.sch", description="No compiler.")
+
+    with pytest.raises(RulesetNotFoundError, match=schematron.COMPILER_PACKAGE):
+        SchematronValidator(rule_set, root=tmp_path)
 
 
 # --- the process-wide validators -----------------------------------------------------------

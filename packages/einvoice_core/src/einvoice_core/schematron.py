@@ -1,18 +1,24 @@
-"""Schematron validation: the EN 16931 business rules, executed with Saxon.
+"""Schematron validation: the EN 16931 and Peppol BIS business rules, executed with Saxon.
 
 The second layer of the deterministic validator checks the business rules that the standards
 publish as Schematron: the EN 16931 core rules (``BR-*``, ``BR-CO-*``, the code-list rules
-``BR-CL-*``) with the UBL syntax-binding rules (``UBL-*``). The rules run exactly as published;
-none of them is re-implemented or edited.
+``BR-CL-*``) with the UBL syntax-binding rules (``UBL-*``), and the Peppol BIS Billing 3.0 rules
+(``PEPPOL-EN16931-*``, ``PEPPOL-COMMON-*``). The rules run exactly as published; none of them
+is re-implemented or edited.
 
 How it works:
 
-* A rule set is an **official compiled XSLT**: CEN/TC 434 publishes one for EN 16931.
+* A rule set is either an **official compiled XSLT** (CEN/TC 434 publishes one for EN 16931)
+  or a **Schematron source** (OpenPeppol publishes only ``.sch`` files). Sources are compiled
+  to XSLT with the ISO Schematron reference implementation (the pinned ``iso-schematron``
+  package). The result is cached in ``_compiled/`` next to the fetched rule sets, under a name
+  derived from the digests of the source files and of the compiler, so a stale compilation is
+  never reused.
 * Saxon-HE (``saxonche``) compiles each stylesheet once per process (:func:`default_validator`
   is cached) and applies it to the document. The result is an SVRL report; every
   ``failed-assert`` and ``successful-report`` in it becomes a
   :class:`~einvoice_core.violations.Violation` carrying the rule's ``id``, ``flag`` and text.
-* SVRL locations are written in the "full path" notation of the stylesheet generator
+* SVRL locations are written in the compiler's "full path" notation
   (``/*:Invoice[namespace-uri()='…'][1]/*:InvoiceLine[namespace-uri()='…'][2]``). They are
   resolved step by step against the document and rendered as canonical XPaths, or ``null``
   when they cannot be resolved with certainty.
@@ -28,8 +34,13 @@ typical invoice takes milliseconds, so the lock is not a bottleneck at the expec
 
 from __future__ import annotations
 
+import contextlib
 import functools
+import hashlib
+import json
+import os
 import re
+import tempfile
 import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -44,25 +55,44 @@ from einvoice_core.violations import Severity, Violation
 from einvoice_core.xml import ParseError, canonical_xpath, load_document
 
 __all__ = [
+    "CACHE_DIR",
+    "COMPILER_PACKAGE",
     "RULE_ID",
     "RULE_SETS",
     "SVRL",
     "RuleSet",
     "SchematronError",
     "SchematronValidator",
+    "compile_schematron",
     "default_validator",
     "validate_schematron",
 ]
 
 SVRL: Final = "http://purl.oclc.org/dsdl/svrl"
+#: The fetched package that holds the ISO Schematron compiler.
+COMPILER_PACKAGE: Final = "iso-schematron"
+#: Directory, under the rule-set root, for stylesheets compiled from Schematron sources.
+CACHE_DIR: Final = "_compiled"
 #: ``rule_id`` of a violation whose rule carries no ``id`` (no rule in the pinned sets lacks one).
 RULE_ID: Final = "SCHEMATRON"
 
-#: Documents are handed to Saxon as UTF-8 text; reports come back in the UTF-8 that the
-#: stylesheets declare, which is also how saxonche decodes them.
+_COMPILER_DIR: Final = Path("trunk", "schematron", "code")
+_COMPILER_PIPELINE: Final = (
+    "iso_dsdl_include.xsl",  # resolve sch:include and sch:extends
+    "iso_abstract_expand.xsl",  # instantiate abstract patterns
+    "iso_svrl_for_xslt2.xsl",  # generate the SVRL-producing XSLT 2.0 stylesheet
+)
+#: The last pipeline step imports the skeleton, so the skeleton is part of the compiler too.
+_COMPILER_FILES: Final = (*_COMPILER_PIPELINE, "iso_schematron_skeleton_for_saxon.xsl")
+#: ``allow-foreign`` keeps the XSLT functions the Peppol rules define (``u:gln``, ``u:mod11``,
+#: ...); ``fired-rule`` entries would only make the report larger.
+_COMPILER_PARAMETERS: Final = {"allow-foreign": "true", "generate-fired-rule": "false"}
+#: Documents are handed to Saxon as UTF-8 text; reports come back in the UTF-8 that every
+#: stylesheet here declares, which is also how saxonche decodes them.
 _ENCODING: Final = "UTF-8"
 #: Upper bound on the SVRL report parsed back; reports grow with the number of violations.
 _MAX_REPORT_BYTES: Final = 64 * 1024 * 1024
+_CACHE_FILE_MODE: Final = 0o644
 
 _NAME: Final = r"[\w.-]+"
 _STEP: Final = re.compile(
@@ -90,8 +120,13 @@ class RuleSet:
     package: str
     """The entry in ``third_party/manifest.json`` whose directory contains ``path``."""
     path: str
-    """Location of the compiled ``.xslt`` stylesheet inside the package."""
+    """Location of the rule set inside the package: a ``.sch`` source or a compiled ``.xslt``."""
     description: str
+
+    @property
+    def is_source(self) -> bool:
+        """Whether the rule set is a Schematron source that has to be compiled first."""
+        return self.path.endswith(".sch")
 
 
 RULE_SETS: Final[dict[str, RuleSet]] = {
@@ -102,6 +137,18 @@ RULE_SETS: Final[dict[str, RuleSet]] = {
             package="en16931",
             path="ubl/xslt/EN16931-UBL-validation.xslt",
             description="EN 16931 rules for UBL: the compiled XSLT published by CEN/TC 434.",
+        ),
+        RuleSet(
+            name="en16931-peppol",
+            package="peppol-bis-billing-3",
+            path="rules/sch/CEN-EN16931-UBL.sch",
+            description="EN 16931 rules for UBL in the version Peppol BIS Billing 3.0 bundles.",
+        ),
+        RuleSet(
+            name="peppol",
+            package="peppol-bis-billing-3",
+            path="rules/sch/PEPPOL-EN16931-UBL.sch",
+            description="Peppol BIS Billing 3.0 rules (PEPPOL-EN16931-*, PEPPOL-COMMON-*).",
         ),
     )
 }
@@ -127,6 +174,78 @@ def _compile(origin: Path, **stylesheet: str) -> PyXsltExecutable:
             return _xslt_processor().compile_stylesheet(**stylesheet)
         except PySaxonApiError as error:
             raise SchematronError(f"cannot compile the stylesheet of {origin}: {error}") from error
+
+
+def compile_schematron(source: Path, compiler_dir: Path) -> str:
+    """Compile a Schematron source into an SVRL-producing XSLT 2.0 stylesheet (returned as text).
+
+    This is the standard ISO pipeline: resolve inclusions, expand abstract patterns, generate
+    the validating stylesheet. The first step reads the source from its file, so that relative
+    inclusions resolve against the source's directory.
+    """
+    with _saxon_lock:
+        processor = _processor()
+        try:
+            include, expand, generate = (
+                _xslt_processor().compile_stylesheet(stylesheet_file=str(compiler_dir / name))
+                for name in _COMPILER_PIPELINE
+            )
+            for name, value in _COMPILER_PARAMETERS.items():
+                generate.set_parameter(name, processor.make_string_value(value))
+            text = include.transform_to_string(source_file=str(source))
+            for step in (expand, generate):
+                if not text:
+                    break
+                node = processor.parse_xml(xml_text=text, encoding=_ENCODING)
+                text = step.transform_to_string(xdm_node=node)
+        except PySaxonApiError as error:
+            raise SchematronError(f"cannot compile Schematron {source}: {error}") from error
+    if not text:
+        raise SchematronError(f"compiling Schematron {source} produced no stylesheet")
+    return text
+
+
+def _cache_file(rule_set: RuleSet, source: Path, compiler_dir: Path, root: Path) -> Path:
+    """Where the stylesheet compiled from ``source`` is cached, named by what it depends on.
+
+    The digest covers the compiler, its parameters and every file in the source's directory
+    tree, which is where the inclusions of a Schematron source live (the EN 16931 source
+    includes its abstract, binding and code-list patterns from subdirectories).
+    """
+    recipe = {
+        "pipeline": _COMPILER_PIPELINE,
+        "parameters": _COMPILER_PARAMETERS,
+        "source": source.name,
+    }
+    inputs = {
+        f"source/{path.relative_to(source.parent).as_posix()}": path
+        for path in source.parent.rglob("*")
+        if path.is_file()
+    }
+    inputs.update({f"compiler/{name}": compiler_dir / name for name in _COMPILER_FILES})
+    digest = hashlib.sha256(json.dumps(recipe, sort_keys=True).encode())
+    for label in sorted(inputs):
+        digest.update(label.encode())
+        digest.update(hashlib.sha256(inputs[label].read_bytes()).digest())
+    return root / CACHE_DIR / f"{rule_set.name}-{digest.hexdigest()[:16]}.xslt"
+
+
+def _store(path: Path, text: str) -> None:
+    """Cache a compiled stylesheet. Written atomically; an unwritable directory is no error.
+
+    The file is made world-readable (temporary files are private by default) so that a cache
+    written while building a container image can be read by the user the service runs as;
+    its content is public rule-set code.
+    """
+    with contextlib.suppress(OSError):
+        path.parent.mkdir(exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=path.parent, suffix=".tmp", delete_on_close=False
+        ) as partial:
+            partial.write(text)
+            partial.close()
+            os.chmod(partial.name, _CACHE_FILE_MODE)
+            os.replace(partial.name, path)
 
 
 def _element_at(steps: list[re.Match[str]], root: etree._Element) -> etree._Element | None:
@@ -209,7 +328,17 @@ class SchematronValidator:
         source = ruleset_path(rule_set.package, root=base) / rule_set.path
         if not source.is_file():
             raise SchematronError(f"rule set {rule_set.name!r}: {source} does not exist")
-        self._executable = _compile(source, stylesheet_file=str(source))
+        if not rule_set.is_source:
+            self._executable = _compile(source, stylesheet_file=str(source))
+            return
+        compiler_dir = ruleset_path(COMPILER_PACKAGE, root=base) / _COMPILER_DIR
+        cached = _cache_file(rule_set, source, compiler_dir, base)
+        if cached.is_file():
+            self._executable = _compile(source, stylesheet_file=str(cached))
+            return
+        text = compile_schematron(source, compiler_dir)
+        _store(cached, text)
+        self._executable = _compile(source, stylesheet_text=text)
 
     def validate(self, tree: etree._ElementTree) -> tuple[Violation, ...]:
         """The violations the rule set reports for the document, in report order."""

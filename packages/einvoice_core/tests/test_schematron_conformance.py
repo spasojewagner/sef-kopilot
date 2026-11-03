@@ -1,14 +1,20 @@
 """Conformance of the Schematron layer with the official rule sets and their unit tests.
 
-CEN/TC 434 publishes unit tests next to its rules, in the VEFA ``testSet`` format: small
-documents, each annotated with the outcomes the publisher expects. Every expectation of every
-published test is checked here:
+CEN/TC 434 and OpenPeppol publish unit tests next to their rules, in the VEFA ``testSet``
+format: small documents, each annotated with the outcomes the publisher expects. Every
+expectation of every published test is checked here:
 
 * ``success`` - the rule is not reported;
 * ``error`` - the rule is reported as fatal, exactly ``number`` times when that is given;
 * ``warning`` - the rule is reported as a warning, exactly ``number`` times when given.
 
 (A ``number`` on ``success`` counts evaluations that passed, which SVRL does not report.)
+
+The EN 16931 rules are checked twice: as the official XSLT, and as the flattened Schematron
+of the same release (``preprocessed/``, the form OpenPeppol bundles) compiled by our own
+pipeline, which must report exactly what the official XSLT reports on every published test
+document. That is the evidence that compiling the Peppol rules, for which no official XSLT
+exists, gives the results the publishers intend.
 
 These tests apply the fetched third-party rule sets (``make rulesets``) and are marked
 ``conformance``; ``pytest -m "not conformance"`` leaves them out of a quick local run.
@@ -19,6 +25,7 @@ from __future__ import annotations
 import copy
 import statistics
 import time
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,7 +36,7 @@ from lxml import etree
 
 from einvoice_core import schematron
 from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
-from einvoice_core.schematron import SchematronValidator
+from einvoice_core.schematron import RuleSet, SchematronValidator
 from einvoice_core.violations import Severity, Violation, is_valid
 from einvoice_core.xml import load_document
 
@@ -48,7 +55,7 @@ def _fetched(*packages: str) -> bool:
 pytestmark = [
     pytest.mark.conformance,
     pytest.mark.skipif(
-        not _fetched("en16931"),
+        not _fetched("en16931", "peppol-bis-billing-3", schematron.COMPILER_PACKAGE),
         reason="rule sets not fetched (run `make rulesets`)",
     ),
 ]
@@ -56,8 +63,23 @@ pytestmark = [
 VEFA = "http://difi.no/xsd/vefa/validator/1.0"
 
 CEN_UNIT_TESTS = sorted((THIRD_PARTY / "en16931" / "test").glob("*-unit-UBL/*.xml"))
+PEPPOL_UNIT_TESTS = sorted(
+    (THIRD_PARTY / "peppol-bis-billing-3" / "rules" / "unit-UBL-PEPPOL").glob("*.xml")
+)
 CEN_EXAMPLES = sorted((THIRD_PARTY / "en16931" / "ubl" / "examples").glob("ubl-tc434-*.xml"))
+PEPPOL_EXAMPLES = sorted(
+    (THIRD_PARTY / "peppol-bis-billing-3" / "rules" / "examples").glob("*.xml")
+)
 SYNTHETIC_FIXTURES = sorted(SYNTHETIC_DIR.glob("*.xml"))
+
+#: The flattened Schematron of the same EN 16931 release as the official XSLT: includes
+#: resolved and abstract patterns expanded by CEN, like the copy that Peppol BIS bundles.
+EN16931_SOURCE = RuleSet(
+    name="en16931-source",
+    package="en16931",
+    path="ubl/schematron/preprocessed/EN16931-UBL-validation-preprocessed.sch",
+    description="EN 16931 rules for UBL, compiled from the Schematron source by our pipeline.",
+)
 
 Outcome = Literal["success", "error", "warning"]
 _OUTCOMES: dict[str, Outcome] = {"success": "success", "error": "error", "warning": "warning"}
@@ -137,6 +159,13 @@ def _unmet(validator: SchematronValidator, path: Path) -> list[str]:
     return failures
 
 
+def _summary(violations: Sequence[Violation]) -> Counter[tuple[str, Severity, str | None, str]]:
+    return Counter(
+        (violation.rule_id, violation.severity, violation.xpath, violation.message)
+        for violation in violations
+    )
+
+
 def _describe(violations: Sequence[Violation]) -> str:
     return "\n".join(f"{v.rule_id} {v.severity} {v.xpath}: {v.message}" for v in violations)
 
@@ -145,9 +174,16 @@ def _relative(path: Path) -> str:
     return f"{path.parent.name}/{path.name}"
 
 
+@pytest.fixture(scope="module")
+def en16931_from_source() -> SchematronValidator:
+    return SchematronValidator(EN16931_SOURCE)
+
+
 def test_the_published_unit_tests_are_present() -> None:
     assert CEN_UNIT_TESTS
+    assert PEPPOL_UNIT_TESTS
     assert CEN_EXAMPLES
+    assert PEPPOL_EXAMPLES
 
 
 # --- the published unit tests -----------------------------------------------------------
@@ -160,12 +196,37 @@ def test_en16931_meets_the_published_unit_tests(path: Path) -> None:
     assert not failures, "\n".join(failures)
 
 
+@pytest.mark.parametrize("path", CEN_UNIT_TESTS, ids=_relative)
+def test_the_compiled_en16931_source_reports_what_the_official_xslt_reports(
+    path: Path, en16931_from_source: SchematronValidator
+) -> None:
+    official = schematron.default_validator("en16931")
+    for case in _cases(path):
+        compiled = _summary(en16931_from_source.validate(case.document))
+
+        assert compiled == _summary(official.validate(case.document)), case.description
+
+
+@pytest.mark.parametrize("path", PEPPOL_UNIT_TESTS, ids=_relative)
+def test_peppol_meets_the_published_unit_tests(path: Path) -> None:
+    failures = _unmet(schematron.default_validator("peppol"), path)
+
+    assert not failures, "\n".join(failures)
+
+
 # --- official examples and our synthetic fixtures -------------------------------------
 
 
 @pytest.mark.parametrize("path", CEN_EXAMPLES, ids=lambda path: path.name)
 def test_the_cen_examples_have_no_fatal_violations(path: Path) -> None:
     violations = schematron.default_validator("en16931").validate(load_document(path))
+
+    assert is_valid(violations), _describe(violations)
+
+
+@pytest.mark.parametrize("path", PEPPOL_EXAMPLES, ids=lambda path: path.name)
+def test_the_peppol_examples_have_no_fatal_violations(path: Path) -> None:
+    violations = schematron.validate_schematron(load_document(path), ["en16931-peppol", "peppol"])
 
     assert is_valid(violations), _describe(violations)
 
@@ -229,12 +290,15 @@ def test_violations_point_at_the_rule_context(
 
 def test_warm_validation_stays_within_the_performance_budget() -> None:
     """Brief §5: validating a typical invoice takes < 500 ms warm, all layers together."""
-    tree = load_document(SYNTHETIC_DIR / "srb-minimal-invoice.xml")
-    validator = schematron.default_validator("en16931")  # compiled outside the measurement
+    tree = load_document(
+        THIRD_PARTY / "peppol-bis-billing-3" / "rules" / "examples" / "base-example.xml"
+    )
+    rule_sets = ["en16931-peppol", "peppol"]
+    schematron.validate_schematron(tree, rule_sets)  # compile outside the measurement
     durations = []
     for _ in range(10):
         start = time.perf_counter()
-        validator.validate(tree)
+        schematron.validate_schematron(tree, rule_sets)
         durations.append(time.perf_counter() - start)
 
     assert statistics.median(durations) < 0.25  # half of the budget for the costliest layer

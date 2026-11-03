@@ -21,6 +21,10 @@ included paths are in [`manifest.json`](manifest.json).
 After a fetch, each rule set directory contains a `SOURCE.json` provenance record and a
 `NOTICE.md` with the terms.
 
+Stylesheets that the validator compiles from Schematron sources are cached in `_compiled/`
+(also git-ignored). Their file names carry a digest of the source and of the compiler, so a
+changed rule set is recompiled automatically; deleting the directory is always safe.
+
 ## Why fetched and not vendored
 
 - **Licensing.** The EN 16931 artefacts are EUPL-licensed and the Peppol rules carry
