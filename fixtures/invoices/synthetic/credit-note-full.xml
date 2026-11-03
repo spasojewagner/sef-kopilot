@@ -2,23 +2,16 @@
 <!--
   Synthetic test credit note. Every party, identifier and amount is invented.
   Shape: a credit note that uses almost every business group the model knows about —
-  extensions, references (with BT-11 carried as an AdditionalDocumentReference with type
-  code 50, as UBL 2.1 credit notes require), payee, tax representative, delivery, two tax totals (EUR document
-  currency plus RSD VAT accounting currency), document-level allowance and charge, an
-  embedded attachment, an invoiced object identifier, and two lines with line-level
-  allowance, price discount, period, classification and attributes.
+  references (with BT-11 carried as an AdditionalDocumentReference with type code 50, as
+  UBL 2.1 credit notes require), payee, tax representative, delivery, payment to two
+  credit-transfer accounts, two tax totals (EUR document currency plus RSD VAT accounting
+  currency), document-level allowance and charge, an embedded attachment, an invoiced object
+  identifier, and two lines with line-level allowance, price discount, period, classification
+  and attributes. It satisfies the UBL 2.1 schema and the EN 16931 rules without a warning.
 -->
 <CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
             xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
-            xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
-            xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2">
-  <ext:UBLExtensions>
-    <ext:UBLExtension>
-      <ext:ExtensionContent>
-        <demo:Marker xmlns:demo="urn:example:sef-kopilot:test-extension">ignored by the model</demo:Marker>
-      </ext:ExtensionContent>
-    </ext:UBLExtension>
-  </ext:UBLExtensions>
+            xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
   <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>
   <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
   <cbc:ID>KO-2026-7</cbc:ID>
@@ -214,13 +207,10 @@
     </cac:PayeeFinancialAccount>
   </cac:PaymentMeans>
   <cac:PaymentMeans>
-    <cbc:PaymentMeansCode>49</cbc:PaymentMeansCode>
-    <cac:PaymentMandate>
-      <cbc:ID>MANDAT-1</cbc:ID>
-      <cac:PayerFinancialAccount>
-        <cbc:ID>RS35160005010000099999</cbc:ID>
-      </cac:PayerFinancialAccount>
-    </cac:PaymentMandate>
+    <cbc:PaymentMeansCode>30</cbc:PaymentMeansCode>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>RS35160005010000067890</cbc:ID>
+    </cac:PayeeFinancialAccount>
   </cac:PaymentMeans>
   <cac:PaymentTerms>
     <cbc:Note>Povraćaj u roku od 30 dana</cbc:Note>
