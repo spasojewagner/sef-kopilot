@@ -54,5 +54,8 @@ is tagged.
   `AdditionalDocumentReference` with type code 50.
 - The synthetic credit note satisfies EN 16931: one payment means code (UBL-SR-47) and no UBL
   extensions (UBL-CR-001).
+- The core test suite passes on Windows: opening XML text as a file name fails there with
+  `EINVAL` rather than `ENOENT`, and examples with an upper-case `.XML` extension are listed
+  once instead of twice.
 
 [Unreleased]: https://github.com/spasojewagner/sef-kopilot/commits/main

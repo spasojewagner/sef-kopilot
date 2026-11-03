@@ -75,7 +75,7 @@ id `XSD` with libxml2's error type as the detail code; `null` XPath rather than 
 
 Next: `feat/core-schematron-runner`.
 
-## 2026-11-03 — `feat/core-schematron-runner` (7 commits)
+## 2026-11-03 — `feat/core-schematron-runner` (9 commits)
 
 Outcome: third slice of the validator core. `einvoice_core.schematron` runs CEN's official
 EN 16931 XSLT and the Peppol BIS Billing 3.0 Schematron with Saxon-HE (`saxonche`); Schematron
@@ -98,5 +98,9 @@ Process note: the gitleaks pre-commit hook could not be installed in the build e
 used for this branch (no access to the Go module proxy). With the maintainer's approval it was
 skipped for these commits, and the same gitleaks 8.30.1 scan ran on each commit's staged
 changes; CI scans the full history on push.
+
+Windows: the maintainer's run of the core suite on Windows found two portability problems in
+older tests (an `EINVAL` instead of `ENOENT`, and official examples listed twice because of a
+case-insensitive glob); both fixed in their own commits on this branch.
 
 Next: `feat/core-srb-cius-rules`.
