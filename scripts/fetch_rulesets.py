@@ -146,18 +146,13 @@ def _copy_included(checkout: Path, target: Path, include: tuple[str, ...]) -> in
     return copied
 
 
-def fetch(ruleset: Ruleset, destination: Path) -> Path:
-    """Fetch the pinned tag, verify the commit and copy the included paths.
+def _retrieve_git(ruleset: Ruleset, staging: Path) -> int:
+    """Fetch the pinned tag into a temporary checkout and copy the included paths to staging.
 
     The tag is fetched by its full ref name (``refs/tags/<ref>``) rather than with
     ``git clone --branch``: upstream repositories sometimes carry a branch and a tag with the
     same name, and ``--branch`` would silently prefer the branch.
-
-    The target directory is replaced atomically from the caller's point of view: the new copy
-    is assembled next to it and swapped in only after every check passed.
     """
-    target = destination / ruleset.name
-    staging = destination / f".{ruleset.name}.staging"
     print(f"[{ruleset.name}] fetching {ruleset.repository} at tag {ruleset.ref} ...")
     with tempfile.TemporaryDirectory(prefix="ruleset-") as temp:
         checkout = Path(temp) / "checkout"
@@ -173,10 +168,26 @@ def fetch(ruleset: Ruleset, destination: Path) -> Path:
                 f"manifest pins {ruleset.commit}. Either the tag moved upstream or the manifest "
                 "is wrong; review the release before changing the pin."
             )
-        if staging.exists():
-            shutil.rmtree(staging)
-        staging.mkdir(parents=True)
-        copied = _copy_included(checkout, staging, ruleset.include)
+        return _copy_included(checkout, staging, ruleset.include)
+
+
+def fetch(ruleset: Ruleset, destination: Path) -> Path:
+    """Retrieve the pinned rule set and install it under ``destination/<name>``.
+
+    The target directory is replaced atomically from the caller's point of view: the new copy
+    is assembled in a staging directory next to it and swapped in only after every check
+    passed, so a failed fetch never leaves a half-written rule set behind.
+    """
+    target = destination / ruleset.name
+    staging = destination / f".{ruleset.name}.staging"
+    if staging.exists():
+        shutil.rmtree(staging)
+    staging.mkdir(parents=True)
+    try:
+        copied = _retrieve_git(ruleset, staging)
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
 
     record = {
         "name": ruleset.name,

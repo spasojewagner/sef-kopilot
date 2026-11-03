@@ -103,6 +103,10 @@ def test_fetch_fails_when_an_included_path_is_missing(
             _ruleset(url, commit, include=["rules/sch", "missing.txt"]), tmp_path / "third_party"
         )
 
+    # Nothing half-written is left behind: neither the target nor the staging directory.
+    assert not (tmp_path / "third_party" / "demo").exists()
+    assert not (tmp_path / "third_party" / ".demo.staging").exists()
+
 
 def test_check_reports_missing_and_stale_rule_sets(
     upstream: tuple[str, str], tmp_path: Path
