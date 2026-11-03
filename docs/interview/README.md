@@ -11,3 +11,4 @@ per branch, to keep them with the code they describe.
 | `feat/core-ubl-parser` | [m1-core-ubl-parser.md](m1-core-ubl-parser.md) |
 | `feat/core-xsd-validation` | [m1-core-xsd-validation.md](m1-core-xsd-validation.md) |
 | `feat/core-schematron-runner` | [m1-core-schematron-runner.md](m1-core-schematron-runner.md) |
+| `feat/core-srb-cius-rules` | [m1-core-srb-cius-rules.md](m1-core-srb-cius-rules.md) |

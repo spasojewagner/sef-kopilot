@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Synthetic test invoice. Every party, identifier and amount is invented: "Primer Softver" and
-  "Ogledni Kupac" do not exist, the tax numbers only satisfy the check-digit algorithm.
+  "Ogledni Kupac" do not exist; the PIBs only have the form the PIB rulebook prescribes.
   Shape: the smallest Serbian-flavoured invoice (RSD, SEF customisation identifier) that still
   carries one line, one VAT breakdown and the document totals.
 -->
@@ -22,7 +22,7 @@
   </cac:InvoicePeriod>
   <cac:AccountingSupplierParty>
     <cac:Party>
-      <cbc:EndpointID schemeID="9948">100000008</cbc:EndpointID>
+      <cbc:EndpointID schemeID="9948">100000024</cbc:EndpointID>
       <cac:PartyName>
         <cbc:Name>Primer Softver</cbc:Name>
       </cac:PartyName>
@@ -35,7 +35,7 @@
         </cac:Country>
       </cac:PostalAddress>
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>RS100000008</cbc:CompanyID>
+        <cbc:CompanyID>RS100000024</cbc:CompanyID>
         <cac:TaxScheme>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>

@@ -50,8 +50,8 @@ def test_invoice_parties(invoice: model.Invoice) -> None:
     assert seller.xpath == "/ubl:Invoice/cac:AccountingSupplierParty"
     assert seller.name == "Primer Softver d.o.o."
     assert seller.trading_name == "Primer Softver"
-    assert seller.electronic_address == model.Identifier(value="100000008", scheme="9948")
-    assert seller.vat_identifier == "RS100000008"
+    assert seller.electronic_address == model.Identifier(value="100000024", scheme="9948")
+    assert seller.vat_identifier == "RS100000024"
     assert seller.tax_registration_identifier is None
     assert seller.legal_registration_id == model.Identifier(value="20000006", scheme=None)
     assert seller.address is not None
@@ -195,8 +195,8 @@ def test_credit_note_parties(credit_note: model.Invoice) -> None:
         model.Identifier(value="7300010000001", scheme="0088"),
         model.Identifier(value="SELLER-INTERNAL", scheme=None),
     )
-    assert seller.vat_identifier == "RS100000008"
-    assert seller.tax_registration_identifier == "100000008"
+    assert seller.vat_identifier == "RS100000024"
+    assert seller.tax_registration_identifier == "100000024"
     assert seller.legal_registration_id == model.Identifier(value="20000006", scheme="0230")
     assert seller.additional_legal_information == "Društvo sa ograničenom odgovornošću"
     assert seller.address is not None

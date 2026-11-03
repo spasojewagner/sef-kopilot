@@ -29,14 +29,20 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/core-ubl-parser` — UBL 2.1 parser into typed Pydantic models (ADR-0003)
 - [x] `feat/core-xsd-validation` — XSD validation with hardened `lxml` parsing (ADR-0004)
 - [x] `feat/core-schematron-runner` — EN 16931 and Peppol BIS Schematron via `saxonche`, compiled once and cached (ADR-0005)
-- [ ] `feat/core-srb-cius-rules` — SRB-CIUS rule set v1 authored from the specification, one rule per file, positive and negative fixtures per rule
+- [x] `feat/core-srb-cius-rules` — SRB-CIUS rule framework (one rule per module, cited, tested) and the first nine rules: document codes, identifiers, PIB check digits (ADR-0006)
+- [ ] `feat/core-srb-cius-party-rules` — legal registration numbers (BT-30, BT-47, BT-61), the seller's VAT status (BT-32, `RS-VAT-STATUS`), cities and post codes (BT-37, BT-38, BT-52, BT-53, BT-66, BT-67), preceding invoice date (BT-26), delivery date when BT-8 requires it (BT-72), public-procurement reference (BT-10), payment model notation (BT-83)
+- [ ] `feat/core-srb-cius-vat-rules` — VAT categories and exemption codes from the Ministry's code list (BT-95, BT-102, BT-118, BT-121, BT-151), the extension identifier and totals (Table 2)
 - [ ] BR-CO arithmetic rules in Python (property-based tests)
 - [x] Violation model `{rule_id, severity, xpath, message}`
 - [ ] `feat/core-fixtures-corpus` — 200+ fixtures: official EN 16931 test files, Peppol examples, SEF examples, synthetic mutations (`scripts/make_fixtures.py`)
+      (the 17 SEF examples pinned by URL and SHA-256, each with its expected violations: placeholder
+      PIBs, one abbreviated attachment)
 - [ ] `feat/core-cli` — `einvoice validate file.xml --profile srb`
       (with the validation pipeline: XSD, then Schematron only for schema-valid documents,
-      SRB-CIUS and arithmetic; profiles choose the rule sets; one violation cap for all layers)
-- [~] Learning notes: ~~Schematron and XPath assertions~~ (03), ~~UBL 2.1 document model~~ (02), EN 16931 business rules vs. CIUS
+      SRB-CIUS and arithmetic; profiles choose the rule sets; one violation cap for all layers;
+      the SRB profile sets aside, with reasons, the EN 16931 rules that SRB-CIUS widens:
+      `BR-CL-17`, `BR-CL-18`, `BR-CL-22`, `BR-O-*` and the checks of the RSD and extension totals)
+- [x] Learning notes: ~~Schematron and XPath assertions~~ (03), ~~UBL 2.1 document model~~ (02), ~~EN 16931 business rules vs. CIUS~~ (04)
 - [ ] Release: changelog move, version bump, `v0.1.0` tag prepared
 
 ## M2 — API + explanations (weeks 3–4) · tag `v0.2.0`

@@ -17,7 +17,8 @@ einvoice_core/
   xsd.py        UBL 2.1 XML Schema validation with confined schema loading and located violations
   schematron.py EN 16931 and Peppol BIS Schematron run with Saxon-HE; sources compiled with the ISO
                 pipeline and cached; SVRL reports turned into located violations
-  rules/srb/    planned: SRB-CIUS rules, one rule per module, each referencing the specification paragraph
+  srb/          SRB-CIUS rules authored from the specification: the rule shape, the cited sources,
+                identifier checks (PIB, JBKJS) and one module per rule in srb/rules/
   arithmetic/   planned: EN 16931 BR-CO-* arithmetic checks implemented in Python
   patches/      planned: patch model, forbidden-field guard, apply + re-validate + diff
   cli.py        planned: `einvoice validate file.xml --profile srb`
@@ -58,6 +59,35 @@ for violation in validate_schematron(tree, ["en16931"]):
     print(violation.rule_id, violation.severity, violation.xpath, violation.message)
     # BR-CO-15 fatal /ubl:Invoice [BR-CO-15]-Invoice total amount with VAT (BT-112) = ...
 ```
+
+## SRB-CIUS rules
+
+The Serbian rules are authored from the specification (version of 06.06.2025), one module
+per rule; each names the business terms it concerns and cites the passages it implements
+(ADR-0006). Like Schematron, they run on a schema-valid tree:
+
+```python
+from einvoice_core.srb import validate_srb
+
+for violation in validate_srb(tree):
+    print(violation.rule_id, violation.xpath, violation.message)
+    # SRB-009 /ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cbc:EndpointID
+    #   [SRB-009]-The PIB 123456789 in the seller electronic address (BT-34) cannot exist: ...
+```
+
+| Rule | Requirement | Business terms | Severity |
+| --- | --- | --- | --- |
+| SRB-001 | The invoice type code is 380, 381, 383 or 386 | BT-3 | fatal |
+| SRB-002 | The VAT accounting currency is RSD | BT-5, BT-6 | fatal |
+| SRB-003 | The VAT point date (BT-7) is not used | BT-7, BT-8 | fatal |
+| SRB-004 | An advance invoice has a payment due date | BT-3, BT-9 | fatal |
+| SRB-005 | The specification identifier is the SRB-CIUS identifier | BT-24 | fatal |
+| SRB-006 | A public-funds user has one JBKJS identifier of five digits, without a scheme | BT-29, BT-46, BT-60 | fatal |
+| SRB-007 | Seller, buyer and tax representative have a VAT identifier RS followed by a PIB | BT-31, BT-48, BT-63 | fatal |
+| SRB-008 | Seller and buyer electronic addresses are a PIB with scheme 9948 | BT-34, BT-49 | fatal |
+| SRB-009 | Every nine-digit PIB has a serial number in range and a valid check digit | BT-31, BT-34, BT-48, BT-49, BT-63 | fatal |
+
+A test keeps this table identical to the rules.
 
 ## Development
 
