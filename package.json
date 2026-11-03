@@ -1,0 +1,24 @@
+{
+  "name": "sef-kopilot",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Deterministic validation, plain-language explanations and reviewable repairs for Serbian (SEF) and EU electronic invoices.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@12.17.0",
+  "engines": {
+    "node": ">=22 <23",
+    "pnpm": ">=12"
+  },
+  "scripts": {
+    "lint": "pnpm --recursive --if-present lint",
+    "typecheck": "pnpm --recursive --if-present typecheck",
+    "test": "pnpm --recursive --if-present test",
+    "build": "pnpm --recursive --if-present build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "3.9.10",
+    "prettier-plugin-tailwindcss": "0.8.1"
+  }
+}

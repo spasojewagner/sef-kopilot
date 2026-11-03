@@ -7,30 +7,36 @@
 SHELL := bash
 
 UV   ?= uv
+PNPM ?= pnpm
 
-.PHONY: help setup sync lint format typecheck test test-core test-api api clean
+.PHONY: help setup sync lint format typecheck test test-core test-api test-web api web build-web clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-setup: sync ## Install everything a fresh clone needs (Python deps, git hooks)
+setup: sync ## Install everything a fresh clone needs (Python and Node deps, git hooks)
+	$(PNPM) install --frozen-lockfile
 	$(UV) run pre-commit install --install-hooks
 
 sync: ## Install / update Python dependencies for every workspace package
 	$(UV) sync --all-packages
 
-lint: ## Lint Python with ruff (no changes)
+lint: ## Lint everything without changing files (ruff, Prettier, ESLint)
 	$(UV) run ruff check .
 	$(UV) run ruff format --check .
+	$(PNPM) format:check
+	$(PNPM) lint
 
-format: ## Format and auto-fix Python with ruff
+format: ## Format and auto-fix everything (ruff, Prettier)
 	$(UV) run ruff check --fix .
 	$(UV) run ruff format .
+	$(PNPM) format
 
-typecheck: ## Static typing with mypy --strict
+typecheck: ## Static typing: mypy --strict and tsc --noEmit
 	$(UV) run mypy
+	$(PNPM) typecheck
 
-test: test-core test-api ## Run every test suite
+test: test-core test-api test-web ## Run every test suite
 
 test-core: ## Tests for packages/einvoice_core with the coverage gate (>= 90 %)
 	$(UV) run pytest packages/einvoice_core --cov=einvoice_core --cov-report=term-missing --cov-fail-under=90
@@ -38,9 +44,18 @@ test-core: ## Tests for packages/einvoice_core with the coverage gate (>= 90 %)
 test-api: ## Tests for apps/api with the coverage gate (>= 80 %)
 	$(UV) run pytest apps/api --cov=sef_api --cov-report=term-missing --cov-fail-under=80
 
+test-web: ## Vitest suite for apps/web
+	$(PNPM) --filter @sef-kopilot/web test
+
 api: ## Run the API locally with auto-reload (http://127.0.0.1:8000/docs)
 	$(UV) run uvicorn sef_api.main:app --reload
 
+web: ## Run the web app locally (http://localhost:3000)
+	$(PNPM) --filter @sef-kopilot/web dev
+
+build-web: ## Production build of the web app
+	$(PNPM) --filter @sef-kopilot/web build
+
 clean: ## Remove caches and build output (keeps dependencies)
-	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage coverage.xml htmlcov
+	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage coverage.xml htmlcov apps/web/.next
 	find . -name __pycache__ -type d -prune -not -path './node_modules/*' -exec rm -rf {} +

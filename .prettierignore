@@ -1,0 +1,15 @@
+# Generated or vendored content
+node_modules
+.next
+out
+coverage
+dist
+.venv
+third_party
+.handoff
+pnpm-lock.yaml
+uv.lock
+next-env.d.ts
+
+# Markdown is hand-written documentation; Prettier's opinions about tables and lists are not applied.
+*.md
