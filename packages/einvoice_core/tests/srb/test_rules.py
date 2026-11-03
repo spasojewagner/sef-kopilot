@@ -50,6 +50,16 @@ def test_every_rule_has_tests_that_satisfy_and_break_it(rule: srb.Rule) -> None:
     assert any(name.startswith("test_broken_") for name in names), module.name
 
 
+def test_the_core_readme_lists_every_rule() -> None:
+    readme = (TESTS.parents[1] / "README.md").read_text(encoding="utf-8")
+    listed = [line for line in readme.splitlines() if line.startswith("| SRB-")]
+
+    assert listed == [
+        f"| {rule.id} | {rule.title} | {', '.join(rule.terms)} | {rule.severity} |"
+        for rule in RULES
+    ]
+
+
 def test_the_synthetic_serbian_invoices_satisfy_every_rule(synthetic_dir: Path) -> None:
     for path in sorted(synthetic_dir.glob("srb-*.xml")):
         assert validate_srb(load_document(path)) == (), path.name

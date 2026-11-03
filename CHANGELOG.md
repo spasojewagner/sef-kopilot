@@ -16,6 +16,12 @@ is tagged.
 
 ### Added
 
+- `einvoice_core`: SRB-CIUS rule layer, authored from the specification (version of
+  06.06.2025): one rule per module with an `SRB-NNN` identifier, the business terms it concerns
+  and the passages it cites; violations in the `srb-cius` layer. The first nine rules cover the
+  invoice type code, the RSD VAT currency, the unused VAT point date, the advance-invoice due
+  date, the specification identifier, JBKJS identifiers, VAT identifiers, electronic addresses
+  and PIB serial and check digits (ADR-0006).
 - `einvoice_core`: Schematron layer. The EN 16931 rules (official CEN XSLT) and the Peppol BIS
   Billing 3.0 rules run with Saxon-HE (`saxonche`); Schematron sources are compiled with the
   pinned ISO Schematron pipeline and cached; SVRL results become violations with canonical

@@ -106,3 +106,34 @@ had turned backslashes into `/` on Windows, and accepted drive letters on every 
 three fixed in their own commits on this branch.
 
 Next: `feat/core-srb-cius-rules`.
+
+## 2026-11-04 — `feat/core-srb-cius-rules` (5 commits)
+
+Outcome: fourth slice of the validator core. `einvoice_core.srb` turns SRB-CIUS (version of
+06.06.2025), which the Ministry publishes as a table of usage notes without rule identifiers,
+into executable rules: one module per rule with an `SRB-NNN` id, the business terms it
+concerns and the passages it cites (source registry with document versions); findings become
+`srb-cius` violations with canonical XPaths and source lines. Nine rules: invoice type code,
+RSD VAT currency, unused BT-7, advance-invoice due date, specification identifier, JBKJS,
+VAT identifiers, electronic addresses, PIB serial and check digit. The synthetic seller's PIB
+moved into the rulebook's serial range. ADR-0006, learning note 04, interview notes.
+
+Verification: 1 005 tests green; core coverage 100 % (branches included). On the 17 example
+documents published with the specification (downloaded by the maintainer, not committed):
+SRB-001 to SRB-008 report nothing, SRB-009 reports the four placeholder PIBs of each, and one
+example is not schema-valid (its embedded PDF is abbreviated with "..."). EN 16931 rejects
+eight of the sixteen schema-valid examples — Serbian code lists, category O next to S, RSD and
+extension totals — which the SRB profile will have to set aside explicitly. Nine rules take
+0.3–0.4 ms per invoice.
+
+Decisions: rules in Python rather than our own Schematron or a rule DSL; PIB form and PIB
+arithmetic as separate rules; severity policy (a stated requirement is fatal, one the official
+examples contradict or the text leaves open is a warning until M5); the SRB-CIUS rule set v1
+split over three branches (this one, party rules, VAT rules) to keep each reviewable. The
+tightened cardinalities were read from the PDF's drawing layer, since text extraction loses
+the struck-through values.
+
+Process note: as on the previous branch, the gitleaks hook was skipped with the maintainer's
+approval and the same gitleaks 8.30.1 scan ran on each commit's staged changes.
+
+Next: `feat/core-srb-cius-party-rules`.
