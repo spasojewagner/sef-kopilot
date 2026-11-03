@@ -6,7 +6,7 @@
 # monorepo is checked the same way. See docs/adr/0001-monorepo-and-tooling.md.
 
 [tool.uv.workspace]
-members = ["packages/einvoice_core"]
+members = ["apps/api", "packages/einvoice_core"]
 
 [tool.uv]
 default-groups = ["dev"]
@@ -30,7 +30,7 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["packages/einvoice_core/src"]
+src = ["packages/einvoice_core/src", "apps/api/src"]
 extend-exclude = ["third_party", "apps/web"]
 
 [tool.ruff.lint]
@@ -74,7 +74,7 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 pretty = true
-files = ["packages/einvoice_core"]
+files = ["packages/einvoice_core", "apps/api"]
 exclude = ["third_party/", "node_modules/", "\\.venv/"]
 
 # ---------------------------------------------------------------------------
@@ -82,7 +82,7 @@ exclude = ["third_party/", "node_modules/", "\\.venv/"]
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 minversion = "9.0"
-testpaths = ["packages/einvoice_core/tests"]
+testpaths = ["packages/einvoice_core/tests", "apps/api/tests"]
 addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
