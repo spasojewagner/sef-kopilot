@@ -1,5 +1,12 @@
-# Dependabot keeps the three dependency ecosystems fresh with small, reviewable pull requests.
-# Commit messages follow the project's Conventional Commits scopes (`deps`).
+# Dependabot keeps the dependency ecosystems fresh with small, reviewable pull requests.
+# Commit messages follow the project's Conventional Commits scopes (`deps`, `ci`).
+#
+# Policy (see CONTRIBUTING.md, "Dependency updates"):
+#   - minor and patch updates arrive weekly, grouped per ecosystem;
+#   - major updates of Python and Node packages are planned migrations, done by hand in their own
+#     branch once the frameworks that depend on them support the new major (for example
+#     TypeScript and ESLint majors wait for Next.js; @types/node follows the Node 22 runtime);
+#   - GitHub Actions majors are proposed normally: actions are pinned by commit SHA and reviewed.
 version: 2
 updates:
   - package-ecosystem: "uv"
@@ -12,6 +19,9 @@ updates:
     groups:
       python-minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     labels: ["dependencies", "python"]
 
   - package-ecosystem: "npm"
@@ -24,6 +34,9 @@ updates:
     groups:
       node-minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     labels: ["dependencies", "javascript"]
 
   - package-ecosystem: "github-actions"

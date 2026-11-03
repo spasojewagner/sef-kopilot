@@ -126,6 +126,18 @@ The pull request title is the branch's main commit subject, in Conventional Comm
 - Performance budget measured and noted where relevant: validate a typical invoice < 500 ms
   warm, explanation < 6 s, the whole repair loop < 20 s.
 
+## Dependency updates
+
+- Dependabot opens grouped pull requests every Monday for minor and patch updates of the Python
+  (`uv`) and Node (`npm`) dependencies, and for GitHub Actions. They are merged when CI is green.
+- Major versions of Python and Node packages are **planned migrations**, never automatic: they
+  are done by hand in their own branch (`chore/deps-<package>-<major>`) once the frameworks
+  that depend on them support the new major — for example a TypeScript or ESLint major waits
+  for Next.js, and `@types/node` follows the Node 22 runtime, not the newest Node release. The
+  migration branch reads the upstream changelog, updates code and configuration, and records
+  anything surprising in its pull request.
+- Security advisories are handled as soon as they are raised, whatever the version jump.
+
 ## Versions, tags and changelog
 
 - [Semantic Versioning](https://semver.org/). `CHANGELOG.md` follows

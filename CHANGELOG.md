@@ -9,6 +9,11 @@ is tagged.
 
 ## [Unreleased]
 
+### Changed
+
+- Dependabot proposes only minor and patch updates for Python and Node packages; major
+  versions are planned migrations (CONTRIBUTING.md, "Dependency updates").
+
 ### Added
 
 - `einvoice_core`: typed invoice document model following the EN 16931 semantic model
