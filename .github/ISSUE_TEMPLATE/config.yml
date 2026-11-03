@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/spasojewagner/sef-kopilot/security/advisories/new
+    about: Report privately; never in a public issue. See SECURITY.md.
+  - name: Questions and ideas
+    url: https://github.com/spasojewagner/sef-kopilot/discussions
+    about: Anything that is not a bug or a concrete feature request.
