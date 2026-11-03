@@ -15,7 +15,7 @@ Next: ...
 
 Entries are added in the last commit of each branch.
 
-## 2026-11-03 — `chore/bootstrap` (8 commits on top of the initial commit)
+## 2026-11-03 — `chore/bootstrap` (9 commits on top of the initial commit)
 
 Outcome: milestone M0 complete. Monorepo skeleton (uv workspace with `einvoice_core` and the
 FastAPI `api`, pnpm workspace with the Next.js `web`), pre-commit gate with the Conventional
@@ -27,7 +27,9 @@ ADR-0001 and ADR-0002, architecture map, first learning and interview notes.
 Verification: 22 Python tests and 2 Vitest tests green; core and API coverage 100 %;
 `mypy --strict`, ruff, ESLint, `tsc --noEmit`, Prettier and `pre-commit run --all-files` clean;
 `next build` succeeds; `docker compose config` valid; real rule-set fetch verified against the
-pinned commits; `gitleaks` finds nothing in the history.
+pinned commits; `gitleaks` finds nothing in the history. The same sequence was then run on
+the maintainer's Windows workstation: it caught one test that shelled out to `ls`, which
+was made platform-independent (Python interpreter instead of a shell tool).
 
 Decisions: tags are fetched by full ref name because the EN 16931 repository has a branch and a
 tag with the same release name; pnpm `minimumReleaseAge` set to one day; Prettier does not

@@ -1,11 +1,20 @@
 """Tests for the small helper scripts behind the project-local pre-commit hooks."""
 
+import subprocess
+import sys
 from pathlib import Path, PurePosixPath
 
 import pytest
 
 import check_identical
 import run_in_dir
+
+# Exits 0 when every argument is an existing file relative to the working directory, 3 otherwise.
+# Used instead of a shell tool such as `ls` so the test runs identically on Windows and POSIX.
+CHECK_FILES_EXIST = (
+    "import pathlib, sys; "
+    "sys.exit(0 if all(pathlib.Path(p).is_file() for p in sys.argv[1:]) else 3)"
+)
 
 
 @pytest.mark.parametrize(
@@ -28,8 +37,18 @@ def test_run_in_dir_executes_the_command_inside_the_directory(
     (tmp_path / "pkg" / "b.txt").write_text("b")
     monkeypatch.chdir(tmp_path)
 
-    # pre-commit passes root-relative names; `ls` only succeeds if they were rebased to `pkg`.
-    code = run_in_dir.main(["pkg", "ls", "--", "pkg/a.txt", "pkg/b.txt"])
+    # Without the wrapper the root-relative names do not resolve from inside `pkg` ...
+    direct = subprocess.run(
+        [sys.executable, "-c", CHECK_FILES_EXIST, "pkg/a.txt", "pkg/b.txt"],
+        cwd=tmp_path / "pkg",
+        check=False,
+    )
+    assert direct.returncode == 3
+
+    # ... and with it they do, because it changes directory and rebases the file arguments.
+    code = run_in_dir.main(
+        ["pkg", sys.executable, "-c", CHECK_FILES_EXIST, "--", "pkg/a.txt", "pkg/b.txt"]
+    )
 
     assert code == 0
 
