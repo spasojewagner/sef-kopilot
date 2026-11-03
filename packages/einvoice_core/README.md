@@ -91,6 +91,9 @@ for violation in validate_srb(tree):
 | SRB-012 | Buyer, payee and a resident seller give a legal registration number, without a scheme | BT-30, BT-47, BT-61 | fatal |
 | SRB-013 | The seller states its VAT registration status | BT-32 | warning |
 | SRB-014 | The seller's VAT registration status is VAT or NO-VAT | BT-32 | fatal |
+| SRB-015 | Seller, buyer and tax representative addresses name the city | BT-37, BT-52, BT-66 | fatal |
+| SRB-016 | A resident seller and a tax representative give a post code | BT-38, BT-67 | fatal |
+| SRB-017 | The buyer's address gives a post code | BT-53 | warning |
 
 A test keeps this table identical to the rules.
 

@@ -9,9 +9,11 @@ from typing import Final
 
 __all__ = [
     "BUYER",
+    "CITY",
     "COUNTRY_CODE",
     "LEGAL_REGISTRATION",
     "PAYEE",
+    "POST_CODE",
     "SELLER",
     "SERBIA",
     "TAX_REPRESENTATIVE",
@@ -38,6 +40,10 @@ VAT_STATUS: Final = (
 )
 #: A party's legal registration identifier (BT-30, BT-47, BT-61).
 LEGAL_REGISTRATION: Final = "cac:PartyLegalEntity/cbc:CompanyID"
+#: A party's city (BT-37, BT-52, BT-66).
+CITY: Final = "cac:PostalAddress/cbc:CityName"
+#: A party's post code (BT-38, BT-53, BT-67).
+POST_CODE: Final = "cac:PostalAddress/cbc:PostalZone"
 #: A party's country code (BT-40, BT-55, BT-69).
 COUNTRY_CODE: Final = "cac:PostalAddress/cac:Country/cbc:IdentificationCode"
 #: The country code SRB-CIUS prescribes for Serbia (BT-40, BT-55, BT-69). Where a usage note
