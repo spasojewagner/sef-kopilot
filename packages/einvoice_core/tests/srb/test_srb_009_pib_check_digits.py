@@ -10,7 +10,7 @@ from .conftest import Case
 
 SELLER = "cac:AccountingSupplierParty/cac:Party"
 BUYER = "cac:AccountingCustomerParty/cac:Party"
-VAT = "cac:PartyTaxScheme/cbc:CompanyID"
+VAT = "cac:PartyTaxScheme[cac:TaxScheme/cbc:ID = 'VAT']/cbc:CompanyID"
 
 
 def test_satisfied_by_assignable_pibs(case: Case) -> None:
@@ -26,7 +26,7 @@ def test_satisfied_by_values_whose_form_other_rules_judge(case: Case, value: str
 def test_broken_by_a_mistyped_check_digit(case: Case) -> None:
     (violation,) = case.set_text(f"{SELLER}/{VAT}", "RS100000025").violations(RULE)
 
-    assert violation.xpath == f"/ubl:Invoice/{SELLER}/{VAT}"
+    assert violation.xpath == f"/ubl:Invoice/{SELLER}/cac:PartyTaxScheme[1]/cbc:CompanyID"
     assert violation.message == (
         "[SRB-009]-The PIB 100000025 in the seller VAT identifier (BT-31) cannot exist: its "
         "last digit must be the check digit of 10000002, which is 4, not 5."
