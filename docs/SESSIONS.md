@@ -74,3 +74,29 @@ Decisions: official archive pinned by SHA-256 over vendoring or a third-party mi
 id `XSD` with libxml2's error type as the detail code; `null` XPath rather than a guess.
 
 Next: `feat/core-schematron-runner`.
+
+## 2026-11-03 — `feat/core-schematron-runner` (7 commits)
+
+Outcome: third slice of the validator core. `einvoice_core.schematron` runs CEN's official
+EN 16931 XSLT and the Peppol BIS Billing 3.0 Schematron with Saxon-HE (`saxonche`); Schematron
+sources are compiled with the pinned ISO reference pipeline (`iso-schematron`, new in the
+manifest) and cached in `third_party/_compiled/`. SVRL reports become violations with canonical
+XPaths and source lines. The synthetic credit note was made valid under EN 16931 (UBL-SR-47,
+UBL-CR-001). ADR-0005, learning note 03, interview notes.
+
+Verification: 897 tests green; core coverage 100 %. Conformance suite (marker `conformance`,
+643 tests, ~11 s): all 277 CEN unit-test sets (1 131 tests) and all 62 Peppol sets (340 tests),
+the 21 CEN and Peppol examples, both synthetic fixtures with zero violations; CEN's flattened
+Schematron compiled by our pipeline reports exactly what CEN's XSLT reports on all 1 131 test
+documents. Validation ≈ 3 ms per rule set per invoice; first use 0.3–0.9 s per rule set.
+
+Decisions: execute the published rules in process (no JVM sidecar, no re-implementation); the
+ISO pipeline for its lineage with the official XSLT; `null` XPath rather than a guess; no
+per-layer violation cap (a pipeline concern).
+
+Process note: the gitleaks pre-commit hook could not be installed in the build environment
+used for this branch (no access to the Go module proxy). With the maintainer's approval it was
+skipped for these commits, and the same gitleaks 8.30.1 scan ran on each commit's staged
+changes; CI scans the full history on push.
+
+Next: `feat/core-srb-cius-rules`.
