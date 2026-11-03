@@ -89,6 +89,8 @@ for violation in validate_srb(tree):
 | SRB-010 | A public-procurement buyer reference is JN-JBKJS: followed by five digits | BT-10 | fatal |
 | SRB-011 | A preceding invoice reference gives the preceding invoice's issue date | BG-3, BT-26 | fatal |
 | SRB-012 | Buyer, payee and a resident seller give a legal registration number, without a scheme | BT-30, BT-47, BT-61 | fatal |
+| SRB-013 | The seller states its VAT registration status | BT-32 | warning |
+| SRB-014 | The seller's VAT registration status is VAT or NO-VAT | BT-32 | fatal |
 
 A test keeps this table identical to the rules.
 

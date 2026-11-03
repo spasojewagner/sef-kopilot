@@ -16,6 +16,7 @@ __all__ = [
     "SERBIA",
     "TAX_REPRESENTATIVE",
     "VAT_IDENTIFIER",
+    "VAT_STATUS",
 ]
 
 #: The seller (BG-4).
@@ -29,6 +30,11 @@ TAX_REPRESENTATIVE: Final = "cac:TaxRepresentativeParty"
 #: A party's VAT identifier (BT-31, BT-48, BT-63): its tax registration under the scheme VAT.
 VAT_IDENTIFIER: Final = (
     "cac:PartyTaxScheme[normalize-space(cac:TaxScheme/cbc:ID) = 'VAT']/cbc:CompanyID"
+)
+#: A party's VAT registration status (BT-32, seller only): the registration filed under the
+#: Serbian scheme RS-VAT-STATUS.
+VAT_STATUS: Final = (
+    "cac:PartyTaxScheme[normalize-space(cac:TaxScheme/cbc:ID) = 'RS-VAT-STATUS']/cbc:CompanyID"
 )
 #: A party's legal registration identifier (BT-30, BT-47, BT-61).
 LEGAL_REGISTRATION: Final = "cac:PartyLegalEntity/cbc:CompanyID"
