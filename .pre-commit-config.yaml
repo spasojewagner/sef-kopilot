@@ -1,0 +1,111 @@
+# pre-commit hooks: https://pre-commit.com
+#
+# Install once per clone:  uv run pre-commit install --install-hooks  (or `make setup`)
+# Run on everything:       uv run pre-commit run --all-files
+#
+# Hooks are never bypassed with --no-verify. If a hook is wrong, fix the hook.
+
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+minimum_pre_commit_version: "4.0.0"
+
+# Vendored rule sets, generated lock files and local handoff notes are not ours to lint.
+exclude: ^(third_party/|\.handoff/|pnpm-lock\.yaml$|uv\.lock$)
+
+repos:
+  # --- hygiene ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: no-commit-to-branch
+        args: [--branch, main]
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: check-json
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # --- GitHub configuration schemas -----------------------------------------------------
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.39.0
+    hooks:
+      - id: check-github-workflows
+      - id: check-dependabot
+
+  # --- Python: lint, format, lock -------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.13.7
+    hooks:
+      - id: uv-lock
+
+  # --- secrets ---------------------------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # --- commit message -------------------------------------------------------------------
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.5.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args:
+          - --strict
+          - --force-scope
+          - --scopes
+          - core,api,web,mcp,rag,repair,sef,evals,infra,ci,docs,deps,repo
+          - feat
+          - fix
+          - docs
+          - test
+          - refactor
+          - perf
+          - chore
+          - ci
+          - build
+          - style
+
+  # --- project-local hooks --------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy --strict (workspace)
+        entry: uv run --frozen mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: eslint
+        name: eslint (apps/web)
+        entry: python scripts/hooks/run_in_dir.py apps/web pnpm exec eslint --max-warnings=0 --
+        language: python
+        files: ^apps/web/.*\.(ts|tsx|js|mjs|cjs)$
+
+      - id: prettier
+        name: prettier
+        entry: pnpm exec prettier --write --ignore-unknown
+        language: system
+        files: \.(ts|tsx|js|mjs|cjs|json|css|ya?ml)$
+
+      - id: agent-docs-identical
+        name: CLAUDE.md and AGENTS.md are identical
+        entry: python scripts/hooks/check_identical.py CLAUDE.md AGENTS.md
+        language: python
+        files: ^(CLAUDE|AGENTS)\.md$
+        pass_filenames: false
