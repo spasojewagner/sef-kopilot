@@ -5,7 +5,7 @@ where each concern lives in the repository. It is kept current in the pull reque
 changes the architecture; decisions and their trade-offs are recorded separately in
 [`adr/`](adr/README.md). The product and engineering charter is [`BRIEF.md`](BRIEF.md).
 
-Status: milestone M0 (skeleton). Sections marked *planned* describe the target shape and are
+Status: milestone M1 in progress. Sections marked *planned* describe the target shape and are
 filled in as the milestones land.
 
 ## System context
@@ -53,12 +53,12 @@ the system without a green validator.
 
 | Path | Responsibility | Status |
 | --- | --- | --- |
-| `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M0 skeleton |
+| `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 in progress: semantic model, hardened XML loading, UBL 2.1 parser |
 | `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M0 skeleton (`/health`, `/ready`) |
 | `apps/web` | upload, report, explanations, diff and approval UI (sr-Latn / en) | M0 skeleton |
 | `third_party/` | fetched EN 16931 and Peppol BIS artefacts with their terms | M0 |
 | `corpus/` | regulation texts from official sources with `source_url`, `fetched_at`, `valid_from` | planned (M2) |
-| `fixtures/invoices/` | official examples and synthetic invoices; never real company data | planned (M1) |
+| `fixtures/invoices/` | synthetic invoices (official examples are used from `third_party/`); never real company data | M1 in progress |
 | `evals/` | golden sets, runner, thresholds, latest report | planned (M6) |
 | `infra/` | docker-compose for local PostgreSQL and Redis; Dockerfiles and deployment manifests | M0 (compose) |
 | `scripts/` | rule-set fetcher, fixture generator, hook helpers | M0 |

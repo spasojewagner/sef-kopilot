@@ -11,6 +11,10 @@ is tagged.
 
 ### Added
 
+- `einvoice_core`: typed invoice document model following the EN 16931 semantic model
+  (`Decimal` amounts, BT/BG-named fields, canonical XPath per business group), hardened XML
+  loading (no DTD, entities or network; size limit) and a UBL 2.1 Invoice / CreditNote parser
+  verified against all official CEN and OpenPeppol example documents (ADR-0003).
 - Project charter (`docs/BRIEF.md`), README with vision and architecture, contributor guide,
   security policy, backlog and session log.
 - uv workspace with `packages/einvoice_core` (src layout, strict typing, 90 % coverage gate)

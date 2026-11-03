@@ -36,3 +36,22 @@ tag with the same release name; pnpm `minimumReleaseAge` set to one day; Prettie
 format Markdown; `mypy --strict` applies to every Python package, not only the core.
 
 Next: `feat/core-ubl-parser` (M1).
+
+## 2026-11-03 — `feat/core-ubl-parser` (7 commits)
+
+Outcome: first slice of the validator core. `einvoice_core.model` (typed invoice document
+following the EN 16931 semantic model, `Decimal` amounts, canonical XPath per business
+group), `einvoice_core.xml` (hardened loading: no DTD, no entities, no network, byte limit;
+`canonical_xpath`), `einvoice_core.ubl` (UBL 2.1 Invoice and CreditNote → model per the
+EN 16931-3-2 binding). Two synthetic fixtures with invented parties and check-digit-valid tax
+numbers. ADR-0003, learning note 02, interview notes.
+
+Verification: 108 tests (86 new) green, core coverage 100 %, `mypy --strict` and ruff clean;
+all 29 official CEN and OpenPeppol examples parse (~5 ms each) and every XPath in the resulting
+models resolves to exactly one element; property-based test for the XPath invariant; each
+commit verified green on its own in a throw-away worktree.
+
+Decisions: semantic model over a syntax mirror; required-by-schema only; XPath on groups, leaf
+addresses derived by rules; the lxml tree lives beside the model, not inside it.
+
+Next: `feat/core-xsd-validation`.

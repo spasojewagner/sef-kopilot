@@ -8,6 +8,7 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | --- | --- | --- | --- |
 | [0001](0001-monorepo-and-tooling.md) | Monorepo and tooling | accepted | 2026-11-03 |
 | [0002](0002-deterministic-validator-is-the-source-of-truth.md) | Deterministic validator is the source of truth | accepted | 2026-11-03 |
+| [0003](0003-semantic-invoice-model.md) | The invoice model follows the EN 16931 semantic model, not the XML syntax | accepted | 2026-11-03 |
 
 Planned (recorded when the work lands): Schematron runner and compilation strategy (M1),
 SRB-CIUS rule authoring format (M1), multi-tenant data model and row-level access (M2),
