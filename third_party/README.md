@@ -14,6 +14,7 @@ make rulesets-check    # python scripts/fetch_rulesets.py --check  (no network)
 | `ubl-2.1` | OASIS UBL 2.1 OS schemas for Invoice and CreditNote, with the common component schemas they import | `UBL-2.1.zip` (SHA-256 `60b80d76…`) | OASIS IPR Policy notices; xmldsig schema under the W3C Software License |
 | `en16931` | CEN/TC 434 EN 16931 validation artefacts, UBL syntax binding (Schematron + official XSLT build, examples, unit-test invoices) | `validation-1.3.17` | EUPL 1.2 |
 | `peppol-bis-billing-3` | Peppol BIS Billing 3.0 rules (Schematron sources), OpenPeppol examples and unit-test files | `3.0.21` | OpenPeppol AISBL copyright; CEN content reproduced with permission; no license file upstream |
+| `iso-schematron` | ISO Schematron reference implementation: the XSLT pipeline that compiles Schematron sources (the Peppol rules) into validating XSLT | `2020-10-01` (final state; archived upstream) | MIT |
 
 The exact source (a git tag pinned by commit, or an archive URL pinned by SHA-256) and the
 included paths are in [`manifest.json`](manifest.json).

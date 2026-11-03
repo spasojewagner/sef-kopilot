@@ -215,7 +215,12 @@ def test_project_manifest_is_valid() -> None:
     """The real manifest must always load; this is the cheapest guard against typos."""
     rulesets = fetch_rulesets.load_manifest(fetch_rulesets.DEFAULT_MANIFEST)
 
-    assert [ruleset.name for ruleset in rulesets] == ["ubl-2.1", "en16931", "peppol-bis-billing-3"]
+    assert [ruleset.name for ruleset in rulesets] == [
+        "ubl-2.1",
+        "en16931",
+        "peppol-bis-billing-3",
+        "iso-schematron",
+    ]
     ubl, *git_rulesets = rulesets
     assert isinstance(ubl.source, ArchiveSource)
     assert ubl.source.url.startswith("https://docs.oasis-open.org/")
