@@ -26,7 +26,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## M1 — Validator core (weeks 1–2) · tag `v0.1.0`
 
-- [ ] `feat/core-ubl-parser` — UBL 2.1 parser into typed Pydantic models
+- [x] `feat/core-ubl-parser` — UBL 2.1 parser into typed Pydantic models (ADR-0003)
 - [ ] `feat/core-xsd-validation` — XSD validation with hardened `lxml` parsing
 - [ ] `feat/core-schematron-runner` — EN 16931 and Peppol BIS Schematron via `saxonche`, compiled once and cached
 - [ ] `feat/core-srb-cius-rules` — SRB-CIUS rule set v1 authored from the specification, one rule per file, positive and negative fixtures per rule
@@ -34,7 +34,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] Violation model `{rule_id, severity, xpath, message}`
 - [ ] `feat/core-fixtures-corpus` — 200+ fixtures: official EN 16931 test files, Peppol examples, SEF examples, synthetic mutations (`scripts/make_fixtures.py`)
 - [ ] `feat/core-cli` — `einvoice validate file.xml --profile srb`
-- [ ] Learning notes: Schematron and XPath assertions, UBL 2.1 document model, EN 16931 business rules vs. CIUS
+- [~] Learning notes: Schematron and XPath assertions, ~~UBL 2.1 document model~~ (02), EN 16931 business rules vs. CIUS
 - [ ] Release: changelog move, version bump, `v0.1.0` tag prepared
 
 ## M2 — API + explanations (weeks 3–4) · tag `v0.2.0`

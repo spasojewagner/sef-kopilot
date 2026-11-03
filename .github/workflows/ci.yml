@@ -83,6 +83,10 @@ jobs:
       - name: Install Python workspace
         run: uv sync --all-packages --locked
 
+      # The official CEN and OpenPeppol example documents are part of the parser test suite.
+      - name: Fetch rule sets and official examples
+        run: python scripts/fetch_rulesets.py
+
       - name: Test with coverage gate (>= 90 %)
         run: >-
           uv run pytest packages/einvoice_core

@@ -62,7 +62,7 @@ Wrap at 72 characters. Reference issues: Closes #12 / Refs #7.
 - `type` is one of `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`, `ci`, `build`,
   `style`. A breaking change adds `!` after the scope and a `BREAKING CHANGE:` footer.
 - `scope` is one of `core`, `api`, `web`, `mcp`, `rag`, `repair`, `sef`, `evals`, `infra`, `ci`,
-  `docs`, `deps`, `repo`.
+  `docs`, `adr`, `deps`, `repo`.
 - One logical change per commit. A feature commit includes its tests and documentation. Never
   mix a refactor with a behaviour change. Never commit broken tests or failing lint.
 - Subjects such as `wip`, `fix`, `update`, `changes`, `stuff`, `misc`, `final` are rejected.
