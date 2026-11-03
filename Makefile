@@ -6,10 +6,11 @@
 .DEFAULT_GOAL := help
 SHELL := bash
 
-UV   ?= uv
-PNPM ?= pnpm
+UV      ?= uv
+PNPM    ?= pnpm
+COMPOSE ?= docker compose --project-directory . -f infra/docker-compose.yml
 
-.PHONY: help setup sync lint format typecheck test test-core test-api test-web api web build-web clean
+.PHONY: help setup sync lint format typecheck test test-core test-api test-web api web build-web up down logs psql clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -55,6 +56,18 @@ web: ## Run the web app locally (http://localhost:3000)
 
 build-web: ## Production build of the web app
 	$(PNPM) --filter @sef-kopilot/web build
+
+up: ## Start PostgreSQL (pgvector) and Redis in Docker and wait until they are healthy
+	$(COMPOSE) up -d --wait
+
+down: ## Stop the local infrastructure (keeps the database volume)
+	$(COMPOSE) down
+
+logs: ## Follow the infrastructure logs
+	$(COMPOSE) logs -f
+
+psql: ## Open a psql shell inside the database container
+	$(COMPOSE) exec db psql -U $${POSTGRES_USER:-sef} -d $${POSTGRES_DB:-sef_kopilot}
 
 clean: ## Remove caches and build output (keeps dependencies)
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage coverage.xml htmlcov apps/web/.next
