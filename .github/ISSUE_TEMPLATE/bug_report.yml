@@ -1,0 +1,58 @@
+name: Bug report
+description: Something validates, explains, repairs or renders incorrectly.
+title: "bug: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. **Never attach a real invoice**, not even anonymised —
+        reduce the problem to a synthetic example (fake company, fake PIB, fake amounts).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: A synthetic UBL snippet, a command, or the API request. Keep it as small as possible.
+      render: xml
+  - type: input
+    id: rule
+    attributes:
+      label: Rule identifier (if any)
+      placeholder: e.g. BR-CO-15, PEPPOL-EN16931-R040, SRB-CIUS-012
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: e.g. v0.1.0 or a commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - core (validator, rules, patches, CLI)
+        - api
+        - web
+        - rag (explanations, citations)
+        - repair
+        - sef
+        - mcp
+        - infra / ci
+        - docs
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      options:
+        - label: This report contains no real company data or secrets.
+          required: true

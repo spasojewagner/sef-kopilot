@@ -1,0 +1,104 @@
+# Workspace root.
+#
+# This is a *virtual* uv project: it has no [project] table and is never built or published.
+# It exists to hold the workspace definition, the shared development dependencies and the
+# shared tool configuration (ruff, mypy, pytest, coverage) so that every package in the
+# monorepo is checked the same way. See docs/adr/0001-monorepo-and-tooling.md.
+
+[tool.uv.workspace]
+members = ["apps/api", "packages/einvoice_core"]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[dependency-groups]
+dev = [
+  # Pinned exactly so that the pre-commit hook and the local run use the same ruff.
+  "ruff==0.17.3",
+  "mypy==2.4.1",
+  "pytest>=9.2",
+  "pytest-asyncio>=1.4",
+  "pytest-cov>=7.1",
+  "hypothesis>=6.170",
+  "httpx>=0.28",
+  "pre-commit>=4.7",
+]
+
+# ---------------------------------------------------------------------------
+# ruff: linter and formatter (replaces flake8, isort, pyupgrade, black)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["packages/einvoice_core/src", "apps/api/src", "scripts", "scripts/hooks"]
+extend-exclude = ["third_party", "apps/web"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",   # pycodestyle
+  "F",        # pyflakes
+  "I",        # isort
+  "N",        # pep8-naming
+  "UP",       # pyupgrade
+  "B",        # flake8-bugbear
+  "A",        # flake8-builtins
+  "C4",       # flake8-comprehensions
+  "DTZ",      # flake8-datetimez (no naive datetimes)
+  "T20",      # flake8-print (no stray prints)
+  "PT",       # flake8-pytest-style
+  "RET",      # flake8-return
+  "SIM",      # flake8-simplify
+  "ARG",      # flake8-unused-arguments
+  "PL",       # pylint
+  "RUF",      # ruff-specific rules
+]
+ignore = [
+  "PLR0913",  # too many arguments: Pydantic models and FastAPI handlers need them
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["PLR2004", "ARG001"]   # magic values and unused fixture args are normal in tests
+"scripts/**" = ["T201"]                 # command-line scripts print by design
+
+[tool.ruff.lint.isort]
+known-first-party = ["einvoice_core", "sef_api"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ---------------------------------------------------------------------------
+# mypy: strict static typing for every Python package in the workspace
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+pretty = true
+files = ["packages/einvoice_core", "apps/api", "scripts"]
+mypy_path = "scripts:scripts/hooks"
+exclude = ["third_party/", "node_modules/", "\\.venv/"]
+
+# ---------------------------------------------------------------------------
+# pytest and coverage
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["packages/einvoice_core/tests", "apps/api/tests", "scripts/tests"]
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
+pythonpath = ["scripts", "scripts/hooks"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@overload",
+  "if __name__ == \"__main__\":",
+]

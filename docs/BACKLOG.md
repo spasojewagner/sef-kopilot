@@ -11,18 +11,18 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `chore(repo): initial commit` on `main`: `.gitignore`, `.gitattributes`, `.editorconfig`,
       `LICENSE` (Apache-2.0), `README.md`, `CHANGELOG.md`, `docs/BRIEF.md`, `CLAUDE.md` =
       `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `docs/BACKLOG.md`, `docs/SESSIONS.md`
-- [ ] uv workspace with `packages/einvoice_core` (one passing test)
-- [ ] `apps/api` FastAPI hello world with `GET /health` and `GET /ready` (passing tests)
-- [ ] `apps/web` Next.js scaffold with one passing Vitest test
-- [ ] `pre-commit` configuration with all hooks (ruff, ruff-format, mypy, eslint, prettier,
+- [x] uv workspace with `packages/einvoice_core` (one passing test)
+- [x] `apps/api` FastAPI hello world with `GET /health` and `GET /ready` (passing tests)
+- [x] `apps/web` Next.js scaffold with one passing Vitest test
+- [x] `pre-commit` configuration with all hooks (ruff, ruff-format, mypy, eslint, prettier,
       gitleaks, conventional commit message check)
-- [ ] GitHub Actions `ci.yml`: lint, type, test and gitleaks jobs for api, core and web
-- [ ] `infra/docker-compose.yml` with PostgreSQL 16 + pgvector and Redis
-- [ ] `scripts/fetch_rulesets.py` pulling EN 16931 and Peppol BIS rule sets into `third_party/`
+- [x] GitHub Actions `ci.yml`: lint, type, test and gitleaks jobs for api, core and web
+- [x] `infra/docker-compose.yml` with PostgreSQL 16 + pgvector and Redis
+- [x] `scripts/fetch_rulesets.py` pulling EN 16931 and Peppol BIS rule sets into `third_party/`
       with their licenses, plus a `make rulesets` target
-- [ ] ADR-0001 "Monorepo and tooling", ADR-0002 "Deterministic validator is the source of truth"
-- [ ] `.github/PULL_REQUEST_TEMPLATE.md` and issue templates
-- [ ] README status badges
+- [x] ADR-0001 "Monorepo and tooling", ADR-0002 "Deterministic validator is the source of truth"
+- [x] `.github/PULL_REQUEST_TEMPLATE.md` and issue templates
+- [x] README status badges
 
 ## M1 — Validator core (weeks 1–2) · tag `v0.1.0`
 

@@ -1,0 +1,39 @@
+{
+  "$comment": "Pinned third-party rule sets fetched by scripts/fetch_rulesets.py. Bump `ref` and `commit` together, in their own commit, with the upstream release notes linked in the message.",
+  "rulesets": [
+    {
+      "name": "en16931",
+      "description": "CEN/TC 434 EN 16931 validation artefacts for the UBL 2.1 syntax binding: Schematron sources, the compiled XSLT, official example and unit-test invoices.",
+      "repository": "https://github.com/ConnectingEurope/eInvoicing-EN16931",
+      "ref": "validation-1.3.17",
+      "commit": "6e35e0ab8b09eb183f7d84b282e24ef95f9f5715",
+      "license": "European Union Public Licence (EUPL) v1.2, see LICENSE.txt",
+      "include": [
+        "ubl/xslt",
+        "ubl/schematron",
+        "ubl/examples",
+        "test/Invoice-unit-UBL",
+        "test/CreditNote-unit-UBL",
+        "README.md",
+        "LICENSE.txt"
+      ],
+      "notice": "Release notes: https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/tag/validation-1.3.17. The XSLT is the official build shipped by CEN/TC 434 and is executed as-is; it is never edited."
+    },
+    {
+      "name": "peppol-bis-billing-3",
+      "description": "Peppol BIS Billing 3.0 validation rules (Schematron sources), the CEN rules as bundled by OpenPeppol, official example invoices and the OpenPeppol unit-test files.",
+      "repository": "https://github.com/OpenPEPPOL/peppol-bis-invoice-3",
+      "ref": "3.0.21",
+      "commit": "5df0eff7c8efafd7c79c0dacce55082d175db759",
+      "license": "Copyright OpenPeppol AISBL; EN 16931 content reproduced with permission from CEN. The repository ships no license file; the terms are stated in guide/bis/introduction.adoc. The files are used locally for validation only and are never redistributed by this project.",
+      "include": [
+        "rules/sch",
+        "rules/examples",
+        "rules/unit-UBL-PEPPOL",
+        "guide/bis/introduction.adoc",
+        "README.adoc"
+      ],
+      "notice": "OpenPeppol publishes only Schematron sources (no compiled XSLT) for BIS Billing 3.0; SEF Kopilot compiles them to XSLT at build time (see the M1 architecture decision on the Schematron runner). Published specification: https://docs.peppol.eu/poacc/billing/3.0/"
+    }
+  ]
+}

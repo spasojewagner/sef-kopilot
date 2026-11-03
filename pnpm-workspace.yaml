@@ -1,0 +1,11 @@
+packages:
+  - "apps/web"
+
+# Supply-chain cooldown: a package version must be at least one day old before pnpm will
+# resolve it, which keeps freshly published (possibly compromised) releases out of the lock file.
+minimumReleaseAge: 1440
+
+# Native post-install scripts must be opted in explicitly (pnpm >= 10 security default).
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver

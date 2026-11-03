@@ -93,8 +93,8 @@ Guardrails that are encoded as tests, not as comments:
 
 | Milestone | Scope | Status |
 | --- | --- | --- |
-| M0 | Monorepo, tooling, CI, documentation skeleton | in progress |
-| M1 | Validator core: UBL parser, XSD, Schematron runner, SRB-CIUS rule set v1, fixtures, CLI | planned |
+| M0 | Monorepo, tooling, CI, documentation skeleton | done |
+| M1 | Validator core: UBL parser, XSD, Schematron runner, SRB-CIUS rule set v1, fixtures, CLI | next |
 | M2 | API, persistence, auth, jobs with SSE progress, regulation corpus, explanations with citations | planned |
 | M3 | Repair loop with approval and audit log, web UI (sr-Latn / en), public demo | planned |
 | M4 | MCP server with OAuth 2.1 | planned |
@@ -132,9 +132,34 @@ sef-kopilot/
   scripts/                 maintenance scripts (rule-set fetcher, fixture generator)
 ```
 
+## Getting started
+
+Prerequisites: Git, Python 3.12 with [`uv`](https://docs.astral.sh/uv/), Node.js 22 LTS with
+`pnpm` (run `corepack enable` once), Docker (Docker Desktop on Windows/macOS). GNU `make` is
+optional — every target in the `Makefile` is a single plain command you can run by hand.
+
+```bash
+git clone https://github.com/spasojewagner/sef-kopilot.git
+cd sef-kopilot
+make setup        # uv sync --all-packages · pnpm install --frozen-lockfile · pre-commit hooks
+make rulesets     # fetch the pinned EN 16931 and Peppol BIS rule sets into third_party/
+make up           # PostgreSQL 16 + pgvector and Redis in Docker (needs a running Docker daemon)
+make test         # core, api and web test suites with their coverage gates
+make lint         # ruff, Prettier, ESLint — no changes
+make typecheck    # mypy --strict and tsc --noEmit
+make api          # FastAPI with auto-reload → http://127.0.0.1:8000/docs
+make web          # Next.js dev server → http://localhost:3000
+```
+
+Copy `.env.example` to `.env` to override the local defaults. Nothing in M0 needs a secret.
+
 ## Documentation
 
 - [`docs/BRIEF.md`](docs/BRIEF.md) — product and engineering charter (the source of truth for scope and decisions)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system map: layers, request flow, repository map, cross-cutting concerns
+- [`docs/adr/`](docs/adr/README.md) — architecture decision records (MADR)
+- [`docs/learning/`](docs/learning/README.md) — one-page notes on the concepts the project is built on
+- [`docs/interview/`](docs/interview/README.md) — the questions each pull request should survive
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how the repository is worked on: branches, commits, pull requests, releases
 - [`SECURITY.md`](SECURITY.md) — security policy, reporting, and the OWASP ASVS checklist
 - [`CHANGELOG.md`](CHANGELOG.md) — notable changes per release
