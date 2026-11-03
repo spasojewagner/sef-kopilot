@@ -69,7 +69,7 @@ repos:
           - --strict
           - --force-scope
           - --scopes
-          - core,api,web,mcp,rag,repair,sef,evals,infra,ci,docs,deps,repo
+          - core,api,web,mcp,rag,repair,sef,evals,infra,ci,docs,adr,deps,repo
           - feat
           - fix
           - docs

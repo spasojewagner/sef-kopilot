@@ -73,7 +73,7 @@ green validator. Non-negotiable guardrails, encoded as tests:
   branches are named as such in the handoff. Merges on GitHub are merge commits (no squash).
 - Commits: Conventional Commits, atomic, English, imperative subject ≤ 72 chars, no trailing
   period, body wrapped at 72 explaining why. Types: `feat fix docs test refactor perf chore ci
-  build style`. Scopes: `core api web mcp rag repair sef evals infra ci docs deps repo`.
+  build style`. Scopes: `core api web mcp rag repair sef evals infra ci docs adr deps repo`.
   Forbidden subjects: `wip`, `fix`, `update`, `changes`, `stuff`, `misc`, `final`, `asdf`.
   A feature commit includes its tests and docs. Never mix refactors with behaviour changes.
   Aim for 3–10 buildable commits per branch; one PR ≈ one reviewable change (≈400 lines).
