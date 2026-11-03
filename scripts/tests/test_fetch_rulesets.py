@@ -215,7 +215,12 @@ def test_project_manifest_is_valid() -> None:
     """The real manifest must always load; this is the cheapest guard against typos."""
     rulesets = fetch_rulesets.load_manifest(fetch_rulesets.DEFAULT_MANIFEST)
 
-    assert [ruleset.name for ruleset in rulesets] == ["ubl-2.1", "en16931", "peppol-bis-billing-3"]
+    assert [ruleset.name for ruleset in rulesets] == [
+        "ubl-2.1",
+        "en16931",
+        "peppol-bis-billing-3",
+        "iso-schematron",
+    ]
     ubl, *git_rulesets = rulesets
     assert isinstance(ubl.source, ArchiveSource)
     assert ubl.source.url.startswith("https://docs.oasis-open.org/")
@@ -243,7 +248,11 @@ def test_git_source_requires_its_three_fields() -> None:
 def _zip(path: Path, members: dict[str, bytes]) -> tuple[str, str]:
     with zipfile.ZipFile(path, "w") as archive:
         for name, data in members.items():
-            archive.writestr(name, data)
+            # The name is set after construction because ZipInfo(name) rewrites "\\" as "/" on
+            # Windows; the archives must carry the names exactly, on every platform.
+            info = zipfile.ZipInfo()
+            info.filename = name
+            archive.writestr(info, data)
     return path.as_uri(), hashlib.sha256(path.read_bytes()).hexdigest()
 
 
@@ -337,7 +346,19 @@ def test_archive_include_that_matches_nothing_is_an_error(
         )
 
 
-@pytest.mark.parametrize("member", ["pkg-1.0/../../evil.txt", "/etc/evil.txt", "pkg-1.0\\evil.txt"])
+@pytest.mark.parametrize(
+    "member",
+    [
+        "pkg-1.0/../../evil.txt",
+        "/etc/evil.txt",
+        "pkg-1.0\\..\\..\\evil.txt",
+        "pkg-1.0\\evil\\",  # a directory entry with Windows separators
+        "C:/evil.txt",
+        "pkg-1.0/xsd/common/a.xsd:stream",
+        "pkg-1.0/xsd/common/evil\x00.xsd",
+    ],
+    ids=["parent", "absolute", "backslash", "backslash-dir", "drive", "ntfs-stream", "nul"],
+)
 def test_archive_members_that_could_escape_are_refused(member: str, tmp_path: Path) -> None:
     url, sha256 = _zip(tmp_path / "evil.zip", {member: b"x", "pkg-1.0/xsd/common/a.xsd": b"a"})
 

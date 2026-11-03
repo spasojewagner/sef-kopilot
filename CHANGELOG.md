@@ -16,6 +16,12 @@ is tagged.
 
 ### Added
 
+- `einvoice_core`: Schematron layer. The EN 16931 rules (official CEN XSLT) and the Peppol BIS
+  Billing 3.0 rules run with Saxon-HE (`saxonche`); Schematron sources are compiled with the
+  pinned ISO Schematron pipeline and cached; SVRL results become violations with canonical
+  XPaths and source lines. Verified against every unit test CEN and OpenPeppol publish
+  (ADR-0005).
+- Rule-set fetcher: the ISO Schematron reference implementation (`iso-schematron`).
 - `einvoice_core`: violation model shared by all validation layers, and UBL 2.1 XML Schema
   validation against the official OASIS schemas, with confined schema loading, canonical
   XPath locations and readable messages (ADR-0004).
@@ -46,5 +52,12 @@ is tagged.
 
 - The parser reads BT-11 (project reference) on credit notes, where UBL 2.1 carries it as an
   `AdditionalDocumentReference` with type code 50.
+- The synthetic credit note satisfies EN 16931: one payment means code (UBL-SR-47) and no UBL
+  extensions (UBL-CR-001).
+- The core test suite passes on Windows: opening XML text as a file name fails there with
+  `EINVAL` rather than `ENOENT`, and examples with an upper-case `.XML` extension are listed
+  once instead of twice.
+- Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
+  backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
 [Unreleased]: https://github.com/spasojewagner/sef-kopilot/commits/main

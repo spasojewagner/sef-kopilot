@@ -53,10 +53,10 @@ the system without a green validator.
 
 | Path | Responsibility | Status |
 | --- | --- | --- |
-| `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 in progress: semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation |
+| `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 in progress: semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation, EN 16931 and Peppol BIS Schematron |
 | `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M0 skeleton (`/health`, `/ready`) |
 | `apps/web` | upload, report, explanations, diff and approval UI (sr-Latn / en) | M0 skeleton |
-| `third_party/` | fetched UBL 2.1 schemas, EN 16931 and Peppol BIS artefacts with their terms | M1 (UBL 2.1 added) |
+| `third_party/` | fetched UBL 2.1 schemas, EN 16931 and Peppol BIS artefacts, the ISO Schematron compiler, with their terms; compiled-stylesheet cache | M1 (UBL 2.1 and ISO Schematron added) |
 | `corpus/` | regulation texts from official sources with `source_url`, `fetched_at`, `valid_from` | planned (M2) |
 | `fixtures/invoices/` | synthetic invoices (official examples are used from `third_party/`); never real company data | M1 in progress |
 | `evals/` | golden sets, runner, thresholds, latest report | planned (M6) |

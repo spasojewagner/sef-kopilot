@@ -8,7 +8,7 @@ just used. New notes are added in the pull request that introduces the concept.
 | --- | --- | --- |
 | 01 | [uv workspaces, src layout and pre-commit](01-monorepo-uv-workspaces-and-pre-commit.md) | M0 |
 | 02 | [UBL 2.1, EN 16931 and how the two relate](02-ubl-2-1-document-model.md) | M1 |
+| 03 | [Schematron and XPath assertions](03-schematron-and-xpath-assertions.md) | M1 |
 
-Planned: Schematron and XPath assertions · EN 16931 business rules
-vs. a CIUS · pgvector and hybrid retrieval · SSE vs. WebSockets · idempotent job design ·
+Planned: EN 16931 business rules vs. a CIUS · pgvector and hybrid retrieval · SSE vs. WebSockets · idempotent job design ·
 Alembic migration safety · OAuth 2.1 flows for MCP.

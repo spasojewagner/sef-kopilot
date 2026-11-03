@@ -169,7 +169,7 @@ def test_credit_note_header_and_references(credit_note: model.Invoice) -> None:
     assert cn.receiving_advice_reference == "PRJ-3"
     assert cn.tender_or_lot_reference == "TENDER-1"
     assert cn.project_reference == "PRJ-42"
-    assert cn.extension_names == ("demo:Marker",)
+    assert cn.extension_names == ()
 
     (preceding,) = cn.preceding_invoice_references
     assert preceding.id.value == "RF-2026-000123"
@@ -232,16 +232,17 @@ def test_credit_note_delivery_payment_and_allowances(credit_note: model.Invoice)
     assert delivery.address.xpath == "/cn:CreditNote/cac:Delivery/cac:DeliveryLocation/cac:Address"
     assert delivery.address.city_name == "Kragujevac"
 
-    transfer, direct_debit = credit_note.payment_instructions
+    transfer, second_account = credit_note.payment_instructions
     assert transfer.xpath == "/cn:CreditNote/cac:PaymentMeans[1]"
     assert transfer.means_text == "Credit transfer"
     (account,) = transfer.credit_transfers
     assert account.account_id == "RS35160005010000012345"
     assert account.service_provider_id == "BACXRSBG"
-    assert direct_debit.means_code == "49"
-    assert direct_debit.mandate_reference == "MANDAT-1"
-    assert direct_debit.debited_account_id == "RS35160005010000099999"
-    assert direct_debit.due_date is None
+    # EN 16931 has one payment means (UBL-SR-47); repeated PaymentMeans carry more accounts.
+    assert second_account.xpath == "/cn:CreditNote/cac:PaymentMeans[2]"
+    assert (second_account.means_code, second_account.means_text) == ("30", None)
+    assert [a.account_id for a in second_account.credit_transfers] == ["RS35160005010000067890"]
+    assert second_account.due_date is None
 
     allowance, charge = credit_note.allowances_charges
     assert credit_note.allowances == (allowance,)
@@ -557,6 +558,34 @@ def test_invoice_project_reference_comes_from_project_reference_only() -> None:
     invoice = parse_invoice(_wrap(body))
 
     assert invoice.project_reference == "PRJ-1"
+
+
+def test_direct_debit_payment_instructions() -> None:
+    body = _SKELETON + (
+        "<cac:PaymentMeans><cbc:PaymentMeansCode>49</cbc:PaymentMeansCode>"
+        "<cac:PaymentMandate><cbc:ID>MANDAT-1</cbc:ID>"
+        "<cac:PayerFinancialAccount><cbc:ID>RS35160005010000099999</cbc:ID>"
+        "</cac:PayerFinancialAccount></cac:PaymentMandate></cac:PaymentMeans>"
+    )
+    (direct_debit,) = parse_invoice(_wrap(body)).payment_instructions
+
+    assert direct_debit.means_code == "49"
+    assert direct_debit.mandate_reference == "MANDAT-1"
+    assert direct_debit.debited_account_id == "RS35160005010000099999"
+    assert direct_debit.credit_transfers == ()
+
+
+def test_extension_content_is_listed_by_element_name() -> None:
+    """Extensions are not part of EN 16931 (UBL-CR-001 warns about them); only names are kept."""
+    extensions = (
+        '<ext:UBLExtensions xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:'
+        'CommonExtensionComponents-2"><ext:UBLExtension><ext:ExtensionContent>'
+        '<demo:Marker xmlns:demo="urn:example:sef-kopilot:test-extension">x</demo:Marker>'
+        "</ext:ExtensionContent></ext:UBLExtension></ext:UBLExtensions>"
+    )
+    invoice = parse_invoice(_wrap(extensions + _SKELETON))
+
+    assert invoice.extension_names == ("demo:Marker",)
 
 
 def test_credit_note_without_project_reference() -> None:

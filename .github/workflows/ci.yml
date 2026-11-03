@@ -85,7 +85,9 @@ jobs:
 
       # Rule sets are pinned by the manifest, so its hash is a complete cache key: a cache hit
       # holds exactly the files a fresh fetch would produce. A miss (manifest changed, or the
-      # cache expired) downloads from the official sources and re-verifies every pin.
+      # cache expired) downloads from the official sources and re-verifies every pin. The
+      # stylesheets compiled from Schematron sources are left out, so that every run compiles
+      # the Peppol rules from source.
       - name: Cache fetched rule sets
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -93,10 +95,12 @@ jobs:
             third_party/*
             !third_party/README.md
             !third_party/manifest.json
+            !third_party/_compiled
           key: rulesets-${{ hashFiles('third_party/manifest.json') }}
 
-      # The UBL schemas and the official CEN and OpenPeppol examples are part of the test suite.
-      - name: Fetch rule sets (UBL 2.1, EN 16931, Peppol BIS)
+      # The UBL schemas, the rule sets and the official CEN and OpenPeppol examples and unit
+      # tests are part of the test suite.
+      - name: Fetch rule sets (UBL 2.1, EN 16931, Peppol BIS, ISO Schematron)
         run: python scripts/fetch_rulesets.py
 
       - name: Verify pinned versions

@@ -287,10 +287,19 @@ def _download(url: str, target: Path) -> str:
     return digest.hexdigest()
 
 
+_UNSAFE_NAME_CHARACTERS = frozenset("\\:\x00")
+
+
 def _safe_member_path(name: str) -> PurePosixPath:
-    """The archive member path, refusing anything that could escape the target directory."""
+    """The archive member path, refusing anything that could escape the target directory.
+
+    ``name`` is the name exactly as stored in the archive (``ZipInfo.orig_filename``; on Windows
+    ``ZipInfo.filename`` already has backslashes turned into ``/``). It is judged by POSIX and
+    Windows rules alike, whatever the host: a backslash (a Windows separator), a colon (a drive
+    letter or an NTFS stream), a NUL byte, an absolute path or a ``..`` step is refused.
+    """
     path = PurePosixPath(name)
-    if "\\" in name or path.is_absolute() or ".." in path.parts:
+    if _UNSAFE_NAME_CHARACTERS.intersection(name) or path.is_absolute() or ".." in path.parts:
         raise RulesetError(f"unsafe path in archive: {name!r}")
     return path
 
@@ -305,9 +314,9 @@ def _extract_included(
     extracted = 0
     with zipfile.ZipFile(archive_path) as archive:
         for info in archive.infolist():
+            member = _safe_member_path(info.orig_filename)
             if info.is_dir():
                 continue
-            member = _safe_member_path(info.filename)
             if prefix is not None:
                 if prefix not in member.parents:
                     continue

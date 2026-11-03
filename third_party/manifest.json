@@ -48,7 +48,24 @@
         "guide/bis/introduction.adoc",
         "README.adoc"
       ],
-      "notice": "OpenPeppol publishes only Schematron sources (no compiled XSLT) for BIS Billing 3.0; SEF Kopilot compiles them to XSLT at build time (see the M1 architecture decision on the Schematron runner). Published specification: https://docs.peppol.eu/poacc/billing/3.0/"
+      "notice": "OpenPeppol publishes only Schematron sources (no compiled XSLT) for BIS Billing 3.0; SEF Kopilot compiles them to XSLT with the pinned iso-schematron pipeline on first use and caches the result (see docs/adr/0005-schematron-runner.md). Published specification: https://docs.peppol.eu/poacc/billing/3.0/"
+    },
+    {
+      "name": "iso-schematron",
+      "description": "ISO Schematron \"skeleton\" reference implementation (Rick Jelliffe and contributors): the XSLT 2.0 pipeline that compiles Schematron sources into validating XSLT producing SVRL. Used to compile the Peppol BIS rules, which OpenPeppol publishes only as Schematron.",
+      "repository": "https://github.com/Schematron/schematron",
+      "ref": "2020-10-01",
+      "commit": "02f3707b194ce5792bf77b14a66d782c060abba3",
+      "license": "MIT License, Copyright (c) 2004-2010 Rick Jelliffe and Academia Sinica Computing Centre, Taiwan; see LICENSE",
+      "include": [
+        "trunk/schematron/code/iso_dsdl_include.xsl",
+        "trunk/schematron/code/iso_abstract_expand.xsl",
+        "trunk/schematron/code/iso_svrl_for_xslt2.xsl",
+        "trunk/schematron/code/iso_schematron_skeleton_for_saxon.xsl",
+        "LICENSE",
+        "README.md"
+      ],
+      "notice": "The maintainers archived the repository in October 2020; the tag 2020-10-01 is its final state. ph-schematron ships a version of these XSLTs, and the official EN 16931 XSLT states it was created with it, so compiling the Peppol rules with them keeps our reports in the conventions of the official XSLT (see docs/adr/0005-schematron-runner.md)."
     }
   ]
 }

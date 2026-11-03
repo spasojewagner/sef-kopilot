@@ -81,7 +81,8 @@ files = ["packages/einvoice_core", "apps/api", "scripts"]
 # Module names are derived from these bases (closest wins), so the two `tests/conftest.py`
 # files and the editable-installed packages each get exactly one, unique module name.
 explicit_package_bases = true
-mypy_path = "packages/einvoice_core/src:apps/api/src:scripts:scripts/hooks"
+# `packages/einvoice_core/stubs` holds type information for dependencies that ship none.
+mypy_path = "packages/einvoice_core/src:packages/einvoice_core/stubs:apps/api/src:scripts:scripts/hooks"
 exclude = ["third_party/", "node_modules/", "\\.venv/"]
 
 # ---------------------------------------------------------------------------
@@ -96,6 +97,9 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 xfail_strict = true
 filterwarnings = ["error"]
+markers = [
+  "conformance: applies the fetched third-party rule sets to their published unit tests and examples; deselect with -m 'not conformance'",
+]
 
 [tool.coverage.run]
 branch = true
