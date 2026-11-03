@@ -57,5 +57,7 @@ is tagged.
 - The core test suite passes on Windows: opening XML text as a file name fails there with
   `EINVAL` rather than `ENOENT`, and examples with an upper-case `.XML` extension are listed
   once instead of twice.
+- Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
+  backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
 [Unreleased]: https://github.com/spasojewagner/sef-kopilot/commits/main
