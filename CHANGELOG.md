@@ -9,6 +9,11 @@ is tagged.
 
 ## [Unreleased]
 
+### Changed
+
+- Dependabot proposes only minor and patch updates for Python and Node packages; major
+  versions are planned migrations (CONTRIBUTING.md, "Dependency updates").
+
 ### Added
 
 - `einvoice_core`: violation model shared by all validation layers, and UBL 2.1 XML Schema
