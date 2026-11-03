@@ -94,6 +94,7 @@ for violation in validate_srb(tree):
 | SRB-015 | Seller, buyer and tax representative addresses name the city | BT-37, BT-52, BT-66 | fatal |
 | SRB-016 | A resident seller and a tax representative give a post code | BT-38, BT-67 | fatal |
 | SRB-017 | The buyer's address gives a post code | BT-53 | warning |
+| SRB-018 | The actual delivery date is given when VAT is due on supply or on collection | BT-8, BT-72 | fatal |
 
 A test keeps this table identical to the rules.
 
