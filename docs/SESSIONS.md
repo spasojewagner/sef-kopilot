@@ -55,3 +55,22 @@ Decisions: semantic model over a syntax mirror; required-by-schema only; XPath o
 addresses derived by rules; the lxml tree lives beside the model, not inside it.
 
 Next: `feat/core-xsd-validation`.
+
+## 2026-11-03 — `feat/core-xsd-validation` (9 commits)
+
+Outcome: second slice of the validator core. `einvoice_core.violations` (the value every layer
+reports), `einvoice_core.rulesets` (finding fetched rule sets), `einvoice_core.xsd` (UBL 2.1
+schema validation: schemas compiled once, imports confined to the schema directory, libxml2
+errors mapped to canonical XPaths after checking the element, readable messages, 500-violation
+cap, thread-safe). The fetcher gained pinned ZIP archive sources and fetches the official OASIS
+`UBL-2.1.zip`; CI caches rule sets by manifest hash. Fixed BT-11 on credit notes and made the
+synthetic credit note schema-valid. lxml typing moved to types-lxml. ADR-0004, interview notes.
+
+Verification: 204 tests green; core coverage 100 %; all 29 official examples and both synthetic
+fixtures are valid against the real UBL 2.1 schemas; typical mistakes produce the expected
+code, XPath and message; schema compile ≈ 150 ms, validation ≈ 0.2 ms per invoice.
+
+Decisions: official archive pinned by SHA-256 over vendoring or a third-party mirror; one rule
+id `XSD` with libxml2's error type as the detail code; `null` XPath rather than a guess.
+
+Next: `feat/core-schematron-runner`.

@@ -11,6 +11,11 @@ is tagged.
 
 ### Added
 
+- `einvoice_core`: violation model shared by all validation layers, and UBL 2.1 XML Schema
+  validation against the official OASIS schemas, with confined schema loading, canonical
+  XPath locations and readable messages (ADR-0004).
+- Rule-set fetcher: pinned ZIP archive sources (HTTPS URL + SHA-256) next to git tags; the
+  OASIS UBL 2.1 package is now fetched into `third_party/ubl-2.1`.
 - `einvoice_core`: typed invoice document model following the EN 16931 semantic model
   (`Decimal` amounts, BT/BG-named fields, canonical XPath per business group), hardened XML
   loading (no DTD, entities or network; size limit) and a UBL 2.1 Invoice / CreditNote parser
@@ -31,5 +36,10 @@ is tagged.
   `validation-1.3.17` and Peppol BIS Billing 3.0 `3.0.21` by tag and commit.
 - ADR-0001 "Monorepo and tooling", ADR-0002 "Deterministic validator is the source of truth",
   `docs/ARCHITECTURE.md`, first learning and interview notes, pull request and issue templates.
+
+### Fixed
+
+- The parser reads BT-11 (project reference) on credit notes, where UBL 2.1 carries it as an
+  `AdditionalDocumentReference` with type code 50.
 
 [Unreleased]: https://github.com/spasojewagner/sef-kopilot/commits/main
