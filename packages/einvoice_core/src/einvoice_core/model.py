@@ -524,13 +524,23 @@ class Invoice(_Model):
         default=None,
         description="BT-17 tender or lot reference.",
     )
-    project_reference: str | None = Field(default=None, description="BT-11 project reference.")
+    project_reference: str | None = Field(
+        default=None,
+        description=(
+            "BT-11 project reference: ProjectReference on invoices; on credit notes, which have "
+            "no ProjectReference in UBL 2.1, an AdditionalDocumentReference with type code 50."
+        ),
+    )
     preceding_invoice_references: tuple[DocumentReference, ...] = Field(
         default=(), description="BG-3 preceding invoice references (BT-25, BT-26)."
     )
     additional_document_references: tuple[DocumentReference, ...] = Field(
         default=(),
-        description="BG-24 additional supporting documents and BT-18 invoiced object identifier.",
+        description=(
+            "Every AdditionalDocumentReference in document order: BG-24 additional supporting "
+            "documents, BT-18 invoiced object identifier (type code 130) and, on credit notes, "
+            "BT-11 project reference (type code 50)."
+        ),
     )
     seller: Party = Field(description="BG-4 seller.")
     buyer: Party = Field(description="BG-7 buyer.")

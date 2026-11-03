@@ -176,7 +176,9 @@ def test_credit_note_header_and_references(credit_note: model.Invoice) -> None:
     assert preceding.issue_date == date(2026, 10, 5)
     assert preceding.xpath == "/cn:CreditNote/cac:BillingReference/cac:InvoiceDocumentReference"
 
-    invoiced_object, attachment = cn.additional_document_references
+    invoiced_object, attachment, project = cn.additional_document_references
+    assert project.document_type_code == "50"
+    assert project.id.value == cn.project_reference
     assert invoiced_object.id == model.Identifier(value="OBJ-77", scheme="ABT")
     assert invoiced_object.document_type_code == "130"
     assert attachment.id.value == "PRILOG-1"
@@ -541,6 +543,27 @@ def test_party_tax_scheme_without_company_id_is_ignored() -> None:
 
     assert invoice.seller.vat_identifier is None
     assert invoice.seller.tax_registration_identifier is None
+
+
+def test_invoice_project_reference_comes_from_project_reference_only() -> None:
+    """Type code 50 means "project reference" only on credit notes (EN 16931, UBL-SR-43)."""
+    body = _SKELETON.replace(
+        "<cac:AccountingSupplierParty>",
+        "<cac:AdditionalDocumentReference><cbc:ID>ADR-50</cbc:ID>"
+        "<cbc:DocumentTypeCode>50</cbc:DocumentTypeCode></cac:AdditionalDocumentReference>"
+        "<cac:ProjectReference><cbc:ID>PRJ-1</cbc:ID></cac:ProjectReference>"
+        "<cac:AccountingSupplierParty>",
+    )
+    invoice = parse_invoice(_wrap(body))
+
+    assert invoice.project_reference == "PRJ-1"
+
+
+def test_credit_note_without_project_reference() -> None:
+    body = _SKELETON.replace("InvoiceLine", "CreditNoteLine")
+    credit_note = parse_invoice(_wrap(body, root="CreditNote"))
+
+    assert credit_note.project_reference is None
 
 
 def test_whitespace_only_text_counts_as_absent() -> None:

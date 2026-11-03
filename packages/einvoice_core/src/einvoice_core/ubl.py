@@ -33,6 +33,7 @@ __all__ = ["build_invoice", "parse_invoice"]
 _DECIMAL: Final = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$")
 _DATE: Final = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:Z|[+-]\d{2}:\d{2})?$")
 _INVOICED_OBJECT_TYPE_CODE: Final = "130"
+_PROJECT_REFERENCE_TYPE_CODE: Final = "50"
 _VAT_SCHEME: Final = "VAT"
 
 _ROOTS: Final[dict[str, model.DocumentType]] = {
@@ -490,6 +491,20 @@ def _extension_names(root: etree._Element) -> tuple[str, ...]:
     )
 
 
+def _project_reference(root: etree._Element, document_type: model.DocumentType) -> str | None:
+    """BT-11: ``cac:ProjectReference`` on invoices.
+
+    UBL 2.1 credit notes have no ``cac:ProjectReference``; the EN 16931 binding carries the
+    project reference there as an ``AdditionalDocumentReference`` with type code 50.
+    """
+    if document_type == "Invoice":
+        return _text(root, "cac:ProjectReference/cbc:ID")
+    for reference in _findall(root, "cac:AdditionalDocumentReference"):
+        if _text(reference, "cbc:DocumentTypeCode") == _PROJECT_REFERENCE_TYPE_CODE:
+            return _text(reference, "cbc:ID")
+    return None
+
+
 def _due_date(root: etree._Element) -> date | None:
     """BT-9: ``cbc:DueDate`` on invoices, ``PaymentMeans/cbc:PaymentDueDate`` on credit notes."""
     due = _date(root, "cbc:DueDate")
@@ -541,7 +556,7 @@ def build_invoice(root: etree._Element) -> model.Invoice:
         despatch_advice_reference=_text(root, "cac:DespatchDocumentReference/cbc:ID"),
         receiving_advice_reference=_text(root, "cac:ReceiptDocumentReference/cbc:ID"),
         tender_or_lot_reference=_text(root, "cac:OriginatorDocumentReference/cbc:ID"),
-        project_reference=_text(root, "cac:ProjectReference/cbc:ID"),
+        project_reference=_project_reference(root, document_type),
         preceding_invoice_references=tuple(
             _document_reference(ref)
             for ref in _findall(root, "cac:BillingReference/cac:InvoiceDocumentReference")

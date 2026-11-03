@@ -22,7 +22,7 @@ dev = [
   "hypothesis>=6.170",
   "httpx>=0.28",
   "pre-commit>=4.7",
-  "lxml-stubs>=0.5",
+  "types-lxml>=2026.2.16",
 ]
 
 # ---------------------------------------------------------------------------
@@ -58,7 +58,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["PLR2004", "ARG001"]   # magic values and unused fixture args are normal in tests
+# Magic values, unused fixture arguments and many positional parameters (pytest.mark.parametrize)
+# are normal in tests.
+"**/tests/**" = ["PLR2004", "ARG001", "PLR0917"]
 "scripts/**" = ["T201"]                 # command-line scripts print by design
 
 [tool.ruff.lint.isort]
