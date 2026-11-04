@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import re
+import uuid
 
 import pytest
 
-from sef_api.auth.dependencies import require
+from sef_api.auth.dependencies import Principal, require
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.models import Role
 
@@ -41,6 +42,15 @@ def test_only_owners_manage_members() -> None:
     assert [role for role in Role if Permission.MEMBERS_MANAGE in ROLE_PERMISSIONS[role]] == [
         Role.OWNER
     ]
+
+
+@pytest.mark.parametrize("role", list(Role))
+def test_a_caller_may_do_what_their_role_grants(role: Role) -> None:
+    caller = Principal(uuid.uuid4(), uuid.uuid4(), role)
+
+    assert {permission for permission in Permission if caller.may(permission)} == (
+        ROLE_PERMISSIONS[role]
+    )
 
 
 def test_permissions_are_named_area_colon_action() -> None:

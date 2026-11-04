@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cache
 from typing import Annotated, cast
 
@@ -51,6 +51,10 @@ class Principal:
     user_id: uuid.UUID
     organization_id: uuid.UUID
     role: Role
+
+    def may(self, permission: Permission) -> bool:
+        """Whether the caller may do what ``permission`` allows: their role grants it."""
+        return permission in ROLE_PERMISSIONS[self.role]
 
 
 def get_token_settings(request: Request) -> TokenSettings:
@@ -127,11 +131,11 @@ def _require(permission: Permission, changes_members: bool) -> Callable[..., Awa
         principal: Annotated[Principal, Depends(current_principal)],
         session: Annotated[AsyncSession, Depends(get_session)],
     ) -> Principal:
-        role = await _permitted_role(session, principal, permission)
+        permitted = await _permitted(session, principal, permission)
         if changes_members:
             await lock_organization(session, principal.organization_id)
-            role = await _permitted_role(session, principal, permission)
-        return Principal(principal.user_id, principal.organization_id, role)
+            permitted = await _permitted(session, principal, permission)
+        return permitted
 
     return authorize
 
@@ -142,18 +146,19 @@ async def check_again(
     """Check, in the transaction about to change something, that the caller still holds
     ``permission``: for a request whose work outlasts the transaction in which :func:`require`
     checked it, such as an upload and its validation. 401 or 403 as :func:`require` answers."""
-    role = await _permitted_role(session, principal, permission)
-    return Principal(principal.user_id, principal.organization_id, role)
+    return await _permitted(session, principal, permission)
 
 
-async def _permitted_role(
+async def _permitted(
     session: AsyncSession, principal: Principal, permission: Permission
-) -> Role:
+) -> Principal:
+    """The principal with the role it holds now, when that lets it do ``permission``."""
     role = await current_role(session, principal)
     if role is None:
         raise no_longer_active()
-    if permission not in ROLE_PERMISSIONS[role]:
+    permitted = replace(principal, role=role)
+    if not permitted.may(permission):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, detail=f"requires the permission {permission}"
         )
-    return role
+    return permitted
