@@ -5,6 +5,10 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import math
+import re
+import tomllib
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -15,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.api_keys import service
 from sef_api.auth.permissions import Permission
+from sef_api.auth.tokens import new_opaque_token
 from sef_api.db import Database
 from sef_api.models import ApiKey, Membership, Organization, Role, StoredInvoice, User
 
@@ -481,3 +486,21 @@ async def test_openapi_documents_the_api_keys(client: AsyncClient) -> None:
         "invoices:submit",
         "invoices:manage",
     ]
+
+
+def entropy(text: str) -> float:
+    """Shannon entropy in bits per character, as gitleaks measures a match."""
+    return -sum(n / len(text) * math.log2(n / len(text)) for n in Counter(text).values())
+
+
+def test_the_secret_scan_recognizes_a_key() -> None:
+    """``.gitleaks.toml`` describes the keys this API issues, so that a leaked one is caught
+    before it is committed and in the history."""
+    rules = tomllib.loads((REPOSITORY_ROOT / ".gitleaks.toml").read_text(encoding="utf-8"))
+    (rule,) = [rule for rule in rules["rules"] if rule["id"] == "sef-kopilot-api-key"]
+    keys = [service.PREFIX + new_opaque_token() for _ in range(200)]
+
+    assert all(re.fullmatch(rule["regex"], key) for key in keys)
+    assert all(any(word in key for word in rule["keywords"]) for key in keys)
+    assert min(map(entropy, keys)) > rule["entropy"]
+    assert entropy(service.PREFIX + "A" * 43) < rule["entropy"]
