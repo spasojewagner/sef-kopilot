@@ -6,7 +6,7 @@ An organization is the tenant: every table that holds a tenant's data carries an
 belong to organizations through memberships, each with one role; an invitation lets a person
 join in a role (ADR-0013). A refresh token belongs to a person's session in one organization
 (ADR-0012). A stored invoice belongs to an organization, and remembers who submitted it
-(ADR-0016).
+(ADR-0016). An API key belongs to a membership, and acts for that member (ADR-0017).
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from sqlalchemy import (
     CheckConstraint,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     LargeBinary,
     Numeric,
@@ -29,12 +30,13 @@ from sqlalchemy import (
     text,
     true,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sef_api.db import Base
 
 __all__ = [
+    "ApiKey",
     "Invitation",
     "Membership",
     "Organization",
@@ -233,3 +235,42 @@ class StoredInvoice(Base):
     seller: Mapped[str | None] = mapped_column(Text)
     buyer: Mapped[str | None] = mapped_column(Text)
     payable_amount: Mapped[Decimal | None] = mapped_column(Numeric)
+
+
+class ApiKey(Base):
+    """A key a machine client authenticates with, acting for the member who issued it with some
+    of their permissions.
+
+    The key is shown once, when it is issued; the table keeps its SHA-256 digest, and in
+    ``prefix`` its first characters, by which people tell their keys apart. A key belongs to a
+    membership: it is deleted with it, so that a person who is removed and invited back does
+    not find their old keys working again. It works until it is revoked or it expires.
+    """
+
+    __tablename__ = "api_keys"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "user_id"],
+            ["memberships.organization_id", "memberships.user_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("char_length(btrim(name)) BETWEEN 1 AND 100", name="name_length"),
+        CheckConstraint("cardinality(permissions) > 0", name="has_permissions"),
+        CheckConstraint(
+            "permissions <@ "
+            "ARRAY['invoices:validate', 'invoices:submit', 'invoices:manage']::text[]",
+            name="permissions_known",
+        ),
+        Index("ix_api_keys_organization_id_user_id", "organization_id", "user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _id()
+    organization_id: Mapped[uuid.UUID]
+    user_id: Mapped[uuid.UUID]
+    name: Mapped[str] = mapped_column(Text)
+    prefix: Mapped[str] = mapped_column(Text)
+    digest: Mapped[str] = mapped_column(Text, unique=True)
+    permissions: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    created_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime | None]
+    revoked_at: Mapped[datetime | None]

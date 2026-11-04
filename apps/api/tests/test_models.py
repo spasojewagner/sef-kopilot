@@ -13,7 +13,15 @@ from sqlalchemy import delete, func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sef_api.models import Invitation, Membership, Organization, Role, StoredInvoice, User
+from sef_api.models import (
+    ApiKey,
+    Invitation,
+    Membership,
+    Organization,
+    Role,
+    StoredInvoice,
+    User,
+)
 
 
 def person(email: str) -> User:
@@ -40,6 +48,30 @@ def stored(
         "sha256": hashlib.sha256(content).hexdigest(),
     }
     return StoredInvoice(**(values | columns))
+
+
+def key(membership: Membership, **columns: Any) -> ApiKey:
+    """An API key as the schema sees it: a digest, a name and the permissions it holds."""
+    values: dict[str, Any] = {
+        "organization_id": membership.organization_id,
+        "user_id": membership.user_id,
+        "name": "ERP",
+        "prefix": "sefk_0123456",
+        "digest": secrets.token_hex(32),
+        "permissions": ["invoices:validate"],
+    }
+    return ApiKey(**(values | columns))
+
+
+async def member(session: AsyncSession, role: Role = Role.CLIENT) -> Membership:
+    """A member of a new organization."""
+    primer, ana = Organization(name="Primer"), person("ana@primer.example")
+    session.add_all([primer, ana])
+    await session.flush()
+    membership = Membership(organization_id=primer.id, user_id=ana.id, role=role)
+    session.add(membership)
+    await session.flush()
+    return membership
 
 
 def invitation(organization: Organization, email: str, **columns: Any) -> Invitation:
@@ -262,3 +294,85 @@ async def test_an_invoice_goes_with_its_organization_and_forgets_a_deleted_submi
 
     await session.execute(delete(Organization).where(Organization.id == primer.id))
     assert await session.scalar(select(func.count()).select_from(StoredInvoice)) == 0
+
+
+async def test_an_api_key_belongs_to_a_member_of_its_organization(session: AsyncSession) -> None:
+    membership = await member(session)
+    ogled = Organization(name="Ogled")
+    session.add(ogled)
+    await session.flush()
+    session.add(key(membership, organization_id=ogled.id))
+
+    with pytest.raises(IntegrityError, match="fk_api_keys_organization_id_user_id_memberships"):
+        await session.flush()
+
+
+async def test_an_api_key_goes_with_its_membership(session: AsyncSession) -> None:
+    membership = await member(session)
+    session.add_all([key(membership), key(membership)])
+    await session.flush()
+
+    await session.execute(
+        delete(Membership).where(
+            Membership.organization_id == membership.organization_id,
+            Membership.user_id == membership.user_id,
+        )
+    )
+
+    assert await session.scalar(select(func.count()).select_from(ApiKey)) == 0
+
+
+@pytest.mark.parametrize("deleted", ["organization", "user"])
+async def test_an_api_key_goes_with_its_organization_or_its_user(
+    session: AsyncSession, deleted: str
+) -> None:
+    membership = await member(session)
+    session.add(key(membership))
+    await session.flush()
+
+    if deleted == "organization":
+        await session.execute(
+            delete(Organization).where(Organization.id == membership.organization_id)
+        )
+    else:
+        await session.execute(delete(User).where(User.id == membership.user_id))
+
+    assert await session.scalar(select(func.count()).select_from(ApiKey)) == 0
+
+
+async def test_a_digest_belongs_to_one_api_key(session: AsyncSession) -> None:
+    membership = await member(session)
+    session.add_all([key(membership, digest="d" * 64), key(membership, digest="d" * 64)])
+
+    with pytest.raises(IntegrityError, match="uq_api_keys_digest"):
+        await session.flush()
+
+
+@pytest.mark.parametrize(
+    ("columns", "constraint"),
+    [
+        ({"name": "   "}, "ck_api_keys_name_length"),
+        ({"name": "x" * 101}, "ck_api_keys_name_length"),
+        ({"permissions": []}, "ck_api_keys_has_permissions"),
+        ({"permissions": ["invoices:validate", "members:manage"]}, "ck_api_keys_permissions_known"),
+    ],
+)
+async def test_an_api_key_is_what_its_columns_say(
+    session: AsyncSession, columns: dict[str, Any], constraint: str
+) -> None:
+    session.add(key(await member(session), **columns))
+
+    with pytest.raises(IntegrityError, match=constraint):
+        await session.flush()
+
+
+async def test_a_new_api_key_has_a_creation_time_and_neither_an_expiry_nor_a_revocation(
+    session: AsyncSession,
+) -> None:
+    created = key(await member(session), name="x" * 100)  # the longest name there may be
+    session.add(created)
+    await session.flush()
+    await session.refresh(created)
+
+    assert created.created_at.tzinfo is not None
+    assert (created.expires_at, created.revoked_at) == (None, None)
