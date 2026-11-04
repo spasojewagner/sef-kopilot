@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.auth.passwords import hash_password, needs_rehash, verify_password
-from sef_api.auth.tokens import issue_access_token, new_refresh_token, refresh_token_digest
+from sef_api.auth.tokens import issue_access_token, new_opaque_token, opaque_token_digest
 from sef_api.models import Membership, Organization, RefreshToken, Role, User
 from sef_api.settings import Settings
 
@@ -182,7 +182,7 @@ async def refresh(
     moment = now if now is not None else datetime.now(UTC)
     stored = await session.scalar(
         select(RefreshToken)
-        .where(RefreshToken.digest == refresh_token_digest(refresh_token))
+        .where(RefreshToken.digest == opaque_token_digest(refresh_token))
         .with_for_update()
     )
     if stored is None:
@@ -217,7 +217,7 @@ async def refresh(
 async def logout(session: AsyncSession, *, refresh_token: str, now: datetime | None = None) -> None:
     """End the session the refresh token belongs to; an unknown token changes nothing."""
     stored = await session.scalar(
-        select(RefreshToken).where(RefreshToken.digest == refresh_token_digest(refresh_token))
+        select(RefreshToken).where(RefreshToken.digest == opaque_token_digest(refresh_token))
     )
     if stored is not None:
         await _revoke_family(session, stored.family_id, now or datetime.now(UTC))
@@ -243,14 +243,14 @@ async def _sign_in(
         lifetime=tokens.access_lifetime,
         now=moment,
     )
-    token = new_refresh_token()
+    token = new_opaque_token()
     refresh_expires_at = moment + tokens.refresh_lifetime
     session.add(
         RefreshToken(
             organization_id=organization.id,
             user_id=user.id,
             family_id=family_id,
-            digest=refresh_token_digest(token),
+            digest=opaque_token_digest(token),
             expires_at=refresh_expires_at,
         )
     )

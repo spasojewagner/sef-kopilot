@@ -1,4 +1,4 @@
-"""Access tokens and refresh tokens: what is signed, what is refused, what is stored."""
+"""Access tokens and opaque tokens: what is signed, what is refused, what is stored."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from sef_api.auth.tokens import (
     InvalidTokenError,
     decode_access_token,
     issue_access_token,
-    new_refresh_token,
-    refresh_token_digest,
+    new_opaque_token,
+    opaque_token_digest,
 )
 from sef_api.models import Role
 
@@ -116,9 +116,9 @@ def test_garbage_is_refused() -> None:
         decode_access_token("not.a.token", secret=TEST_JWT_SECRET)
 
 
-def test_a_refresh_token_is_random_and_stored_by_its_digest() -> None:
-    token = new_refresh_token()
+def test_an_opaque_token_is_random_and_stored_by_its_digest() -> None:
+    token = new_opaque_token()
 
     assert len(token) == 43  # 32 bytes, URL-safe base64 without padding
-    assert token != new_refresh_token()
-    assert refresh_token_digest(token) == hashlib.sha256(token.encode()).hexdigest()
+    assert token != new_opaque_token()
+    assert opaque_token_digest(token) == hashlib.sha256(token.encode()).hexdigest()
