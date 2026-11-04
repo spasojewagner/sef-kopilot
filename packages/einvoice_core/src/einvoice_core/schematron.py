@@ -38,6 +38,7 @@ import contextlib
 import functools
 import hashlib
 import json
+import logging
 import os
 import re
 import tempfile
@@ -46,6 +47,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
+from xml.sax.saxutils import quoteattr
 
 from lxml import etree
 from saxonche import PySaxonApiError, PySaxonProcessor, PyXslt30Processor, PyXsltExecutable
@@ -159,12 +161,41 @@ RULE_SETS: Final[dict[str, RuleSet]] = {
     )
 }
 
+logger = logging.getLogger(__name__)
+
 _saxon_lock = threading.Lock()
 
 
 @functools.cache
 def _processor() -> PySaxonProcessor:
-    """The process-wide Saxon processor; only called while holding ``_saxon_lock``."""
+    """The process-wide Saxon processor; only called while holding ``_saxon_lock``.
+
+    Saxon writes its warnings to the process's standard error, and some quote the document:
+    a dynamic error in a rule set's match pattern is reported with the value it met. Only a
+    configuration file, read when the processor is made, can send that stream elsewhere, so
+    the processor is made from one that sends it to the null device. Errors still arrive as
+    exceptions.
+
+    Saxon refuses the configuration if it cannot open the null device. Validating does not
+    depend on where Saxon's warnings go, so the processor is then made without it, and a
+    warning, which quotes nothing, says that they will reach the standard error.
+    """
+    configuration = (
+        '<configuration xmlns="http://saxon.sf.net/ns/configuration" edition="HE">'
+        f"<global standardErrorOutputFile={quoteattr(os.devnull)}/>"
+        "</configuration>"
+    )
+    with tempfile.TemporaryDirectory(prefix="einvoice-saxon-") as directory:
+        path = Path(directory, "configuration.xml")
+        path.write_text(configuration, encoding="utf-8")
+        try:
+            return PySaxonProcessor(config_file=str(path), license=False)
+        except PySaxonApiError:
+            logger.warning(
+                "Saxon cannot send its standard error to %s: its warnings, which can quote "
+                "a document, will reach this process's standard error",
+                os.devnull,
+            )
     return PySaxonProcessor(license=False)
 
 

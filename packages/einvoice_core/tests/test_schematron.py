@@ -10,12 +10,15 @@ from __future__ import annotations
 import json
 import os
 import stat
+import subprocess
+import sys
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 from lxml import etree
+from saxonche import PySaxonApiError
 
 from einvoice_core import schematron
 from einvoice_core.rulesets import ENV_VAR, RulesetNotFoundError, ruleset_path
@@ -307,6 +310,87 @@ def test_a_missing_rule_set_file_is_reported(tmp_path: Path) -> None:
 def test_a_stylesheet_that_does_not_compile_is_reported(tmp_path: Path) -> None:
     with pytest.raises(SchematronError, match=r"cannot compile the stylesheet of .*rules\.xslt"):
         _validator(tmp_path, "<xsl:stylesheet version='2.0'/>")
+
+
+def test_saxon_warnings_never_reach_the_standard_error_stream(
+    tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """A dynamic error in a match pattern is a warning quoting the value it met; the shape is
+    one the Peppol rules meet when a party has two VAT identifiers."""
+    two_notes = f"""<Invoice xmlns="{UBL}" xmlns:cbc="{CBC}">
+  <cbc:Note>quoted-from-the-invoice</cbc:Note><cbc:Note>second</cbc:Note>
+</Invoice>"""
+    warning = _stylesheet(
+        globals_='<xsl:variable name="notes" select="//cbc:Note/string()"/>'
+        '<xsl:template match="cbc:Note[$notes]"/>'
+    ).replace(
+        "<svrl:schematron-output>",
+        "<svrl:schematron-output><xsl:apply-templates select='//cbc:Note'/>",
+    )
+    validator = _validator(tmp_path, warning)
+
+    assert validator.validate(_invoice(two_notes)) == ()
+
+    captured = capfd.readouterr()
+    assert "quoted-from-the-invoice" not in captured.err + captured.out
+    assert captured.err == ""
+
+
+#: Run in a process of its own, whose null device is a file that cannot be opened: Saxon reads
+#: the configuration once per process.
+WITHOUT_A_NULL_DEVICE = """
+import os
+import sys
+
+os.devnull = sys.argv[1]
+from einvoice_core import schematron
+
+executable = schematron._xslt_processor().compile_stylesheet(stylesheet_text=sys.argv[2])
+print(executable.transform_to_string(xdm_node=schematron._processor().parse_xml(xml_text="<a/>")))
+"""
+
+
+def test_without_a_null_device_saxon_still_transforms_and_says_where_its_warnings_go(
+    tmp_path: Path,
+) -> None:
+    stylesheet = (
+        '<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">'
+        '<xsl:output method="text"/><xsl:template match="/">transformed</xsl:template>'
+        "</xsl:stylesheet>"
+    )
+    missing = tmp_path / "missing" / "null"
+
+    finished = subprocess.run(
+        [sys.executable, "-c", WITHOUT_A_NULL_DEVICE, str(missing), stylesheet],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert (finished.returncode, finished.stdout) == (0, "transformed\n"), finished.stderr
+    assert f"Saxon cannot send its standard error to {missing}" in finished.stderr
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_refused_configuration_is_followed_by_a_processor_without_one(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    made: list[list[str]] = []
+    plain = object()
+
+    def processor(**options: object) -> object:
+        made.append(sorted(options))
+        if "config_file" in options:
+            raise PySaxonApiError("Invalid configuration property")
+        return plain
+
+    monkeypatch.setattr(schematron, "PySaxonProcessor", processor)
+
+    assert schematron._processor.__wrapped__() is plain
+    assert made == [["config_file", "license"], ["license"]]
+    assert "its warnings, which can quote a document, will reach" in caplog.text
 
 
 def test_a_dynamic_error_in_a_rule_is_reported(tmp_path: Path) -> None:
