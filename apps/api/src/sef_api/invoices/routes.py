@@ -88,6 +88,16 @@ async def validate(
         Query(description="`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0)."),
     ] = "srb",
 ) -> ValidationReport:
+    report = await _validated(request, session, profile)
+    response.headers["Cache-Control"] = "no-store"
+    return report
+
+
+async def _validated(
+    request: Request, session: AsyncSession, profile: ProfileName
+) -> ValidationReport:
+    """The validator's report on the invoice in the request body, or the HTTP error that says
+    why there is none."""
     # The permission check was this request's only database work. Ending its transaction gives
     # the pooled connection back before the body is read and validated, so that neither a slow
     # upload nor a validation waiting for its turn keeps it from other requests.
@@ -103,7 +113,7 @@ async def validate(
     )
     try:
         with admission.admit():
-            report = await validator.validate(content, profile)
+            return await validator.validate(content, profile)
     except ValidatorBusyError:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "the validator is busy", busy
@@ -124,5 +134,3 @@ async def validate(
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR, "the validator failed on this document"
         ) from None
-    response.headers["Cache-Control"] = "no-store"
-    return report
