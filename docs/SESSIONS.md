@@ -329,3 +329,58 @@ copied from `.env.example` stopped the API until empty variables counted as unse
 Verification: 1 561 tests green with PostgreSQL (API 92, coverage 99 %).
 
 Next: `feat/api-rbac-api-keys`.
+
+## 2026-11-04 — `feat/api-rbac-members` (5 commits)
+
+Outcome: authorization and the people of an organization.
+
+- Endpoints ask for a permission that one table grants by role. The owner holds every
+  permission, an accountant `members:read`, a client neither.
+- `require()` reads the current membership on every guarded request, so removal, deactivation
+  and role changes act at once. For `members:manage` it checks the role again under the
+  organization's lock.
+- `/members` lists, re-roles and removes members, and keeps at least one active owner.
+- Invitations are one-time codes stored as digests, redeemed with
+  `POST /auth/accept-invitation`. Redeeming creates the account or asks for its password. An
+  invitation stops working when its issuer may no longer invite.
+- One advisory lock per organization orders the work: exclusive for changes to the members,
+  shared for sign-in, refresh and sign-out. The tokens of one session are then locked by id.
+- A route audit with a pinned permission per endpoint, a refused-role test and a cross-tenant
+  case for every guarded endpoint run in CI.
+- Migration `0003`, ADR-0013 (amending ADR-0012), learning note 08, interview notes.
+
+Findings:
+
+- FastAPI 0.162 keeps an included router as a single route, so the audit walks into it and
+  cross-checks against OpenAPI, to fail loudly should it ever see nothing.
+- An independent review of the first version found five defects, each confirmed with a test:
+  1. A removed or demoted owner could return through an owner invitation issued before. Such
+     invitations are now withdrawn, and accepting checks the issuer again.
+  2. A replayed refresh token deadlocked with a removal.
+  3. A refresh during a removal minted a token that survived it.
+  4. A demotion between the permission check and the change let the change through.
+  5. The last-owner rule counted deactivated owners.
+  Defects 2 and 3 led to share mode for sessions; defect 4 to the check under the lock.
+- The review also found test gaps:
+  - A weaker permission on one route passed the audit.
+  - Mounted applications were invisible to the audit.
+  - Removing a lock or a `commit()` left the suite green, because every request shared one
+    rolled-back transaction.
+  The fixes are pinned permissions, refused-role tests, a check for unknown route types, and
+  tests on real committing sessions that hold one request at a gate. Each seeded fault now
+  fails the suite.
+- The review of the fixes confirmed all five and found three more problems:
+  - The tokens of one session still raced each other. This was left from
+    `feat/api-auth-tokens`: a sign-out or a replay during a refresh let the new token survive,
+    and two replays deadlocked.
+  - Shared row locks could starve a change to the members, because PostgreSQL does not queue
+    `FOR SHARE` behind a waiting `FOR NO KEY UPDATE`.
+  - Listing invitations took the exclusive lock.
+  These led to session tokens locked by id, an advisory lock granted in arrival order (a test
+  shows row locks fail it), no lock for tokens that can do nothing, and a lock only for
+  endpoints that change the members.
+
+Verification: 1 671 tests green with PostgreSQL (API 202, coverage 99 %).
+
+Next: `feat/api-invoices-validate`, then `feat/api-keys`, so that an API key has something to be
+allowed to do.

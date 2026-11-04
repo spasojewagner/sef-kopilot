@@ -1,19 +1,40 @@
-"""Who is calling: the principal behind an access token (a FastAPI dependency)."""
+"""Who is calling and what they may do: FastAPI dependencies for authentication and
+authorization.
+
+:func:`current_principal` authenticates: it reads the access token and needs no database.
+:func:`require` authorizes: it admits a caller whose role *now* grants a permission, reading the
+membership from the database, so that removing a member, deactivating an account or changing a
+role takes effect at once instead of when the access token expires (ADR-0013).
+"""
 
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from functools import cache
 from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.service import TokenSettings
 from sef_api.auth.tokens import InvalidTokenError, decode_access_token
-from sef_api.models import Role
+from sef_api.db import get_session
+from sef_api.locks import lock_organization
+from sef_api.models import Membership, Role, User
 
-__all__ = ["Principal", "current_principal", "get_token_settings"]
+__all__ = [
+    "Principal",
+    "current_principal",
+    "current_role",
+    "get_token_settings",
+    "no_longer_active",
+    "require",
+]
 
 _BEARER = HTTPBearer(
     auto_error=False,
@@ -56,3 +77,72 @@ async def current_principal(
             headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
         ) from None
     return Principal(claims.user_id, claims.organization_id, claims.role)
+
+
+async def current_role(session: AsyncSession, principal: Principal) -> Role | None:
+    """The principal's role in their organization now; None once the membership is gone or
+    the account is deactivated."""
+    return await session.scalar(
+        select(Membership.role)
+        .join(User, User.id == Membership.user_id)
+        .where(
+            Membership.user_id == principal.user_id,
+            Membership.organization_id == principal.organization_id,
+            User.is_active.is_(True),
+        )
+    )
+
+
+def no_longer_active() -> HTTPException:
+    """401 for a valid access token whose account or membership has ended since it was issued."""
+    return HTTPException(
+        status.HTTP_401_UNAUTHORIZED,
+        detail="the account or its membership is no longer active",
+        headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+    )
+
+
+def require(
+    permission: Permission, *, changes_members: bool = False
+) -> Callable[..., Awaitable[Principal]]:
+    """A dependency that admits callers whose current role grants ``permission``.
+
+    It answers 401 without a valid access token or once the caller's account or membership has
+    ended, and 403 when the role does not grant the permission. It returns the principal with
+    the role read from the database. There is one dependency per permission and variant, so a
+    route audit can tell what a route requires.
+
+    An endpoint that changes the organization's members asks with ``changes_members``. A caller
+    who passes is then checked once more after the organization is locked, and the endpoint's
+    change runs under that lock, so the role cannot change between the check and the change. A
+    caller who fails never takes the lock, and a reading endpoint takes none.
+    """
+    return _require(permission, changes_members)
+
+
+@cache
+def _require(permission: Permission, changes_members: bool) -> Callable[..., Awaitable[Principal]]:
+    async def authorize(
+        principal: Annotated[Principal, Depends(current_principal)],
+        session: Annotated[AsyncSession, Depends(get_session)],
+    ) -> Principal:
+        role = await _permitted_role(session, principal, permission)
+        if changes_members:
+            await lock_organization(session, principal.organization_id)
+            role = await _permitted_role(session, principal, permission)
+        return Principal(principal.user_id, principal.organization_id, role)
+
+    return authorize
+
+
+async def _permitted_role(
+    session: AsyncSession, principal: Principal, permission: Permission
+) -> Role:
+    role = await current_role(session, principal)
+    if role is None:
+        raise no_longer_active()
+    if permission not in ROLE_PERMISSIONS[role]:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail=f"requires the permission {permission}"
+        )
+    return role

@@ -2,8 +2,11 @@
 
 Tests that need PostgreSQL run on the server named by ``SEF_TEST_DATABASE_URL`` (taken from the
 environment or the repository's ``.env``), for example the one ``make up`` starts. The suite
-creates a database of its own there, migrates it and drops it at the end, and every test runs in
-a transaction that is rolled back. Without the variable those tests are skipped; CI sets it.
+creates a database of its own there, migrates it and drops it at the end. Most tests run in a
+transaction that is rolled back (``session``, ``api``); the tests about commits, locks and
+concurrent requests use real sessions that commit (``committed_database``, ``committed_api``),
+and the tables are emptied after each of them. Without the variable the database tests are
+skipped; CI sets it.
 """
 
 from __future__ import annotations
@@ -23,7 +26,7 @@ from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from sef_api.db import get_session
+from sef_api.db import Database, get_session
 from sef_api.main import create_app
 from sef_api.migrations import alembic_config
 from sef_api.settings import Settings
@@ -56,11 +59,12 @@ def settings_for(database_url: str = UNREACHABLE_DATABASE) -> Settings:
     )
 
 
-async def _execute(server: URL, statement: str) -> None:
+async def _execute(server: URL, *statements: str) -> None:
     engine = create_async_engine(server, isolation_level="AUTOCOMMIT", poolclass=NullPool)
     try:
         async with engine.connect() as connection:
-            await connection.execute(text(statement))
+            for statement in statements:
+                await connection.execute(text(statement))
     finally:
         await engine.dispose()
 
@@ -130,6 +134,36 @@ async def api(session: AsyncSession) -> AsyncIterator[AsyncClient]:
         yield session
 
     app.dependency_overrides[get_session] = the_test_session
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+    await app.state.database.engine.dispose()
+
+
+@pytest.fixture
+async def committed_database(database_url: str) -> AsyncIterator[Database]:
+    """The suite's database with sessions as the application makes them: every commit is real.
+
+    The tables are emptied afterwards, so the next test starts from nothing.
+    """
+    database = Database.connect(database_url, pooled=False)
+    try:
+        yield database
+    finally:
+        await database.engine.dispose()
+        await _execute(
+            make_url(database_url),
+            "SET lock_timeout = '10s'",  # a test that left a transaction open fails, not hangs
+            "TRUNCATE organizations, users CASCADE",
+        )
+
+
+@pytest.fixture
+async def committed_api(
+    committed_database: Database, database_url: str
+) -> AsyncIterator[AsyncClient]:
+    """A client of an application as in production: each request gets a session of its own
+    and commits for real, so a change that is not committed is lost with the request."""
+    app = create_app(settings_for(database_url))
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
     await app.state.database.engine.dispose()

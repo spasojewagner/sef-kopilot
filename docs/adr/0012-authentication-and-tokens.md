@@ -1,6 +1,7 @@
 # 12. Authentication: argon2id passwords, short-lived JWT access tokens, rotating refresh tokens
 
-- Status: accepted
+- Status: accepted; amended by [0013](0013-authorization-and-tenant-isolation.md), under which
+  guarded endpoints check the membership on every request
 - Date: 2026-11-04
 - Deciders: Marko Spasojević
 - Technical story: milestone M2, branch `feat/api-auth-tokens`

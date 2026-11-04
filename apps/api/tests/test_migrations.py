@@ -14,7 +14,14 @@ from sqlalchemy.pool import NullPool
 
 from sef_api.migrations import alembic_config
 
-TABLES = {"alembic_version", "organizations", "users", "memberships", "refresh_tokens"}
+TABLES = {
+    "alembic_version",
+    "organizations",
+    "users",
+    "memberships",
+    "invitations",
+    "refresh_tokens",
+}
 
 
 def tables(database_url: str) -> set[str]:

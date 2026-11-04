@@ -22,3 +22,4 @@ per branch, to keep them with the code they describe.
 | `chore/release-0.1.0` | [m1-release-0.1.0.md](m1-release-0.1.0.md) |
 | `feat/api-settings-database` | [m2-api-settings-database.md](m2-api-settings-database.md) |
 | `feat/api-auth-tokens` | [m2-api-auth-tokens.md](m2-api-auth-tokens.md) |
+| `feat/api-rbac-members` | [m2-api-rbac-members.md](m2-api-rbac-members.md) |

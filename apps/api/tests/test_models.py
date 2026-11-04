@@ -2,17 +2,32 @@
 
 from __future__ import annotations
 
+import secrets
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 import pytest
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sef_api.models import Membership, Organization, Role, User
+from sef_api.models import Invitation, Membership, Organization, Role, User
 
 
 def person(email: str) -> User:
     """A user; the hash is a placeholder, these tests are about the schema, not passwords."""
     return User(email=email, password_hash="$argon2id$placeholder")
+
+
+def invitation(organization: Organization, email: str, **columns: Any) -> Invitation:
+    return Invitation(
+        organization_id=organization.id,
+        email=email,
+        role=Role.CLIENT,
+        digest=secrets.token_hex(32),
+        expires_at=datetime.now(UTC) + timedelta(days=7),
+        **columns,
+    )
 
 
 async def test_an_organization_gets_an_id_and_a_timezone_aware_creation_time(
@@ -122,3 +137,48 @@ async def test_memberships_are_removed_with_their_organization_or_user(
     await session.execute(delete(removed).where(removed.id == gone))
 
     assert await session.scalar(select(func.count()).select_from(Membership)) == 0
+
+
+async def test_an_address_has_one_open_invitation_per_organization(session: AsyncSession) -> None:
+    primer, ogled = Organization(name="Primer"), Organization(name="Ogled")
+    session.add_all([primer, ogled])
+    await session.flush()
+    session.add_all(
+        [
+            invitation(primer, "nova@primer.example", revoked_at=datetime.now(UTC)),
+            invitation(primer, "nova@primer.example", accepted_at=datetime.now(UTC)),
+            invitation(primer, "nova@primer.example"),
+            invitation(ogled, "nova@primer.example"),
+        ]
+    )
+    await session.flush()  # closed invitations and other organizations do not count
+    session.add(invitation(primer, "nova@primer.example"))
+
+    with pytest.raises(IntegrityError, match="uq_invitations_organization_id_email_open"):
+        await session.flush()
+
+
+async def test_an_invited_address_is_stored_in_lower_case(session: AsyncSession) -> None:
+    primer = Organization(name="Primer")
+    session.add(primer)
+    await session.flush()
+    session.add(invitation(primer, "Nova@Primer.example"))
+
+    with pytest.raises(IntegrityError, match="ck_invitations_email_lower_case"):
+        await session.flush()
+
+
+async def test_an_invitation_goes_with_its_organization_and_forgets_a_deleted_inviter(
+    session: AsyncSession,
+) -> None:
+    primer, inviter = Organization(name="Primer"), person("ana@primer.example")
+    session.add_all([primer, inviter])
+    await session.flush()
+    session.add(invitation(primer, "nova@primer.example", invited_by=inviter.id))
+    await session.flush()
+
+    await session.execute(delete(User).where(User.id == inviter.id))
+    assert await session.scalar(select(Invitation.invited_by)) is None
+
+    await session.execute(delete(Organization).where(Organization.id == primer.id))
+    assert await session.scalar(select(func.count()).select_from(Invitation)) == 0

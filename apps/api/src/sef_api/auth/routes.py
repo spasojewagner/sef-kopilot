@@ -1,4 +1,4 @@
-"""``/auth``: sign up, sign in, refresh, sign out, and who am I."""
+"""``/auth``: sign up, sign in, accept an invitation, refresh, sign out, and who am I."""
 
 from __future__ import annotations
 
@@ -13,7 +13,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.auth import service
-from sef_api.auth.dependencies import Principal, current_principal, get_token_settings
+from sef_api.auth.dependencies import (
+    Principal,
+    current_principal,
+    get_token_settings,
+    no_longer_active,
+)
+from sef_api.auth.passwords import MAXIMUM_LENGTH, MINIMUM_LENGTH
 from sef_api.auth.service import SignedIn, TokenSettings
 from sef_api.db import get_session
 from sef_api.models import Membership, Organization, Role, User
@@ -23,9 +29,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 Session = Annotated[AsyncSession, Depends(get_session)]
 Tokens = Annotated[TokenSettings, Depends(get_token_settings)]
 
-#: Long enough for a passphrase, short enough to bound the work of hashing it.
-NewPassword = Annotated[str, Field(min_length=12, max_length=128)]
-Password = Annotated[str, Field(min_length=1, max_length=128)]
+NewPassword = Annotated[str, Field(min_length=MINIMUM_LENGTH, max_length=MAXIMUM_LENGTH)]
+Password = Annotated[str, Field(min_length=1, max_length=MAXIMUM_LENGTH)]
 OrganizationName = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
 ]
@@ -46,6 +51,17 @@ class LoginRequest(BaseModel):
     organization_id: uuid.UUID | None = Field(
         default=None,
         description="Required when the person is a member of more than one organization.",
+    )
+
+
+class AcceptInvitationRequest(BaseModel):
+    code: Annotated[str, Field(min_length=1, max_length=256)] = Field(
+        description="The invitation code the person received from the organization's owner."
+    )
+    password: Password = Field(
+        description="The password of the invited address's account; when the address has no "
+        f"account yet, the password of the new account ({MINIMUM_LENGTH} to {MAXIMUM_LENGTH} "
+        "characters)."
     )
 
 
@@ -189,6 +205,54 @@ async def login(body: LoginRequest, session: Session, tokens: Tokens) -> TokenRe
 
 
 @router.post(
+    "/accept-invitation",
+    summary="Join an organization with an invitation code",
+    description=(
+        "Redeems an invitation code: creates the account when the invited address has none, "
+        "otherwise checks its password, then adds the membership and signs the person in to "
+        "the organization. A code is good once."
+    ),
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": Problem, "description": "Unusable code."},
+        status.HTTP_401_UNAUTHORIZED: {"model": Problem, "description": "Wrong password."},
+        status.HTTP_409_CONFLICT: {"model": Problem, "description": "The address just registered."},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": Problem,
+            "description": "The new account's password is too short.",
+        },
+    },
+)
+async def accept_invitation(
+    body: AcceptInvitationRequest, session: Session, tokens: Tokens
+) -> TokenResponse:
+    try:
+        signed_in = await service.accept_invitation(
+            session, tokens, code=body.code, password=body.password
+        )
+    except service.InvalidInvitationError:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "invalid, expired or already used invitation code"
+        ) from None
+    except service.AuthenticationError:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "wrong password for the invited address's account",
+            headers=_UNAUTHORIZED,
+        ) from None
+    except service.NewPasswordTooShortError:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"a new account's password needs {MINIMUM_LENGTH} to {MAXIMUM_LENGTH} characters",
+        ) from None
+    except service.EmailTakenError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "the invited address has just registered; accept with that account's password",
+        ) from None
+    return _tokens(signed_in)
+
+
+@router.post(
     "/refresh",
     summary="Exchange a refresh token for a new pair",
     description=(
@@ -223,8 +287,8 @@ async def logout(body: RefreshRequest, session: Session) -> None:
     "/me",
     summary="Who am I",
     description=(
-        "The person, organization and role of the access token; 401 once the account or its "
-        "membership is gone."
+        "The person and organization of the access token and the role they hold now; 401 once "
+        "the account is deactivated or the membership has ended."
     ),
     responses={status.HTTP_401_UNAUTHORIZED: {"model": Problem}},
 )
@@ -233,21 +297,21 @@ async def me(
 ) -> MeResponse:
     row = (
         await session.execute(
-            select(User, Organization)
+            select(User, Organization, Membership.role)
             .join(Membership, Membership.user_id == User.id)
             .join(Organization, Organization.id == Membership.organization_id)
-            .where(User.id == principal.user_id, Organization.id == principal.organization_id)
+            .where(
+                User.id == principal.user_id,
+                Organization.id == principal.organization_id,
+                User.is_active.is_(True),
+            )
         )
     ).one_or_none()
     if row is None:
-        raise HTTPException(
-            status.HTTP_401_UNAUTHORIZED,
-            "the account or its membership no longer exists",
-            headers=_UNAUTHORIZED,
-        )
-    user, organization = row
+        raise no_longer_active()
+    user, organization, role = row
     return MeResponse(
         user=UserOut(id=user.id, email=user.email),
         organization=OrganizationOut(id=organization.id, name=organization.name),
-        role=principal.role,
+        role=role,
     )

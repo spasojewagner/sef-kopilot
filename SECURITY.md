@@ -77,8 +77,9 @@ system are marked as such.
 ### V4 API and web service
 
 - [ ] CORS restricted to the configured web origin.
-- [ ] Every endpoint declares its authentication and authorization requirements; OpenAPI
-      documents them.
+- [x] Every endpoint is public by name or requires a permission; a test over the application's
+      routes enforces it, and OpenAPI documents the access token.
+- [ ] OpenAPI names the permission each endpoint requires.
 - [ ] Consistent error schema; no stack traces or internal paths in responses.
 
 ### V5 File handling
@@ -101,12 +102,20 @@ system are marked as such.
 - [x] Short-lived JWT access tokens (15 minutes); refresh tokens stored as digests, spent on use,
       and a replayed one revokes its whole session.
 - [x] Logout invalidates refresh tokens.
+- [x] The tokens of one session are locked in one order, so a sign-out or a replay during a
+      refresh also revokes the token it issued.
 
 ### V8 Authorization
 
-- [ ] Role-based access (`owner`, `accountant`, `client`) enforced in the service layer.
-- [ ] Tenant isolation by `organization_id` on every query, verified by tests that attempt
-      cross-tenant access.
+- [x] Permissions per role (`owner`, `accountant`, `client`) in one table, checked against the
+      current membership on every guarded request, so that removal and role changes act at once.
+- [x] Tenant isolation by `organization_id` on every query; another organization's objects
+      answer 404. Every guarded endpoint has a cross-tenant test, and a test fails when one is
+      missing.
+- [x] An organization keeps an active owner. Changes to its members and its sessions are
+      ordered by one advisory lock, granted in arrival order, and the permission for such a
+      change is checked again under it.
+- [x] An invitation stops working when the owner who issued it may no longer invite.
 
 ### V9 Self-contained tokens
 

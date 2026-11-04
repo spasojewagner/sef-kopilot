@@ -351,17 +351,31 @@ async def test_an_invalid_or_expired_access_token_is_401(api: AsyncClient, token
     assert response.headers["WWW-Authenticate"] == 'Bearer error="invalid_token"'
 
 
-@pytest.mark.parametrize("removed", [User, Membership])
-async def test_who_am_i_fails_once_the_account_or_the_membership_is_gone(
-    api: AsyncClient, session: AsyncSession, removed: type[User] | type[Membership]
+async def test_who_am_i_reports_the_role_held_now(api: AsyncClient, session: AsyncSession) -> None:
+    registered = await register(api)
+    await session.execute(update(Membership).values(role=Role.ACCOUNTANT))
+
+    response = await api.get("/auth/me", headers=bearer(registered["access_token"]))
+
+    assert response.json()["role"] == "accountant"  # the token still says "owner"
+
+
+@pytest.mark.parametrize("ended_by", ["deleting the account", "deactivation", "removal"])
+async def test_who_am_i_fails_once_the_account_or_the_membership_has_ended(
+    api: AsyncClient, session: AsyncSession, ended_by: str
 ) -> None:
     registered = await register(api)
-    await session.execute(delete(removed))
+    if ended_by == "deleting the account":
+        await session.execute(delete(User))
+    elif ended_by == "deactivation":
+        await session.execute(update(User).values(is_active=False))
+    else:
+        await session.execute(delete(Membership))
 
     response = await api.get("/auth/me", headers=bearer(registered["access_token"]))
 
     assert response.status_code == 401
-    assert response.json() == {"detail": "the account or its membership no longer exists"}
+    assert response.json() == {"detail": "the account or its membership is no longer active"}
 
 
 async def test_openapi_documents_the_auth_endpoints_and_the_bearer_scheme(

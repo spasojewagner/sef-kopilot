@@ -39,6 +39,30 @@ curl -s localhost:8000/auth/me -H "Authorization: Bearer $ACCESS_TOKEN"
 
 Passwords are hashed with argon2id (OWASP's minimum: 19 MiB, two passes) in a worker thread.
 
+## Members and permissions
+
+Endpoints ask for a permission; a member's role grants permissions (ADR-0013):
+
+| Permission | owner | accountant | client |
+| --- | :-: | :-: | :-: |
+| `members:read`: see the members and their roles | yes | yes | no |
+| `members:manage`: invite people, change roles, remove members | yes | no | no |
+
+`GET /members`, `PATCH /members/{user_id}` and `DELETE /members/{user_id}` work in the
+organization of the caller's access token. The role is read from the membership on every
+request, so a removed member, a deactivated account or a changed role takes effect at once, not
+when the access token expires. An organization keeps at least one active owner, and changes to
+its members take turns (one advisory lock per organization). A member of another organization
+is not found (404), never forbidden.
+
+People join with an invitation. `POST /invitations` returns a one-time code, valid for seven
+days, that the owner passes on (there is no mail service); the person redeems it with
+`POST /auth/accept-invitation`, which creates their account if the address has none and
+otherwise asks for its password, then signs them in to the organization. Only the code's digest
+is stored; `GET /invitations` lists the open ones and `DELETE /invitations/{id}` revokes one. An
+invitation stops working when the owner who issued it is removed, demoted or deactivated, so a
+departing owner cannot return through it.
+
 ## Database and migrations
 
 PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
@@ -47,13 +71,13 @@ PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with A
 ```bash
 uv run alembic -c apps/api/alembic.ini upgrade head                    # apply
 uv run alembic -c apps/api/alembic.ini downgrade -1                    # undo the last one
-uv run alembic -c apps/api/alembic.ini revision --autogenerate --rev-id 0003 -m "add ..."
+uv run alembic -c apps/api/alembic.ini revision --autogenerate --rev-id NNNN -m "add ..."
 uv run alembic -c apps/api/alembic.ini upgrade head --sql              # print the SQL instead
 ```
 
-Revision ids are four-digit sequence numbers. A generated revision is a draft: read it, make the
-downgrade exact, and run the tests, which check that the migrations build exactly the models'
-schema and that every step can be undone.
+Revision ids are four-digit sequence numbers (`NNNN` is the next one). A generated revision is a
+draft: read it, make the downgrade exact, and run the tests, which check that the migrations
+build exactly the models' schema and that every step can be undone.
 
 ## Test
 

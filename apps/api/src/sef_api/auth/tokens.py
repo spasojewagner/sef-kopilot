@@ -1,13 +1,13 @@
-"""Access tokens (JWT, HS256) and refresh tokens (random, stored only as a SHA-256 digest).
+"""Access tokens (JWT, HS256) and opaque tokens (random, stored only as a SHA-256 digest).
 
 An access token says who calls, for which organization and in which role, and expires after
 minutes; it is checked without the database. Its header type is ``at+jwt`` (RFC 9068), and the
 algorithm, issuer, audience and expiry are all required and verified, so a token minted for
 another purpose or with another algorithm (``none`` included) is refused.
 
-A refresh token is 256 random bits. The database keeps its SHA-256 digest, never the token: a
-leaked table holds nothing that signs anyone in, and a digest of so much randomness needs no
-salt or slow hash.
+An opaque token is 256 random bits that the API hands out once, such as a refresh token. The
+database keeps its SHA-256 digest, never the token: a leaked table holds nothing that signs
+anyone in, and a digest of so much randomness needs no salt or slow hash.
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ __all__ = [
     "InvalidTokenError",
     "decode_access_token",
     "issue_access_token",
-    "new_refresh_token",
-    "refresh_token_digest",
+    "new_opaque_token",
+    "opaque_token_digest",
 ]
 
 ALGORITHM: Final = "HS256"
@@ -104,11 +104,11 @@ def decode_access_token(token: str, *, secret: str) -> AccessClaims:
         raise InvalidTokenError("malformed claims") from error
 
 
-def new_refresh_token() -> str:
-    """A new refresh token: 256 random bits, URL-safe."""
+def new_opaque_token() -> str:
+    """A new opaque token: 256 random bits, URL-safe."""
     return secrets.token_urlsafe(32)
 
 
-def refresh_token_digest(token: str) -> str:
-    """The SHA-256 digest by which a refresh token is stored and looked up."""
+def opaque_token_digest(token: str) -> str:
+    """The SHA-256 digest by which an opaque token is stored and looked up."""
     return hashlib.sha256(token.encode()).hexdigest()
