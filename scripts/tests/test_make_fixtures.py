@@ -2,23 +2,41 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 
 import pytest
 
 import make_fixtures
+from einvoice_core.pipeline import SetAsideViolation, ValidationReport
+from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
 from einvoice_core.srb import RULES
+from einvoice_core.violations import Severity, Violation
 from make_fixtures import (
     MUTATIONS,
     MUTATIONS_DIR,
     REPOSITORY_ROOT,
     SYNTHETIC,
     Mutation,
+    corpus,
     generated,
     mutate,
+    verdict,
     write_mutations,
 )
+
+
+def _fetched() -> bool:
+    try:
+        for package in make_fixtures.PACKAGES:
+            ruleset_path(package)
+    except RulesetNotFoundError:
+        return False
+    return True
+
+
+needs_rule_sets = pytest.mark.skipif(not _fetched(), reason="rule sets not fetched")
 
 BASE = (
     '<?xml version="1.0" encoding="UTF-8"?>\n<!--\n  A base.\n-->\n<Invoice><ID>1</ID></Invoice>\n'
@@ -127,11 +145,89 @@ def test_writing_the_fixtures_removes_stale_ones(tmp_path: Path) -> None:
     assert all(b"\r\n" not in path.read_bytes() for path in written)
 
 
-def test_the_command_writes_the_mutation_fixtures(
+# --- verdicts ----------------------------------------------------------------------------------
+
+
+def test_the_corpus_lists_the_xml_files_with_their_profiles(tmp_path: Path) -> None:
+    for name in (
+        "fixtures/invoices/official/sef/a.xml",
+        f"{SYNTHETIC}/b.xml",
+        f"{SYNTHETIC}/notes.txt",
+        f"{MUTATIONS_DIR}/c.xml",
+        "third_party/en16931/ubl/examples/D.XML",
+    ):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text("<Invoice/>\n", encoding="utf-8")
+
+    assert corpus(tmp_path) == {
+        "fixtures/invoices/official/sef/a.xml": ("srb", "en16931"),
+        f"{SYNTHETIC}/b.xml": ("srb", "en16931"),
+        f"{MUTATIONS_DIR}/c.xml": ("srb",),
+        "third_party/en16931/ubl/examples/D.XML": ("en16931",),
+    }
+
+
+def violation(rule_id: str, severity: Severity = Severity.FATAL) -> Violation:
+    return Violation(rule_id=rule_id, severity=severity, message="m", xpath=None, layer="srb-cius")
+
+
+def test_a_verdict_counts_how_often_each_rule_was_reported() -> None:
+    report = ValidationReport(
+        profile="srb",
+        valid=False,
+        violations=(
+            violation("SRB-009"),
+            violation("SRB-013", Severity.WARNING),
+            violation("SRB-009"),
+        ),
+        set_aside=(SetAsideViolation(violation=violation("BR-CL-22"), reason="r", replaced_by=()),),
+        layers=(),
+    )
+
+    assert verdict(report) == {
+        "valid": False,
+        "fatal": {"SRB-009": 2},
+        "warning": {"SRB-013": 1},
+        "set_aside": {"BR-CL-22": 1},
+    }
+
+
+def test_a_verdict_needs_the_whole_report() -> None:
+    report = ValidationReport(profile="srb", valid=False, violations=(), layers=(), omitted=1)
+
+    with pytest.raises(ValueError, match="violation limit"):
+        verdict(report)
+
+
+def test_without_rule_sets_the_mutations_are_written_and_the_command_exits_with_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def not_fetched(package: str) -> Path:
+        raise RulesetNotFoundError(f"{package} has not been fetched")
+
+    monkeypatch.setattr(make_fixtures, "ruleset_path", not_fetched)
+    copy_bases(tmp_path)
+
+    status = make_fixtures.main([], root=tmp_path)
+
+    assert status == 2
+    assert len(list((tmp_path / MUTATIONS_DIR).glob("*.xml"))) == len(MUTATIONS)
+    assert not (tmp_path / make_fixtures.VERDICTS).exists()
+    assert "make rulesets" in capsys.readouterr().err
+
+
+@needs_rule_sets
+def test_the_command_writes_the_mutations_and_the_verdicts(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     copy_bases(tmp_path)
 
-    assert make_fixtures.main([], root=tmp_path) == 0
-    assert len(list((tmp_path / MUTATIONS_DIR).glob("*.xml"))) == len(MUTATIONS)
-    assert f"{len(MUTATIONS)} mutation fixtures" in capsys.readouterr().out
+    status = make_fixtures.main([], root=tmp_path)
+
+    documents = json.loads((tmp_path / make_fixtures.VERDICTS).read_text(encoding="utf-8"))[
+        "documents"
+    ]
+    assert status == 0
+    assert list(documents) == list(corpus(tmp_path))
+    assert documents[f"{SYNTHETIC}/srb-minimal-invoice.xml"]["srb"]["valid"] is True
+    assert f"verdicts on {len(documents)} documents" in capsys.readouterr().out

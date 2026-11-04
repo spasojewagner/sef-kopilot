@@ -1,4 +1,4 @@
-"""The fixture corpus: the Ministry's SEF examples and the mutation fixtures."""
+"""The fixture corpus: the Ministry's SEF examples, the mutations, the recorded verdicts."""
 
 from __future__ import annotations
 
@@ -20,6 +20,10 @@ from .conftest import REPOSITORY_ROOT
 SEF_DIR = REPOSITORY_ROOT / "fixtures" / "invoices" / "official" / "sef"
 SEF_MANIFEST: dict[str, Any] = json.loads((SEF_DIR / "manifest.json").read_text(encoding="utf-8"))
 SEF_EXAMPLES: list[dict[str, Any]] = SEF_MANIFEST["documents"]
+
+VERDICTS: dict[str, dict[str, Any]] = json.loads(
+    (REPOSITORY_ROOT / make_fixtures.VERDICTS).read_text(encoding="utf-8")
+)["documents"]
 
 #: The examples' placeholder PIBs, and the same serial numbers with their valid check digits.
 PLACEHOLDER_PIBS = {b"123456789": b"123456788", b"987654321": b"987654328"}
@@ -83,3 +87,19 @@ def test_each_mutation_is_reported_as_its_header_says(mutation: make_fixtures.Mu
     report = validate((REPOSITORY_ROOT / mutation.file).read_bytes(), "srb")
 
     assert sorted(v.rule_id for v in report.violations) == sorted(mutation.expect)
+
+
+@needs_rule_sets
+def test_the_verdicts_cover_the_whole_corpus() -> None:
+    recorded = {document: tuple(profiles) for document, profiles in VERDICTS.items()}
+
+    assert recorded == make_fixtures.corpus(), "run `make fixtures`"
+
+
+@needs_rule_sets
+@pytest.mark.parametrize("document", sorted(VERDICTS))
+def test_the_verdicts_on_the_corpus_are_unchanged(document: str) -> None:
+    for profile, expected in VERDICTS[document].items():
+        assert make_fixtures.judge(REPOSITORY_ROOT, document, profile) == expected, (
+            f"the {profile} verdict on {document} changed: run `make fixtures`, review the diff"
+        )

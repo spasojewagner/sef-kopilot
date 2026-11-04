@@ -63,7 +63,7 @@ rulesets: ## Fetch the pinned EN 16931 and Peppol BIS rule sets into third_party
 rulesets-check: ## Verify that third_party/ holds the pinned rule-set versions (no network)
 	$(UV) run python scripts/fetch_rulesets.py --check
 
-fixtures: ## Regenerate the mutation fixtures from the catalogue in scripts/make_fixtures.py
+fixtures: ## Regenerate the mutation fixtures and the verdicts on the corpus (needs rulesets)
 	$(UV) run python scripts/make_fixtures.py
 
 up: ## Start PostgreSQL (pgvector) and Redis in Docker and wait until they are healthy

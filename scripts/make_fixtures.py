@@ -1,4 +1,4 @@
-"""Generate the mutation fixtures.
+"""Generate the mutation fixtures and the verdicts on the fixture corpus.
 
 A mutation fixture is a synthetic invoice with one deliberate mistake of the kind an ERP or an
 integration makes: a PIB with a wrong check digit, a VAT rate SEF does not know, a total that
@@ -7,26 +7,54 @@ does not add up, a date in the local format. Each is made from a base invoice in
 ``fixtures/invoices/synthetic/mutations/`` with a header that states the mistake and what the
 SRB profile reports for it.
 
-The fixtures are generated, never edited by hand; the tests fail when one is out of date.
-Usage::
+The verdicts file, ``fixtures/invoices/verdicts.json``, records what the validation pipeline
+says about every document of the corpus (the Ministry's SEF examples, the synthetic invoices
+and their mutations, the CEN and OpenPeppol example invoices fetched into ``third_party/``)
+under each profile that applies to it. Review its diff like code: a changed verdict is a
+changed behaviour.
+
+Both are generated, never edited by hand; the tests fail when either is out of date. Usage::
 
     uv run python scripts/make_fixtures.py      # or: make fixtures
+
+Writing the verdicts needs the fetched rule sets (``make rulesets``).
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
+import sys
 import textwrap
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
+
+from einvoice_core.pipeline import ValidationReport, validate
+from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
+from einvoice_core.violations import Severity
 
 REPOSITORY_ROOT: Final = Path(__file__).resolve().parents[1]
 SYNTHETIC: Final = "fixtures/invoices/synthetic"
 MUTATIONS_DIR: Final = f"{SYNTHETIC}/mutations"
+VERDICTS: Final = "fixtures/invoices/verdicts.json"
+
+#: The rule-set packages the verdicts depend on, all of which must have been fetched.
+PACKAGES: Final = ("ubl-2.1", "en16931", "peppol-bis-billing-3", "iso-schematron")
+
+#: The corpus: folders (relative to the repository root) and the profiles their documents are
+#: judged under. Serbian documents are also judged under plain EN 16931, which shows what
+#: SRB-CIUS widens; the CEN and OpenPeppol examples only under their own profiles.
+CORPUS: Final = (
+    ("fixtures/invoices/official/sef", ("srb", "en16931")),
+    (SYNTHETIC, ("srb", "en16931")),
+    (MUTATIONS_DIR, ("srb",)),
+    ("third_party/en16931/ubl/examples", ("en16931",)),
+    ("third_party/peppol-bis-billing-3/rules/examples", ("peppol",)),
+)
 
 _NAME = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 _HEADER = re.compile(r"\A(<\?xml[^>]*\?>\n)<!--.*?-->\n", re.DOTALL)
@@ -107,10 +135,79 @@ def write_mutations(root: Path = REPOSITORY_ROOT) -> dict[str, str]:
     return files
 
 
+# --- verdicts ----------------------------------------------------------------------------------
+
+
+def corpus(root: Path = REPOSITORY_ROOT) -> dict[str, tuple[str, ...]]:
+    """Every document of the corpus (POSIX path relative to ``root``) and its profiles."""
+    documents: dict[str, tuple[str, ...]] = {}
+    for folder, profiles in CORPUS:
+        directory = root / folder
+        if not directory.is_dir():
+            continue
+        for path in directory.iterdir():
+            if path.is_file() and path.suffix.lower() == ".xml":
+                documents[path.relative_to(root).as_posix()] = profiles
+    return dict(sorted(documents.items()))
+
+
+def _counts(rule_ids: Iterable[str]) -> dict[str, int]:
+    return dict(sorted(Counter(rule_ids).items()))
+
+
+def verdict(report: ValidationReport) -> dict[str, Any]:
+    """The verdict as recorded: validity and, per rule, how often it was reported."""
+    if report.omitted:
+        raise ValueError("the report was cut at the violation limit")
+    return {
+        "valid": report.valid,
+        "fatal": _counts(v.rule_id for v in report.violations if v.severity is Severity.FATAL),
+        "warning": _counts(
+            v.rule_id for v in report.violations if v.severity is not Severity.FATAL
+        ),
+        "set_aside": _counts(item.violation.rule_id for item in report.set_aside),
+    }
+
+
+def judge(root: Path, document: str, profile: str) -> dict[str, Any]:
+    """The pipeline's verdict on one corpus document under one profile."""
+    return verdict(validate((root / document).read_bytes(), profile, max_violations=100_000))
+
+
+def verdicts(root: Path = REPOSITORY_ROOT) -> dict[str, dict[str, dict[str, Any]]]:
+    """The pipeline's verdicts on the whole corpus; needs every rule set fetched."""
+    for package in PACKAGES:
+        ruleset_path(package)
+    return {
+        document: {profile: judge(root, document, profile) for profile in profiles}
+        for document, profiles in corpus(root).items()
+    }
+
+
 def main(argv: Sequence[str] | None = None, *, root: Path = REPOSITORY_ROOT) -> int:
-    argparse.ArgumentParser(description="Write the mutation fixtures.").parse_args(argv)
+    argparse.ArgumentParser(
+        description="Write the mutation fixtures and the verdicts on the fixture corpus."
+    ).parse_args(argv)
     files = write_mutations(root)
     print(f"{len(files)} mutation fixtures in {MUTATIONS_DIR}/")
+    try:
+        documents = verdicts(root)
+    except RulesetNotFoundError as error:
+        print(f"make_fixtures: {error}; fetch them with `make rulesets`.", file=sys.stderr)
+        return 2
+    data = {
+        "$comment": (
+            "Generated by scripts/make_fixtures.py: the validation pipeline's verdict on every "
+            "document of the fixture corpus under each profile that applies to it, with how "
+            "often each rule was reported (fatal, warning) or set aside by the profile. The "
+            "tests fail when a verdict changes; review the diff like code."
+        ),
+        "documents": documents,
+    }
+    (root / VERDICTS).write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
+    )
+    print(f"verdicts on {len(documents)} documents in {VERDICTS}")
     return 0
 
 

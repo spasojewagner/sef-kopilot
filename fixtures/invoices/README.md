@@ -1,6 +1,6 @@
 # Invoice fixtures
 
-Test documents for the validation engine:
+Test documents for the validation engine, and the verdicts the pipeline gives on them:
 
 - `official/sef/` — the 17 example documents the Ministry of Finance publishes for SEF
   ([updated XML examples, 11 July 2025](https://www.efaktura.gov.rs/tekst/330/azurirani-primeri-xml-datoteka-po-ubl-21-standardu.php)),
@@ -22,6 +22,14 @@ Test documents for the validation engine:
   Never edit them: change the catalogue and run `make fixtures`.
 - official example and test files from CEN/TC 434 and OpenPeppol are **not** copied here: they
   are fetched into `third_party/` by `make rulesets` and used from there, under their own
-  licenses.
+  licenses. Their 29 example invoices are part of the corpus below; their unit tests, 1 471
+  test documents in 339 files, are run against the Schematron layer by
+  `test_schematron_conformance.py`.
+- `verdicts.json` — the pipeline's verdict on every document of the corpus (93) under each
+  profile that applies to it: `srb` and `en16931` for the Serbian documents, `srb` alone for
+  the mutations, `en16931` for CEN's examples and `peppol` for OpenPeppol's. It records
+  validity and how often each rule was reported or set aside, not lines or messages.
+  `make fixtures` rewrites it and the tests fail when a verdict changes, so a change in
+  behaviour shows up as a diff to review.
 
 Never add a real company's invoice, not even anonymised.
