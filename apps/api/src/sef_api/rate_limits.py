@@ -39,6 +39,7 @@ __all__ = [
     "DEFAULT_LIMITS",
     "Counted",
     "Limit",
+    "PasswordAttempts",
     "RateLimiter",
     "Rule",
     "client_address",
@@ -167,18 +168,44 @@ class Counted(StrEnum):
     REGISTRATION = "registrations"
     REFRESH = "refresh-token requests"
     INVITATION = "attempts to accept an invitation"
+    FAILED_PASSWORD = "failed passwords for this e-mail address"
 
 
 #: The limits the API counts against. Per address: what one client may try, generous enough
-#: for an office of people behind one address.
+#: for an office of people behind one address. Per e-mail address: the passwords that may be
+#: wrong, from wherever they come, which is what stops a guess at one account.
 DEFAULT_LIMITS: Final[Mapping[Counted, Limit]] = MappingProxyType(
     {
         Counted.SIGN_IN: Limit(30, timedelta(minutes=1)),
         Counted.REGISTRATION: Limit(10, timedelta(hours=1)),
         Counted.REFRESH: Limit(60, timedelta(minutes=1)),
         Counted.INVITATION: Limit(10, timedelta(minutes=1)),
+        Counted.FAILED_PASSWORD: Limit(10, timedelta(minutes=15)),
     }
 )
+
+
+@dataclass(frozen=True)
+class PasswordAttempts:
+    """The failed password checks of each e-mail address, against one limit. An address that
+    no account has is counted like any other, so that being held back reveals nothing."""
+
+    limiter: RateLimiter
+    limit: Limit
+
+    def wait(self, email: str) -> float:
+        """Seconds until a password for ``email`` may be checked again; 0 when it may now."""
+        return self.limiter.wait(self._rule(email))
+
+    def failed(self, email: str) -> None:
+        self.limiter.hit(self._rule(email))
+
+    def passed(self, email: str) -> None:
+        """The right password starts the count afresh."""
+        self.limiter.forget(self._rule(email))
+
+    def _rule(self, email: str) -> Rule:
+        return Rule(Counted.FAILED_PASSWORD, email, self.limit)
 
 
 def client_address(request: Request) -> str:

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field, StringConstraints
 from sqlalchemy import select
@@ -23,12 +24,23 @@ from sef_api.auth.passwords import MAXIMUM_LENGTH, MINIMUM_LENGTH
 from sef_api.auth.service import SignedIn, TokenSettings
 from sef_api.db import get_session
 from sef_api.models import Membership, Organization, Role, User
-from sef_api.rate_limits import Counted, per_address
+from sef_api.rate_limits import Counted, Limit, PasswordAttempts, RateLimiter, per_address, too_many
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 Tokens = Annotated[TokenSettings, Depends(get_token_settings)]
+
+
+def password_attempts(request: Request) -> PasswordAttempts:
+    """The application's count of failed passwords per e-mail address (a FastAPI dependency)."""
+    limits = cast(Mapping[Counted, Limit], request.app.state.limits)
+    return PasswordAttempts(
+        cast(RateLimiter, request.app.state.limiter), limits[Counted.FAILED_PASSWORD]
+    )
+
+
+Attempts = Annotated[PasswordAttempts, Depends(password_attempts)]
 
 NewPassword = Annotated[str, Field(min_length=MINIMUM_LENGTH, max_length=MAXIMUM_LENGTH)]
 Password = Annotated[str, Field(min_length=1, max_length=MAXIMUM_LENGTH)]
@@ -123,12 +135,11 @@ class Problem(BaseModel):
     detail: str
 
 
-#: The answer of an endpoint whose requests are counted per address.
+#: The answer of an endpoint whose requests are counted against a limit.
 TOO_MANY: dict[int | str, dict[str, Any]] = {
     status.HTTP_429_TOO_MANY_REQUESTS: {
         "model": Problem,
-        "description": "Too many requests from this address; try again after `Retry-After` "
-        "seconds.",
+        "description": "Too many requests; try again after `Retry-After` seconds.",
     }
 }
 
@@ -193,15 +204,20 @@ async def register(body: RegisterRequest, session: Session, tokens: Tokens) -> T
         },
     },
 )
-async def login(body: LoginRequest, session: Session, tokens: Tokens) -> TokenResponse | Response:
+async def login(
+    body: LoginRequest, session: Session, tokens: Tokens, attempts: Attempts
+) -> TokenResponse | Response:
     try:
         signed_in = await service.login(
             session,
             tokens,
             email=body.email,
             password=body.password,
+            guard=attempts,
             organization_id=body.organization_id,
         )
+    except service.TooManyAttemptsError as refused:
+        raise too_many(Counted.FAILED_PASSWORD, refused.wait) from None
     except service.AuthenticationError:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
@@ -250,12 +266,14 @@ async def login(body: LoginRequest, session: Session, tokens: Tokens) -> TokenRe
     },
 )
 async def accept_invitation(
-    body: AcceptInvitationRequest, session: Session, tokens: Tokens
+    body: AcceptInvitationRequest, session: Session, tokens: Tokens, attempts: Attempts
 ) -> TokenResponse:
     try:
         signed_in = await service.accept_invitation(
-            session, tokens, code=body.code, password=body.password
+            session, tokens, code=body.code, password=body.password, guard=attempts
         )
+    except service.TooManyAttemptsError as refused:
+        raise too_many(Counted.FAILED_PASSWORD, refused.wait) from None
     except service.InvalidInvitationError:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, "invalid, expired or already used invitation code"

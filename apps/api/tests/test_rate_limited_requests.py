@@ -10,14 +10,18 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.auth.passwords import hash_password, verify_password
 from sef_api.db import get_session
 from sef_api.main import create_app
+from sef_api.members import invitations
+from sef_api.models import Role, User
 from sef_api.rate_limits import DEFAULT_LIMITS, Counted, Limit, RateLimiter
 
 from .conftest import settings_for
+from .factories import join, office, organization
 from .test_rate_limits import Clock
 
 #: Two requests a minute: what every per-address limit allows in these tests.
@@ -152,14 +156,108 @@ async def test_a_client_that_waits_as_retry_after_says_is_served(
     assert (refused.status_code, served.status_code) == (429, 201)
 
 
-def test_the_limits_per_address() -> None:
-    """Generous enough for an office of people behind one address, tight enough to stop a
-    script."""
+# --- failed passwords per e-mail address -------------------------------------------------------
+
+PASSWORD = "a long passphrase"
+
+
+@pytest.fixture
+async def ana(session: AsyncSession) -> User:
+    """The owner of Primer, who signs in with ``PASSWORD``."""
+    primer = await organization(session, "Primer")
+    ana = User(email="ana@primer.example", password_hash=await hash_password(PASSWORD))
+    session.add(ana)
+    await session.flush()
+    await join(session, primer, ana, Role.OWNER)
+    return ana
+
+
+async def sign_in(app: FastAPI, n: int, email: str, password: str) -> Response:
+    """A sign-in from an address of its own, so that only the e-mail address's count matters."""
+    async with from_address(app, f"192.0.2.{n}") as client:
+        return await client.post("/auth/login", json={"email": email, "password": password})
+
+
+async def test_wrong_passwords_hold_an_account_back_wherever_they_come_from(
+    app: FastAPI, ana: User
+) -> None:
+    wrong = [await sign_in(app, n, "ana@primer.example", "not the password") for n in range(2)]
+    right = await sign_in(app, 2, " ANA@Primer.example", PASSWORD)
+
+    assert [answer.status_code for answer in wrong] == [401, 401]
+    assert (right.status_code, right.json()) == (
+        429,
+        {"detail": "too many failed passwords for this e-mail address; try again in 30 s"},
+    )
+    assert right.headers["Retry-After"] == "30"
+
+
+async def test_an_address_without_an_account_is_held_back_alike(app: FastAPI) -> None:
+    answers = [await sign_in(app, n, "nobody@primer.example", "a guess") for n in range(3)]
+
+    assert [answer.status_code for answer in answers] == [401, 401, 429]
+
+
+async def test_the_right_password_starts_the_count_afresh(app: FastAPI, ana: User) -> None:
+    passwords = ["wrong", PASSWORD, "wrong", "wrong", PASSWORD]
+
+    answers = [await sign_in(app, n, "ana@primer.example", p) for n, p in enumerate(passwords)]
+
+    assert [answer.status_code for answer in answers] == [401, 200, 401, 401, 429]
+
+
+async def test_no_password_is_checked_while_an_account_is_held_back(
+    app: FastAPI, ana: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A held-back guess costs no password hash, and its answer cannot tell right from wrong."""
+    checked: list[str] = []
+
+    async def counting(password_hash: str | None, password: str) -> bool:
+        checked.append(password)
+        return await verify_password(password_hash, password)
+
+    monkeypatch.setattr("sef_api.auth.service.verify_password", counting)
+
+    for n in range(4):
+        await sign_in(app, n, "ana@primer.example", f"guess {n}")
+
+    assert checked == ["guess 0", "guess 1"]
+
+
+async def test_accepting_an_invitation_counts_wrong_passwords_with_sign_in(
+    app: FastAPI, session: AsyncSession, ana: User
+) -> None:
+    """Ana is invited to Ogled with her own account: holding an invitation's code must not let
+    anyone guess at her password where signing in would hold them back."""
+    ogled = await office(session, "Ogled", "ogled.example")
+    issued = await invitations.invite(
+        session, ogled.organization.id, ogled.owner.id, email=ana.email, role=Role.ACCOUNTANT
+    )
+
+    wrong = await sign_in(app, 0, ana.email, "not the password")
+    async with from_address(app, "192.0.2.1") as client:
+        joining = await client.post(
+            "/auth/accept-invitation", json={"code": issued.code, "password": "a guess"}
+        )
+        held = await client.post(
+            "/auth/accept-invitation", json={"code": issued.code, "password": PASSWORD}
+        )
+
+    assert (wrong.status_code, joining.status_code, held.status_code) == (401, 401, 429)
+    assert held.json() == {
+        "detail": "too many failed passwords for this e-mail address; try again in 30 s"
+    }
+
+
+def test_the_default_limits() -> None:
+    """Per address, generous enough for an office of people behind one address and tight
+    enough to stop a script; per e-mail address, ten wrong passwords in a quarter of an hour."""
     assert dict(DEFAULT_LIMITS) == {
         Counted.SIGN_IN: Limit(30, timedelta(minutes=1)),
         Counted.REGISTRATION: Limit(10, timedelta(hours=1)),
         Counted.REFRESH: Limit(60, timedelta(minutes=1)),
         Counted.INVITATION: Limit(10, timedelta(minutes=1)),
+        Counted.FAILED_PASSWORD: Limit(10, timedelta(minutes=15)),
     }
 
 
