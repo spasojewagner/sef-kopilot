@@ -23,6 +23,7 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0015](0015-validating-invoices-through-the-api.md) | Validating invoices through the API: XML bodies within limits, a child process with a time limit, nothing stored | accepted | 2026-11-04 |
 | [0016](0016-stored-invoices.md) | Stored invoices: the document and its report in PostgreSQL, seen by organization and submitter, within a quota | accepted | 2026-11-04 |
 | [0017](0017-api-keys.md) | API keys: a member's credentials for machine clients, narrowed to the work on invoices | accepted | 2026-11-04 |
+| [0018](0018-rate-limits.md) | Rate limits: GCRA in the API's process, per address, per e-mail address, per caller and per organization | accepted | 2026-11-04 |
 
 Planned (recorded when the work lands): hybrid retrieval and citation model (M2), job runner interface and SSE progress (M2), patch
 model and forbidden-field guard (M3), OAuth 2.1 for MCP (M4), evaluation thresholds (M6).

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Annotated, Any, cast
 
@@ -31,6 +32,7 @@ from sef_api.invoices.validator import (
     ValidatorUnavailableError,
 )
 from sef_api.models import StoredInvoice
+from sef_api.rate_limits import Counted, Limit, RateLimiter, Rule, too_many
 from sef_api.settings import Settings
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -56,6 +58,7 @@ Profile = Annotated[
     ProfileName,
     Query(description="`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0)."),
 ]
+CanValidate = Annotated[Principal, Depends(require(Permission.INVOICES_VALIDATE))]
 CanSubmit = Annotated[Principal, Depends(require(Permission.INVOICES_SUBMIT))]
 
 _VALIDATION_RESPONSES: dict[int | str, dict[str, Any]] = {
@@ -72,6 +75,11 @@ _VALIDATION_RESPONSES: dict[int | str, dict[str, Any]] = {
         "model": Problem,
         "description": "The invoice could not be validated within the time limit, or the "
         "rule sets could not be applied to it.",
+    },
+    status.HTTP_429_TOO_MANY_REQUESTS: {
+        "model": Problem,
+        "description": "Too many validations by the caller, or in their organization; try "
+        "again after `Retry-After` seconds.",
     },
     status.HTTP_503_SERVICE_UNAVAILABLE: {
         "model": Problem,
@@ -190,13 +198,16 @@ def _stored(invoice: StoredInvoice) -> StoredInvoiceOut:
         "is a violation in the report, not an error."
     ),
     openapi_extra=_DOCUMENT,
-    dependencies=[Depends(require(Permission.INVOICES_VALIDATE))],
     responses=_VALIDATION_RESPONSES,
 )
 async def validate(
-    request: Request, response: Response, session: Session, profile: Profile = "srb"
+    request: Request,
+    response: Response,
+    caller: CanValidate,
+    session: Session,
+    profile: Profile = "srb",
 ) -> ValidationReport:
-    _, validation = await _validated(request, session, profile)
+    _, validation = await _validated(request, session, caller, profile)
     response.headers["Cache-Control"] = "no-store"
     return validation.report
 
@@ -227,7 +238,7 @@ async def store_invoice(
     session: Session,
     profile: Profile = "srb",
 ) -> StoredInvoiceOut:
-    content, validation = await _validated(request, session, profile)
+    content, validation = await _validated(request, session, caller, profile)
     settings = cast(Settings, request.app.state.settings)
     # The upload and the validation outlast the transaction in which the permission was
     # checked: a member removed meanwhile stores nothing.
@@ -342,11 +353,36 @@ async def delete_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Sess
         raise _not_found()
 
 
+def _count(request: Request, caller: Principal) -> None:
+    """Count a validation against the caller's limit and their organization's, both at once;
+    429 beyond either. A caller is a member signed in, whatever the device, or one API key."""
+    limiter = cast(RateLimiter, request.app.state.limiter)
+    limits = cast(Mapping[Counted, Limit], request.app.state.limits)
+    who = (
+        f"key {caller.key.key_id}"
+        if caller.key is not None
+        else f"member {caller.organization_id} {caller.user_id}"
+    )
+    rules = (
+        Rule(Counted.VALIDATION, who, limits[Counted.VALIDATION]),
+        Rule(
+            Counted.ORGANIZATION_VALIDATION,
+            str(caller.organization_id),
+            limits[Counted.ORGANIZATION_VALIDATION],
+        ),
+    )
+    if (wait := limiter.hit(*rules)) > 0:
+        holding = max(rules, key=limiter.wait)
+        raise too_many(Counted(holding.name), wait)
+
+
 async def _validated(
-    request: Request, session: AsyncSession, profile: ProfileName
+    request: Request, session: AsyncSession, caller: Principal, profile: ProfileName
 ) -> tuple[bytes, Validation]:
     """The invoice in the request body and the validator's report on it with what it read, or
     the HTTP error that says why there is none."""
+    # Counted before the body is read, so that nothing is read for a client held back.
+    _count(request, caller)
     # The permission check was this request's only database work. Ending its transaction gives
     # the pooled connection back before the body is read and validated, so that neither a slow
     # upload nor a validation waiting for its turn keeps it from other requests.

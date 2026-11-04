@@ -100,6 +100,7 @@ about 10 ms. The limits, all in [`.env.example`](../../.env.example):
 | 415 | the media type is not `application/xml` or `text/xml` | |
 | 422 | the validation took longer than allowed and was stopped | `SEF_VALIDATION_SECONDS` (15) |
 | 503 + `Retry-After` | as many validations as allowed are waiting or running | `SEF_MAX_VALIDATIONS_IN_FLIGHT` (8) |
+| 429 + `Retry-After` | the caller, or their organization, has had as many validations this minute as allowed; see [Rate limits](#rate-limits) | `SEF_VALIDATIONS_PER_MINUTE` (60), `SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE` (300) |
 | 503 | the validator cannot run on this server | |
 
 The validator runs in a child process, one invoice at a time (`SEF_VALIDATOR=process`). Saxon
@@ -163,6 +164,30 @@ curl -s localhost:8000/invoices -H "Authorization: Bearer $API_KEY"
 Every answer that carries a credential, whether tokens, an invitation code or a new key, is
 marked `Cache-Control: no-store`.
 
+## Rate limits
+
+Beyond a limit the API answers 429 with `Retry-After` in whole seconds, and a detail that names
+what was counted (ADR-0018):
+
+| What | Counted per | Limit |
+| --- | --- | --- |
+| `POST /auth/login` | address | 30 a minute |
+| `POST /auth/register` | address | 10 an hour |
+| `POST /auth/refresh` and `/auth/logout` | address | 60 a minute, together |
+| `POST /auth/accept-invitation` | address | 10 a minute |
+| wrong passwords, at sign-in and when accepting an invitation | e-mail address | 10 in 15 minutes |
+| `POST /invoices/validate` and `POST /invoices` | caller: a member, or one API key | `SEF_VALIDATIONS_PER_MINUTE` (60) |
+| `POST /invoices/validate` and `POST /invoices` | organization | `SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE` (300) |
+
+A limit allows its count at once, then one request every period divided by the count. Wrong
+passwords are counted before the next password is checked, also for addresses no account has,
+and the right password starts the count afresh. The counts live in the API's process, so with
+several workers each counts its own.
+
+The address is the one the server saw. Behind a reverse proxy, tell uvicorn which proxy to
+trust, so that the address is the client's and not the proxy's:
+`uvicorn sef_api.main:create_app --factory --proxy-headers --forwarded-allow-ips=<proxy address>`.
+
 ## Database and migrations
 
 PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
@@ -201,6 +226,7 @@ src/sef_api/
   models.py      organizations, users, memberships, roles, invitations, refresh tokens,
                  stored invoices, API keys
   locks.py       the advisory locks on an organization's members, invoices and API keys
+  rate_limits.py the rate limiter (GCRA), what it counts and the limits
   api_keys/      issuing, authenticating, listing and revoking API keys, `/api-keys` routes
   auth/          passwords, tokens, the sign-in service, `/auth` routes, `current_principal`
   invoices/      upload limits, the validator and its child process, stored invoices,

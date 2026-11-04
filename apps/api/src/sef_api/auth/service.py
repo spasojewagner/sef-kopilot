@@ -2,7 +2,8 @@
 
 Each function receives the request's session and commits its own unit of work. Failures are
 exceptions that the routes turn into responses; none of them says which half of a credential
-was wrong.
+was wrong. A password is checked only while its e-mail address may be tried again, and each
+wrong one is counted (:class:`PasswordGuard`, ADR-0018).
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Protocol
 
 from sqlalchemy import ColumnElement, select, update
 from sqlalchemy.exc import IntegrityError
@@ -30,8 +32,10 @@ __all__ = [
     "NewPasswordTooShortError",
     "NotAMemberError",
     "OrganizationRequiredError",
+    "PasswordGuard",
     "SignedIn",
     "TokenSettings",
+    "TooManyAttemptsError",
     "accept_invitation",
     "login",
     "logout",
@@ -39,6 +43,28 @@ __all__ = [
     "refresh",
     "register",
 ]
+
+
+class PasswordGuard(Protocol):
+    """Counts the failed password checks of each e-mail address against a limit."""
+
+    def wait(self, email: str) -> float:
+        """Seconds until a password for ``email`` may be checked again; 0 when it may now."""
+
+    def failed(self, email: str) -> None:
+        """A password for ``email`` was wrong."""
+
+    def passed(self, email: str) -> None:
+        """A password for ``email`` was right."""
+
+
+class TooManyAttemptsError(Exception):
+    """Too many wrong passwords for the e-mail address; no password is checked until ``wait``
+    seconds have passed."""
+
+    def __init__(self, wait: float) -> None:
+        super().__init__(wait)
+        self.wait = wait
 
 
 @dataclass(frozen=True)
@@ -145,15 +171,19 @@ async def login(
     *,
     email: str,
     password: str,
+    guard: PasswordGuard,
     organization_id: uuid.UUID | None = None,
 ) -> SignedIn:
     """Check the password and sign the person in to one of their organizations.
 
-    The membership is read once more under the organization's lock (share mode): a removal at
-    the same moment either comes first and is seen, or waits and then revokes this session.
+    Raises :class:`TooManyAttemptsError`, before any password is checked, while ``guard``
+    holds the address back. The membership is read once more under the organization's lock
+    (share mode): a removal at the same moment either comes first and is seen, or waits and
+    then revokes this session.
     """
-    user = await session.scalar(select(User).where(User.email == normalize_email(email)))
-    if not await verify_password(user.password_hash if user else None, password):
+    address = normalize_email(email)
+    user = await session.scalar(select(User).where(User.email == address))
+    if not await _verify(guard, address, user.password_hash if user else None, password):
         raise AuthenticationError
     assert user is not None  # a password only verifies against a real account's hash
     if not user.is_active:
@@ -198,14 +228,16 @@ async def accept_invitation(
     *,
     code: str,
     password: str,
+    guard: PasswordGuard,
     now: datetime | None = None,
 ) -> SignedIn:
     """Join the organization of an invitation and sign in to it.
 
     Without an account for the invited address, one is created with ``password``; with one,
     ``password`` must be its password, so that a code alone never gives access to an account.
-    A code is good once, and only while the owner who issued it may still invite. A person who
-    is a member already keeps the role they have.
+    That password is checked and counted as at sign-in, by ``guard``. A code is good once, and
+    only while the owner who issued it may still invite. A person who is a member already
+    keeps the role they have.
 
     The password is checked, or the new one hashed, before the organization is locked, so that
     a wrong password holds nothing up; under the lock the invitation is checked again.
@@ -228,7 +260,7 @@ async def accept_invitation(
         if len(password) < MINIMUM_LENGTH:
             raise NewPasswordTooShortError
         password_hash = await hash_password(password)
-    elif not await verify_password(user.password_hash, password) or not user.is_active:
+    elif not await _verify(guard, email, user.password_hash, password) or not user.is_active:
         raise AuthenticationError
     elif needs_rehash(user.password_hash):
         password_hash = await hash_password(password)
@@ -341,6 +373,21 @@ async def logout(session: AsyncSession, *, refresh_token: str, now: datetime | N
     await _lock_family(session, found.family_id)
     await _revoke_family(session, found.family_id, moment)
     await session.commit()
+
+
+async def _verify(
+    guard: PasswordGuard, email: str, password_hash: str | None, password: str
+) -> bool:
+    """Whether ``password`` is the one of ``password_hash``, None for an address without an
+    account. It is checked only while ``guard`` lets ``email`` try again, and a wrong one is
+    counted; raises :class:`TooManyAttemptsError` otherwise."""
+    if (waiting := guard.wait(email)) > 0:
+        raise TooManyAttemptsError(waiting)
+    if not await verify_password(password_hash, password):
+        guard.failed(email)
+        return False
+    guard.passed(email)
+    return True
 
 
 async def _sign_in(

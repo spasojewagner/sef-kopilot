@@ -28,6 +28,7 @@ from sef_api.locks import lock_organization
 from sef_api.members import invitations
 from sef_api.members import service as members
 from sef_api.models import Invitation, Membership, Organization, RefreshToken, Role, User
+from sef_api.rate_limits import Limit, PasswordAttempts, RateLimiter
 
 from .conftest import TEST_JWT_SECRET
 from .factories import bearer
@@ -40,6 +41,11 @@ TOKENS = TokenSettings(
 PASSWORD = "a long passphrase"
 #: Long enough for a request that is not held up to finish.
 SETTLE_SECONDS = 0.5
+
+
+def unlimited() -> PasswordAttempts:
+    """A count of failed passwords that never holds anyone back: these tests are about order."""
+    return PasswordAttempts(RateLimiter(), Limit(1_000, timedelta(minutes=1)))
 
 
 @pytest.fixture
@@ -246,7 +252,13 @@ async def test_a_session_renewed_during_a_removal_does_not_survive_it(
             if renewal == "refresh":
                 await auth.refresh(session, TOKENS, refresh_token=token)
             else:
-                await auth.login(session, TOKENS, email="milan@primer.example", password=PASSWORD)
+                await auth.login(
+                    session,
+                    TOKENS,
+                    email="milan@primer.example",
+                    password=PASSWORD,
+                    guard=unlimited(),
+                )
 
     async def remove() -> None:
         async with committed_database.sessions() as session:
@@ -294,7 +306,13 @@ async def test_a_sign_in_held_up_by_a_removal_finds_the_membership_gone(
     async def sign_in() -> str:
         async with committed_database.sessions() as session:
             return await outcome(
-                auth.login(session, TOKENS, email="milan@primer.example", password=PASSWORD)
+                auth.login(
+                    session,
+                    TOKENS,
+                    email="milan@primer.example",
+                    password=PASSWORD,
+                    guard=unlimited(),
+                )
             )
 
     async def remove() -> str:
@@ -454,7 +472,9 @@ async def test_a_sign_in_does_not_overtake_a_change_that_waits(
 
     async def sign_in() -> None:
         async with committed_database.sessions() as session:
-            await auth.login(session, TOKENS, email="ana@primer.example", password=PASSWORD)
+            await auth.login(
+                session, TOKENS, email="ana@primer.example", password=PASSWORD, guard=unlimited()
+            )
         order.append("sign-in")
 
     async with committed_database.sessions() as holder:
@@ -545,7 +565,13 @@ async def test_sign_ins_do_not_wait_for_each_other(
         await lock_organization(holder, organization.id, shared=True)
         async with committed_database.sessions() as session:
             signed_in = await asyncio.wait_for(
-                auth.login(session, TOKENS, email="ana@primer.example", password=PASSWORD),
+                auth.login(
+                    session,
+                    TOKENS,
+                    email="ana@primer.example",
+                    password=PASSWORD,
+                    guard=unlimited(),
+                ),
                 timeout=SETTLE_SECONDS * 4,
             )
         await holder.rollback()
@@ -602,7 +628,9 @@ async def test_a_code_accepted_twice_at_once_admits_one_person(
     async def accept() -> str:
         async with committed_database.sessions() as session:
             return await outcome(
-                auth.accept_invitation(session, TOKENS, code=issued.code, password=PASSWORD)
+                auth.accept_invitation(
+                    session, TOKENS, code=issued.code, password=PASSWORD, guard=unlimited()
+                )
             )
 
     results = await while_held(accept(), accept, held_at, then_waits=True)
@@ -627,7 +655,9 @@ async def test_an_invitation_withdrawn_while_it_is_being_accepted_is_refused(
     async def accept() -> str:
         async with committed_database.sessions() as session:
             return await outcome(
-                auth.accept_invitation(session, TOKENS, code=issued.code, password=PASSWORD)
+                auth.accept_invitation(
+                    session, TOKENS, code=issued.code, password=PASSWORD, guard=unlimited()
+                )
             )
 
     async def demote_milan() -> str:
@@ -661,7 +691,9 @@ async def test_an_account_deactivated_while_it_joins_is_refused(
     async def accept() -> str:
         async with committed_database.sessions() as session:
             return await outcome(
-                auth.accept_invitation(session, TOKENS, code=issued.code, password=PASSWORD)
+                auth.accept_invitation(
+                    session, TOKENS, code=issued.code, password=PASSWORD, guard=unlimited()
+                )
             )
 
     async def deactivate() -> None:
@@ -691,7 +723,11 @@ async def test_a_wrong_password_for_an_invitation_holds_nothing_up(
         await lock_organization(holder, organization.id)  # a change to the members in progress
         async with committed_database.sessions() as session:
             refused = await asyncio.wait_for(
-                outcome(auth.accept_invitation(session, TOKENS, code=issued.code, password="x")),
+                outcome(
+                    auth.accept_invitation(
+                        session, TOKENS, code=issued.code, password="x", guard=unlimited()
+                    )
+                ),
                 timeout=SETTLE_SECONDS * 4,
             )
         await holder.rollback()
