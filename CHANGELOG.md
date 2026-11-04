@@ -16,6 +16,11 @@ is tagged.
 
 ### Added
 
+- `einvoice_core`: SRB-CIUS VAT rules SRB-020 to SRB-024: VAT category codes (S, Z, E, AE, R,
+  O, OE, SS, N) on breakdowns, allowances, charges and lines; S and AE at 20 or 10 percent;
+  VAT exemption reason codes checked against the Ministry's list of 1 September 2024 (a code of
+  another category is fatal, an unlisted code a warning) and required for exempt and non-taxed
+  categories. The list is transcribed into `einvoice_core.srb.vat` (124 codes).
 - `einvoice_core`: SRB-CIUS rules SRB-010 to SRB-019: the public-procurement buyer reference,
   the preceding invoice's issue date, legal registration numbers, the seller's VAT
   registration status (BT-32, `RS-VAT-STATUS`), cities and post codes, the delivery date when

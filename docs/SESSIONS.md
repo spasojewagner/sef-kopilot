@@ -161,3 +161,25 @@ on text that names a model.
 Process note: gitleaks hook skipped with approval, scan run on each commit's staged changes.
 
 Next: `feat/core-srb-cius-vat-rules`.
+
+## 2026-11-04 — `feat/core-srb-cius-vat-rules` (3 commits, stacked on `feat/core-srb-cius-party-rules`)
+
+Outcome: five VAT rules. SRB-020 VAT category codes (S, Z, E, AE, R, O, OE, SS, N) on
+breakdowns, allowances, charges and lines, with hints for Cyrillic letters and for `AE20`
+written as one code; SRB-021 S and AE at 20 or 10 percent; SRB-022 an exemption reason code
+from another category's list (fatal); SRB-023 a code in no list (warning); SRB-024 a code
+required for Z, E, R, O, OE, SS and N. The Ministry's list of 1 September 2024 is transcribed
+into `einvoice_core.srb.vat` (124 codes, its own keys, PDF hash recorded). Interview notes.
+
+Verification: 1 157 tests green; core coverage 100 % (branches included). On the official
+examples the only new finding is SRB-023 on the placeholder exemption code of
+`faktura-sa-oslobodjenjem-od-pdv.xml`. EN 16931 run on synthetic Serbian variants: AE at 20 %
+fails BR-AE-05 and BR-AE-09, Z with a Serbian code BR-Z-10, S with `PDV-RS-OBJ` BR-S-10, and
+every Serbian code BR-CL-22 — added to the SRB profile's set-aside list in the backlog. 24
+rules take 0.8–1.2 ms per invoice.
+
+Decisions: category = code + rate (AE with 20, not `AE20`); unknown codes warn because SEF's
+copy of the list may be newer; only the invoice-currency breakdown is BG-23; the extension
+rules (Table 2) moved to a branch of their own.
+
+Next: `feat/core-srb-cius-extension-rules`.
