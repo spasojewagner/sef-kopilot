@@ -43,13 +43,15 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## M2 — API + explanations (weeks 3–4) · tag `v0.2.0`
 
-- [ ] `feat/api-skeleton-db-auth` — PostgreSQL, Alembic, organizations, email+password (argon2), JWT access + refresh, RBAC (`owner`, `accountant`, `client`), API keys
+- [x] `feat/api-settings-database` — settings from the environment, async PostgreSQL (SQLAlchemy 2 + asyncpg), Alembic with organizations, users and memberships (`owner`, `accountant`, `client`), `/ready` on the database, test databases, a PostgreSQL service in CI (ADR-0011)
+- [ ] `feat/api-auth-tokens` — email + password (argon2id), JWT access tokens and rotating refresh tokens with reuse detection; registration creates an organization and its owner
+- [ ] `feat/api-rbac-api-keys` — permissions per role, the members of an organization, API keys for machine clients, a cross-tenant test for every endpoint
 - [ ] `feat/api-invoices-validate` — upload and validate endpoints with size/type limits
 - [ ] `feat/api-jobs-sse` — `arq` jobs behind `JobRunner`, progress over SSE
 - [ ] `feat/rag-corpus-ingest` — ingestion of the law, rulebook, technical instruction and SRB-CIUS specification with `valid_from` / `valid_to`
 - [ ] `feat/rag-explain-citations` — explanation endpoint; citations must resolve to stored chunks; no-store mode
 - [ ] Langfuse and Sentry wiring; structured JSON logs; health and readiness checks
-- [ ] Learning notes: pgvector and hybrid retrieval, SSE vs. WebSockets, idempotent job design, Alembic migration safety
+- [ ] Learning notes: pgvector and hybrid retrieval, SSE vs. WebSockets, idempotent job design, ~~Alembic migration safety~~ (06)
 - [ ] Release: `v0.2.0`
 
 ## M3 — Repair loop + web UI (weeks 5–6) · tag `v0.3.0`

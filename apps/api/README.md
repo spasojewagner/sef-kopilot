@@ -6,27 +6,58 @@ server. The deterministic engine lives in `packages/einvoice_core`; this app onl
 
 ## Run locally
 
-From the repository root:
+From the repository root, with PostgreSQL running (`make up` starts it in Docker):
 
 ```bash
 uv sync --all-packages
-uv run uvicorn sef_api.main:app --reload
+make migrate          # uv run alembic -c apps/api/alembic.ini upgrade head
+make api              # uv run uvicorn sef_api.main:create_app --factory --reload
 ```
 
 - Interactive documentation: <http://127.0.0.1:8000/docs>
-- Liveness: `GET /health` · Readiness: `GET /ready`
+- Liveness: `GET /health` · Readiness: `GET /ready` (503 while the database does not answer)
+
+Configuration comes from the environment or a `.env` file in the working directory; the
+variables are in [`.env.example`](../../.env.example). Without `DATABASE_URL` the API uses the
+database of `make up`; in production the variable is required.
+
+## Database and migrations
+
+PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
+(ADR-0011). Every table that holds a tenant's data has an `organization_id`.
+
+```bash
+uv run alembic -c apps/api/alembic.ini upgrade head                    # apply
+uv run alembic -c apps/api/alembic.ini downgrade -1                    # undo the last one
+uv run alembic -c apps/api/alembic.ini revision --autogenerate --rev-id 0002 -m "add ..."
+uv run alembic -c apps/api/alembic.ini upgrade head --sql              # print the SQL instead
+```
+
+Revision ids are four-digit sequence numbers. A generated revision is a draft: read it, make the
+downgrade exact, and run the tests, which check that the migrations build exactly the models'
+schema and that every step can be undone.
 
 ## Test
 
 ```bash
-uv run pytest apps/api --cov=sef_api
+uv run pytest apps/api --cov=apps/api/src/sef_api      # or: make test-api
 ```
+
+Database tests run on the server named by `SEF_TEST_DATABASE_URL` (environment or `.env`), for
+example `postgresql+asyncpg://sef:sef@localhost:5432/postgres` with `make up`. The suite creates
+a database of its own, migrates it, rolls every test back and drops the database at the end.
+Without the variable those tests are skipped; CI always runs them.
 
 ## Layout
 
 ```text
 src/sef_api/
-  main.py        application factory (`create_app`) and the `app` instance for uvicorn
+  main.py        application factory (`create_app`): settings, database, routers
+  settings.py    configuration from the environment (pydantic-settings)
+  db.py          declarative base, engine, sessions, the `get_session` dependency
+  models.py      organizations, users, memberships and roles
+  migrations/    Alembic environment and revisions (`versions/`)
   routes/        one router module per resource
-tests/           httpx-based tests against the ASGI app (no network)
+alembic.ini      command-line configuration of the migrations
+tests/           httpx-based tests against the ASGI app; database tests on PostgreSQL
 ```

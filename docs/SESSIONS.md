@@ -295,3 +295,18 @@ annotated tag `v0.1.0` and the release notes are prepared for the maintainer.
 Verification: 1 473 tests green; `einvoice --version` and `GET /health` report 0.1.0.
 
 Next: M2, starting with `feat/api-skeleton-db-auth`.
+
+## 2026-11-04 — `feat/api-settings-database` (3 commits, on `main` after `v0.1.0`)
+
+Outcome: the API's persistence layer, the first of three branches that replace the backlog item
+`feat/api-skeleton-db-auth`. Settings from the environment (pydantic-settings, `DATABASE_URL` as a
+secret, required in production); one async engine per application, a session per request; Alembic
+migrations shipped in the package, starting with organizations, users and memberships with the
+roles owner, accountant and client; `/ready` checks the database and answers 503. Tests run on a
+real PostgreSQL in a database of their own, rolled back per test; the migrations are tested in
+both directions and against the models; CI gets a PostgreSQL 16 service and runs upgrade,
+downgrade -1, upgrade. ADR-0011, learning note 06, interview notes.
+
+Verification: 1 503 tests green (API 34, coverage 99 %); local PostgreSQL 16.15.
+
+Next: `feat/api-auth-tokens`.
