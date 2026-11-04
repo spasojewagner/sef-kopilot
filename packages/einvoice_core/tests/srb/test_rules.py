@@ -19,7 +19,7 @@ from einvoice_core.ubl import build_invoice
 from einvoice_core.xml import load_document
 
 TESTS = Path(__file__).parent
-TERM = re.compile(r"B[GT]-\d+")
+TERM = re.compile(r"B[GT]-E?\d+")
 
 
 def test_rule_identifiers_are_sequential() -> None:
