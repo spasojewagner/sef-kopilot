@@ -192,9 +192,15 @@ def test_a_verdict_counts_how_often_each_rule_was_reported() -> None:
     }
 
 
-def test_a_verdict_needs_the_whole_report() -> None:
-    report = ValidationReport(profile="srb", valid=False, violations=(), layers=(), omitted=1)
-
+@pytest.mark.parametrize(
+    "report",
+    [
+        ValidationReport(profile="srb", valid=False, violations=(), layers=(), omitted=1),
+        ValidationReport(profile="srb", valid=False, violations=(), layers=(), set_aside_omitted=1),
+    ],
+    ids=["violations", "set-aside"],
+)
+def test_a_verdict_needs_the_whole_report(report: ValidationReport) -> None:
     with pytest.raises(ValueError, match="violation limit"):
         verdict(report)
 

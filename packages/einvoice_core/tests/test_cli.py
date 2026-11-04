@@ -242,6 +242,18 @@ def test_set_aside_reports_are_counted_or_listed(tmp_path: Path) -> None:
 
 
 @needs_rule_sets
+def test_set_aside_reports_beyond_the_limit_are_counted(tmp_path: Path) -> None:
+    path = variant(tmp_path, "building.xml", SERBIAN_CODE)
+
+    _, counted, _ = run("validate", str(path), "--max-violations", "1")
+    _, listed, _ = run("validate", str(path), "--max-violations", "1", "--show-set-aside")
+
+    assert "2 published rule report(s) set aside by the srb profile" in counted
+    assert listed.count("  set aside ") == 1
+    assert "  ... 1 more set aside (--max-violations)" in listed.splitlines()
+
+
+@needs_rule_sets
 def test_layers_that_did_not_run_are_named(tmp_path: Path) -> None:
     path = variant(tmp_path, "broken.xml", ("<cbc:Note>", "<cbc:Unknown/><cbc:Note>"))
 

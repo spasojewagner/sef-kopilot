@@ -372,6 +372,24 @@ def test_only_so_many_violations_are_listed() -> None:
 
 
 @needs_rule_sets
+def test_only_so_many_set_aside_violations_are_listed() -> None:
+    """Thousands of set-aside reports would make a report of megabytes from a small document."""
+    serbian_code = (
+        "<cbc:Percent>20</cbc:Percent>",
+        "<cbc:Percent>20</cbc:Percent>"
+        "<cbc:TaxExemptionReasonCode>PDV-RS-OBJ</cbc:TaxExemptionReasonCode>",
+    )
+
+    whole = validate(edited(INVOICE, serbian_code), "srb")
+    cut = validate(edited(INVOICE, serbian_code), "srb", max_violations=1)
+
+    assert (len(whole.set_aside), whole.set_aside_omitted) == (2, 0)
+    assert cut.set_aside == whole.set_aside[:1]
+    assert cut.set_aside_omitted == 1
+    assert cut.valid == whole.valid
+
+
+@needs_rule_sets
 @pytest.mark.parametrize("profile", sorted(PROFILES))
 def test_an_amount_too_long_to_compute_with_exactly_is_reported_not_raised(profile: str) -> None:
     """``xs:decimal`` has no bound on its digits; the model accepts 28, far beyond any invoice."""
