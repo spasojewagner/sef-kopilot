@@ -18,3 +18,4 @@ per branch, to keep them with the code they describe.
 | `feat/core-arithmetic-rules` | [m1-core-arithmetic-rules.md](m1-core-arithmetic-rules.md) |
 | `feat/core-validation-pipeline` | [m1-core-validation-pipeline.md](m1-core-validation-pipeline.md) |
 | `feat/core-cli` | [m1-core-cli.md](m1-core-cli.md) |
+| `feat/core-fixtures-corpus` | [m1-core-fixtures-corpus.md](m1-core-fixtures-corpus.md) |

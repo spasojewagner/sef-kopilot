@@ -59,7 +59,7 @@ the system without a green validator.
 | `apps/web` | upload, report, explanations, diff and approval UI (sr-Latn / en) | M0 skeleton |
 | `third_party/` | fetched UBL 2.1 schemas, EN 16931 and Peppol BIS artefacts, the ISO Schematron compiler, with their terms; compiled-stylesheet cache | M1 (UBL 2.1 and ISO Schematron added) |
 | `corpus/` | regulation texts from official sources with `source_url`, `fetched_at`, `valid_from` | planned (M2) |
-| `fixtures/invoices/` | synthetic invoices (official examples are used from `third_party/`); never real company data | M1 in progress |
+| `fixtures/invoices/` | the Ministry's SEF examples (byte for byte, with provenance), synthetic invoices and generated mutations, the pipeline's recorded verdicts (ADR-0010); CEN's and OpenPeppol's examples are used from `third_party/`; never real company data | M1 |
 | `evals/` | golden sets, runner, thresholds, latest report | planned (M6) |
 | `infra/` | docker-compose for local PostgreSQL and Redis; Dockerfiles and deployment manifests | M0 (compose) |
 | `scripts/` | rule-set fetcher, fixture generator, hook helpers | M0 |
