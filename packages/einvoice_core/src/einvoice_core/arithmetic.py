@@ -24,6 +24,7 @@ from typing import Final
 from lxml import etree
 
 from einvoice_core import model
+from einvoice_core.numbers import exact
 from einvoice_core.ubl import build_invoice
 from einvoice_core.violations import Severity, Violation
 from einvoice_core.xml import NAMESPACES
@@ -245,10 +246,11 @@ def validate_arithmetic(
     """
     invoice = invoice or build_invoice(tree.getroot())
     report = _Report(tree)
-    _line_and_allowance_totals(invoice, report)
-    _total_without_vat(invoice, report)
-    _vat_totals(invoice, report)
-    _total_with_vat(invoice, report)
-    _amount_due(invoice, report)
-    _vat_amounts(invoice, report)
+    with exact():
+        _line_and_allowance_totals(invoice, report)
+        _total_without_vat(invoice, report)
+        _vat_totals(invoice, report)
+        _total_with_vat(invoice, report)
+        _amount_due(invoice, report)
+        _vat_amounts(invoice, report)
     return tuple(report.violations)

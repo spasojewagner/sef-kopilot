@@ -19,6 +19,7 @@ from typing import Final
 from lxml import etree
 
 from einvoice_core import model
+from einvoice_core.numbers import exact
 from einvoice_core.srb.rule import Document, Finding, Reference, Rule
 from einvoice_core.srb.rules import load_rules
 from einvoice_core.srb.sources import SOURCES, Source
@@ -70,4 +71,7 @@ def validate_srb(
     cannot represent).
     """
     document = Document(tree=tree, invoice=invoice or build_invoice(tree.getroot()))
-    return tuple(_violation(rule, finding) for rule in rules for finding in rule.check(document))
+    with exact():
+        return tuple(
+            _violation(rule, finding) for rule in rules for finding in rule.check(document)
+        )

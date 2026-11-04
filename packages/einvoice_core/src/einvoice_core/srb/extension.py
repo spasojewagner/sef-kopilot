@@ -9,11 +9,12 @@ validate extension content, so a rule cannot assume that an amount there is a nu
 
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Final
 
 from lxml import etree
 
+from einvoice_core import numbers
 from einvoice_core.srb.rule import Document
 
 __all__ = ["ADVANCES", "DINAR", "EXTENSION", "REDUCED_TOTALS", "amount", "has_breakdown_in"]
@@ -32,14 +33,9 @@ DINAR: Final = "RSD"
 
 
 def amount(text: str | None) -> Decimal | None:
-    """``text`` as a finite decimal amount, or ``None`` if it is absent or not a number."""
-    if text is None:
-        return None
-    try:
-        value = Decimal(text)
-    except InvalidOperation:
-        return None
-    return value if value.is_finite() else None
+    """``text`` as an amount, or ``None`` if it is absent, not in the form of ``xs:decimal``, or
+    longer than the checks can compute with exactly (:mod:`einvoice_core.numbers`)."""
+    return numbers.parse(text)
 
 
 def has_breakdown_in(document: Document, parent: etree._Element, currency: str) -> bool:

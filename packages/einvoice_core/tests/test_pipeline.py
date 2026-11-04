@@ -372,6 +372,30 @@ def test_only_so_many_violations_are_listed() -> None:
 
 
 @needs_rule_sets
+@pytest.mark.parametrize("profile", sorted(PROFILES))
+def test_an_amount_too_long_to_compute_with_exactly_is_reported_not_raised(profile: str) -> None:
+    """``xs:decimal`` has no bound on its digits; the model accepts 28, far beyond any invoice."""
+    amount = "1" + "0" * 27 + ".00"
+    source = edited(
+        INVOICE,
+        (
+            '<cbc:LineExtensionAmount currencyID="RSD">12000.00</cbc:LineExtensionAmount>\n'
+            "    <cac:Item>",
+            f'<cbc:LineExtensionAmount currencyID="RSD">{amount}</cbc:LineExtensionAmount>\n'
+            "    <cac:Item>",
+        ),
+    )
+
+    report = validate(source, profile)
+
+    (model,) = (v for v in report.violations if v.code == "MODEL")
+    assert model.xpath == "/ubl:Invoice/cac:InvoiceLine/cbc:LineExtensionAmount"
+    assert "more than 28 digits" in model.message
+    assert not report.valid
+    assert not ran(report)["arithmetic"]
+
+
+@needs_rule_sets
 def test_a_schema_valid_document_the_model_cannot_read(monkeypatch: pytest.MonkeyPatch) -> None:
     def refuse(_root: object) -> None:
         raise ParseError("missing required element cac:Party", xpath="/ubl:Invoice")
