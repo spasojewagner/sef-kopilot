@@ -109,6 +109,56 @@ def test_a_missing_file_exits_with_2(tmp_path: Path) -> None:
     assert err.startswith(f"einvoice: cannot read {tmp_path / 'missing.xml'}:")
 
 
+def test_a_directory_stands_for_the_xml_files_under_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = validated(monkeypatch)
+    files(tmp_path, "b/two.XML", "a.xml", "b/notes.txt", "c/d/three.xml")
+
+    status, out, _ = run("validate", str(tmp_path))
+
+    assert status == EXIT_VALID
+    assert seen == [str(tmp_path / name) for name in ("a.xml", "b/two.XML", "c/d/three.xml")]
+    assert out.splitlines()[-1] == "3 documents: 3 valid, 0 invalid"
+
+
+def test_a_pattern_the_shell_left_alone_is_expanded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = validated(monkeypatch)
+    files(tmp_path, "one.xml", "two.xml", "three.txt", "sub/four.xml")
+
+    run("validate", str(tmp_path / "*.xml"), str(tmp_path / "s?b"))
+
+    assert seen == [str(tmp_path / name) for name in ("one.xml", "two.xml", "sub/four.xml")]
+
+
+def test_an_existing_file_is_taken_as_named_even_with_pattern_characters(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = validated(monkeypatch)
+    files(tmp_path, "invoice[1].xml", "invoice1.xml")
+
+    run("validate", str(tmp_path / "invoice[1].xml"))
+
+    assert seen == [str(tmp_path / "invoice[1].xml")]
+
+
+@pytest.mark.parametrize(
+    ("name", "message"), [("empty", "no .xml file in"), ("missing-*.xml", "nothing matches")]
+)
+def test_a_path_that_names_no_document_exits_with_2_before_any_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str, message: str
+) -> None:
+    seen = validated(monkeypatch)
+    files(tmp_path, "a.xml", "empty/notes.txt")
+
+    status, out, err = run("validate", str(tmp_path / "a.xml"), str(tmp_path / name))
+
+    assert (status, out, seen) == (EXIT_ERROR, "", [])
+    assert err == f"einvoice: {message} {tmp_path / name}\n"
+
+
 def test_text_reports_are_written_as_the_documents_are_judged(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

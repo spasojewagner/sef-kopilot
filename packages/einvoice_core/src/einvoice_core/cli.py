@@ -1,11 +1,15 @@
 """``einvoice``: validate e-invoices from the command line (ADR-0009).
 
-    einvoice validate FILE [FILE ...] [--profile srb|en16931|peppol] [--format text|json]
+    einvoice validate PATH [PATH ...] [--profile srb|en16931|peppol] [--format text|json]
     einvoice rules [--profile srb|en16931|peppol] [--format text|json]
     einvoice --version
 
+A PATH is a file, a directory (the ``.xml`` files under it) or a pattern such as ``*.xml``,
+expanded here when the shell has not done it (cmd and PowerShell pass patterns on as typed).
+
 Exit status: 0 when every document is valid (warnings allowed), 1 when at least one is not,
-2 for a usage error, a file that cannot be opened, or rule sets that have not been fetched.
+2 for a usage error, a path that names no document or cannot be opened, or rule sets that have
+not been fetched.
 
 Messages may quote values from the documents; they go to standard output only, never to a log.
 """
@@ -13,7 +17,10 @@ Messages may quote values from the documents; they go to standard output only, n
 from __future__ import annotations
 
 import argparse
+import glob
 import json
+import os
+import re
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -39,6 +46,13 @@ EXIT_INVALID: Final = 1
 EXIT_ERROR: Final = 2
 
 
+_PATTERN = re.compile(r"[*?[]")
+
+
+class _NoDocumentsError(Exception):
+    """A command-line path that names no document."""
+
+
 def _positive(text: str) -> int:
     value = int(text)
     if value < 1:
@@ -59,7 +73,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="validate one or more invoices",
         description="Validate invoices and credit notes; exit 0 if all are valid, 1 if not.",
     )
-    validate_command.add_argument("files", nargs="+", type=Path, metavar="FILE")
+    validate_command.add_argument(
+        "paths",
+        nargs="+",
+        type=Path,
+        metavar="PATH",
+        help="a file, a directory (the .xml files under it) or a pattern such as *.xml",
+    )
     _profile_and_format(validate_command)
     validate_command.add_argument(
         "--max-violations",
@@ -93,6 +113,43 @@ def _profile_and_format(command: argparse.ArgumentParser) -> None:
 
 
 # --- validate ----------------------------------------------------------------------------------
+
+
+def _xml_files(directory: Path) -> list[Path]:
+    return sorted(
+        Path(folder, name)
+        for folder, _, names in os.walk(directory)
+        for name in names
+        if name.lower().endswith(".xml")
+    )
+
+
+def _documents(paths: Sequence[Path]) -> list[Path]:
+    """The documents the command-line paths stand for, in order.
+
+    A directory stands for the ``.xml`` files under it. A path that does not exist but holds
+    ``*``, ``?`` or ``[`` is a pattern the shell left alone, expanded here. Anything else is a
+    file, opened when it is validated.
+    """
+    documents: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            found = _xml_files(path)
+            if not found:
+                raise _NoDocumentsError(f"no .xml file in {path}")
+        elif not path.exists() and _PATTERN.search(str(path)):
+            matches = [Path(match) for match in sorted(glob.glob(str(path), recursive=True))]
+            found = [
+                document
+                for match in matches
+                for document in (_xml_files(match) if match.is_dir() else [match])
+            ]
+            if not found:
+                raise _NoDocumentsError(f"nothing matches {path}")
+        else:
+            found = [path]
+        documents += found
+    return documents
 
 
 def _text_report(name: str, report: ValidationReport, show_set_aside: bool) -> list[str]:
@@ -136,8 +193,13 @@ def _text_report(name: str, report: ValidationReport, show_set_aside: bool) -> l
 
 
 def _validate(arguments: argparse.Namespace, out: TextIO, err: TextIO) -> int:
+    try:
+        documents = _documents(arguments.paths)
+    except _NoDocumentsError as error:
+        err.write(f"einvoice: {error}\n")
+        return EXIT_ERROR
     results: list[tuple[Path, ValidationReport]] = []
-    for path in arguments.files:
+    for path in documents:
         try:
             report = validate(str(path), arguments.profile, max_violations=arguments.max_violations)
         except RulesetNotFoundError as error:

@@ -34,6 +34,7 @@ From the command line (ADR-0009):
 ```bash
 einvoice validate invoice.xml                   # SRB profile; exit 0 valid, 1 invalid, 2 error
 einvoice validate a.xml b.xml --format json     # the full reports
+einvoice validate invoices/                     # every .xml file under the directory
 einvoice validate invoice.xml --show-set-aside  # with the EN 16931 rules the profile sets aside
 einvoice rules --profile srb                    # rule sets, SRB-CIUS rules, set-asides
 ```

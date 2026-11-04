@@ -16,9 +16,10 @@ is tagged.
 
 ### Added
 
-- `einvoice` command line: `einvoice validate FILE ... [--profile] [--format text|json]` with
+- `einvoice` command line: `einvoice validate PATH ... [--profile] [--format text|json]` with
   exit status 0 (valid), 1 (invalid) and 2 (error), and `einvoice rules` to list what a profile
-  checks and sets aside (ADR-0009).
+  checks and sets aside (ADR-0009). A path may be a directory or a pattern such as `*.xml`,
+  expanded by the command where the shell does not (cmd, PowerShell).
 - `einvoice_core`: validation pipeline. `validate(source, profile)` reads the document, checks
   it against the UBL 2.1 schemas and, when it is schema-valid, runs the profile's Schematron
   rule sets, the SRB-CIUS rules and the calculation rules, and returns one report with the

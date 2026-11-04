@@ -156,6 +156,7 @@ Validate an invoice from the command line (exit status 0 valid, 1 invalid, 2 err
 ```bash
 uv run einvoice validate fixtures/invoices/synthetic/srb-minimal-invoice.xml   # valid (srb)
 uv run einvoice validate invoice.xml --profile en16931 --format json
+uv run einvoice validate invoices/                     # every .xml file under a directory
 uv run einvoice rules --profile srb   # what the SEF profile checks and sets aside
 ```
 
