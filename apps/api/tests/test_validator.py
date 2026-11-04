@@ -15,9 +15,10 @@ from typing import Any
 
 import pytest
 
-from einvoice_core.pipeline import ValidationReport, validate
+from einvoice_core.pipeline import validate
 from einvoice_core.rulesets import ENV_VAR
 from sef_api.invoices import validator
+from sef_api.invoices.validation import Validation
 from sef_api.invoices.validator import (
     Admission,
     ProcessValidator,
@@ -86,7 +87,7 @@ def test_admission_lets_go_of_a_validation_that_fails() -> None:
 )
 def test_every_outcome_but_a_report_is_an_exception(kind: Any, error: type[Exception]) -> None:
     with pytest.raises(error, match="the detail"):
-        validator._report((kind, "the detail"))
+        validator._validation((kind, "the detail"))
 
 
 # --- the thread, for tests and tools ----------------------------------------------------------
@@ -103,11 +104,11 @@ async def test_the_thread_validator_warms_up_once_in_a_thread_of_its_own(
     monkeypatch.setattr(validator, "warm_up", warm_up)
     runner = ThreadValidator(max_elements=BUDGET)
 
-    report = await runner.validate(INVOICE, "srb")
+    validation = await runner.validate(INVOICE, "srb")
     await runner.validate(INVOICE, "srb")
     await runner.stop()
 
-    assert report.model_dump(mode="json") == report_of(INVOICE)
+    assert validation.report.model_dump(mode="json") == report_of(INVOICE)
     assert len(threads) == 1
     assert threads[0].startswith("sef-validation")  # not the event loop's, not the default pool
 
@@ -136,14 +137,14 @@ async def test_the_child_validates_as_the_validator_does_one_invoice_at_a_time(
 
     for content in (INVOICE, EXAMPLE):
         for profile in ("srb", "en16931", "peppol"):
-            report = await runner.validate(content, profile)
-            assert report.model_dump(mode="json") == report_of(content, profile)
-    reports = await asyncio.gather(*(runner.validate(INVOICE, "srb") for _ in range(5)))
+            validation = await runner.validate(content, profile)
+            assert validation.report.model_dump(mode="json") == report_of(content, profile)
+    validations = await asyncio.gather(*(runner.validate(INVOICE, "srb") for _ in range(5)))
     with pytest.raises(TooManyElementsError, match="more than 1000 elements"):
         await runner.validate(LONG, "srb")  # counted in the child, never validated
     await runner.stop()
 
-    assert [report.valid for report in reports] == [True] * 5
+    assert [validation.report.valid for validation in validations] == [True] * 5
     assert capfd.readouterr() == ("", "")  # the child wrote nothing to the API's streams
 
 
@@ -159,7 +160,7 @@ async def test_a_validation_over_the_time_limit_is_stopped_and_the_child_replace
     assert not first.is_alive()
     assert runner._child is not None
     assert runner._child.process.pid != first.pid
-    assert (await runner.validate(INVOICE, "srb")).valid
+    assert (await runner.validate(INVOICE, "srb")).report.valid
     await runner.stop()
 
 
@@ -177,9 +178,9 @@ async def test_a_cancelled_validation_leaves_the_child_ready_for_the_next_invoic
     with pytest.raises(asyncio.CancelledError):
         await cancelled
 
-    report = await runner.validate(EXAMPLE, "srb")
+    validation = await runner.validate(EXAMPLE, "srb")
 
-    assert report.model_dump(mode="json") == report_of(EXAMPLE)
+    assert validation.report.model_dump(mode="json") == report_of(EXAMPLE)
     assert not first.is_alive()  # stopped at the time limit, as if its request had waited
     await runner.stop()
 
@@ -194,7 +195,7 @@ async def test_a_validation_cancelled_before_its_turn_is_never_sent() -> None:
         with pytest.raises(asyncio.CancelledError):
             await waiting
 
-    assert (await runner.validate(INVOICE, "srb")).valid
+    assert (await runner.validate(INVOICE, "srb")).report.valid
     assert runner._sent == 1
     await runner.stop()
 
@@ -231,7 +232,7 @@ async def test_a_child_that_answers_out_of_step_is_replaced(
 
     assert "the validator answered out of step and was replaced" in caplog.text
     assert not before.is_alive()
-    assert (await runner.validate(INVOICE, "srb")).valid
+    assert (await runner.validate(INVOICE, "srb")).report.valid
     await runner.stop()
 
 
@@ -245,7 +246,7 @@ async def test_a_child_that_dies_is_replaced(
     between.kill()  # between two invoices: replaced before the next one
     between.join()
 
-    assert (await runner.validate(INVOICE, "srb")).valid
+    assert (await runner.validate(INVOICE, "srb")).report.valid
     assert runner._child.process.pid != between.pid
     during = runner._child.process
 
@@ -263,7 +264,7 @@ async def test_a_child_that_dies_is_replaced(
 
     assert "the validator stopped while validating (exit code" in caplog.text
     assert runner._child.process.pid != during.pid
-    assert (await runner.validate(INVOICE, "srb")).valid
+    assert (await runner.validate(INVOICE, "srb")).report.valid
     await runner.stop()
 
 
@@ -290,7 +291,7 @@ async def test_without_rule_sets_the_child_says_why_and_is_tried_again_later(
     monkeypatch.delenv(ENV_VAR)  # now they are there
     runner._retry_at = 0
 
-    assert (await runner.validate(INVOICE, "srb")).valid
+    assert (await runner.validate(INVOICE, "srb")).report.valid
     healed = runner.problem
     await runner.stop()
 
@@ -379,7 +380,7 @@ class Recording:
     async def start(self) -> None:
         self.calls.append("start")
 
-    async def validate(self, _content: bytes, _profile: str) -> ValidationReport:
+    async def validate(self, _content: bytes, _profile: str) -> Validation:
         raise AssertionError("not validated in these tests")
 
     async def stop(self) -> None:

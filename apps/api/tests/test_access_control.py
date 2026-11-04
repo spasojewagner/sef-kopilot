@@ -31,7 +31,15 @@ from sef_api.auth.dependencies import current_principal, require
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.main import create_app
 from sef_api.members import invitations
-from sef_api.models import Invitation, Membership, Organization, RefreshToken, Role, User
+from sef_api.models import (
+    Invitation,
+    Membership,
+    Organization,
+    RefreshToken,
+    Role,
+    StoredInvoice,
+    User,
+)
 
 from .conftest import REPOSITORY_ROOT, settings_for
 from .factories import Office, bearer, office
@@ -220,7 +228,7 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
     assert response.json()["profile"] == "srb"
     counts = {
         model.__tablename__: await session.scalar(select(func.count()).select_from(model))
-        for model in (Organization, User, Membership, Invitation, RefreshToken)
+        for model in (Organization, User, Membership, Invitation, RefreshToken, StoredInvoice)
     }
     assert counts == {
         "organizations": 2,
@@ -228,10 +236,25 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
         "memberships": 6,
         "invitations": 1,
         "refresh_tokens": 0,
+        "invoices": 0,
     }
 
 
+async def _stored_in_ogled_only(response: Response, session: AsyncSession, w: World) -> None:
+    """An invoice is stored in the caller's organization, whatever it holds."""
+    assert response.status_code == 201
+    owners = (await session.scalars(select(StoredInvoice.organization_id))).all()
+    assert owners == [w.ogled.organization.id]
+
+
 GUARDED: dict[Endpoint, Guarded] = {
+    ("POST", "/invoices"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda _: "/invoices",
+        INVOICE.read_bytes(),
+        _stored_in_ogled_only,
+    ),
     ("POST", "/invoices/validate"): Guarded(
         Permission.INVOICES_VALIDATE,
         False,

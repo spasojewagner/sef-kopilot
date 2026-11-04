@@ -1,6 +1,8 @@
-"""The lock that orders concurrent work on one organization's members and sessions (ADR-0013).
+"""The locks that order concurrent work on one organization: one on its members and sessions
+(ADR-0013), one on its stored invoices (ADR-0016). Both are transaction-level PostgreSQL
+advisory locks keyed by the organization's id.
 
-It is a transaction-level PostgreSQL advisory lock keyed by the organization's id.
+The lock on the members:
 
 - A change to who belongs to the organization, or in which role, takes it exclusively. Such
   changes take turns.
@@ -13,16 +15,25 @@ It is a transaction-level PostgreSQL advisory lock keyed by the organization's i
 
 Every path takes this lock before any row lock, and none takes it shared first and exclusively
 later. The locks are therefore always taken in the same order.
+
+The lock on the stored invoices is taken to store one: adding up what the organization stores
+and storing one more cannot interleave with another upload, so the quota holds exactly. It
+uses PostgreSQL's other key space, two 32-bit keys, which never meets the first. No path takes
+both locks.
 """
 
 from __future__ import annotations
 
 import uuid
+from typing import Final
 
-from sqlalchemy import BigInteger, func, literal, select
+from sqlalchemy import BigInteger, Integer, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-__all__ = ["advisory_key", "lock_organization"]
+__all__ = ["advisory_key", "lock_invoice_storage", "lock_organization"]
+
+#: The first of the two keys of the lock on an organization's stored invoices: "SEF" and 1.
+_STORAGE: Final = 0x53454601
 
 
 def advisory_key(organization_id: uuid.UUID) -> int:
@@ -39,3 +50,13 @@ async def lock_organization(
     members, shared to issue, renew or end a session in it."""
     take = func.pg_advisory_xact_lock_shared if shared else func.pg_advisory_xact_lock
     await session.execute(select(take(literal(advisory_key(organization_id), BigInteger))))
+
+
+async def lock_invoice_storage(session: AsyncSession, organization_id: uuid.UUID) -> None:
+    """Hold the lock on the organization's stored invoices until the transaction ends. The
+    second key is the first four bytes of the organization's id; two organizations that share
+    it merely wait for each other."""
+    key = int.from_bytes(organization_id.bytes[:4], "big", signed=True)
+    await session.execute(
+        select(func.pg_advisory_xact_lock(literal(_STORAGE, Integer), literal(key, Integer)))
+    )

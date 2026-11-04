@@ -33,9 +33,15 @@ from multiprocessing.connection import Connection
 from multiprocessing.process import BaseProcess
 from typing import Final, Literal, Protocol
 
-from einvoice_core.pipeline import ValidationReport
 from sef_api.invoices.child import serve
-from sef_api.invoices.validation import Outcome, ProfileName, outcome, rule_sets_missing, warm_up
+from sef_api.invoices.validation import (
+    Outcome,
+    ProfileName,
+    Validation,
+    outcome,
+    rule_sets_missing,
+    warm_up,
+)
 
 __all__ = [
     "Admission",
@@ -103,15 +109,15 @@ class Validator(Protocol):
 
     async def start(self) -> None: ...
 
-    async def validate(self, content: bytes, profile: ProfileName) -> ValidationReport: ...
+    async def validate(self, content: bytes, profile: ProfileName) -> Validation: ...
 
     async def stop(self) -> None: ...
 
 
-def _report(result: _Ending) -> ValidationReport:
+def _validation(result: _Ending) -> Validation:
     kind, detail = result
     if kind == "report":
-        return ValidationReport.model_validate_json(detail)
+        return Validation.model_validate_json(detail)
     if kind == "too-many-elements":
         raise TooManyElementsError(detail)
     if kind == "unavailable":
@@ -173,12 +179,12 @@ class ThreadValidator:
             )
             self._warmed = True
 
-    async def validate(self, content: bytes, profile: ProfileName) -> ValidationReport:
+    async def validate(self, content: bytes, profile: ProfileName) -> Validation:
         await self._warm()
         if self._problem is not None:
             raise ValidatorUnavailableError(self._problem)
         work = functools.partial(outcome, content, profile, max_elements=self._max_elements)
-        return _report(await asyncio.get_running_loop().run_in_executor(self._executor, work))
+        return _validation(await asyncio.get_running_loop().run_in_executor(self._executor, work))
 
     async def stop(self) -> None:
         self._executor.shutdown(wait=False, cancel_futures=True)
@@ -290,7 +296,7 @@ class ProcessValidator:
         async with self._turn:
             await self._replace()
 
-    async def validate(self, content: bytes, profile: ProfileName) -> ValidationReport:
+    async def validate(self, content: bytes, profile: ProfileName) -> Validation:
         entered = asyncio.Event()
         turn = asyncio.ensure_future(self._take_turn(content, profile, entered))
         try:
@@ -299,7 +305,7 @@ class ProcessValidator:
             if not entered.is_set():
                 turn.cancel()  # still waiting for its turn: it has nothing to settle
             raise
-        return _report(ending)
+        return _validation(ending)
 
     async def _take_turn(
         self, content: bytes, profile: ProfileName, entered: asyncio.Event

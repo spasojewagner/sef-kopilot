@@ -31,6 +31,9 @@ DEFAULT_MAX_INVOICE_BYTES = 5 * 1024 * 1024
 #: (an embedded PDF is one text node): 20 000 elements, some 1 500 invoice lines, keep the
 #: validator's process within a few hundred MiB even when every line breaks a rule.
 DEFAULT_MAX_INVOICE_ELEMENTS = 20_000
+#: What an organization may store by default, its invoices and their reports together: some
+#: hundreds of large invoices, or thousands of ordinary ones, on a free database of 512 MB.
+DEFAULT_MAX_STORED_BYTES = 100 * 1024 * 1024
 
 
 class Settings(BaseSettings):
@@ -105,6 +108,13 @@ class Settings(BaseSettings):
         le=1000,
         validation_alias="SEF_MAX_VALIDATIONS_IN_FLIGHT",
         description="Validations that may wait or run at once; the next answers 503.",
+    )
+    max_stored_bytes: int = Field(
+        default=DEFAULT_MAX_STORED_BYTES,
+        ge=1024 * 1024,
+        le=1024**4,
+        validation_alias="SEF_MAX_STORED_BYTES",
+        description="What one organization may store, invoices and reports together (507).",
     )
     validator: Literal["process", "thread"] = Field(
         default="process",

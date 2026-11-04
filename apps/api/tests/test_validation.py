@@ -7,6 +7,8 @@ import json
 import subprocess
 import sys
 import time
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, get_args
 
@@ -17,11 +19,15 @@ from einvoice_core.pipeline import PROFILES, validate
 from einvoice_core.rulesets import ENV_VAR, RulesetNotFoundError
 from einvoice_core.schematron import SchematronError
 from sef_api.invoices import validation
+from sef_api.invoices.validation import InvoiceSummary, Validation
 
 from .conftest import REPOSITORY_ROOT
 
 INVOICE = (
     REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic" / "srb-final-invoice.xml"
+).read_bytes()
+CREDIT_NOTE = (
+    REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic" / "credit-note-full.xml"
 ).read_bytes()
 BUDGET = 20_000
 
@@ -151,11 +157,68 @@ def test_counting_keeps_nothing_it_has_counted() -> None:
 # --- outcomes ---------------------------------------------------------------------------------
 
 
-def test_a_report_is_the_validators_own_as_json() -> None:
+def test_a_report_is_the_validators_own_with_what_it_read() -> None:
     kind, detail = validation.outcome(INVOICE, "srb", max_elements=BUDGET)
 
     assert kind == "report"
-    assert json.loads(detail) == json.loads(validate(INVOICE, "srb").model_dump_json())
+    assert json.loads(detail)["report"] == json.loads(validate(INVOICE, "srb").model_dump_json())
+    assert Validation.model_validate_json(detail).summary == InvoiceSummary(
+        document_type="Invoice",
+        number="RF-2026-000124",
+        issue_date=date(2026, 10, 5),
+        currency="RSD",
+        seller="Primer Softver d.o.o.",
+        buyer="Ogledni Kupac d.o.o.",
+        payable_amount=Decimal("8400.00"),
+    )
+
+
+def test_a_credit_note_is_summarized_as_one() -> None:
+    _, detail = validation.outcome(CREDIT_NOTE, "en16931", max_elements=BUDGET)
+
+    summary = Validation.model_validate_json(detail).summary
+    assert summary is not None
+    assert (summary.document_type, summary.number, summary.currency) == (
+        "CreditNote",
+        "KO-2026-7",
+        "EUR",
+    )
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        b"<Invoice><cbc:ID>",  # not XML
+        INVOICE.replace(b"<cbc:Note>", b"<cbc:Unknown/><cbc:Note>", 1),  # not schema-valid
+        INVOICE.replace(
+            b">8400.00</cbc:PayableAmount>", b">" + b"9" * 30 + b"</cbc:PayableAmount>"
+        ),
+    ],
+    ids=["unreadable", "schema-invalid", "amount-too-long"],
+)
+def test_nothing_is_summarized_from_what_the_model_cannot_read(document: bytes) -> None:
+    kind, detail = validation.outcome(document, "srb", max_elements=BUDGET)
+
+    assert kind == "report"
+    result = Validation.model_validate_json(detail)
+    assert not result.report.valid
+    assert result.summary is None
+
+
+def test_a_summary_keeps_so_much_of_each_text() -> None:
+    long_name = "Primer " * 1000
+    document = INVOICE.replace(
+        b"<cbc:RegistrationName>Primer Softver d.o.o.</cbc:RegistrationName>",
+        f"<cbc:RegistrationName>{long_name}</cbc:RegistrationName>".encode(),
+        1,
+    )
+
+    summary = Validation.model_validate_json(
+        validation.outcome(document, "srb", max_elements=BUDGET)[1]
+    ).summary
+
+    assert summary is not None
+    assert summary.seller == long_name[: validation.SUMMARY_TEXT_LIMIT]
 
 
 def test_a_document_over_the_budget_is_not_validated(monkeypatch: pytest.MonkeyPatch) -> None:
