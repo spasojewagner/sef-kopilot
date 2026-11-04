@@ -16,8 +16,8 @@ limit allows. The counts live in the process, as the validator's admission does 
 behind several workers each would count its own. A shared store can take them over behind
 the same methods.
 
-What the API counts, and against which limit, is :class:`Counted` and :data:`DEFAULT_LIMITS`.
-A request beyond a limit answers 429 with ``Retry-After``.
+What the API counts is :class:`Counted`, and :func:`limits` says against which limit. A
+request beyond a limit answers 429 with ``Retry-After``.
 """
 
 from __future__ import annotations
@@ -35,6 +35,8 @@ from typing import Final, cast
 
 from fastapi import HTTPException, Request, status
 
+from sef_api.settings import Settings
+
 __all__ = [
     "DEFAULT_LIMITS",
     "Counted",
@@ -43,6 +45,7 @@ __all__ = [
     "RateLimiter",
     "Rule",
     "client_address",
+    "limits",
     "per_address",
     "too_many",
 ]
@@ -169,11 +172,13 @@ class Counted(StrEnum):
     REFRESH = "refresh-token requests"
     INVITATION = "attempts to accept an invitation"
     FAILED_PASSWORD = "failed passwords for this e-mail address"
+    VALIDATION = "validations"
+    ORGANIZATION_VALIDATION = "validations in this organization"
 
 
-#: The limits the API counts against. Per address: what one client may try, generous enough
-#: for an office of people behind one address. Per e-mail address: the passwords that may be
-#: wrong, from wherever they come, which is what stops a guess at one account.
+#: The limits that settings do not change. Per address: what one client may try, generous
+#: enough for an office of people behind one address. Per e-mail address: the passwords that
+#: may be wrong, from wherever they come, which is what stops a guess at one account.
 DEFAULT_LIMITS: Final[Mapping[Counted, Limit]] = MappingProxyType(
     {
         Counted.SIGN_IN: Limit(30, timedelta(minutes=1)),
@@ -183,6 +188,21 @@ DEFAULT_LIMITS: Final[Mapping[Counted, Limit]] = MappingProxyType(
         Counted.FAILED_PASSWORD: Limit(10, timedelta(minutes=15)),
     }
 )
+
+
+def limits(settings: Settings) -> Mapping[Counted, Limit]:
+    """Every limit the API counts against: :data:`DEFAULT_LIMITS`, and the validations a
+    minute that the settings allow one caller and one organization."""
+    minute = timedelta(minutes=1)
+    return MappingProxyType(
+        {
+            **DEFAULT_LIMITS,
+            Counted.VALIDATION: Limit(settings.validations_per_minute, minute),
+            Counted.ORGANIZATION_VALIDATION: Limit(
+                settings.organization_validations_per_minute, minute
+            ),
+        }
+    )
 
 
 @dataclass(frozen=True)

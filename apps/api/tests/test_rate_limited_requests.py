@@ -4,7 +4,7 @@ limit (429 with ``Retry-After``)."""
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import timedelta
 from typing import Any
 
@@ -21,7 +21,8 @@ from sef_api.models import Role, User
 from sef_api.rate_limits import DEFAULT_LIMITS, Counted, Limit, RateLimiter
 
 from .conftest import settings_for
-from .factories import join, office, organization
+from .factories import Office, api_key, join, office, organization
+from .test_invoices_validate import VALID, XML, Scripted, application, using
 from .test_rate_limits import Clock
 
 #: Two requests a minute: what every per-address limit allows in these tests.
@@ -46,7 +47,7 @@ async def app(session: AsyncSession, clock: Clock) -> AsyncIterator[FastAPI]:
 
     app.dependency_overrides[get_session] = the_test_session
     app.state.limiter = RateLimiter(clock=clock)
-    app.state.limits = dict.fromkeys(DEFAULT_LIMITS, TWO_A_MINUTE)
+    app.state.limits = dict.fromkeys(app.state.limits, TWO_A_MINUTE)
     yield app
     await app.state.database.engine.dispose()
 
@@ -247,6 +248,97 @@ async def test_accepting_an_invitation_counts_wrong_passwords_with_sign_in(
     assert held.json() == {
         "detail": "too many failed passwords for this e-mail address; try again in 30 s"
     }
+
+
+# --- validations per caller and per organization -----------------------------------------------
+
+
+@pytest.fixture
+async def primer(session: AsyncSession) -> Office:
+    return await office(session, "Primer Računovodstvo", "primer.example")
+
+
+def validating(
+    session: AsyncSession, *, caller: int, organization: int
+) -> AbstractAsyncContextManager[AsyncClient]:
+    """An application that allows ``caller`` validations a minute to each caller and
+    ``organization`` to each organization, with a validator that answers at once."""
+    return application(
+        session,
+        using(Scripted()),
+        SEF_VALIDATIONS_PER_MINUTE=str(caller),
+        SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE=str(organization),
+    )
+
+
+async def validate(api: AsyncClient, caller: dict[str, str], content: bytes = VALID) -> Response:
+    return await api.post("/invoices/validate", content=content, headers=XML | caller)
+
+
+async def test_a_caller_gets_the_validations_a_minute_the_settings_allow(
+    session: AsyncSession, primer: Office
+) -> None:
+    async with validating(session, caller=2, organization=100) as api:
+        answers = [await validate(api, primer.as_client()) for _ in range(3)]
+
+    assert [answer.status_code for answer in answers] == [200, 200, 429]
+    assert answers[2].json() == {"detail": "too many validations; try again in 30 s"}
+    assert answers[2].headers["Retry-After"] == "30"
+
+
+async def test_the_callers_of_an_organization_share_its_count(
+    session: AsyncSession, primer: Office
+) -> None:
+    ogled = await office(session, "Ogled", "ogled.example")
+
+    async with validating(session, caller=10, organization=3) as api:
+        for caller in (primer.as_client(), primer.as_client(), primer.as_accountant()):
+            await validate(api, caller)
+        held = await validate(api, primer.as_owner())
+        elsewhere = await validate(api, ogled.as_owner())
+
+    assert (held.status_code, held.json()) == (
+        429,
+        {"detail": "too many validations in this organization; try again in 20 s"},
+    )
+    assert elsewhere.status_code == 200
+
+
+async def test_each_api_key_is_a_caller_of_its_own(session: AsyncSession, primer: Office) -> None:
+    pantheon = await api_key(session, primer.organization, primer.client)
+    minimax = await api_key(session, primer.organization, primer.client)
+
+    async with validating(session, caller=1, organization=100) as api:
+        answers = [
+            await validate(api, caller)
+            for caller in (primer.as_client(), pantheon.header(), minimax.header())
+        ]
+        held = await validate(api, pantheon.header())
+
+    assert [answer.status_code for answer in answers] == [200, 200, 200]
+    assert held.status_code == 429
+
+
+async def test_storing_an_invoice_counts_as_a_validation(
+    session: AsyncSession, primer: Office
+) -> None:
+    async with validating(session, caller=2, organization=100) as api:
+        validated = await validate(api, primer.as_client())
+        stored = await api.post("/invoices", content=VALID, headers=XML | primer.as_client())
+        held = await api.post("/invoices", content=VALID, headers=XML | primer.as_client())
+
+    assert (validated.status_code, stored.status_code, held.status_code) == (200, 201, 429)
+
+
+async def test_a_caller_held_back_is_answered_before_the_body_is_read(
+    session: AsyncSession, primer: Office
+) -> None:
+    """A body beyond the size limit would answer 413 if it were read."""
+    async with validating(session, caller=1, organization=100) as api:
+        await validate(api, primer.as_client())
+        held = await validate(api, primer.as_client(), b"x" * (6 * 1024 * 1024))
+
+    assert held.status_code == 429
 
 
 def test_the_default_limits() -> None:

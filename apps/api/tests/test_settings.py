@@ -30,6 +30,8 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "SEF_MAX_VALIDATIONS_IN_FLIGHT",
         "SEF_VALIDATOR",
         "SEF_MAX_STORED_BYTES",
+        "SEF_VALIDATIONS_PER_MINUTE",
+        "SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)
@@ -136,6 +138,15 @@ def test_the_validator_runs_in_a_child_process_with_limits_by_default() -> None:
     assert settings.max_validations_in_flight == 8
 
 
+def test_a_caller_validates_60_invoices_a_minute_and_an_organization_300_by_default() -> None:
+    settings = Settings()
+
+    assert (settings.validations_per_minute, settings.organization_validations_per_minute) == (
+        60,
+        300,
+    )
+
+
 def test_an_organization_stores_100_mib_by_default_and_at_least_1_mib() -> None:
     assert Settings().max_stored_bytes == 100 * 1024 * 1024
     with pytest.raises(ValidationError):
@@ -149,6 +160,8 @@ def test_an_organization_stores_100_mib_by_default_and_at_least_1_mib() -> None:
         ("SEF_UPLOAD_SECONDS", "0"),
         ("SEF_VALIDATION_SECONDS", "601"),
         ("SEF_MAX_VALIDATIONS_IN_FLIGHT", "0"),
+        ("SEF_VALIDATIONS_PER_MINUTE", "0"),
+        ("SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE", "0"),
         ("SEF_VALIDATOR", "fork"),
     ],
 )

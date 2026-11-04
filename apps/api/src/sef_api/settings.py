@@ -116,6 +116,22 @@ class Settings(BaseSettings):
         validation_alias="SEF_MAX_STORED_BYTES",
         description="What one organization may store, invoices and reports together (507).",
     )
+    validations_per_minute: int = Field(
+        default=60,
+        ge=1,
+        le=100_000,
+        validation_alias="SEF_VALIDATIONS_PER_MINUTE",
+        description="Validations one caller, a person or an API key, may ask for a minute; 429 "
+        "beyond.",
+    )
+    organization_validations_per_minute: int = Field(
+        default=300,
+        ge=1,
+        le=1_000_000,
+        validation_alias="SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE",
+        description="Validations all the callers of one organization may ask for a minute; 429 "
+        "beyond.",
+    )
     validator: Literal["process", "thread"] = Field(
         default="process",
         validation_alias="SEF_VALIDATOR",
