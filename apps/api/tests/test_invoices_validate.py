@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from lxml import etree
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.pool import QueuePool
 
@@ -23,6 +24,7 @@ from einvoice_core import pipeline
 from einvoice_core.pipeline import ValidationReport
 from sef_api.db import Database, get_session
 from sef_api.invoices import validation
+from sef_api.invoices.validation import Validation
 from sef_api.invoices.validator import (
     ValidationRefusedError,
     ValidationTimeoutError,
@@ -89,7 +91,7 @@ class Scripted:
     async def start(self) -> None:
         pass
 
-    async def validate(self, _content: bytes, profile: str) -> ValidationReport:
+    async def validate(self, _content: bytes, profile: str) -> Validation:
         self.entered.set()
         if self.problem is not None:
             raise ValidatorUnavailableError(self.problem)
@@ -97,7 +99,8 @@ class Scripted:
             await self.release.wait()
         if self.error is not None:
             raise self.error
-        return ValidationReport(profile=profile, valid=True, violations=(), layers=())
+        report = ValidationReport(profile=profile, valid=True, violations=(), layers=())
+        return Validation(report=report, summary=None)
 
     async def stop(self) -> None:
         pass
@@ -425,8 +428,8 @@ MARKER = "PIB-100000024-and-a-secret-amount"
 
 
 def with_marker(content: bytes) -> bytes:
-    """The invoice with a comment that only its content contains."""
-    return content.replace(b"<cbc:Note>", f"<!-- {MARKER} --><cbc:Note>".encode(), 1)
+    """The invoice with a note that only its content contains."""
+    return content.replace(b"<cbc:Note>", f"<cbc:Note>{MARKER}</cbc:Note><cbc:Note>".encode(), 1)
 
 
 async def test_no_invoice_content_reaches_a_log_or_a_standard_stream(
@@ -441,8 +444,9 @@ async def test_no_invoice_content_reaches_a_log_or_a_standard_stream(
     document = with_marker(VALID)
     assert MARKER.encode() in document
 
-    def failing(content: bytes, _profile: str) -> Any:
-        raise RuntimeError(f"the validator choked on {content.decode()}")
+    def failing(source: Any, _profile: str) -> Any:
+        quoted = source.decode() if isinstance(source, bytes) else etree.tostring(source).decode()
+        raise RuntimeError(f"the validator choked on {quoted}")
 
     with caplog.at_level(logging.DEBUG):
         await validate(api, primer, document)  # a report

@@ -29,6 +29,7 @@ from sef_api.models import Membership, Role, User
 
 __all__ = [
     "Principal",
+    "check_again",
     "current_principal",
     "current_role",
     "get_token_settings",
@@ -133,6 +134,16 @@ def _require(permission: Permission, changes_members: bool) -> Callable[..., Awa
         return Principal(principal.user_id, principal.organization_id, role)
 
     return authorize
+
+
+async def check_again(
+    session: AsyncSession, principal: Principal, permission: Permission
+) -> Principal:
+    """Check, in the transaction about to change something, that the caller still holds
+    ``permission``: for a request whose work outlasts the transaction in which :func:`require`
+    checked it, such as an upload and its validation. 401 or 403 as :func:`require` answers."""
+    role = await _permitted_role(session, principal, permission)
+    return Principal(principal.user_id, principal.organization_id, role)
 
 
 async def _permitted_role(

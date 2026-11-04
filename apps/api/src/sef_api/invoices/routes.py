@@ -1,20 +1,25 @@
-"""``/invoices``: the validator's report on an invoice."""
+"""``/invoices``: the validator's report on an invoice, and the invoices an organization keeps."""
 
 from __future__ import annotations
 
 import logging
+import uuid
+from datetime import datetime
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from einvoice_core.model import DocumentType
 from einvoice_core.pipeline import ValidationReport
-from sef_api.auth.dependencies import require
-from sef_api.auth.permissions import Permission
+from sef_api.auth.dependencies import Principal, check_again, require
+from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.routes import Problem
 from sef_api.db import get_session
+from sef_api.invoices import store
 from sef_api.invoices.upload import XML_MEDIA_TYPES, read_invoice
-from sef_api.invoices.validation import ProfileName
+from sef_api.invoices.validation import InvoiceSummary, ProfileName, Validation
 from sef_api.invoices.validator import (
     Admission,
     TooManyElementsError,
@@ -25,6 +30,7 @@ from sef_api.invoices.validator import (
     ValidatorFailedError,
     ValidatorUnavailableError,
 )
+from sef_api.models import StoredInvoice
 from sef_api.settings import Settings
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -45,6 +51,134 @@ _DOCUMENT: dict[str, Any] = {
 #: Seconds a client turned away because the validator is busy should wait before trying again.
 RETRY_AFTER_SECONDS = 1
 
+Session = Annotated[AsyncSession, Depends(get_session)]
+Profile = Annotated[
+    ProfileName,
+    Query(description="`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0)."),
+]
+CanSubmit = Annotated[Principal, Depends(require(Permission.INVOICES_SUBMIT))]
+
+_VALIDATION_RESPONSES: dict[int | str, dict[str, Any]] = {
+    status.HTTP_408_REQUEST_TIMEOUT: {
+        "model": Problem,
+        "description": "The invoice was not received in time.",
+    },
+    status.HTTP_413_CONTENT_TOO_LARGE: {
+        "model": Problem,
+        "description": "The invoice has more bytes or elements than this server accepts.",
+    },
+    status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: {"model": Problem, "description": "Not XML."},
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {
+        "model": Problem,
+        "description": "The invoice could not be validated within the time limit, or the "
+        "rule sets could not be applied to it.",
+    },
+    status.HTTP_503_SERVICE_UNAVAILABLE: {
+        "model": Problem,
+        "description": "The validator is busy (retry after `Retry-After` seconds) or not "
+        "available on this server.",
+    },
+}
+
+
+class InvoiceOut(BaseModel):
+    """A stored invoice: who submitted it and when, and what the validator read from it."""
+
+    id: uuid.UUID
+    submitted_by: uuid.UUID | None = Field(
+        description="The member who submitted it, while their account exists."
+    )
+    submitted_at: datetime
+    profile: ProfileName = Field(description="The profile it was validated under.")
+    valid: bool = Field(description="Whether the validator found no fatal violation.")
+    size: int = Field(description="Bytes of the document.")
+    sha256: str = Field(description="SHA-256 digest of the document, in hexadecimal.")
+    summary: InvoiceSummary | None = Field(
+        description="None when the document is not a schema-valid invoice the validator can read."
+    )
+
+
+class StoredInvoiceOut(InvoiceOut):
+    """A stored invoice with the validator's report on it when it was stored."""
+
+    report: ValidationReport
+
+
+class InvoicePage(BaseModel):
+    """Stored invoices, the newest first."""
+
+    invoices: list[InvoiceOut]
+    next: str | None = Field(
+        description="Pass as `after` for the next page; null on the last page."
+    )
+
+
+_NOT_FOUND: dict[int | str, dict[str, Any]] = {
+    status.HTTP_404_NOT_FOUND: {
+        "model": Problem,
+        "description": "No such invoice among those the caller may see.",
+    }
+}
+_DOWNLOAD: dict[int | str, dict[str, Any]] = {
+    status.HTTP_200_OK: {
+        "description": "The UBL 2.1 document.",
+        "content": {"application/xml": {"schema": {"type": "string", "format": "binary"}}},
+    }
+}
+
+
+def _scope(caller: Principal) -> store.Scope:
+    """The invoices ``caller`` may see: every one of the organization's with
+    ``invoices:manage``, otherwise the ones they submitted."""
+    if Permission.INVOICES_MANAGE in ROLE_PERMISSIONS[caller.role]:
+        return store.Scope(caller.organization_id)
+    return store.Scope(caller.organization_id, submitted_by=caller.user_id)
+
+
+def _not_found() -> HTTPException:
+    return HTTPException(status.HTTP_404_NOT_FOUND, "no such invoice in this organization")
+
+
+def _summary(invoice: StoredInvoice) -> InvoiceSummary | None:
+    """What the validator read, from the columns it was stored in (all or none of them)."""
+    if (
+        invoice.document_type is None
+        or invoice.number is None
+        or invoice.issue_date is None
+        or invoice.payable_amount is None
+    ):
+        return None
+    return InvoiceSummary(
+        document_type=cast(DocumentType, invoice.document_type),
+        number=invoice.number,
+        issue_date=invoice.issue_date,
+        currency=invoice.currency,
+        seller=invoice.seller,
+        buyer=invoice.buyer,
+        payable_amount=invoice.payable_amount,
+    )
+
+
+def _invoice(invoice: StoredInvoice) -> InvoiceOut:
+    return InvoiceOut(
+        id=invoice.id,
+        submitted_by=invoice.submitted_by,
+        submitted_at=invoice.created_at,
+        profile=cast(ProfileName, invoice.profile),
+        valid=invoice.valid,
+        size=invoice.size,
+        sha256=invoice.sha256,
+        summary=_summary(invoice),
+    )
+
+
+def _stored(invoice: StoredInvoice) -> StoredInvoiceOut:
+    return StoredInvoiceOut(
+        **_invoice(invoice).model_dump(),
+        # The core's models are strict, and JSON gave the report's tuples back as lists.
+        report=ValidationReport.model_validate(invoice.report, strict=False),
+    )
+
 
 @router.post(
     "/validate",
@@ -57,37 +191,162 @@ RETRY_AFTER_SECONDS = 1
     ),
     openapi_extra=_DOCUMENT,
     dependencies=[Depends(require(Permission.INVOICES_VALIDATE))],
-    responses={
-        status.HTTP_408_REQUEST_TIMEOUT: {
-            "model": Problem,
-            "description": "The invoice was not received in time.",
-        },
-        status.HTTP_413_CONTENT_TOO_LARGE: {
-            "model": Problem,
-            "description": "The invoice has more bytes or elements than this server accepts.",
-        },
-        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: {"model": Problem, "description": "Not XML."},
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "model": Problem,
-            "description": "The invoice could not be validated within the time limit, or the "
-            "rule sets could not be applied to it.",
-        },
-        status.HTTP_503_SERVICE_UNAVAILABLE: {
-            "model": Problem,
-            "description": "The validator is busy (retry after `Retry-After` seconds) or not "
-            "available on this server.",
-        },
-    },
+    responses=_VALIDATION_RESPONSES,
 )
 async def validate(
+    request: Request, response: Response, session: Session, profile: Profile = "srb"
+) -> ValidationReport:
+    _, validation = await _validated(request, session, profile)
+    response.headers["Cache-Control"] = "no-store"
+    return validation.report
+
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    summary="Store an invoice",
+    description=(
+        "Validates the UBL 2.1 invoice or credit note in the request body as "
+        "`POST /invoices/validate` does, then keeps it for the caller's organization with the "
+        "validator's report, byte for byte. A document the validator cannot read is stored "
+        "too, with the report that says why. `Location` names the stored invoice."
+    ),
+    openapi_extra=_DOCUMENT,
+    responses=_VALIDATION_RESPONSES
+    | {
+        status.HTTP_507_INSUFFICIENT_STORAGE: {
+            "model": Problem,
+            "description": "The organization stores as much as it may; delete invoices first.",
+        }
+    },
+)
+async def store_invoice(
     request: Request,
     response: Response,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    profile: Annotated[
-        ProfileName,
-        Query(description="`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0)."),
-    ] = "srb",
-) -> ValidationReport:
+    caller: CanSubmit,
+    session: Session,
+    profile: Profile = "srb",
+) -> StoredInvoiceOut:
+    content, validation = await _validated(request, session, profile)
+    settings = cast(Settings, request.app.state.settings)
+    # The upload and the validation outlast the transaction in which the permission was
+    # checked: a member removed meanwhile stores nothing.
+    await check_again(session, caller, Permission.INVOICES_SUBMIT)
+    try:
+        invoice = await store.store(
+            session,
+            organization_id=caller.organization_id,
+            submitted_by=caller.user_id,
+            profile=profile,
+            content=content,
+            validation=validation,
+            quota=settings.max_stored_bytes,
+        )
+    except store.StorageFullError:
+        raise HTTPException(
+            status.HTTP_507_INSUFFICIENT_STORAGE, "the organization stores as much as it may"
+        ) from None
+    response.headers["Location"] = f"/invoices/{invoice.id}"
+    response.headers["Cache-Control"] = "no-store"
+    return _stored(invoice)
+
+
+@router.get(
+    "",
+    summary="List stored invoices",
+    description=(
+        "The organization's stored invoices, the newest first, a page at a time: what the "
+        "validator read from each and whether it is valid, without the reports. A member "
+        "without `invoices:manage` sees the invoices they submitted."
+    ),
+    responses={
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": Problem,
+            "description": "`after` is not a cursor this API gave.",
+        }
+    },
+)
+async def list_invoices(
+    response: Response,
+    caller: CanSubmit,
+    session: Session,
+    limit: Annotated[int, Query(ge=1, le=store.MAX_PAGE, description="Invoices per page.")] = 50,
+    after: Annotated[
+        str | None,
+        Query(max_length=200, description="The `next` of the page before, to continue it."),
+    ] = None,
+) -> InvoicePage:
+    try:
+        page = await store.page_of(session, _scope(caller), limit=limit, after=after)
+    except store.InvalidCursorError:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "after is not a cursor this API gave"
+        ) from None
+    response.headers["Cache-Control"] = "no-store"
+    return InvoicePage(invoices=[_invoice(invoice) for invoice in page.invoices], next=page.next)
+
+
+@router.get(
+    "/{invoice_id}",
+    summary="Read a stored invoice",
+    description="What the validator read from the invoice and its report when it was stored.",
+    responses=_NOT_FOUND,
+)
+async def get_invoice(
+    invoice_id: uuid.UUID, response: Response, caller: CanSubmit, session: Session
+) -> StoredInvoiceOut:
+    invoice = await store.find(session, _scope(caller), invoice_id)
+    if invoice is None:
+        raise _not_found()
+    response.headers["Cache-Control"] = "no-store"
+    return _stored(invoice)
+
+
+@router.get(
+    "/{invoice_id}/content",
+    summary="Download a stored invoice",
+    description=(
+        "The document as it was sent, byte for byte, as an attachment: a browser saves it "
+        "rather than renders it."
+    ),
+    response_class=Response,
+    responses=_DOWNLOAD | _NOT_FOUND,
+)
+async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Session) -> Response:
+    content = await store.content_of(session, _scope(caller), invoice_id)
+    if content is None:
+        raise _not_found()
+    return Response(
+        content,
+        media_type="application/xml",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": f'attachment; filename="invoice-{invoice_id}.xml"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.delete(
+    "/{invoice_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a stored invoice",
+    description=(
+        "Deletes the invoice, its document and its report; what the organization stores "
+        "shrinks by as much."
+    ),
+    responses=_NOT_FOUND,
+)
+async def delete_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Session) -> None:
+    if not await store.forget(session, _scope(caller), invoice_id):
+        raise _not_found()
+
+
+async def _validated(
+    request: Request, session: AsyncSession, profile: ProfileName
+) -> tuple[bytes, Validation]:
+    """The invoice in the request body and the validator's report on it with what it read, or
+    the HTTP error that says why there is none."""
     # The permission check was this request's only database work. Ending its transaction gives
     # the pooled connection back before the body is read and validated, so that neither a slow
     # upload nor a validation waiting for its turn keeps it from other requests.
@@ -103,7 +362,7 @@ async def validate(
     )
     try:
         with admission.admit():
-            report = await validator.validate(content, profile)
+            return content, await validator.validate(content, profile)
     except ValidatorBusyError:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "the validator is busy", busy
@@ -124,5 +383,3 @@ async def validate(
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR, "the validator failed on this document"
         ) from None
-    response.headers["Cache-Control"] = "no-store"
-    return report

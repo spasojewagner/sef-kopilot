@@ -1,15 +1,18 @@
-"""People, organizations and memberships made directly in the database, with access tokens for
-them, for tests about what happens after sign-in."""
+"""People, organizations, memberships and stored invoices made directly in the database, with
+access tokens for the people, for tests about what happens after sign-in."""
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from einvoice_core.pipeline import ValidationReport
 from sef_api.auth.tokens import issue_access_token
-from sef_api.models import Membership, Organization, Role, User
+from sef_api.models import Membership, Organization, Role, StoredInvoice, User
 
 from .conftest import TEST_JWT_SECRET
 
@@ -75,3 +78,30 @@ async def office(session: AsyncSession, name: str, domain: str) -> Office:
         people[role] = await person(session, f"{role.value}@{domain}")
         await join(session, created, people[role], role)
     return Office(created, people[Role.OWNER], people[Role.ACCOUNTANT], people[Role.CLIENT])
+
+
+async def stored_invoice(
+    session: AsyncSession,
+    organization: Organization,
+    submitted_by: User | None,
+    content: bytes = b"<Invoice/>",
+    **columns: Any,
+) -> StoredInvoice:
+    """An invoice ``organization`` stores, with an empty report on it: what reading it shows,
+    not what the validator would say."""
+    report = ValidationReport(profile="srb", valid=False, violations=(), layers=())
+    invoice = StoredInvoice(
+        organization_id=organization.id,
+        submitted_by=None if submitted_by is None else submitted_by.id,
+        profile="srb",
+        valid=False,
+        report=report.model_dump(mode="json"),
+        report_size=len(report.model_dump_json()),
+        content=content,
+        size=len(content),
+        sha256=hashlib.sha256(content).hexdigest(),
+        **columns,
+    )
+    session.add(invoice)
+    await session.flush()
+    return invoice

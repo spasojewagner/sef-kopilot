@@ -11,6 +11,15 @@ is tagged.
 
 ### Added
 
+- `apps/api`: stored invoices. `POST /invoices` validates an invoice as `/invoices/validate`
+  does and keeps it for the organization, byte for byte, with the validator's report and what
+  it read (number, issue date, parties, amount due); `GET /invoices` lists them newest first,
+  a page at a time with an opaque cursor; `GET /invoices/{id}` reads one with its report;
+  `GET /invoices/{id}/content` downloads the document as an attachment; `DELETE /invoices/{id}`
+  deletes it. Owners and accountants see every invoice of the organization (`invoices:manage`),
+  a client the ones they submitted (`invoices:submit`). An organization stores at most
+  `SEF_MAX_STORED_BYTES` (100 MiB) of documents and reports together; beyond it, 507
+  (ADR-0016).
 - `apps/api`: invoice validation. `POST /invoices/validate` takes a UBL 2.1 invoice or credit
   note as the request body (`application/xml`), checks it against the chosen profile (`srb` by
   default, `en16931` or `peppol`) and answers with the validator's own report, marked

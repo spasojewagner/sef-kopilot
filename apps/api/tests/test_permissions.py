@@ -21,9 +21,20 @@ def test_an_accountant_sees_the_members_and_a_client_does_not() -> None:
     assert Permission.MEMBERS_READ not in ROLE_PERMISSIONS[Role.CLIENT]
 
 
-def test_every_role_may_have_an_invoice_validated() -> None:
-    assert all(Permission.INVOICES_VALIDATE in ROLE_PERMISSIONS[role] for role in Role)
-    assert ROLE_PERMISSIONS[Role.CLIENT] == {Permission.INVOICES_VALIDATE}
+def test_every_role_may_have_an_invoice_validated_and_store_invoices() -> None:
+    for permission in (Permission.INVOICES_VALIDATE, Permission.INVOICES_SUBMIT):
+        assert all(permission in ROLE_PERMISSIONS[role] for role in Role)
+    assert ROLE_PERMISSIONS[Role.CLIENT] == {
+        Permission.INVOICES_VALIDATE,
+        Permission.INVOICES_SUBMIT,
+    }
+
+
+def test_owners_and_accountants_read_every_stored_invoice_and_clients_their_own() -> None:
+    assert [role for role in Role if Permission.INVOICES_MANAGE in ROLE_PERMISSIONS[role]] == [
+        Role.OWNER,
+        Role.ACCOUNTANT,
+    ]
 
 
 def test_only_owners_manage_members() -> None:

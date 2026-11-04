@@ -14,9 +14,12 @@ from sqlalchemy import select, update
 
 from sef_api.auth.passwords import hash_password
 from sef_api.db import Database
-from sef_api.models import Membership, Role, User
+from sef_api.models import Membership, Role, StoredInvoice, User
+
+from .conftest import REPOSITORY_ROOT
 
 PASSWORD = "a long passphrase"
+INVOICE = REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic" / "srb-final-invoice.xml"
 
 
 async def register(api: AsyncClient) -> dict[str, Any]:
@@ -189,3 +192,36 @@ async def test_the_withdrawal_of_a_removed_owners_invitations_is_kept(
         "/auth/accept-invitation", json={"code": issued["code"], "password": PASSWORD}
     )
     assert refused.status_code == 400
+
+
+async def test_a_stored_invoice_is_kept(
+    committed_api: AsyncClient, committed_database: Database
+) -> None:
+    ana = await register(committed_api)
+
+    response = await committed_api.post(
+        "/invoices",
+        content=INVOICE.read_bytes(),
+        headers={"Content-Type": "application/xml"} | bearer(ana),
+    )
+
+    assert response.status_code == 201
+    async with committed_database.sessions() as session:
+        assert await session.scalar(select(StoredInvoice.content)) == INVOICE.read_bytes()
+
+
+async def test_a_deleted_invoice_stays_deleted(
+    committed_api: AsyncClient, committed_database: Database
+) -> None:
+    ana = await register(committed_api)
+    location = (
+        await committed_api.post(
+            "/invoices",
+            content=INVOICE.read_bytes(),
+            headers={"Content-Type": "application/xml"} | bearer(ana),
+        )
+    ).headers["Location"]
+
+    assert (await committed_api.delete(location, headers=bearer(ana))).status_code == 204
+    async with committed_database.sessions() as session:
+        assert await session.scalar(select(StoredInvoice.id)) is None

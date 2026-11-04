@@ -31,10 +31,18 @@ from sef_api.auth.dependencies import current_principal, require
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.main import create_app
 from sef_api.members import invitations
-from sef_api.models import Invitation, Membership, Organization, RefreshToken, Role, User
+from sef_api.models import (
+    Invitation,
+    Membership,
+    Organization,
+    RefreshToken,
+    Role,
+    StoredInvoice,
+    User,
+)
 
 from .conftest import REPOSITORY_ROOT, settings_for
-from .factories import Office, bearer, office
+from .factories import Office, bearer, office, stored_invoice
 
 Endpoint = tuple[str, str]
 
@@ -114,11 +122,12 @@ def app() -> FastAPI:
 
 @dataclass(frozen=True)
 class World:
-    """Two organizations; Primer has an open invitation."""
+    """Two organizations; Primer has an open invitation and a stored invoice."""
 
     primer: Office
     ogled: Office
     invitation: Invitation
+    invoice: StoredInvoice
 
 
 @pytest.fixture
@@ -132,7 +141,8 @@ async def world(session: AsyncSession) -> World:
         email="nova@primer.example",
         role=Role.ACCOUNTANT,
     )
-    return World(primer, ogled, issued.invitation)
+    invoice = await stored_invoice(session, primer.organization, primer.client)
+    return World(primer, ogled, issued.invitation, invoice)
 
 
 async def role_in_primer(session: AsyncSession, world: World, user_id: Any) -> Role | None:
@@ -220,7 +230,7 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
     assert response.json()["profile"] == "srb"
     counts = {
         model.__tablename__: await session.scalar(select(func.count()).select_from(model))
-        for model in (Organization, User, Membership, Invitation, RefreshToken)
+        for model in (Organization, User, Membership, Invitation, RefreshToken, StoredInvoice)
     }
     assert counts == {
         "organizations": 2,
@@ -228,10 +238,69 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
         "memberships": 6,
         "invitations": 1,
         "refresh_tokens": 0,
+        "invoices": 1,
     }
 
 
+async def _stored_in_ogled(response: Response, session: AsyncSession, w: World) -> None:
+    """An invoice is stored in the caller's organization; Primer's are as they were."""
+    assert response.status_code == 201
+    stored = (await session.scalars(select(StoredInvoice.organization_id))).all()
+    assert sorted(map(str, stored)) == sorted(
+        [str(w.primer.organization.id), str(w.ogled.organization.id)]
+    )
+
+
+async def _primers_invoice_stays(response: Response, session: AsyncSession, w: World) -> None:
+    assert response.status_code == 404
+    assert await session.scalar(select(StoredInvoice.id)) == w.invoice.id
+
+
+async def _lists_no_invoices(response: Response, session: AsyncSession, w: World) -> None:
+    assert response.json() == {"invoices": [], "next": None}
+
+
+async def _primers_invoice_is_not_found(
+    response: Response, session: AsyncSession, w: World
+) -> None:
+    assert (response.status_code, response.json()) == (
+        404,
+        {"detail": "no such invoice in this organization"},
+    )
+
+
 GUARDED: dict[Endpoint, Guarded] = {
+    ("POST", "/invoices"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda _: "/invoices",
+        INVOICE.read_bytes(),
+        _stored_in_ogled,
+    ),
+    ("GET", "/invoices"): Guarded(
+        Permission.INVOICES_SUBMIT, False, lambda _: "/invoices", None, _lists_no_invoices
+    ),
+    ("GET", "/invoices/{invoice_id}"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}",
+        None,
+        _primers_invoice_is_not_found,
+    ),
+    ("DELETE", "/invoices/{invoice_id}"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}",
+        None,
+        _primers_invoice_stays,
+    ),
+    ("GET", "/invoices/{invoice_id}/content"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/content",
+        None,
+        _primers_invoice_is_not_found,
+    ),
     ("POST", "/invoices/validate"): Guarded(
         Permission.INVOICES_VALIDATE,
         False,

@@ -9,41 +9,83 @@ Before the validation proper, the elements of the document are counted, without 
 by a parser as hardened as the validator's own. The cost of validating grows with elements,
 not bytes (an embedded PDF is one text node), so a budget of elements bounds the memory and
 the time one document can take.
+
+With the report comes a :class:`InvoiceSummary` of what the validator read, for listing a
+stored invoice: its number, date, parties and amount due, when it could be read as one.
 """
 
 from __future__ import annotations
 
 import io
+from datetime import date
+from decimal import Decimal
 from typing import Final, Literal
 
 from lxml import etree
+from pydantic import BaseModel, ConfigDict, Field
 
 from einvoice_core import schematron, xsd
-from einvoice_core.pipeline import PROFILES, validate
+from einvoice_core.model import DocumentType
+from einvoice_core.pipeline import PROFILES, ValidationReport, validate
 from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
 from einvoice_core.schematron import SchematronError
+from einvoice_core.ubl import build_invoice
+from einvoice_core.xml import ParseError, load_document
 
 __all__ = [
+    "SUMMARY_TEXT_LIMIT",
+    "InvoiceSummary",
     "Kind",
     "Outcome",
     "ProfileName",
+    "Validation",
     "count_elements",
     "outcome",
     "rule_sets_missing",
+    "summarize",
     "warm_up",
 ]
 
 #: The profiles a document can be validated against (``einvoice_core.pipeline.PROFILES``).
 ProfileName = Literal["srb", "en16931", "peppol"]
 
-#: ``report``: the validator's report as JSON. ``too-many-elements``: the document has more
-#: elements than the budget allows. ``unavailable``: the rule sets are missing or broken.
-#: ``refused``: the rule sets could not be applied to this document. ``failed``: anything
-#: else, by the type of the exception only.
+#: ``report``: the validator's report and the summary, a :class:`Validation` as JSON.
+#: ``too-many-elements``: the document has more elements than the budget allows.
+#: ``unavailable``: the rule sets are missing or broken. ``refused``: the rule sets could not
+#: be applied to this document. ``failed``: anything else, by the type of the exception only.
 Kind = Literal["report", "too-many-elements", "unavailable", "refused", "failed"]
 Outcome = tuple[Kind, str]
 
+#: The characters a summary keeps of each text: a list of invoices stays small whatever a
+#: document holds.
+SUMMARY_TEXT_LIMIT: Final = 200
+
 _EVENTS: Final = ("end",)
+
+
+class InvoiceSummary(BaseModel):
+    """What an invoice says about itself, as the validator read it: enough to list it by."""
+
+    model_config = ConfigDict(frozen=True)
+
+    document_type: DocumentType
+    number: str = Field(description="BT-1 invoice number.")
+    issue_date: date = Field(description="BT-2 issue date.")
+    currency: str | None = Field(description="BT-5 invoice currency code.")
+    seller: str | None = Field(description="BT-27 seller name, or BT-28 trading name.")
+    buyer: str | None = Field(description="BT-44 buyer name, or BT-45 trading name.")
+    payable_amount: Decimal = Field(description="BT-115 amount due, in the invoice currency.")
+
+
+class Validation(BaseModel):
+    """The validator's report on a document, and what it read from it if it could."""
+
+    model_config = ConfigDict(frozen=True)
+
+    report: ValidationReport
+    summary: InvoiceSummary | None = Field(
+        description="None when the document is not a schema-valid invoice the model can read."
+    )
 
 
 def _packages() -> list[str]:
@@ -110,16 +152,50 @@ def count_elements(content: bytes, *, limit: int) -> int:
     return counted
 
 
+def _short(text: str | None) -> str | None:
+    return None if text is None else text[:SUMMARY_TEXT_LIMIT]
+
+
+def summarize(tree: etree._ElementTree) -> InvoiceSummary | None:
+    """What the validator reads from a schema-valid document; None if it is no invoice the
+    model can read (say, an amount too long to check)."""
+    try:
+        invoice = build_invoice(tree.getroot())
+    except ParseError:
+        return None
+    return InvoiceSummary(
+        document_type=invoice.document_type,
+        number=invoice.id[:SUMMARY_TEXT_LIMIT],
+        issue_date=invoice.issue_date,
+        currency=_short(invoice.currency),
+        seller=_short(invoice.seller.name or invoice.seller.trading_name),
+        buyer=_short(invoice.buyer.name or invoice.buyer.trading_name),
+        payable_amount=invoice.totals.payable_amount,
+    )
+
+
+def _schema_valid(report: ValidationReport) -> bool:
+    return any(
+        layer.layer == "xsd" and layer.ran and not layer.violations for layer in report.layers
+    )
+
+
 def outcome(content: bytes, profile: ProfileName, *, max_elements: int) -> Outcome:
     """Validate ``content`` under ``profile``, if it has at most ``max_elements`` elements."""
     if count_elements(content, limit=max_elements) > max_elements:
         return "too-many-elements", f"the invoice has more than {max_elements} elements"
     try:
-        report = validate(content, profile)
+        try:
+            tree = load_document(content)
+        except ParseError:  # the validator reports why
+            report, summary = validate(content, profile), None
+        else:
+            report = validate(tree, profile)
+            summary = summarize(tree) if _schema_valid(report) else None
     except RulesetNotFoundError:
         return "unavailable", "the validator's rule sets are not installed"
     except SchematronError:
         return "refused", "the rule sets could not be applied to this invoice"
     except Exception as error:
         return "failed", type(error).__name__
-    return "report", report.model_dump_json()
+    return "report", Validation(report=report, summary=summary).model_dump_json()

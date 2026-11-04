@@ -48,14 +48,14 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/api-rbac-members` — permissions per role checked against the current membership, the members of an organization (roles, removal, the last-owner rule), invitations with one-time codes, a route audit and a cross-tenant case for every guarded endpoint (ADR-0013)
 - [x] `fix/core-hostile-documents` — addressing in linear time, numbers of at most 28 digits computed exactly, values read whole when a comment splits them, reports bounded by the violation limit, Saxon's warnings off the error stream (ADR-0014; found by the reviews of the invoice endpoint)
 - [x] `feat/api-invoices-validate` — `POST /invoices/validate`: an XML body within limits on bytes, time and elements, the validator's own report, nothing stored (the no-store mode); the validator in a child process with a time limit, admission, `/ready` on the validator (ADR-0015)
-- [ ] `feat/api-invoices-store` — invoices and their reports kept per organization: upload, list, read and delete, a migration for them, and their cross-tenant cases
+- [x] `feat/api-invoices-store` — invoices and their reports kept per organization: store, list a page at a time, read, download and delete; a client sees what they submitted; a storage quota per organization (ADR-0016)
 - [ ] `feat/api-keys` — API keys for machine clients (ERPs): random, hashed at rest, limited to chosen permissions such as validating invoices, revocable; their cross-tenant cases (after the invoice endpoints, so that a key has something to be allowed)
 - [ ] `feat/api-rate-limits` — rate limits on sign-in, refresh, accepting invitations and validation, per client and per organization (429 with `Retry-After`)
 - [ ] `feat/api-jobs-sse` — `arq` jobs behind `JobRunner`, progress over SSE
 - [ ] `feat/rag-corpus-ingest` — ingestion of the law, rulebook, technical instruction and SRB-CIUS specification with `valid_from` / `valid_to`
 - [ ] `feat/rag-explain-citations` — explanation endpoint; citations must resolve to stored chunks; no-store mode
 - [ ] Langfuse and Sentry wiring; structured JSON logs; health and readiness checks
-- [ ] Learning notes: pgvector and hybrid retrieval, SSE vs. WebSockets, idempotent job design, ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09)
+- [ ] Learning notes: pgvector and hybrid retrieval, SSE vs. WebSockets, idempotent job design, ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10)
 - [ ] Release: `v0.2.0`
 
 ## M3 — Repair loop + web UI (weeks 5–6) · tag `v0.3.0`
