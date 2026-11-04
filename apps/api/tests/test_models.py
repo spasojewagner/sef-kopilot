@@ -13,6 +13,7 @@ from sqlalchemy import delete, func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
 from sef_api.models import (
     ApiKey,
     Invitation,
@@ -364,6 +365,19 @@ async def test_an_api_key_is_what_its_columns_say(
 
     with pytest.raises(IntegrityError, match=constraint):
         await session.flush()
+
+
+@pytest.mark.parametrize("permission", list(Permission))
+async def test_an_api_key_may_hold_what_keys_may_hold_and_nothing_else(
+    session: AsyncSession, permission: Permission
+) -> None:
+    session.add(key(await member(session), permissions=[permission.value]))
+
+    if permission in KEY_PERMISSIONS:
+        await session.flush()
+    else:
+        with pytest.raises(IntegrityError, match="ck_api_keys_permissions_known"):
+            await session.flush()
 
 
 async def test_a_new_api_key_has_a_creation_time_and_neither_an_expiry_nor_a_revocation(

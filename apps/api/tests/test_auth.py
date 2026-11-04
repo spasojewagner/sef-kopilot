@@ -395,5 +395,5 @@ async def test_openapi_documents_the_auth_endpoints_and_the_bearer_scheme(
 
     for path in ("/auth/register", "/auth/login", "/auth/refresh", "/auth/logout"):
         assert schema["paths"][path]["post"]["tags"] == ["auth"]
-    assert schema["paths"]["/auth/me"]["get"]["security"] == [{"access token": []}]
-    assert schema["components"]["securitySchemes"]["access token"]["scheme"] == "bearer"
+    assert schema["paths"]["/auth/me"]["get"]["security"] == [{"access token or API key": []}]
+    assert schema["components"]["securitySchemes"]["access token or API key"]["scheme"] == "bearer"

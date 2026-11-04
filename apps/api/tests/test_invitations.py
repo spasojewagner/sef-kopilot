@@ -357,7 +357,7 @@ async def test_openapi_documents_the_invitations(client: AsyncClient) -> None:
     paths = (await client.get("/openapi.json")).json()["paths"]
 
     assert paths["/invitations"]["post"]["tags"] == ["members"]
-    assert paths["/invitations"]["post"]["security"] == [{"access token": []}]
+    assert paths["/invitations"]["post"]["security"] == [{"access token or API key": []}]
     assert "security" not in paths["/auth/accept-invitation"]["post"]
 
 

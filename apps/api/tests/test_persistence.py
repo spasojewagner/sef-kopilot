@@ -225,3 +225,19 @@ async def test_a_deleted_invoice_stays_deleted(
     assert (await committed_api.delete(location, headers=bearer(ana))).status_code == 204
     async with committed_database.sessions() as session:
         assert await session.scalar(select(StoredInvoice.id)) is None
+
+
+async def test_an_issued_api_key_is_kept(committed_api: AsyncClient) -> None:
+    ana = await register(committed_api)
+    issued = await committed_api.post(
+        "/api-keys",
+        json={"name": "ERP", "permissions": ["invoices:validate"]},
+        headers=bearer(ana),
+    )
+
+    response = await committed_api.get(
+        "/auth/me", headers={"Authorization": f"Bearer {issued.json()['key']}"}
+    )
+
+    assert issued.status_code == 201
+    assert response.status_code == 200

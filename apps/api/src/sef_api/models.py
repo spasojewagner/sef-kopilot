@@ -248,6 +248,8 @@ class ApiKey(Base):
     """
 
     __tablename__ = "api_keys"
+    #: The time of a new key, set by the database, comes back with its insert.
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
     __table_args__ = (
         ForeignKeyConstraint(
             ["organization_id", "user_id"],
