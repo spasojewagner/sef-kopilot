@@ -10,7 +10,7 @@ UV      ?= uv
 PNPM    ?= pnpm
 COMPOSE ?= docker compose --project-directory . -f infra/docker-compose.yml
 
-.PHONY: help setup sync lint format typecheck test test-core test-api test-web api web build-web rulesets rulesets-check up down logs psql clean
+.PHONY: help setup sync lint format typecheck test test-core test-api test-web api web build-web rulesets rulesets-check fixtures up down logs psql clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -62,6 +62,9 @@ rulesets: ## Fetch the pinned EN 16931 and Peppol BIS rule sets into third_party
 
 rulesets-check: ## Verify that third_party/ holds the pinned rule-set versions (no network)
 	$(UV) run python scripts/fetch_rulesets.py --check
+
+fixtures: ## Regenerate the mutation fixtures from the catalogue in scripts/make_fixtures.py
+	$(UV) run python scripts/make_fixtures.py
 
 up: ## Start PostgreSQL (pgvector) and Redis in Docker and wait until they are healthy
 	$(COMPOSE) up -d --wait

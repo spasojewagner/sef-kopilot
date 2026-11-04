@@ -70,7 +70,12 @@ CEN_EXAMPLES = sorted((THIRD_PARTY / "en16931" / "ubl" / "examples").glob("ubl-t
 PEPPOL_EXAMPLES = sorted(
     (THIRD_PARTY / "peppol-bis-billing-3" / "rules" / "examples").glob("*.xml")
 )
-SYNTHETIC_FIXTURES = sorted(SYNTHETIC_DIR.glob("*.xml"))
+#: The synthetic fixtures in plain EN 16931. Those with the Serbian extension (SrbDtExt) also
+#: carry what EN 16931 does not know, the extension and the VAT breakdown in RSD; they are
+#: judged under the SRB profile instead (test_corpus.py).
+SYNTHETIC_FIXTURES = sorted(
+    path for path in SYNTHETIC_DIR.glob("*.xml") if b"SrbDtExt" not in path.read_bytes()
+)
 
 #: The flattened Schematron of the same EN 16931 release as the official XSLT: includes
 #: resolved and abstract patterns expanded by CEN, like the copy that Peppol BIS bundles.

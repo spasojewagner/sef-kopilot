@@ -1,4 +1,4 @@
-"""The fixture corpus: the Ministry's SEF examples, kept byte for byte, and what they show."""
+"""The fixture corpus: the Ministry's SEF examples and the mutation fixtures."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+import make_fixtures
 from einvoice_core import schematron
 from einvoice_core.pipeline import validate
 from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
@@ -33,7 +34,7 @@ GENUINE_PROBLEMS = {
 
 def _fetched() -> bool:
     try:
-        for package in ("ubl-2.1", "en16931", schematron.COMPILER_PACKAGE):
+        for package in ("ubl-2.1", "en16931", "peppol-bis-billing-3", schematron.COMPILER_PACKAGE):
             ruleset_path(package)
     except RulesetNotFoundError:
         return False
@@ -74,3 +75,11 @@ def test_the_sef_examples_are_valid_once_their_pibs_are(entry: dict[str, Any]) -
     warnings = {v.rule_id for v in report.violations if v.severity is not Severity.FATAL}
     assert fatal == GENUINE_PROBLEMS.get(entry["file"], [])
     assert warnings <= {"SRB-013", "SRB-017", "SRB-023", "SRB-029"}
+
+
+@needs_rule_sets
+@pytest.mark.parametrize("mutation", make_fixtures.MUTATIONS, ids=lambda mutation: mutation.name)
+def test_each_mutation_is_reported_as_its_header_says(mutation: make_fixtures.Mutation) -> None:
+    report = validate((REPOSITORY_ROOT / mutation.file).read_bytes(), "srb")
+
+    assert sorted(v.rule_id for v in report.violations) == sorted(mutation.expect)
