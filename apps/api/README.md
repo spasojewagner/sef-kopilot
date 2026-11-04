@@ -21,6 +21,24 @@ Configuration comes from the environment or a `.env` file in the working directo
 variables are in [`.env.example`](../../.env.example). Without `DATABASE_URL` the API uses the
 database of `make up`; in production the variable is required.
 
+## Accounts and tokens
+
+`/auth` signs people up and in (ADR-0012). Registration creates an account, its organization and
+makes the person the owner; sign-in returns two tokens for one organization:
+
+| Token | Lifetime | Use |
+| --- | --- | --- |
+| access token (JWT, HS256, `typ: at+jwt`) | 15 minutes | `Authorization: Bearer …` on every request; checked without the database |
+| refresh token (256 random bits, stored as a SHA-256 digest) | 30 days | `POST /auth/refresh` once for a new pair; a second use ends the session |
+
+```bash
+curl -s localhost:8000/auth/register -H 'Content-Type: application/json' \
+  -d '{"email": "ana@primer.example", "password": "a long passphrase", "organization_name": "Primer"}'
+curl -s localhost:8000/auth/me -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+Passwords are hashed with argon2id (OWASP's minimum: 19 MiB, two passes) in a worker thread.
+
 ## Database and migrations
 
 PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
@@ -29,7 +47,7 @@ PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with A
 ```bash
 uv run alembic -c apps/api/alembic.ini upgrade head                    # apply
 uv run alembic -c apps/api/alembic.ini downgrade -1                    # undo the last one
-uv run alembic -c apps/api/alembic.ini revision --autogenerate --rev-id 0002 -m "add ..."
+uv run alembic -c apps/api/alembic.ini revision --autogenerate --rev-id 0003 -m "add ..."
 uv run alembic -c apps/api/alembic.ini upgrade head --sql              # print the SQL instead
 ```
 
@@ -55,7 +73,8 @@ src/sef_api/
   main.py        application factory (`create_app`): settings, database, routers
   settings.py    configuration from the environment (pydantic-settings)
   db.py          declarative base, engine, sessions, the `get_session` dependency
-  models.py      organizations, users, memberships and roles
+  models.py      organizations, users, memberships, roles, refresh tokens
+  auth/          passwords, tokens, the sign-in service, `/auth` routes, `current_principal`
   migrations/    Alembic environment and revisions (`versions/`)
   routes/        one router module per resource
 alembic.ini      command-line configuration of the migrations

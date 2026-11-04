@@ -14,7 +14,7 @@ from sqlalchemy.pool import NullPool
 
 from sef_api.migrations import alembic_config
 
-TABLES = {"alembic_version", "organizations", "users", "memberships"}
+TABLES = {"alembic_version", "organizations", "users", "memberships", "refresh_tokens"}
 
 
 def tables(database_url: str) -> set[str]:
@@ -81,6 +81,6 @@ def test_the_migrations_render_as_sql_for_review() -> None:
     )
 
     sql = output.getvalue()
-    for table in ("organizations", "users", "memberships"):
+    for table in ("organizations", "users", "memberships", "refresh_tokens"):
         assert f"CREATE TABLE {table}" in sql
     assert "ON DELETE CASCADE" in sql

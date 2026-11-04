@@ -12,6 +12,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from sef_api import __version__
+from sef_api.auth import routes as auth
+from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
 from sef_api.routes import health
 from sef_api.settings import Settings
@@ -26,6 +28,11 @@ Finance or the SEF platform.** By default it only ever talks to the public SEF *
 
 OPENAPI_TAGS = [
     {"name": "health", "description": "Liveness and readiness probes for orchestrators."},
+    {
+        "name": "auth",
+        "description": "Accounts, sign-in and tokens: a short-lived access token for requests "
+        "and a refresh token that is spent on use.",
+    },
 ]
 
 
@@ -57,5 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.database = database
+    app.state.tokens = TokenSettings.from_settings(settings)
     app.include_router(health.router)
+    app.include_router(auth.router)
     return app

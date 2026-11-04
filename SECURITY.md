@@ -89,14 +89,18 @@ system are marked as such.
 
 ### V6 Authentication
 
-- [ ] Passwords hashed with argon2id; minimum length and breached-password checks.
-- [ ] Generic authentication error messages; rate limiting on login.
+- [x] Passwords hashed with argon2id (OWASP's minimum parameters), 12 to 128 characters, rehashed
+      when the parameters change.
+- [ ] Breached-password check against a local list (the self-hosted mode makes no external calls).
+- [x] Generic authentication error messages; an unknown address takes as long as a wrong password.
+- [ ] Rate limiting on sign-in and token refresh.
 - [ ] API keys for machine clients are random, hashed at rest, revocable.
 
 ### V7 Session management
 
-- [ ] Short-lived JWT access tokens, rotating refresh tokens, server-side revocation list.
-- [ ] Logout invalidates refresh tokens.
+- [x] Short-lived JWT access tokens (15 minutes); refresh tokens stored as digests, spent on use,
+      and a replayed one revokes its whole session.
+- [x] Logout invalidates refresh tokens.
 
 ### V8 Authorization
 
@@ -106,7 +110,9 @@ system are marked as such.
 
 ### V9 Self-contained tokens
 
-- [ ] JWTs use an allow-listed algorithm, validated `iss`, `aud`, `exp`; keys rotate.
+- [x] JWTs use an allow-listed algorithm (HS256) and type (`at+jwt`); `iss`, `aud`, `exp`, `iat`,
+      `sub`, `org`, `role` and `jti` are required and checked.
+- [ ] Signing keys rotate (key ids, the previous key accepted for a grace period).
 
 ### V10 OAuth and OIDC
 

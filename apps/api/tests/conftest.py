@@ -23,6 +23,7 @@ from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from sef_api.db import get_session
 from sef_api.main import create_app
 from sef_api.migrations import alembic_config
 from sef_api.settings import Settings
@@ -31,6 +32,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 #: A database URL nothing listens on: the application starts, its database checks fail.
 UNREACHABLE_DATABASE = "postgresql+asyncpg://sef:sef@127.0.0.1:1/sef_kopilot"
+#: Signs the test applications' access tokens; obviously not a key used anywhere else.
+TEST_JWT_SECRET = "test" * 10
 
 
 class _TestServer(BaseSettings):
@@ -44,7 +47,13 @@ TEST_SERVER_URL = _TestServer().sef_test_database_url
 
 def settings_for(database_url: str = UNREACHABLE_DATABASE) -> Settings:
     """Settings for a test application, independent of the environment and of ``.env``."""
-    return Settings.model_validate({"SEF_ENVIRONMENT": "test", "DATABASE_URL": database_url})
+    return Settings.model_validate(
+        {
+            "SEF_ENVIRONMENT": "test",
+            "DATABASE_URL": database_url,
+            "SEF_JWT_SECRET": TEST_JWT_SECRET,
+        }
+    )
 
 
 async def _execute(server: URL, statement: str) -> None:
@@ -107,6 +116,20 @@ async def client() -> AsyncIterator[AsyncClient]:
     validation and serialisation without opening a network socket.
     """
     app = create_app(settings_for())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+    await app.state.database.engine.dispose()
+
+
+@pytest.fixture
+async def api(session: AsyncSession) -> AsyncIterator[AsyncClient]:
+    """A client of an application whose requests all use the test's rolled-back session."""
+    app = create_app(settings_for())
+
+    async def the_test_session() -> AsyncIterator[AsyncSession]:
+        yield session
+
+    app.dependency_overrides[get_session] = the_test_session
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
     await app.state.database.engine.dispose()

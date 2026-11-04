@@ -1,4 +1,4 @@
-"""The tenancy schema on PostgreSQL: keys, constraints and what goes with what."""
+"""The schema on PostgreSQL: keys, constraints and what goes with what."""
 
 from __future__ import annotations
 
@@ -8,6 +8,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.models import Membership, Organization, Role, User
+
+
+def person(email: str) -> User:
+    """A user; the hash is a placeholder, these tests are about the schema, not passwords."""
+    return User(email=email, password_hash="$argon2id$placeholder")
 
 
 async def test_an_organization_gets_an_id_and_a_timezone_aware_creation_time(
@@ -33,23 +38,23 @@ async def test_an_organization_name_has_1_to_200_characters(
 
 
 async def test_an_email_address_belongs_to_one_user(session: AsyncSession) -> None:
-    session.add(User(email="ana@primer.example"))
+    session.add(person("ana@primer.example"))
     await session.flush()
-    session.add(User(email="ana@primer.example"))
+    session.add(person("ana@primer.example"))
 
     with pytest.raises(IntegrityError, match="uq_users_email"):
         await session.flush()
 
 
 async def test_an_email_address_is_stored_in_lower_case(session: AsyncSession) -> None:
-    session.add(User(email="Ana@Primer.example"))
+    session.add(person("Ana@Primer.example"))
 
     with pytest.raises(IntegrityError, match="ck_users_email_lower_case"):
         await session.flush()
 
 
 async def test_a_new_user_is_active(session: AsyncSession) -> None:
-    user = User(email="nova@primer.example")
+    user = person("nova@primer.example")
     session.add(user)
     await session.flush()
 
@@ -57,7 +62,7 @@ async def test_a_new_user_is_active(session: AsyncSession) -> None:
 
 
 async def test_a_member_has_one_of_three_roles(session: AsyncSession) -> None:
-    organization, user = Organization(name="Primer"), User(email="ana@primer.example")
+    organization, user = Organization(name="Primer"), person("ana@primer.example")
     session.add_all([organization, user])
     await session.flush()
 
@@ -73,7 +78,7 @@ async def test_a_member_has_one_of_three_roles(session: AsyncSession) -> None:
 
 async def test_a_user_can_be_a_member_of_several_organizations(session: AsyncSession) -> None:
     office, company = Organization(name="Knjigovodstvo Primer"), Organization(name="Ogledni Kupac")
-    user = User(email="ana@primer.example")
+    user = person("ana@primer.example")
     session.add_all([office, company, user])
     await session.flush()
     session.add_all(
@@ -91,7 +96,7 @@ async def test_a_user_can_be_a_member_of_several_organizations(session: AsyncSes
 
 
 async def test_a_user_is_a_member_of_an_organization_once(session: AsyncSession) -> None:
-    organization, user = Organization(name="Primer"), User(email="ana@primer.example")
+    organization, user = Organization(name="Primer"), person("ana@primer.example")
     session.add_all([organization, user])
     await session.flush()
     session.add(Membership(organization_id=organization.id, user_id=user.id, role=Role.OWNER))
@@ -107,7 +112,7 @@ async def test_a_user_is_a_member_of_an_organization_once(session: AsyncSession)
 async def test_memberships_are_removed_with_their_organization_or_user(
     session: AsyncSession, removed: type[Organization] | type[User]
 ) -> None:
-    organization, user = Organization(name="Primer"), User(email="ana@primer.example")
+    organization, user = Organization(name="Primer"), person("ana@primer.example")
     session.add_all([organization, user])
     await session.flush()
     session.add(Membership(organization_id=organization.id, user_id=user.id, role=Role.OWNER))

@@ -44,7 +44,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 ## M2 — API + explanations (weeks 3–4) · tag `v0.2.0`
 
 - [x] `feat/api-settings-database` — settings from the environment, async PostgreSQL (SQLAlchemy 2 + asyncpg), Alembic with organizations, users and memberships (`owner`, `accountant`, `client`), `/ready` on the database, test databases, a PostgreSQL service in CI (ADR-0011)
-- [ ] `feat/api-auth-tokens` — email + password (argon2id), JWT access tokens and rotating refresh tokens with reuse detection; registration creates an organization and its owner
+- [x] `feat/api-auth-tokens` — email + password (argon2id), JWT access tokens and rotating refresh tokens with reuse detection; registration creates an organization and its owner (ADR-0012)
 - [ ] `feat/api-rbac-api-keys` — permissions per role, the members of an organization, API keys for machine clients, a cross-tenant test for every endpoint
 - [ ] `feat/api-invoices-validate` — upload and validate endpoints with size/type limits
 - [ ] `feat/api-jobs-sse` — `arq` jobs behind `JobRunner`, progress over SSE
