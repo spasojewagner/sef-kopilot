@@ -183,3 +183,23 @@ copy of the list may be newer; only the invoice-currency breakdown is BG-23; the
 rules (Table 2) moved to a branch of their own.
 
 Next: `feat/core-srb-cius-extension-rules`.
+
+## 2026-11-04 — `feat/core-srb-cius-extension-rules` (5 commits, stacked on `feat/core-srb-cius-vat-rules`)
+
+Outcome: the extension table of SRB-CIUS. SRB-025 reduced total with VAT = total with VAT
+minus paid amount (BT-E13); SRB-026 advances used are also preceding invoices (BT-E1 = BT-25);
+SRB-027 the extension's VAT breakdowns also in RSD on foreign-currency invoices (BG-E5,
+BG-E6); SRB-028 the RSD VAT breakdown of foreign-currency invoices (BG-E7); SRB-029 the
+extended specification identifier when the extension is used (warning). `sbt` became a
+canonical prefix for every layer. With this, SRB-CIUS rule set v1 is complete: 29 rules.
+Interview notes.
+
+Verification: 1 200 tests green; core coverage 100 % (branches included). On the official
+examples the only new finding is SRB-029 on the two final invoices. 29 rules take 0.8–1.2 ms
+per invoice.
+
+Decisions: extension amounts parsed defensively (the UBL schema skips extension content);
+both spellings of the advances element read; no rule for BT-E10, whose formula the text does
+not give and the examples contradict.
+
+Next: BR-CO arithmetic in Python, then `feat/core-fixtures-corpus` and `feat/core-cli`.
