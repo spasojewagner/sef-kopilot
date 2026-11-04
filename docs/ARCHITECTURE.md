@@ -55,7 +55,7 @@ the system without a green validator.
 | Path | Responsibility | Status |
 | --- | --- | --- |
 | `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 in progress: semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation, EN 16931 and Peppol BIS Schematron, SRB-CIUS rule set v1 (29 rules, ADR-0006), BR-CO arithmetic in Python (ADR-0007), validation pipeline with profiles (ADR-0008), `einvoice` CLI (ADR-0009) |
-| `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M0 skeleton (`/health`, `/ready`) |
+| `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M2 in progress: settings, PostgreSQL with Alembic migrations, the tenancy schema (ADR-0011); `/health`, `/ready` |
 | `apps/web` | upload, report, explanations, diff and approval UI (sr-Latn / en) | M0 skeleton |
 | `third_party/` | fetched UBL 2.1 schemas, EN 16931 and Peppol BIS artefacts, the ISO Schematron compiler, with their terms; compiled-stylesheet cache | M1 (UBL 2.1 and ISO Schematron added) |
 | `corpus/` | regulation texts from official sources with `source_url`, `fetched_at`, `valid_from` | planned (M2) |
@@ -67,8 +67,10 @@ the system without a green validator.
 
 ## Cross-cutting concerns
 
-- **Multi-tenancy:** every table carries `organization_id`; row-level access is enforced in the
-  service layer and covered by tests that attempt cross-tenant reads. *(planned, M2)*
+- **Multi-tenancy:** every table that holds a tenant's data carries `organization_id`; people are
+  global and belong to organizations through memberships with a role. Row-level access is
+  enforced in the service layer and covered by tests that attempt cross-tenant requests
+  (ADR-0011; the tests arrive with the first tenant endpoints).
 - **No-store mode:** an invoice can be processed entirely in memory; nothing about its content
   reaches logs, traces, metrics or error reports in either mode.
 - **Configuration:** environment variables only (`.env.example` lists the names); secrets are

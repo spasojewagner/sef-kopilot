@@ -16,7 +16,7 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0008](0008-validation-pipeline-and-profiles.md) | The validation pipeline: fixed layer order, profiles that set aside published rules with reasons | accepted | 2026-11-04 |
 | [0009](0009-command-line-interface.md) | Command-line interface: stdlib `argparse`, text and JSON output, exit codes 0/1/2 | accepted | 2026-11-04 |
 | [0010](0010-fixture-corpus.md) | The fixture corpus: official SEF examples kept byte for byte, generated mutations, recorded verdicts | accepted | 2026-11-04 |
+| [0011](0011-persistence-and-multi-tenant-schema.md) | Persistence: PostgreSQL through async SQLAlchemy, Alembic migrations, a schema keyed by organization | accepted | 2026-11-04 |
 
-Planned (recorded when the work lands): multi-tenant data model and row-level access (M2),
-hybrid retrieval and citation model (M2), job runner interface and SSE progress (M2), patch
+Planned (recorded when the work lands): authentication and tokens (M2), hybrid retrieval and citation model (M2), job runner interface and SSE progress (M2), patch
 model and forbidden-field guard (M3), OAuth 2.1 for MCP (M4), evaluation thresholds (M6).

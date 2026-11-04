@@ -11,6 +11,7 @@ just used. New notes are added in the pull request that introduces the concept.
 | 03 | [Schematron and XPath assertions](03-schematron-and-xpath-assertions.md) | M1 |
 | 04 | [EN 16931 business rules vs. a CIUS](04-en16931-business-rules-vs-a-cius.md) | M1 |
 | 05 | [Golden files and mutation fixtures](05-golden-files-and-mutation-fixtures.md) | M1 |
+| 06 | [Alembic migration safety](06-alembic-migration-safety.md) | M2 |
 
 Planned: pgvector and hybrid retrieval · SSE vs. WebSockets · idempotent job design ·
-Alembic migration safety · OAuth 2.1 flows for MCP.
+OAuth 2.1 flows for MCP.

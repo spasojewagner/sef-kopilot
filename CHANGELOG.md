@@ -9,6 +9,21 @@ is tagged.
 
 ## [Unreleased]
 
+### Added
+
+- `apps/api`: PostgreSQL persistence. Settings from the environment (`pydantic-settings`;
+  `DATABASE_URL` required in production and never echoed), one async SQLAlchemy engine per
+  application with a session per request, and Alembic migrations (`make migrate`) starting with
+  organizations, users and memberships with the roles owner, accountant and client. Database
+  tests run on the PostgreSQL server named by `SEF_TEST_DATABASE_URL`, in a database of their
+  own; CI provides one and checks that every migration can be undone (ADR-0011).
+
+### Changed
+
+- `GET /ready` checks the database and answers 503 while it does not respond.
+- The API starts from its factory: `uvicorn sef_api.main:create_app --factory` (`make api`); the
+  module-level `app` is gone, so importing the module has no side effects.
+
 ## [0.1.0] - 2026-11-04
 
 The validator core (milestone M1) on the bootstrapped monorepo (M0): UBL 2.1 invoices and
