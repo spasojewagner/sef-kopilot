@@ -26,6 +26,7 @@ __all__ = [
     "DEFAULT_MAX_BYTES",
     "EXT",
     "NAMESPACES",
+    "SRBDT_EXT",
     "UBL",
     "ParseError",
     "canonical_xpath",
@@ -38,9 +39,19 @@ CN: Final = "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
 CAC: Final = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
 CBC: Final = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
 EXT: Final = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+#: The Serbian extension of SRB-CIUS (``SrbDtExt`` inside ``ext:UBLExtensions``).
+SRBDT_EXT: Final = "http://mfin.gov.rs/srbdt/srbdtext"
 
 #: Canonical prefixes, usable directly with ``element.xpath(..., namespaces=NAMESPACES)``.
-NAMESPACES: Final[dict[str, str]] = {"ubl": UBL, "cn": CN, "cac": CAC, "cbc": CBC, "ext": EXT}
+#: ``sbt`` is the prefix the Ministry of Finance uses for its extension in its own examples.
+NAMESPACES: Final[dict[str, str]] = {
+    "ubl": UBL,
+    "cn": CN,
+    "cac": CAC,
+    "cbc": CBC,
+    "ext": EXT,
+    "sbt": SRBDT_EXT,
+}
 _PREFIX_BY_URI: Final[dict[str, str]] = {uri: prefix for prefix, uri in NAMESPACES.items()}
 
 #: 10 MiB: far above any real invoice, far below what would trouble the process.

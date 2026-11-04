@@ -13,9 +13,8 @@ import pytest
 from lxml import etree
 
 from einvoice_core.srb import Rule, validate_srb
-from einvoice_core.srb.rule import NAMESPACES_SRB
 from einvoice_core.violations import Violation
-from einvoice_core.xml import load_document
+from einvoice_core.xml import NAMESPACES, load_document
 
 
 class Case:
@@ -30,7 +29,7 @@ class Case:
 
     def element(self, path: str) -> etree._Element:
         """The single element at ``path``, relative to the document element."""
-        found = self.root.xpath(path, namespaces=NAMESPACES_SRB)
+        found = self.root.xpath(path, namespaces=NAMESPACES)
         assert isinstance(found, list), path
         (element,) = (node for node in found if isinstance(node, etree._Element))
         return element
@@ -59,7 +58,7 @@ class Case:
 
         The fragment goes after the child matching ``after``, or first when ``after`` is None.
         """
-        declarations = " ".join(f'xmlns:{prefix}="{uri}"' for prefix, uri in NAMESPACES_SRB.items())
+        declarations = " ".join(f'xmlns:{prefix}="{uri}"' for prefix, uri in NAMESPACES.items())
         new = etree.fromstring(f"<wrapper {declarations}>{fragment}</wrapper>")[0]
         parent = self.element(path)
         position = 0 if after is None else parent.index(self.element(f"{path}/{after}")) + 1
