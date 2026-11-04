@@ -1,6 +1,6 @@
 """The locks that order concurrent work on one organization: one on its members and sessions
-(ADR-0013), one on its stored invoices (ADR-0016). Both are transaction-level PostgreSQL
-advisory locks keyed by the organization's id.
+(ADR-0013), one on its stored invoices (ADR-0016) and one on its API keys (ADR-0017). All are
+transaction-level PostgreSQL advisory locks keyed by the organization's id.
 
 The lock on the members:
 
@@ -17,9 +17,10 @@ Every path takes this lock before any row lock, and none takes it shared first a
 later. The locks are therefore always taken in the same order.
 
 The lock on the stored invoices is taken to store one: adding up what the organization stores
-and storing one more cannot interleave with another upload, so the quota holds exactly. It
-uses PostgreSQL's other key space, two 32-bit keys, which never meets the first. No path takes
-both locks.
+and storing one more cannot interleave with another upload, so the quota holds exactly. The
+lock on the API keys is taken to issue one, so that a member cannot exceed the number of keys
+they may have. Both use PostgreSQL's other key space, two 32-bit keys, the first telling them
+apart; it never meets the key space of the members' lock. No path takes two of these locks.
 """
 
 from __future__ import annotations
@@ -30,10 +31,12 @@ from typing import Final
 from sqlalchemy import BigInteger, Integer, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-__all__ = ["advisory_key", "lock_invoice_storage", "lock_organization"]
+__all__ = ["advisory_key", "lock_api_keys", "lock_invoice_storage", "lock_organization"]
 
 #: The first of the two keys of the lock on an organization's stored invoices: "SEF" and 1.
 _STORAGE: Final = 0x53454601
+#: The first of the two keys of the lock on an organization's API keys: "SEF" and 2.
+_API_KEYS: Final = 0x53454602
 
 
 def advisory_key(organization_id: uuid.UUID) -> int:
@@ -53,10 +56,19 @@ async def lock_organization(
 
 
 async def lock_invoice_storage(session: AsyncSession, organization_id: uuid.UUID) -> None:
-    """Hold the lock on the organization's stored invoices until the transaction ends. The
-    second key is the first four bytes of the organization's id; two organizations that share
-    it merely wait for each other."""
+    """Hold the lock on the organization's stored invoices until the transaction ends."""
+    await _lock_in_two_keys(session, _STORAGE, organization_id)
+
+
+async def lock_api_keys(session: AsyncSession, organization_id: uuid.UUID) -> None:
+    """Hold the lock on the organization's API keys until the transaction ends."""
+    await _lock_in_two_keys(session, _API_KEYS, organization_id)
+
+
+async def _lock_in_two_keys(session: AsyncSession, what: int, organization_id: uuid.UUID) -> None:
+    """Hold a lock in the two-key space: ``what`` it orders, and the first four bytes of the
+    organization's id. Two organizations that share them merely wait for each other."""
     key = int.from_bytes(organization_id.bytes[:4], "big", signed=True)
     await session.execute(
-        select(func.pg_advisory_xact_lock(literal(_STORAGE, Integer), literal(key, Integer)))
+        select(func.pg_advisory_xact_lock(literal(what, Integer), literal(key, Integer)))
     )

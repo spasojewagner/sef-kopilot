@@ -1,0 +1,13 @@
+# Secret scanning: gitleaks' own rules, and the shape of this API's keys, so that a key pasted
+# into a file is caught like any other credential. Read by the pre-commit hook and by the
+# full-history scan in CI.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "sef-kopilot-api-key"
+description = "SEF Kopilot API key"
+regex = '''sefk_[A-Za-z0-9_-]{43}'''
+entropy = 3.5
+keywords = ["sefk_"]

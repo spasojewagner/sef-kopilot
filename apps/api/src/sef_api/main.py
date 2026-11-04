@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from sef_api import __version__
+from sef_api.api_keys import routes as api_keys
 from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
@@ -102,4 +103,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(invoices.router)
     app.include_router(members.router)
     app.include_router(members.invitations_router)
+    app.include_router(api_keys.router)
     return app

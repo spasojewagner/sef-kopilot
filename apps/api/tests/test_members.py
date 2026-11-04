@@ -239,5 +239,5 @@ async def test_openapi_documents_the_members_endpoints_behind_the_access_token(
 
     for path, method in (("/members", "get"), ("/members/{user_id}", "patch")):
         assert paths[path][method]["tags"] == ["members"]
-        assert paths[path][method]["security"] == [{"access token": []}]
+        assert paths[path][method]["security"] == [{"access token or API key": []}]
     assert set(paths["/members/{user_id}"]["delete"]["responses"]) == {"204", "404", "409", "422"}

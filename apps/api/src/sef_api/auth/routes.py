@@ -37,6 +37,16 @@ OrganizationName = Annotated[
 _UNAUTHORIZED = {"WWW-Authenticate": "Bearer"}
 
 
+def no_store(response: Response) -> None:
+    """Keep the answer out of every cache: for an answer that carries a credential, such as
+    tokens or an invitation code (RFC 6749, section 5.1)."""
+    response.headers["Cache-Control"] = "no-store"
+
+
+#: For the endpoints whose answer carries a credential.
+NO_STORE = Depends(no_store)
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr = Field(description="The address to sign in with; stored in lower case.")
     password: NewPassword = Field(description="12 to 128 characters.")
@@ -132,6 +142,7 @@ def _tokens(signed_in: SignedIn) -> TokenResponse:
     status_code=status.HTTP_201_CREATED,
     summary="Create an account and its organization",
     description="Creates the account, an organization owned by it, and signs the person in.",
+    dependencies=[NO_STORE],
     responses={status.HTTP_409_CONFLICT: {"model": Problem, "description": "E-mail taken."}},
 )
 async def register(body: RegisterRequest, session: Session, tokens: Tokens) -> TokenResponse:
@@ -159,6 +170,7 @@ async def register(body: RegisterRequest, session: Session, tokens: Tokens) -> T
         "answer is 409 with the list to choose from."
     ),
     response_model=TokenResponse,
+    dependencies=[NO_STORE],
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": Problem, "description": "Wrong credentials."},
         status.HTTP_403_FORBIDDEN: {"model": Problem, "description": "Not a member."},
@@ -212,6 +224,7 @@ async def login(body: LoginRequest, session: Session, tokens: Tokens) -> TokenRe
         "otherwise checks its password, then adds the membership and signs the person in to "
         "the organization. A code is good once."
     ),
+    dependencies=[NO_STORE],
     responses={
         status.HTTP_400_BAD_REQUEST: {"model": Problem, "description": "Unusable code."},
         status.HTTP_401_UNAUTHORIZED: {"model": Problem, "description": "Wrong password."},
@@ -259,6 +272,7 @@ async def accept_invitation(
         "Spends the refresh token and returns a new access token and a new refresh token for "
         "the same session. A refresh token presented a second time ends the session."
     ),
+    dependencies=[NO_STORE],
     responses={status.HTTP_401_UNAUTHORIZED: {"model": Problem}},
 )
 async def refresh(body: RefreshRequest, session: Session, tokens: Tokens) -> TokenResponse:

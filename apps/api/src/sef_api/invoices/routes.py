@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from einvoice_core.model import DocumentType
 from einvoice_core.pipeline import ValidationReport
 from sef_api.auth.dependencies import Principal, check_again, require
-from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
+from sef_api.auth.permissions import Permission
 from sef_api.auth.routes import Problem
 from sef_api.db import get_session
 from sef_api.invoices import store
@@ -130,7 +130,7 @@ _DOWNLOAD: dict[int | str, dict[str, Any]] = {
 def _scope(caller: Principal) -> store.Scope:
     """The invoices ``caller`` may see: every one of the organization's with
     ``invoices:manage``, otherwise the ones they submitted."""
-    if Permission.INVOICES_MANAGE in ROLE_PERMISSIONS[caller.role]:
+    if caller.may(Permission.INVOICES_MANAGE):
         return store.Scope(caller.organization_id)
     return store.Scope(caller.organization_id, submitted_by=caller.user_id)
 

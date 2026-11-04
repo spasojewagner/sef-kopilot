@@ -1,6 +1,7 @@
 # 13. Authorization: permissions per role, checked against the current membership, tenant isolation proven by tests
 
-- Status: accepted
+- Status: accepted; amended by [0017](0017-api-keys.md), under which a caller with an API key
+  may do what both the role and the key allow
 - Date: 2026-11-04
 - Deciders: Marko Spasojević
 - Technical story: milestone M2, branch `feat/api-rbac-members`

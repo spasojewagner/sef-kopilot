@@ -9,7 +9,9 @@ new endpoint cannot slip past it.
   and whether it changes the members and so checks the role again under the organization's
   lock. A member whose role lacks the permission is refused (403).
 - Every guarded endpoint has a cross-tenant case: another organization's owner, who holds every
-  permission there is, tries it on this organization's data and finds nothing.
+  permission there is, tries it on this organization's data and finds nothing. The owner's API
+  key, which holds every permission a key may hold, finds nothing either, and is refused the
+  endpoints that no key may use.
 """
 
 from __future__ import annotations
@@ -28,10 +30,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.routing import BaseRoute, Route
 
 from sef_api.auth.dependencies import current_principal, require
-from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
+from sef_api.auth.permissions import KEY_PERMISSIONS, ROLE_PERMISSIONS, Permission
 from sef_api.main import create_app
 from sef_api.members import invitations
 from sef_api.models import (
+    ApiKey,
     Invitation,
     Membership,
     Organization,
@@ -42,7 +45,7 @@ from sef_api.models import (
 )
 
 from .conftest import REPOSITORY_ROOT, settings_for
-from .factories import Office, bearer, office, stored_invoice
+from .factories import Key, Office, api_key, bearer, office, stored_invoice
 
 Endpoint = tuple[str, str]
 
@@ -122,12 +125,15 @@ def app() -> FastAPI:
 
 @dataclass(frozen=True)
 class World:
-    """Two organizations; Primer has an open invitation and a stored invoice."""
+    """Two organizations. Primer has an open invitation, a stored invoice and its client's API
+    key; Ogled's owner has a key with every permission a key may hold."""
 
     primer: Office
     ogled: Office
     invitation: Invitation
     invoice: StoredInvoice
+    key: Key
+    ogled_key: Key
 
 
 @pytest.fixture
@@ -142,7 +148,15 @@ async def world(session: AsyncSession) -> World:
         role=Role.ACCOUNTANT,
     )
     invoice = await stored_invoice(session, primer.organization, primer.client)
-    return World(primer, ogled, issued.invitation, invoice)
+    key = await api_key(
+        session,
+        primer.organization,
+        primer.client,
+        Permission.INVOICES_VALIDATE,
+        Permission.INVOICES_SUBMIT,
+    )
+    ogled_key = await api_key(session, ogled.organization, ogled.owner)
+    return World(primer, ogled, issued.invitation, invoice, key, ogled_key)
 
 
 async def role_in_primer(session: AsyncSession, world: World, user_id: Any) -> Role | None:
@@ -230,7 +244,15 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
     assert response.json()["profile"] == "srb"
     counts = {
         model.__tablename__: await session.scalar(select(func.count()).select_from(model))
-        for model in (Organization, User, Membership, Invitation, RefreshToken, StoredInvoice)
+        for model in (
+            Organization,
+            User,
+            Membership,
+            Invitation,
+            RefreshToken,
+            StoredInvoice,
+            ApiKey,
+        )
     }
     assert counts == {
         "organizations": 2,
@@ -239,6 +261,7 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
         "invitations": 1,
         "refresh_tokens": 0,
         "invoices": 1,
+        "api_keys": 2,
     }
 
 
@@ -269,7 +292,50 @@ async def _primers_invoice_is_not_found(
     )
 
 
+async def _issued_in_ogled(response: Response, session: AsyncSession, w: World) -> None:
+    """A key is issued for the caller in the caller's organization; Primer's are as they were."""
+    assert response.status_code == 201
+    assert response.json()["acts_for"] == str(w.ogled.owner.id)
+    holders = (await session.execute(select(ApiKey.organization_id, ApiKey.user_id))).all()
+    assert sorted(holders) == sorted(
+        [
+            (w.primer.organization.id, w.primer.client.id),
+            (w.ogled.organization.id, w.ogled.owner.id),
+            (w.ogled.organization.id, w.ogled.owner.id),
+        ]
+    )
+
+
+async def _lists_only_ogleds_keys(response: Response, session: AsyncSession, w: World) -> None:
+    assert [key["id"] for key in response.json()] == [str(w.ogled_key.row.id)]
+
+
+async def _primers_key_still_works(response: Response, session: AsyncSession, w: World) -> None:
+    assert (response.status_code, response.json()) == (
+        404,
+        {"detail": "no such API key in this organization"},
+    )
+    assert await session.scalar(select(ApiKey.revoked_at).where(ApiKey.id == w.key.row.id)) is None
+
+
 GUARDED: dict[Endpoint, Guarded] = {
+    ("GET", "/api-keys"): Guarded(
+        Permission.API_KEYS_ISSUE, False, lambda _: "/api-keys", None, _lists_only_ogleds_keys
+    ),
+    ("DELETE", "/api-keys/{key_id}"): Guarded(
+        Permission.API_KEYS_ISSUE,
+        False,
+        lambda w: f"/api-keys/{w.key.row.id}",
+        None,
+        _primers_key_still_works,
+    ),
+    ("POST", "/api-keys"): Guarded(
+        Permission.API_KEYS_ISSUE,
+        False,
+        lambda _: "/api-keys",
+        {"name": "ERP", "permissions": ["invoices:validate"]},
+        _issued_in_ogled,
+    ),
     ("POST", "/invoices"): Guarded(
         Permission.INVOICES_SUBMIT,
         False,
@@ -414,6 +480,35 @@ async def test_an_organization_cannot_reach_into_another(
     response = await guarded.send(api, endpoint[0], world, **world.ogled.as_owner())
 
     await guarded.cross_tenant(response, session, world)
+
+
+@pytest.mark.parametrize(
+    "endpoint", sorted(e for e in GUARDED if GUARDED[e].permission in KEY_PERMISSIONS), ids=" ".join
+)
+async def test_an_api_key_cannot_reach_into_another_organization(
+    api: AsyncClient, session: AsyncSession, world: World, endpoint: Endpoint
+) -> None:
+    guarded = GUARDED[endpoint]
+
+    response = await guarded.send(api, endpoint[0], world, **world.ogled_key.header())
+
+    await guarded.cross_tenant(response, session, world)
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    sorted(e for e in GUARDED if GUARDED[e].permission not in KEY_PERMISSIONS),
+    ids=" ".join,
+)
+async def test_an_api_key_is_refused_what_no_key_may_do(
+    api: AsyncClient, world: World, endpoint: Endpoint
+) -> None:
+    guarded = GUARDED[endpoint]
+
+    response = await guarded.send(api, endpoint[0], world, **world.ogled_key.header())
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": f"requires the permission {guarded.permission}"}
 
 
 async def test_a_token_for_an_organization_the_caller_does_not_belong_to_is_refused(

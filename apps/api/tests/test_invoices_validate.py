@@ -555,7 +555,7 @@ async def test_openapi_documents_the_xml_body_and_the_report(client: AsyncClient
     operation = schema["paths"]["/invoices/validate"]["post"]
 
     assert operation["tags"] == ["invoices"]
-    assert operation["security"] == [{"access token": []}]
+    assert operation["security"] == [{"access token or API key": []}]
     assert set(operation["requestBody"]["content"]) == {"application/xml", "text/xml"}
     assert operation["responses"]["200"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/ValidationReport"

@@ -2,7 +2,8 @@
 
 Endpoints ask for a permission, never for a role, so the policy is this one table and changes
 in one place. A permission names an area and an action, ``area:action``. The owner holds every
-permission there is; the other roles hold what their work needs.
+permission there is; the other roles hold what their work needs. An API key holds some of the
+permissions of the member it acts for, among those keys may hold at all (ADR-0017).
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from typing import Final
 
 from sef_api.models import Role
 
-__all__ = ["ROLE_PERMISSIONS", "Permission"]
+__all__ = ["KEY_PERMISSIONS", "ROLE_PERMISSIONS", "Permission"]
 
 
 class Permission(StrEnum):
@@ -31,6 +32,19 @@ class Permission(StrEnum):
     and delete the ones submitted oneself."""
     INVOICES_MANAGE = "invoices:manage"
     """Read and delete every invoice the organization stores, whoever submitted it."""
+    API_KEYS_ISSUE = "api_keys:issue"
+    """Issue API keys with which machine clients act for oneself, with some of one's
+    permissions, and see and revoke one's own."""
+    API_KEYS_MANAGE = "api_keys:manage"
+    """See and revoke every API key of the organization, whoever it acts for."""
+
+
+#: What an API key may be allowed: the work on invoices that machine clients do. A key
+#: administers no one and issues no keys, so that a leaked key can neither let anyone in nor
+#: outlive its own revocation.
+KEY_PERMISSIONS: Final[frozenset[Permission]] = frozenset(
+    {Permission.INVOICES_VALIDATE, Permission.INVOICES_SUBMIT, Permission.INVOICES_MANAGE}
+)
 
 
 ROLE_PERMISSIONS: Final[Mapping[Role, frozenset[Permission]]] = MappingProxyType(
@@ -42,8 +56,11 @@ ROLE_PERMISSIONS: Final[Mapping[Role, frozenset[Permission]]] = MappingProxyType
                 Permission.INVOICES_VALIDATE,
                 Permission.INVOICES_SUBMIT,
                 Permission.INVOICES_MANAGE,
+                Permission.API_KEYS_ISSUE,
             }
         ),
-        Role.CLIENT: frozenset({Permission.INVOICES_VALIDATE, Permission.INVOICES_SUBMIT}),
+        Role.CLIENT: frozenset(
+            {Permission.INVOICES_VALIDATE, Permission.INVOICES_SUBMIT, Permission.API_KEYS_ISSUE}
+        ),
     }
 )

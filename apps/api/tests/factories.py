@@ -1,5 +1,5 @@
-"""People, organizations, memberships and stored invoices made directly in the database, with
-access tokens for the people, for tests about what happens after sign-in."""
+"""People, organizations, memberships, stored invoices and API keys made directly in the
+database, with access tokens for the people, for tests about what happens after sign-in."""
 
 from __future__ import annotations
 
@@ -11,8 +11,10 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from einvoice_core.pipeline import ValidationReport
-from sef_api.auth.tokens import issue_access_token
-from sef_api.models import Membership, Organization, Role, StoredInvoice, User
+from sef_api.api_keys.service import PREFIX, SHOWN
+from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
+from sef_api.auth.tokens import issue_access_token, new_opaque_token, opaque_token_digest
+from sef_api.models import ApiKey, Membership, Organization, Role, StoredInvoice, User
 
 from .conftest import TEST_JWT_SECRET
 
@@ -105,3 +107,39 @@ async def stored_invoice(
     session.add(invoice)
     await session.flush()
     return invoice
+
+
+@dataclass(frozen=True)
+class Key:
+    """An API key's row, and the key itself."""
+
+    row: ApiKey
+    secret: str
+
+    def header(self) -> dict[str, str]:
+        """The header with which a machine client sends the key."""
+        return {"Authorization": f"Bearer {self.secret}"}
+
+
+async def api_key(
+    session: AsyncSession,
+    organization: Organization,
+    user: User,
+    *permissions: Permission,
+    **columns: Any,
+) -> Key:
+    """A key that acts for ``user`` in ``organization`` with ``permissions``, every permission
+    a key may hold when none is named."""
+    secret = PREFIX + new_opaque_token()
+    row = ApiKey(
+        organization_id=organization.id,
+        user_id=user.id,
+        name="ERP",
+        prefix=secret[:SHOWN],
+        digest=opaque_token_digest(secret),
+        permissions=sorted(permission.value for permission in permissions or KEY_PERMISSIONS),
+        **columns,
+    )
+    session.add(row)
+    await session.flush()
+    return Key(row, secret)

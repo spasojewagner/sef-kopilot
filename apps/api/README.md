@@ -36,6 +36,8 @@ makes the person the owner; sign-in returns two tokens for one organization:
 | access token (JWT, HS256, `typ: at+jwt`) | 15 minutes | `Authorization: Bearer …` on every request; checked without the database |
 | refresh token (256 random bits, stored as a SHA-256 digest) | 30 days | `POST /auth/refresh` once for a new pair; a second use ends the session |
 
+Machine clients authenticate with an [API key](#api-keys) instead, in the same header.
+
 ```bash
 curl -s localhost:8000/auth/register -H 'Content-Type: application/json' \
   -d '{"email": "ana@primer.example", "password": "a long passphrase", "organization_name": "Primer"}'
@@ -55,6 +57,8 @@ Endpoints ask for a permission; a member's role grants permissions (ADR-0013):
 | `invoices:validate`: have an invoice checked by the validator | yes | yes | yes |
 | `invoices:submit`: store invoices, and read and delete the ones submitted oneself | yes | yes | yes |
 | `invoices:manage`: read and delete every invoice the organization stores | yes | yes | no |
+| `api_keys:issue`: issue API keys that act for oneself, see and revoke one's own | yes | yes | yes |
+| `api_keys:manage`: see and revoke every API key of the organization | yes | no | no |
 
 `GET /members`, `PATCH /members/{user_id}` and `DELETE /members/{user_id}` work in the
 organization of the caller's access token. The role is read from the membership on every
@@ -131,6 +135,34 @@ submitted, and anything else is not found (404). An organization stores at most
 `SEF_MAX_STORED_BYTES` (100 MiB) of documents and reports together; `POST /invoices` answers 507
 beyond it, and deleting makes room. Every answer is marked `Cache-Control: no-store`.
 
+## API keys
+
+A machine client, such as an ERP, authenticates with an API key instead of a person's password
+(ADR-0017). A member issues keys for the machines that act for them, each with some of their
+permissions, and sees a key only once, when it is issued:
+
+```bash
+curl -s localhost:8000/api-keys -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "Pantheon", "permissions": ["invoices:validate", "invoices:submit"]}'
+curl -s localhost:8000/invoices -H "Authorization: Bearer $API_KEY"
+```
+
+- A key is `sefk_` and 43 characters. The database keeps its SHA-256 digest, and lists show
+  its first 12 characters. A rule in `.gitleaks.toml` recognizes a key pasted into a file.
+- A key may hold `invoices:validate`, `invoices:submit` and `invoices:manage`, each only if the
+  member's role grants it. On every request it allows only what it holds and the member's role
+  grants at that moment. A key administers no members and issues no keys.
+- `GET /api-keys` lists the keys that work, the newest first, without the keys themselves;
+  `DELETE /api-keys/{id}` revokes one at once. A member sees and revokes their own keys, an
+  owner every key of the organization.
+- A key works until it is revoked or reaches its optional `expires_at`. It is deleted with its
+  member's membership, and a deactivated account's keys are refused. A member has at most 20
+  keys that work.
+
+Every answer that carries a credential, whether tokens, an invitation code or a new key, is
+marked `Cache-Control: no-store`.
+
 ## Database and migrations
 
 PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
@@ -167,8 +199,9 @@ src/sef_api/
   settings.py    configuration from the environment (pydantic-settings)
   db.py          declarative base, engine, sessions, the `get_session` dependency
   models.py      organizations, users, memberships, roles, invitations, refresh tokens,
-                 stored invoices
-  locks.py       the advisory locks on an organization's members and on its invoices
+                 stored invoices, API keys
+  locks.py       the advisory locks on an organization's members, invoices and API keys
+  api_keys/      issuing, authenticating, listing and revoking API keys, `/api-keys` routes
   auth/          passwords, tokens, the sign-in service, `/auth` routes, `current_principal`
   invoices/      upload limits, the validator and its child process, stored invoices,
                  `/invoices` routes

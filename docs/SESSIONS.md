@@ -543,3 +543,42 @@ Verification: 1 925 tests green with PostgreSQL (API 332, coverage 100 %); witho
 pass and 218 are skipped. Every commit was checked on its own.
 
 Next: `feat/api-keys`, then `feat/api-rate-limits`.
+
+## 2026-11-04 — `feat/api-keys` (8 commits)
+
+Outcome: machine clients such as ERPs authenticate with API keys that act for a member.
+
+- `POST /api-keys` issues a key, `sefk_` and 256 random bits, shown once and kept as a SHA-256
+  digest. It holds chosen invoice permissions that the member's role grants. `GET /api-keys`
+  lists the keys that work and `DELETE /api-keys/{id}` revokes one: a member manages their
+  own, an owner every key of the organization.
+- `Principal.may()` asks both the role at that moment and the key. A demoted member's keys
+  shrink, a deactivated account's are refused, and a removed member's are deleted with the
+  membership.
+- A key administers no one and issues no keys. Every guarded endpoint has a cross-tenant case
+  with another organization's key, and the endpoints no key may use refuse it.
+- A member has at most 20 keys that work, counted under a lock. Storing an invoice checks
+  again that the key still works.
+- Every answer that carries a credential is `no-store`, and `.gitleaks.toml` recognizes a key.
+- Migration 0005, ADR-0017, learning note 11, interview notes.
+
+Findings:
+
+- Checking the membership when a key is used would not be enough: a member removed and invited
+  back would find their old keys working again. A key belongs to its membership by a composite
+  foreign key and is deleted with it.
+- The answers with tokens (registration, sign-in, refresh, accepting an invitation) and with an
+  invitation's code had no `Cache-Control: no-store`, which RFC 6749 requires. Fixed in its own
+  commit.
+- The check made again before storing an invoice looked at the membership only, so an upload
+  with a key revoked meanwhile would have been stored. It checks the key too.
+- The invoice scope read the role table directly. It now asks the principal, so a key without
+  `invoices:manage` sees its member's invoices only, even an owner's key.
+- Keys issued in one test transaction share `now()`, so the tests that order keys set their
+  times.
+
+Verification: 2 001 tests green with PostgreSQL (API 408, coverage 100 %); without it 1 715
+pass and 286 are skipped. Every commit was checked on its own, and every rule a key obeys was
+checked by seeding the fault that breaks it.
+
+Next: `feat/api-rate-limits`, then `feat/api-jobs-sse`.

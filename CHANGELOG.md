@@ -11,6 +11,18 @@ is tagged.
 
 ### Added
 
+- `apps/api`: API keys for machine clients such as ERPs. `POST /api-keys` issues a key that
+  acts for the caller with some of their permissions (`invoices:validate`, `invoices:submit`,
+  `invoices:manage`, each one the caller's role grants) and shows it once; a client sends it as
+  `Authorization: Bearer sefk_…`. On every request a key allows only what it holds and its
+  member's role grants at that moment; it administers no members and issues no keys.
+  `GET /api-keys` lists the keys that work and `DELETE /api-keys/{id}` revokes one: a member
+  manages their own (`api_keys:issue`), an owner every key of the organization
+  (`api_keys:manage`). A key is stored as a SHA-256 digest, is deleted with its member's
+  membership, and works until it is revoked or reaches its optional expiry; a member has at
+  most 20 that work (ADR-0017).
+- `.gitleaks.toml`: the secret scan recognizes the API's keys, in the pre-commit hook and in
+  the history.
 - `apps/api`: stored invoices. `POST /invoices` validates an invoice as `/invoices/validate`
   does and keeps it for the organization, byte for byte, with the validator's report and what
   it read (number, issue date, parties, amount due); `GET /invoices` lists them newest first,
@@ -60,6 +72,8 @@ is tagged.
 
 ### Changed
 
+- The OpenAPI security scheme is named `access token or API key`: the same bearer header takes
+  either.
 - `GET /ready` checks the database and the validator, and answers 503 while either cannot
   serve.
 - The API starts from its factory: `uvicorn sef_api.main:create_app --factory` (`make api`); the
@@ -67,6 +81,9 @@ is tagged.
 
 ### Fixed
 
+- `apps/api`: every answer that carries a credential sends `Cache-Control: no-store`, as
+  RFC 6749 requires: the tokens of registration, sign-in, accepting an invitation and
+  refreshing, and an invitation's code. Only the invoice endpoints sent it before.
 - `einvoice_core`: addressing elements takes time linear in the size of the document. Canonical
   XPaths and SVRL locations read each element's children once (`sibling_index()`) instead of
   all of an element's siblings for every element: an invoice of 8000 lines validates in 5 s

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.auth.dependencies import Principal, require
 from sef_api.auth.permissions import Permission
-from sef_api.auth.routes import Problem, UserOut
+from sef_api.auth.routes import NO_STORE, Problem, UserOut
 from sef_api.db import get_session
 from sef_api.members import invitations, service
 from sef_api.models import Invitation, Role
@@ -146,6 +146,7 @@ def _invitation(invitation: Invitation) -> InvitationOut:
     summary="Invite a person",
     description="Creates an invitation valid for seven days and returns its code once. An open "
     "invitation for the same address is replaced.",
+    dependencies=[NO_STORE],
     responses={status.HTTP_409_CONFLICT: {"model": Problem, "description": "Already a member."}},
 )
 async def invite(body: InvitationRequest, caller: CanManage, session: Session) -> IssuedInvitation:

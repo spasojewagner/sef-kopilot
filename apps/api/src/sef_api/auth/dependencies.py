@@ -1,17 +1,18 @@
 """Who is calling and what they may do: FastAPI dependencies for authentication and
 authorization.
 
-:func:`current_principal` authenticates: it reads the access token and needs no database.
-:func:`require` authorizes: it admits a caller whose role *now* grants a permission, reading the
-membership from the database, so that removing a member, deactivating an account or changing a
-role takes effect at once instead of when the access token expires (ADR-0013).
+:func:`current_principal` authenticates: it reads the access token, which needs no database, or
+looks up the API key (ADR-0017). :func:`require` authorizes: it admits a caller whose role *now*
+grants a permission, reading the membership from the database, so that removing a member,
+deactivating an account or changing a role takes effect at once instead of when the access token
+expires (ADR-0013). A caller with an API key needs the key to hold the permission as well.
 """
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cache
 from typing import Annotated, cast
 
@@ -20,6 +21,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.api_keys import service as api_keys
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.service import TokenSettings
 from sef_api.auth.tokens import InvalidTokenError, decode_access_token
@@ -39,18 +41,31 @@ __all__ = [
 
 _BEARER = HTTPBearer(
     auto_error=False,
-    scheme_name="access token",
-    description="An access token from `POST /auth/login`, `/auth/register` or `/auth/refresh`.",
+    scheme_name="access token or API key",
+    description=(
+        "An access token from `POST /auth/login`, `/auth/register` or `/auth/refresh`, or an "
+        "API key from `POST /api-keys`."
+    ),
 )
 
 
 @dataclass(frozen=True)
 class Principal:
-    """The caller: a person acting in one organization with one role."""
+    """The caller: a person acting in one organization with one role, in person or through a
+    machine client with one of their API keys."""
 
     user_id: uuid.UUID
     organization_id: uuid.UUID
     role: Role
+    #: The API key the caller came with; None when they came with an access token.
+    key: api_keys.Grant | None = None
+
+    def may(self, permission: Permission) -> bool:
+        """Whether the caller may do what ``permission`` allows: their role grants it, and so
+        does their API key if they came with one."""
+        return permission in ROLE_PERMISSIONS[self.role] and (
+            self.key is None or permission in self.key.permissions
+        )
 
 
 def get_token_settings(request: Request) -> TokenSettings:
@@ -61,14 +76,20 @@ def get_token_settings(request: Request) -> TokenSettings:
 async def current_principal(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_BEARER)],
     tokens: Annotated[TokenSettings, Depends(get_token_settings)],
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> Principal:
-    """The principal of the request's access token; 401 without a valid one."""
+    """The principal of the request's access token or API key; 401 without a valid one."""
     if credentials is None:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             detail="not signed in",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if api_keys.is_api_key(credentials.credentials):
+        holder = await api_keys.authenticate(session, credentials.credentials)
+        if holder is None:
+            raise _invalid_key()
+        return Principal(holder.user_id, holder.organization_id, holder.role, holder.grant)
     try:
         claims = decode_access_token(credentials.credentials, secret=tokens.secret)
     except InvalidTokenError:
@@ -94,8 +115,17 @@ async def current_role(session: AsyncSession, principal: Principal) -> Role | No
     )
 
 
+def _invalid_key() -> HTTPException:
+    return HTTPException(
+        status.HTTP_401_UNAUTHORIZED,
+        detail="invalid, expired or revoked API key",
+        headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+    )
+
+
 def no_longer_active() -> HTTPException:
-    """401 for a valid access token whose account or membership has ended since it was issued."""
+    """401 for a valid access token or API key whose account or membership has ended since it
+    was issued."""
     return HTTPException(
         status.HTTP_401_UNAUTHORIZED,
         detail="the account or its membership is no longer active",
@@ -108,10 +138,11 @@ def require(
 ) -> Callable[..., Awaitable[Principal]]:
     """A dependency that admits callers whose current role grants ``permission``.
 
-    It answers 401 without a valid access token or once the caller's account or membership has
-    ended, and 403 when the role does not grant the permission. It returns the principal with
-    the role read from the database. There is one dependency per permission and variant, so a
-    route audit can tell what a route requires.
+    It answers 401 without a valid access token or API key or once the caller's account or
+    membership has ended, and 403 when the role does not grant the permission or the caller's
+    API key does not hold it. It returns the principal with the role read from the database.
+    There is one dependency per permission and variant, so a route audit can tell what a route
+    requires.
 
     An endpoint that changes the organization's members asks with ``changes_members``. A caller
     who passes is then checked once more after the organization is locked, and the endpoint's
@@ -127,11 +158,11 @@ def _require(permission: Permission, changes_members: bool) -> Callable[..., Awa
         principal: Annotated[Principal, Depends(current_principal)],
         session: Annotated[AsyncSession, Depends(get_session)],
     ) -> Principal:
-        role = await _permitted_role(session, principal, permission)
+        permitted = await _permitted(session, principal, permission)
         if changes_members:
             await lock_organization(session, principal.organization_id)
-            role = await _permitted_role(session, principal, permission)
-        return Principal(principal.user_id, principal.organization_id, role)
+            permitted = await _permitted(session, principal, permission)
+        return permitted
 
     return authorize
 
@@ -140,20 +171,24 @@ async def check_again(
     session: AsyncSession, principal: Principal, permission: Permission
 ) -> Principal:
     """Check, in the transaction about to change something, that the caller still holds
-    ``permission``: for a request whose work outlasts the transaction in which :func:`require`
-    checked it, such as an upload and its validation. 401 or 403 as :func:`require` answers."""
-    role = await _permitted_role(session, principal, permission)
-    return Principal(principal.user_id, principal.organization_id, role)
+    ``permission``, and that their API key still works if they came with one: for a request
+    whose work outlasts the transaction in which :func:`require` checked it, such as an upload
+    and its validation. 401 or 403 as :func:`require` answers."""
+    if principal.key is not None and not await api_keys.still_works(session, principal.key.key_id):
+        raise _invalid_key()
+    return await _permitted(session, principal, permission)
 
 
-async def _permitted_role(
+async def _permitted(
     session: AsyncSession, principal: Principal, permission: Permission
-) -> Role:
+) -> Principal:
+    """The principal with the role it holds now, when that lets it do ``permission``."""
     role = await current_role(session, principal)
     if role is None:
         raise no_longer_active()
-    if permission not in ROLE_PERMISSIONS[role]:
+    permitted = replace(principal, role=role)
+    if not permitted.may(permission):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, detail=f"requires the permission {permission}"
         )
-    return role
+    return permitted

@@ -22,6 +22,7 @@ TABLES = {
     "invitations",
     "refresh_tokens",
     "invoices",
+    "api_keys",
 }
 
 
