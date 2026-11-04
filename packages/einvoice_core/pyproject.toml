@@ -22,6 +22,9 @@ dependencies = [
   "saxonche>=13.1",
 ]
 
+[project.scripts]
+einvoice = "einvoice_core.cli:console"
+
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
