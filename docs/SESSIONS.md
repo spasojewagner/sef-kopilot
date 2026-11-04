@@ -264,3 +264,23 @@ Decisions: `argparse` rather than a CLI library; a missing file is an error (2),
 document a verdict (1); JSON ASCII-escaped; streams that cannot encode a character replace it.
 
 Next: `feat/core-fixtures-corpus`.
+
+## 2026-11-04 — `feat/core-fixtures-corpus` (5 commits, stacked on `feat/core-cli`)
+
+Outcome: the fixture corpus. The Ministry's 17 SEF examples are committed byte for byte with the
+page, URL and SHA-256 of each (official materials, Article 6 of the copyright law), and a test
+pins ADR-0008's evidence: 15 of 17 are valid under `srb` once the placeholder PIBs have valid
+check digits. Two new synthetic bases settle an advance with the Serbian extension, in dinars
+and in euro. `scripts/make_fixtures.py` generates 43 mutation fixtures, each with one realistic
+mistake and the rules the SRB profile must report, every SRB-CIUS rule targeted;
+`fixtures/invoices/verdicts.json` records the pipeline's verdicts on 93 documents (SEF,
+synthetic, mutations, CEN and OpenPeppol examples), one test per document. ADR-0010, learning
+note 05, interview notes.
+
+Findings: BR-CO-25 is not in CEN's UBL Schematron (added to the M5 confirmations); CEN's BR-53
+is satisfied by the RSD totals in the extension, so only SRB-028 reports a missing RSD
+breakdown on an invoice that has one.
+
+Verification: 1 473 tests green; core coverage 100 % (branches included).
+
+Next: release `v0.1.0` (changelog section, version bump, annotated tag prepared).

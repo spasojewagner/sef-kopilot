@@ -1,0 +1,146 @@
+{
+  "$comment": "The Ministry of Finance's example SEF documents, committed byte for byte (see .gitattributes): where each was downloaded, and its SHA-256, which the tests check. Official materials of a state body are not copyright works under Article 6 of the Law on Copyright and Related Rights of the Republic of Serbia.",
+  "publisher": "Ministry of Finance of the Republic of Serbia (Sistem e-faktura)",
+  "page": "https://www.efaktura.gov.rs/tekst/330/azurirani-primeri-xml-datoteka-po-ubl-21-standardu.php",
+  "page_title": "Ажурирани примери XML датотека по UBL 2.1 стандарду од 11.07.2025.",
+  "published": "2025-07-11",
+  "fetched": "2026-11-03",
+  "documents": [
+    {
+      "file": "avansna-faktura.xml",
+      "title": "Авансна фактура",
+      "english": "advance invoice (type code 386)",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8505/Avansna%20faktura.xml",
+      "sha256": "c31a610d76d78c66b6ef052a95ea96df2fbc22f822bd06b287d18580e50ccc32",
+      "bytes": 6314
+    },
+    {
+      "file": "dokument-o-povecanju.xml",
+      "title": "Документ о повећању",
+      "english": "debit note (type code 383)",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8520/Dokument%20o%20pove%C4%87anju.xml",
+      "sha256": "47936b4f00382003fc6ce6d0f2dc3837ee3fa43c15c0694d8e763fa10cd45057",
+      "bytes": 6738
+    },
+    {
+      "file": "dokument-o-smanjenju-po-osnovu-smanjenja-avansa.xml",
+      "title": "Књижно одобрење по основу смањења аванса",
+      "english": "credit note that reduces an advance",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8550/Dokument%20o%20smanjenju%20po%20osnovu%20smanjenja%20avansa.xml",
+      "sha256": "234855e334cb1455ee0921ab177c059cb22e9d2f81de5daf3d94f6539e5fbe30",
+      "bytes": 6706
+    },
+    {
+      "file": "dokument-o-smanjenju-u-periodu.xml",
+      "title": "Документ о смањењу у периоду",
+      "english": "credit note for a period",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8526/Dokument%20o%20smanjenju%20u%20periodu.xml",
+      "sha256": "952b30b31077ffe22618f8f7a0f060e9e826245db4375ba5f7d7a9d8dce440b6",
+      "bytes": 6523
+    },
+    {
+      "file": "dokument-o-smanjenju-za-vise-faktura.xml",
+      "title": "Документ о смањењу за више фактура",
+      "english": "credit note for several invoices",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8529/Dokument%20o%20smanjenju%20za%20vi%C5%A1e%20faktura.xml",
+      "sha256": "126fa031a81bb36e6278624739714db41ebeefc08887e0a2943aedd0032d01db",
+      "bytes": 7087
+    },
+    {
+      "file": "dokument-o-smanjenju.xml",
+      "title": "Документ о смањењу",
+      "english": "credit note (type code 381)",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8517/Dokument%20o%20smanjenju.xml",
+      "sha256": "c91c4cf5d3b1a06901b054c1dfdcb46a1112bbfdb16ff893471360b608c33623",
+      "bytes": 6675
+    },
+    {
+      "file": "faktura-sa-anuliranjem.xml",
+      "title": "Фактура са анулирањем",
+      "english": "invoice with an annulment (category N)",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8541/Faktura%20sa%20anuliranjem.xml",
+      "sha256": "a286e9f0fd4bda7688a71c07c13e42474f41ac10d3cff67563480fd0ee761175",
+      "bytes": 8120
+    },
+    {
+      "file": "faktura-sa-oslobodjenjem-od-pdv.xml",
+      "title": "Фактура са ослобођењем од ПДВ-а",
+      "english": "invoice with a VAT exemption",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8508/Faktura%20sa%20oslobo%C4%91enjem%20od%20PDV-a.xml",
+      "sha256": "8c2d339c732c6c1f390429cb9d421cde3a14281f9b00e3551ca645c708770d07",
+      "bytes": 6443
+    },
+    {
+      "file": "faktura-sa-popustom.xml",
+      "title": "Фактура са попустом",
+      "english": "invoice with a discount",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8559/Faktura%20sa%20popustom.xml",
+      "sha256": "8e5d8f1a86042d2de7a2332718ca276f29a7d2d59162b74325e1ad1e719bc0c6",
+      "bytes": 9064
+    },
+    {
+      "file": "faktura-sa-prilogom.xml",
+      "title": "Фактура са прилогом",
+      "english": "invoice with an attachment",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8538/Faktura%20sa%20prilogom.xml",
+      "sha256": "7265a41265edf0112f2a4211689459f24f628841191614fb7ac36ba97409d6d1",
+      "bytes": 7561
+    },
+    {
+      "file": "faktura-sa-valutom.xml",
+      "title": "Фактура са валутом",
+      "english": "invoice in a foreign currency",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8544/Faktura%20sa%20valutom.xml",
+      "sha256": "8eab236979b41995ae437827503150650164a99ab260475010db75061b61e69a",
+      "bytes": 7183
+    },
+    {
+      "file": "faktura-za-javnu-nabavku.xml",
+      "title": "Фактура за јавну набавку",
+      "english": "public-procurement invoice",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8511/Faktura%20za%20javnu%20nabavku.xml",
+      "sha256": "baf3ef6d65053d8777b3e4f14a277a4bac50e2a064a10d459b0b9c99e0c06c19",
+      "bytes": 6742
+    },
+    {
+      "file": "faktura.xml",
+      "title": "Фактура",
+      "english": "invoice (type code 380)",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8514/Faktura.xml",
+      "sha256": "68e0c0e87c1a4c5af3a04d2176e86fec736f6be1a25b94a43e5794dccd75b65c",
+      "bytes": 7206
+    },
+    {
+      "file": "fiskalizacija-promet-prodaja.xml",
+      "title": "Фискализација промет-продаја",
+      "english": "invoice for a fiscalised sale",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8553/Fiskalizacija%20promet%20prodaja.xml",
+      "sha256": "16fef8f1b88757b9d61deedbd4355fe2b2fc18dea11d337c3c55deb252f0e942",
+      "bytes": 9502
+    },
+    {
+      "file": "fiskalizacija-promet-refundacija.xml",
+      "title": "Фискализација промет-рефундација",
+      "english": "credit note for a fiscalised refund",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8556/Fiskalizacija%20promet%20refundacija.xml",
+      "sha256": "bd84a4d546bfb368f19110842bdc54856966c42be6053eb92e6082440b87ea78",
+      "bytes": 6932
+    },
+    {
+      "file": "konacna-faktura-sa-valutom.xml",
+      "title": "Коначна фактура са валутом",
+      "english": "final invoice in a foreign currency, settling an advance",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8547/Kona%C4%8Dna%20faktura%20sa%20valutom.xml",
+      "sha256": "badaeb24103e9948d241d4232dcb7564f9b460755bb12e7207582fc4082aeef5",
+      "bytes": 11982
+    },
+    {
+      "file": "konacna-faktura.xml",
+      "title": "Коначна фактура",
+      "english": "final invoice, settling an advance",
+      "url": "https://www.efaktura.gov.rs/extfile/sr/8523/Kona%C4%8Dna%20faktura.xml",
+      "sha256": "dd47c05edb78d907fb259cdeb266912c71992f921c5fb7c28a7638f5dc9c4632",
+      "bytes": 8826
+    }
+  ]
+}

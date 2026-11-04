@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic test invoice. Every party, identifier and amount is invented, as in
+  srb-minimal-invoice.xml, whose parties and line it shares.
+  Shape: a final invoice that settles one advance invoice (AV-2026-0007: 5 000 RSD and 1 000
+  RSD VAT, paid). It references the advance (BG-3), states the paid amount, and carries the
+  Serbian extension (SrbDtExt) with the advance used and the totals reduced by it, under the
+  extended specification identifier.
+-->
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+         xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+         xmlns:sbt="http://mfin.gov.rs/srbdt/srbdtext">
+  <ext:UBLExtensions>
+    <ext:UBLExtension>
+      <ext:ExtensionContent>
+        <sbt:SrbDtExt>
+          <sbt:InvoicedPrepaymentAmount>
+            <cbc:ID>AV-2026-0007</cbc:ID>
+            <cac:TaxTotal>
+              <cbc:TaxAmount currencyID="RSD">1000.00</cbc:TaxAmount>
+              <cac:TaxSubtotal>
+                <cbc:TaxableAmount currencyID="RSD">5000.00</cbc:TaxableAmount>
+                <cbc:TaxAmount currencyID="RSD">1000.00</cbc:TaxAmount>
+                <cac:TaxCategory>
+                  <cbc:ID>S</cbc:ID>
+                  <cbc:Percent>20</cbc:Percent>
+                  <cac:TaxScheme>
+                    <cbc:ID>VAT</cbc:ID>
+                  </cac:TaxScheme>
+                </cac:TaxCategory>
+              </cac:TaxSubtotal>
+            </cac:TaxTotal>
+          </sbt:InvoicedPrepaymentAmount>
+          <sbt:ReducedTotals>
+            <cac:TaxTotal>
+              <cbc:TaxAmount currencyID="RSD">1400.00</cbc:TaxAmount>
+              <cac:TaxSubtotal>
+                <cbc:TaxableAmount currencyID="RSD">7000.00</cbc:TaxableAmount>
+                <cbc:TaxAmount currencyID="RSD">1400.00</cbc:TaxAmount>
+                <cac:TaxCategory>
+                  <cbc:ID>S</cbc:ID>
+                  <cbc:Percent>20</cbc:Percent>
+                  <cac:TaxScheme>
+                    <cbc:ID>VAT</cbc:ID>
+                  </cac:TaxScheme>
+                </cac:TaxCategory>
+              </cac:TaxSubtotal>
+            </cac:TaxTotal>
+            <cac:LegalMonetaryTotal>
+              <cbc:TaxExclusiveAmount currencyID="RSD">7000.00</cbc:TaxExclusiveAmount>
+              <cbc:TaxInclusiveAmount currencyID="RSD">8400.00</cbc:TaxInclusiveAmount>
+              <cbc:PayableAmount currencyID="RSD">8400.00</cbc:PayableAmount>
+            </cac:LegalMonetaryTotal>
+          </sbt:ReducedTotals>
+        </sbt:SrbDtExt>
+      </ext:ExtensionContent>
+    </ext:UBLExtension>
+  </ext:UBLExtensions>
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.rs:srbdt:2022#conformant#urn:mfin.gov.rs:srbdtext:2022</cbc:CustomizationID>
+  <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+  <cbc:ID>RF-2026-000124</cbc:ID>
+  <cbc:IssueDate>2026-10-05</cbc:IssueDate>
+  <cbc:DueDate>2026-10-20</cbc:DueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:Note>Konačni račun za avans AV-2026-0007.</cbc:Note>
+  <cbc:DocumentCurrencyCode>RSD</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>NAB-77</cbc:BuyerReference>
+  <cac:InvoicePeriod>
+    <cbc:DescriptionCode>35</cbc:DescriptionCode>
+  </cac:InvoicePeriod>
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>AV-2026-0007</cbc:ID>
+      <cbc:IssueDate>2026-09-15</cbc:IssueDate>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9948">100000024</cbc:EndpointID>
+      <cac:PartyName>
+        <cbc:Name>Primer Softver</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Ulica Primera 1</cbc:StreetName>
+        <cbc:CityName>Čačak</cbc:CityName>
+        <cbc:PostalZone>32000</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>RS</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>RS100000024</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>VAT</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>RS-VAT-STATUS</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Primer Softver d.o.o.</cbc:RegistrationName>
+        <cbc:CompanyID>20000006</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:ElectronicMail>fakture@primer-softver.example</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9948">100000016</cbc:EndpointID>
+      <cac:PostalAddress>
+        <cbc:StreetName>Bulevar Ogleda 22</cbc:StreetName>
+        <cbc:CityName>Beograd</cbc:CityName>
+        <cbc:PostalZone>11000</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>RS</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>RS100000016</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Ogledni Kupac d.o.o.</cbc:RegistrationName>
+        <cbc:CompanyID>20000014</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:Delivery>
+    <cbc:ActualDeliveryDate>2026-10-05</cbc:ActualDeliveryDate>
+  </cac:Delivery>
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode name="Prenos na račun">30</cbc:PaymentMeansCode>
+    <cbc:PaymentID>(mod97) 12-345678-00124</cbc:PaymentID>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>160-0000000123456-78</cbc:ID>
+      <cbc:Name>Primer Softver d.o.o.</cbc:Name>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+  <cac:PaymentTerms>
+    <cbc:Note>15 dana</cbc:Note>
+  </cac:PaymentTerms>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="RSD">2400.00</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="RSD">12000.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="RSD">2400.00</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>20</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="RSD">12000.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="RSD">12000.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="RSD">14400.00</cbc:TaxInclusiveAmount>
+    <cbc:PrepaidAmount currencyID="RSD">6000.00</cbc:PrepaidAmount>
+    <cbc:PayableAmount currencyID="RSD">8400.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="HUR">8</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="RSD">12000.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Konsultantski sat</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>20</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="RSD">1500.00</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>

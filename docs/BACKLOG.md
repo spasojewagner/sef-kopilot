@@ -37,10 +37,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Violation model `{rule_id, severity, xpath, message}`
 - [x] `feat/core-validation-pipeline` — one call for all layers: XSD, then Schematron only for schema-valid documents, SRB-CIUS and arithmetic; profiles `srb`, `en16931`, `peppol`; the SRB profile sets aside, with reasons, the EN 16931 rules SRB-CIUS widens; one violation limit (ADR-0008)
 - [x] `feat/core-cli` — `einvoice validate file.xml --profile srb` on the pipeline: text and JSON output, exit codes, `einvoice rules` to list the rules of a profile (ADR-0009)
-- [ ] `feat/core-fixtures-corpus` — 200+ fixtures: official EN 16931 test files, Peppol examples, SEF examples, synthetic mutations (`scripts/make_fixtures.py`)
-      (the 17 SEF examples committed with their source URL and SHA-256 — official materials of a
-      state body, not copyrighted works — each with the pipeline's verdict as golden result)
-- [x] Learning notes: ~~Schematron and XPath assertions~~ (03), ~~UBL 2.1 document model~~ (02), ~~EN 16931 business rules vs. CIUS~~ (04)
+- [x] `feat/core-fixtures-corpus` — the Ministry's 17 SEF examples committed with their provenance, 43 generated mutation fixtures (`scripts/make_fixtures.py`), the pipeline's recorded verdicts on 93 documents; with CEN's and OpenPeppol's 1 471 unit-test documents, over 1 500 in all (ADR-0010)
+- [x] Learning notes: ~~Schematron and XPath assertions~~ (03), ~~UBL 2.1 document model~~ (02), ~~EN 16931 business rules vs. CIUS~~ (04), ~~golden files and mutation fixtures~~ (05)
 - [ ] Release: changelog move, version bump, `v0.1.0` tag prepared
 
 ## M2 — API + explanations (weeks 3–4) · tag `v0.2.0`
@@ -77,6 +75,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [ ] `feat/sef-demo-client` — SEF demo client, encrypted per-tenant key, send + status polling
 - [ ] `feat/sef-error-mapping` — SEF error codes mapped into the explanation pipeline; Peppol profile polish
+- [ ] Confirm against the SEF demo what the published documents leave open: the warning-level SRB rules (SRB-013, SRB-017, SRB-023, SRB-029), the set-asides that rest on the Ministry's examples (ADR-0008), and whether SEF requires a due date or payment terms when an amount is due (EN 16931 BR-CO-25, absent from CEN's UBL Schematron; ADR-0010)
 - [ ] Release: `v0.5.0`
 
 ## M6 — Evals, CI gate, billing (week 9) · tag `v0.6.0`

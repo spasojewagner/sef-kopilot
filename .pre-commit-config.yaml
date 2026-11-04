@@ -27,11 +27,15 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: detect-private-key
+      # Official example documents are kept byte for byte: their SHA-256 is pinned.
       - id: end-of-file-fixer
+        exclude: &official-documents ^fixtures/invoices/official/.*\.xml$
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+        exclude: *official-documents
       - id: mixed-line-ending
         args: [--fix=lf]
+        exclude: *official-documents
 
   # --- GitHub configuration schemas -----------------------------------------------------
   - repo: https://github.com/python-jsonschema/check-jsonschema
