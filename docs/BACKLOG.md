@@ -50,12 +50,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/api-invoices-validate` — `POST /invoices/validate`: an XML body within limits on bytes, time and elements, the validator's own report, nothing stored (the no-store mode); the validator in a child process with a time limit, admission, `/ready` on the validator (ADR-0015)
 - [x] `feat/api-invoices-store` — invoices and their reports kept per organization: store, list a page at a time, read, download and delete; a client sees what they submitted; a storage quota per organization (ADR-0016)
 - [x] `feat/api-keys` — API keys for machine clients (ERPs): 256 random bits shown once and kept as a digest, acting for the member who issued them with chosen invoice permissions within the member's role, revoked by the member or an owner, deleted with the membership; a cross-tenant case with another organization's key for every endpoint; credentials kept out of caches (ADR-0017)
-- [ ] `feat/api-rate-limits` — rate limits on sign-in, refresh, accepting invitations and validation, per client and per organization (429 with `Retry-After`)
+- [x] `feat/api-rate-limits` — rate limits in the API's process (GCRA): sign-in, registration, refresh and accepting invitations per address, wrong passwords per e-mail address, validations per caller and per organization (429 with `Retry-After`; ADR-0018)
 - [ ] `feat/api-jobs-sse` — `arq` jobs behind `JobRunner`, progress over SSE
 - [ ] `feat/rag-corpus-ingest` — ingestion of the law, rulebook, technical instruction and SRB-CIUS specification with `valid_from` / `valid_to`
 - [ ] `feat/rag-explain-citations` — explanation endpoint; citations must resolve to stored chunks; no-store mode
 - [ ] Langfuse and Sentry wiring; structured JSON logs with security events (sign-in, API key use, and when each key was last used); health and readiness checks
-- [ ] Learning notes: pgvector and hybrid retrieval, SSE vs. WebSockets, idempotent job design, ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11)
+- [ ] Learning notes: pgvector and hybrid retrieval, SSE vs. WebSockets, idempotent job design, ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11), ~~rate limits~~ (12)
 - [ ] Release: `v0.2.0`
 
 ## M3 — Repair loop + web UI (weeks 5–6) · tag `v0.3.0`

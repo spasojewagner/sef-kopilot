@@ -72,8 +72,8 @@ system are marked as such.
 - [ ] Business guardrails (forbidden patch fields, arithmetic rules in code, citation
       resolution) are enforced server-side and covered by tests.
 - [~] Rate limiting on upload, validation and explanation endpoints: validations are admitted
-      a few at a time (503 with `Retry-After` beyond); limits per client come with
-      `feat/api-rate-limits`.
+      a few at a time (503 with `Retry-After` beyond), and counted per caller and per
+      organization (429 with `Retry-After`) before the body is read; explanations follow.
 - [x] The work one upload causes is bounded: a budget of elements counted before any
       validation (413), a time limit enforced by killing the validator's child process
       (422), and a deadline for the body (408).
@@ -110,7 +110,9 @@ system are marked as such.
       when the parameters change.
 - [ ] Breached-password check against a local list (the self-hosted mode makes no external calls).
 - [x] Generic authentication error messages; an unknown address takes as long as a wrong password.
-- [ ] Rate limiting on sign-in and token refresh.
+- [x] Rate limiting on sign-in, registration, token refresh and accepting invitations, per
+      address; wrong passwords counted per e-mail address before the next is checked, whether
+      an account has the address or not (429 with `Retry-After`).
 - [x] API keys for machine clients: 256 random bits, shown once and stored as a SHA-256
       digest, revoked at once. A removed member's keys are deleted with the membership, and a
       deactivated account's are refused. A rule in `.gitleaks.toml` recognizes a leaked key.

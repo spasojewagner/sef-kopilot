@@ -17,6 +17,7 @@ just used. New notes are added in the pull request that introduces the concept.
 | 09 | [Hostile uploads: bytes, XML and the work they cause](09-hostile-uploads-and-xml.md) | M2 |
 | 10 | [Keeping a tenant's data: scopes, pages and quotas](10-scopes-pages-and-quotas.md) | M2 |
 | 11 | [Credentials for machines: API keys](11-api-keys.md) | M2 |
+| 12 | [Rate limits: what to count, by which key, and how](12-rate-limits.md) | M2 |
 
 Planned: pgvector and hybrid retrieval · SSE vs. WebSockets · idempotent job design ·
 OAuth 2.1 flows for MCP.

@@ -582,3 +582,39 @@ pass and 286 are skipped. Every commit was checked on its own, and every rule a 
 checked by seeding the fault that breaks it.
 
 Next: `feat/api-rate-limits`, then `feat/api-jobs-sse`.
+
+## 2026-11-04 — `feat/api-rate-limits` (5 commits, stacked on `feat/api-keys`)
+
+Outcome: the API limits how often a client may sign in, register, refresh, accept invitations
+and validate, and says when to try again.
+
+- A rate limiter in the API's process uses GCRA: one moment per key, a burst and a pace,
+  integer nanoseconds of a monotonic clock, at most 100 000 keys.
+- Per address: sign-in 30 a minute, registration 10 an hour, refresh and sign-out 60 a minute,
+  accepting an invitation 10 a minute.
+- Per e-mail address: 10 wrong passwords in 15 minutes, counted before the next password is
+  checked, for addresses without an account alike, at sign-in and when an invitation is
+  accepted.
+- Per caller (a member, or one API key) and per organization: `SEF_VALIDATIONS_PER_MINUTE`
+  (60) and `SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE` (300), storing included, counted before
+  the body is read.
+- 429 with `Retry-After` and a detail that names the limit, documented in OpenAPI.
+- ADR-0018, learning note 12, interview notes.
+
+Findings:
+
+- A limit per address alone would not stop a guess at one account from many addresses; the
+  count per e-mail address does, and it has to come before the password check to reveal
+  nothing and cost no hash.
+- Accepting an invitation checks an existing account's password. Without the shared guard, a
+  code would have let anyone guess at that account where sign-in holds them back.
+- A thread test passed without the limiter's lock, because nothing interleaved. A limit whose
+  arithmetic sleeps makes the threads interleave, and the test now fails without the lock.
+- `X-Forwarded-For` is the client's to write. The limiter keys on the address the server saw,
+  and a test checks that the header changes nothing.
+
+Verification: 2 038 tests green with PostgreSQL (API 445, coverage 100 %); without it 1 733
+pass and 305 are skipped. Every commit was checked on its own, and every limit was checked by
+seeding the fault that breaks it.
+
+Next: `feat/api-jobs-sse`, then `feat/rag-corpus-ingest`.

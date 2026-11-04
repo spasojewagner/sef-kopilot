@@ -11,6 +11,14 @@ is tagged.
 
 ### Added
 
+- `apps/api`: rate limits (ADR-0018). Per address: signing in 30 a minute, registering 10 an
+  hour, refreshing and signing out 60 a minute, accepting an invitation 10 a minute. Per
+  e-mail address: 10 wrong passwords in 15 minutes, at sign-in and when an invitation is
+  accepted, counted before the next password is checked and for addresses without an account
+  alike. Per caller (a member, or one API key) and per organization: the validations a minute
+  that `SEF_VALIDATIONS_PER_MINUTE` (60) and `SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE` (300)
+  allow, storing included, counted before the body is read. Beyond a limit, 429 with
+  `Retry-After`. The counts live in the API's process.
 - `apps/api`: API keys for machine clients such as ERPs. `POST /api-keys` issues a key that
   acts for the caller with some of their permissions (`invoices:validate`, `invoices:submit`,
   `invoices:manage`, each one the caller's role grants) and shows it once; a client sends it as
