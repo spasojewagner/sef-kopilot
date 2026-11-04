@@ -21,6 +21,7 @@ TABLES = {
     "memberships",
     "invitations",
     "refresh_tokens",
+    "invoices",
 }
 
 
@@ -88,6 +89,13 @@ def test_the_migrations_render_as_sql_for_review() -> None:
     )
 
     sql = output.getvalue()
-    for table in ("organizations", "users", "memberships", "refresh_tokens"):
+    for table in (
+        "organizations",
+        "users",
+        "memberships",
+        "refresh_tokens",
+        "invitations",
+        "invoices",
+    ):
         assert f"CREATE TABLE {table}" in sql
     assert "ON DELETE CASCADE" in sql
