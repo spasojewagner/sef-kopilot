@@ -13,7 +13,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.auth import service
-from sef_api.auth.dependencies import Principal, current_principal, get_token_settings
+from sef_api.auth.dependencies import (
+    Principal,
+    current_principal,
+    get_token_settings,
+    no_longer_active,
+)
 from sef_api.auth.service import SignedIn, TokenSettings
 from sef_api.db import get_session
 from sef_api.models import Membership, Organization, Role, User
@@ -223,8 +228,8 @@ async def logout(body: RefreshRequest, session: Session) -> None:
     "/me",
     summary="Who am I",
     description=(
-        "The person, organization and role of the access token; 401 once the account or its "
-        "membership is gone."
+        "The person and organization of the access token and the role they hold now; 401 once "
+        "the account is deactivated or the membership has ended."
     ),
     responses={status.HTTP_401_UNAUTHORIZED: {"model": Problem}},
 )
@@ -233,21 +238,21 @@ async def me(
 ) -> MeResponse:
     row = (
         await session.execute(
-            select(User, Organization)
+            select(User, Organization, Membership.role)
             .join(Membership, Membership.user_id == User.id)
             .join(Organization, Organization.id == Membership.organization_id)
-            .where(User.id == principal.user_id, Organization.id == principal.organization_id)
+            .where(
+                User.id == principal.user_id,
+                Organization.id == principal.organization_id,
+                User.is_active.is_(True),
+            )
         )
     ).one_or_none()
     if row is None:
-        raise HTTPException(
-            status.HTTP_401_UNAUTHORIZED,
-            "the account or its membership no longer exists",
-            headers=_UNAUTHORIZED,
-        )
-    user, organization = row
+        raise no_longer_active()
+    user, organization, role = row
     return MeResponse(
         user=UserOut(id=user.id, email=user.email),
         organization=OrganizationOut(id=organization.id, name=organization.name),
-        role=principal.role,
+        role=role,
     )

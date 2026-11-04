@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.auth.passwords import hash_password, needs_rehash, verify_password
 from sef_api.auth.tokens import issue_access_token, new_opaque_token, opaque_token_digest
+from sef_api.locks import lock_organization
 from sef_api.models import Membership, Organization, RefreshToken, Role, User
 from sef_api.settings import Settings
 
@@ -134,15 +135,18 @@ async def login(
     password: str,
     organization_id: uuid.UUID | None = None,
 ) -> SignedIn:
-    """Check the password and sign the person in to one of their organizations."""
+    """Check the password and sign the person in to one of their organizations.
+
+    The membership is read once more under the organization's lock (share mode): a removal at
+    the same moment either comes first and is seen, or waits and then revokes this session.
+    """
     user = await session.scalar(select(User).where(User.email == normalize_email(email)))
     if not await verify_password(user.password_hash if user else None, password):
         raise AuthenticationError
     assert user is not None  # a password only verifies against a real account's hash
     if not user.is_active:
         raise AuthenticationError
-    if needs_rehash(user.password_hash):
-        user.password_hash = await hash_password(password)
+    renewed_hash = await hash_password(password) if needs_rehash(user.password_hash) else None
     rows = await session.execute(
         select(Organization, Membership.role)
         .join(Membership, Membership.organization_id == Organization.id)
@@ -155,12 +159,22 @@ async def login(
     if organization_id is None:
         if len(memberships) > 1:
             raise OrganizationRequiredError(memberships)
-        organization, role = memberships[0]
+        organization = memberships[0][0]
     else:
-        chosen = [(o, r) for o, r in memberships if o.id == organization_id]
+        chosen = [o for o, _ in memberships if o.id == organization_id]
         if not chosen:
             raise NotAMemberError
-        organization, role = chosen[0]
+        organization = chosen[0]
+    await lock_organization(session, organization.id, shared=True)
+    role = await session.scalar(
+        select(Membership.role).where(
+            Membership.organization_id == organization.id, Membership.user_id == user.id
+        )
+    )
+    if role is None:
+        raise NotAMemberError
+    if renewed_hash is not None:  # changed only now, after the lock, like every other row
+        user.password_hash = renewed_hash
     signed_in = await _sign_in(session, tokens, user, organization, role, family_id=uuid.uuid4())
     await session.commit()
     return signed_in
@@ -175,24 +189,31 @@ async def refresh(
 ) -> SignedIn:
     """Spend a refresh token for a new pair, in the same session.
 
-    A token is good once. Presenting a spent or revoked one again means that someone else has a
-    copy, and the whole session (the token's family) is revoked. The role is read again, so a
-    change of role takes effect at the next refresh at the latest.
+    A token is good once. Presenting a spent one again means that someone else has a copy, and
+    the whole session (the token's family) is revoked. The role is read again, so a change of
+    role takes effect at the next refresh at the latest.
+
+    A token that can do nothing (unknown, revoked, or expired before it was spent) is refused
+    without taking any lock. Otherwise the organization is locked shared and the session's
+    tokens exclusively, both in a fixed order, before anything is decided. So a refresh and a
+    removal of the same person take turns, and so do the refreshes, replays and sign-outs of
+    one session: whichever comes second sees what the first one wrote.
     """
     moment = now if now is not None else datetime.now(UTC)
-    stored = await session.scalar(
-        select(RefreshToken)
-        .where(RefreshToken.digest == opaque_token_digest(refresh_token))
-        .with_for_update()
-    )
-    if stored is None:
+    digest = opaque_token_digest(refresh_token)
+    found = await _find_live(session, digest, moment)
+    if found is None:
+        raise InvalidRefreshTokenError
+    await lock_organization(session, found.organization_id, shared=True)
+    await _lock_family(session, found.family_id)
+    stored = await session.scalar(select(RefreshToken).where(RefreshToken.digest == digest))
+    if stored is None:  # removed with its organization or account a moment ago
         raise InvalidRefreshTokenError
     if stored.used_at is not None or stored.revoked_at is not None:
         await _revoke_family(session, stored.family_id, moment)
         await session.commit()
         raise InvalidRefreshTokenError
-    if stored.expires_at <= moment:
-        raise InvalidRefreshTokenError
+    # Not expired: _find_live refused an unspent token past its expiry, which does not move.
     row = (
         await session.execute(
             select(User, Organization, Membership.role)
@@ -215,13 +236,18 @@ async def refresh(
 
 
 async def logout(session: AsyncSession, *, refresh_token: str, now: datetime | None = None) -> None:
-    """End the session the refresh token belongs to; an unknown token changes nothing."""
-    stored = await session.scalar(
-        select(RefreshToken).where(RefreshToken.digest == opaque_token_digest(refresh_token))
-    )
-    if stored is not None:
-        await _revoke_family(session, stored.family_id, now or datetime.now(UTC))
-        await session.commit()
+    """End the session the refresh token belongs to. A token that can do nothing (unknown,
+    revoked, or expired before it was spent) changes nothing and takes no lock. The locks are
+    those of :func:`refresh`, so a sign-out also revokes a token that a refresh issued while it
+    waited."""
+    moment = now if now is not None else datetime.now(UTC)
+    found = await _find_live(session, opaque_token_digest(refresh_token), moment)
+    if found is None:
+        return
+    await lock_organization(session, found.organization_id, shared=True)
+    await _lock_family(session, found.family_id)
+    await _revoke_family(session, found.family_id, moment)
+    await session.commit()
 
 
 async def _sign_in(
@@ -263,6 +289,48 @@ async def _sign_in(
         access_expires_at=access_expires_at,
         refresh_token=token,
         refresh_expires_at=refresh_expires_at,
+    )
+
+
+@dataclass(frozen=True)
+class _Live:
+    organization_id: uuid.UUID
+    family_id: uuid.UUID
+
+
+async def _find_live(session: AsyncSession, digest: str, moment: datetime) -> _Live | None:
+    """Where a refresh token belongs, read without a lock; None for a token that can do
+    nothing: unknown, revoked (its session was revoked with it), or expired before it was
+    spent. A spent token can still end its session, so it counts."""
+    row = (
+        await session.execute(
+            select(
+                RefreshToken.organization_id,
+                RefreshToken.family_id,
+                RefreshToken.used_at,
+                RefreshToken.revoked_at,
+                RefreshToken.expires_at,
+            ).where(RefreshToken.digest == digest)
+        )
+    ).one_or_none()
+    if (
+        row is None
+        or row.revoked_at is not None
+        or (row.used_at is None and row.expires_at <= moment)
+    ):
+        return None
+    return _Live(row.organization_id, row.family_id)
+
+
+async def _lock_family(session: AsyncSession, family_id: uuid.UUID) -> None:
+    """Lock every token of one session, in one order, so that two of its refreshes, replays
+    or sign-outs take turns instead of deadlocking. The statements after the lock see what the
+    one before wrote, such as a token that a refresh issued while this one waited."""
+    await session.execute(
+        select(RefreshToken.id)
+        .where(RefreshToken.family_id == family_id)
+        .order_by(RefreshToken.id)
+        .with_for_update()
     )
 
 

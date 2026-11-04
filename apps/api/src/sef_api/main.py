@@ -15,6 +15,7 @@ from sef_api import __version__
 from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
+from sef_api.members import routes as members
 from sef_api.routes import health
 from sef_api.settings import Settings
 
@@ -32,6 +33,11 @@ OPENAPI_TAGS = [
         "name": "auth",
         "description": "Accounts, sign-in and tokens: a short-lived access token for requests "
         "and a refresh token that is spent on use.",
+    },
+    {
+        "name": "members",
+        "description": "The people of the caller's organization and their roles: owner, "
+        "accountant, client.",
     },
 ]
 
@@ -67,4 +73,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.tokens = TokenSettings.from_settings(settings)
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(members.router)
     return app

@@ -39,6 +39,22 @@ curl -s localhost:8000/auth/me -H "Authorization: Bearer $ACCESS_TOKEN"
 
 Passwords are hashed with argon2id (OWASP's minimum: 19 MiB, two passes) in a worker thread.
 
+## Members and permissions
+
+Endpoints ask for a permission; a member's role grants permissions (ADR-0013):
+
+| Permission | owner | accountant | client |
+| --- | :-: | :-: | :-: |
+| `members:read`: see the members and their roles | yes | yes | no |
+| `members:manage`: change roles, remove members | yes | no | no |
+
+`GET /members`, `PATCH /members/{user_id}` and `DELETE /members/{user_id}` work in the
+organization of the caller's access token. The role is read from the membership on every
+request, so a removed member, a deactivated account or a changed role takes effect at once, not
+when the access token expires. An organization keeps at least one active owner, and changes to
+its members take turns (one advisory lock per organization). A member of another organization
+is not found (404), never forbidden.
+
 ## Database and migrations
 
 PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
