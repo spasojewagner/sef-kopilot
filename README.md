@@ -94,8 +94,8 @@ Guardrails that are encoded as tests, not as comments:
 | Milestone | Scope | Status |
 | --- | --- | --- |
 | M0 | Monorepo, tooling, CI, documentation skeleton | done |
-| M1 | Validator core: UBL parser, XSD, Schematron runner, SRB-CIUS rule set v1, fixtures, CLI | next |
-| M2 | API, persistence, auth, jobs with SSE progress, regulation corpus, explanations with citations | planned |
+| M1 | Validator core: UBL parser, XSD, Schematron runner, SRB-CIUS rule set v1, fixtures, CLI | done — v0.1.0 |
+| M2 | API, persistence, auth, jobs with SSE progress, regulation corpus, explanations with citations | next |
 | M3 | Repair loop with approval and audit log, web UI (sr-Latn / en), public demo | planned |
 | M4 | MCP server with OAuth 2.1 | planned |
 | M5 | SEF demo round trip, SEF error mapping | planned |
@@ -160,7 +160,7 @@ uv run einvoice validate invoices/                     # every .xml file under a
 uv run einvoice rules --profile srb   # what the SEF profile checks and sets aside
 ```
 
-Copy `.env.example` to `.env` to override the local defaults. Nothing in M0 needs a secret.
+Copy `.env.example` to `.env` to override the local defaults. Nothing up to M1 needs a secret.
 
 ## Documentation
 

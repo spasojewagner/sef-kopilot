@@ -39,7 +39,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/core-cli` — `einvoice validate file.xml --profile srb` on the pipeline: text and JSON output, exit codes, `einvoice rules` to list the rules of a profile (ADR-0009)
 - [x] `feat/core-fixtures-corpus` — the Ministry's 17 SEF examples committed with their provenance, 43 generated mutation fixtures (`scripts/make_fixtures.py`), the pipeline's recorded verdicts on 93 documents; with CEN's and OpenPeppol's 1 471 unit-test documents, over 1 500 in all (ADR-0010)
 - [x] Learning notes: ~~Schematron and XPath assertions~~ (03), ~~UBL 2.1 document model~~ (02), ~~EN 16931 business rules vs. CIUS~~ (04), ~~golden files and mutation fixtures~~ (05)
-- [ ] Release: changelog move, version bump, `v0.1.0` tag prepared
+- [x] Release: changelog move, version bump, `v0.1.0` tag prepared
 
 ## M2 — API + explanations (weeks 3–4) · tag `v0.2.0`
 

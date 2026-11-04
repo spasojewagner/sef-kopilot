@@ -9,10 +9,14 @@ is tagged.
 
 ## [Unreleased]
 
-### Changed
+## [0.1.0] - 2026-11-04
 
-- Dependabot proposes only minor and patch updates for Python and Node packages; major
-  versions are planned migrations (CONTRIBUTING.md, "Dependency updates").
+The validator core (milestone M1) on the bootstrapped monorepo (M0): UBL 2.1 invoices and
+credit notes parsed into a typed model and checked against the UBL 2.1 schemas, CEN's
+EN 16931 and OpenPeppol's BIS Billing 3.0 Schematron, the SRB-CIUS rule set v1 (29 rules) and
+the EN 16931 calculation rules in Python, combined in one validation pipeline with the
+profiles `srb`, `en16931` and `peppol`; the `einvoice` command line; and a fixture corpus
+whose verdicts the tests pin.
 
 ### Added
 
@@ -90,6 +94,11 @@ is tagged.
 - ADR-0001 "Monorepo and tooling", ADR-0002 "Deterministic validator is the source of truth",
   `docs/ARCHITECTURE.md`, first learning and interview notes, pull request and issue templates.
 
+### Changed
+
+- Dependabot proposes only minor and patch updates for Python and Node packages; major
+  versions are planned migrations (CONTRIBUTING.md, "Dependency updates").
+
 ### Fixed
 
 - The parser reads BT-11 (project reference) on credit notes, where UBL 2.1 carries it as an
@@ -102,4 +111,5 @@ is tagged.
 - Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
   backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
-[Unreleased]: https://github.com/spasojewagner/sef-kopilot/commits/main
+[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/spasojewagner/sef-kopilot/releases/tag/v0.1.0
