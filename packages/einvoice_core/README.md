@@ -98,6 +98,9 @@ for violation in validate_srb(tree):
 | SRB-019 | A payment model in the remittance information is written (modNN) reference | BT-83 | fatal |
 | SRB-020 | Every VAT category code is one SRB-CIUS allows | BT-95, BT-102, BT-118, BT-151 | fatal |
 | SRB-021 | Categories S and AE are charged at 20 or 10 percent | BT-96, BT-103, BT-119, BT-152 | fatal |
+| SRB-022 | A VAT exemption reason code is one of its own category's codes | BT-118, BT-121 | fatal |
+| SRB-023 | A VAT exemption reason code is in the Ministry's list | BT-121 | warning |
+| SRB-024 | Exempt and non-taxed VAT breakdowns give an exemption reason code | BT-118, BT-121 | fatal |
 
 A test keeps this table identical to the rules.
 
