@@ -23,6 +23,10 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "SEF_JWT_SECRET",
         "SEF_ACCESS_TOKEN_MINUTES",
         "SEF_REFRESH_TOKEN_DAYS",
+        "SEF_MAX_INVOICE_ELEMENTS",
+        "SEF_VALIDATION_SECONDS",
+        "SEF_MAX_VALIDATIONS_IN_FLIGHT",
+        "SEF_VALIDATOR",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)
@@ -102,6 +106,29 @@ def test_token_lifetimes_default_to_15_minutes_and_30_days(
 
     assert Settings().access_token_lifetime.total_seconds() == 300
     assert Settings().refresh_token_lifetime.days == 7
+
+
+def test_the_validator_runs_in_a_child_process_with_limits_by_default() -> None:
+    settings = Settings()
+
+    assert settings.validator == "process"
+    assert settings.max_invoice_elements == 20_000
+    assert settings.validation_seconds == 15
+    assert settings.max_validations_in_flight == 8
+
+
+@pytest.mark.parametrize(
+    ("variable", "value"),
+    [
+        ("SEF_MAX_INVOICE_ELEMENTS", "99"),
+        ("SEF_VALIDATION_SECONDS", "601"),
+        ("SEF_MAX_VALIDATIONS_IN_FLIGHT", "0"),
+        ("SEF_VALIDATOR", "fork"),
+    ],
+)
+def test_the_validators_limits_are_bounded(variable: str, value: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate({variable: value})
 
 
 @pytest.mark.parametrize(

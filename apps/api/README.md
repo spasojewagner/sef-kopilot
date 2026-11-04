@@ -15,7 +15,16 @@ make api              # uv run uvicorn sef_api.main:create_app --factory --reloa
 ```
 
 - Interactive documentation: <http://127.0.0.1:8000/docs>
-- Liveness: `GET /health` · Readiness: `GET /ready` (503 while the database does not answer)
+- Liveness: `GET /health` · Readiness: `GET /ready` (503 while the database does not answer or
+  the validator cannot run, for example without its rule sets)
+
+The validator runs in a child process that the application starts with it, and which compiles
+the validator's schemas and rule sets first (a few seconds), so that no request pays for it;
+fetch them first with `make rulesets`. Saxon holds Python's global interpreter lock while it
+applies a rule set, so in the API's own process a large document would stall every other
+request; in a child, a validation that runs too long (`SEF_VALIDATION_SECONDS`) is stopped and
+the child replaced at once. `SEF_VALIDATOR=thread` validates in a thread of the API's process
+instead, without a time limit, for tests and tools.
 
 Configuration comes from the environment or a `.env` file in the working directory; the
 variables are in [`.env.example`](../../.env.example). Without `DATABASE_URL` the API uses the

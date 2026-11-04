@@ -6,6 +6,7 @@ repository root (or ``make api``); the interactive OpenAPI documentation is serv
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -15,9 +16,12 @@ from sef_api import __version__
 from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
+from sef_api.invoices.validator import Admission, ProcessValidator, ThreadValidator, Validator
 from sef_api.members import routes as members
 from sef_api.routes import health
 from sef_api.settings import Settings
+
+logger = logging.getLogger(__name__)
 
 DESCRIPTION = """
 Deterministic validation, plain-language explanations and reviewable repairs for Serbian (SEF)
@@ -42,6 +46,14 @@ OPENAPI_TAGS = [
 ]
 
 
+def _validator(settings: Settings) -> Validator:
+    if settings.validator == "thread":
+        return ThreadValidator(max_elements=settings.max_invoice_elements)
+    return ProcessValidator(
+        max_elements=settings.max_invoice_elements, seconds=settings.validation_seconds
+    )
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the FastAPI application with its settings, its database and every router.
 
@@ -53,8 +65,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     database = Database.connect(settings.database_url.get_secret_value())
 
     @asynccontextmanager
-    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        # Start the validator, which compiles every rule set, so that no request pays for it.
+        # If it cannot run, the API still starts, and /ready reports it.
+        validator: Validator = application.state.validator
+        await validator.start()
+        if validator.problem is not None:
+            logger.warning("the validator cannot run: %s", validator.problem)
         yield
+        await validator.stop()
         await database.engine.dispose()
 
     app = FastAPI(
@@ -71,6 +90,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.database = database
     app.state.tokens = TokenSettings.from_settings(settings)
+    app.state.validator = _validator(settings)
+    app.state.admission = Admission(settings.max_validations_in_flight)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(members.router)

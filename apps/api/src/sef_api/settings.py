@@ -22,6 +22,10 @@ LOCAL_DATABASE_URL = "postgresql+asyncpg://sef:sef@localhost:5432/sef_kopilot"
 DRIVER = "postgresql+asyncpg"
 #: The shortest signing key accepted: 32 characters, 256 bits for a random one.
 MINIMUM_JWT_SECRET_LENGTH = 32
+#: The default budget of elements. Validating costs memory and time per element, not per byte
+#: (an embedded PDF is one text node): 20 000 elements, some 1 500 invoice lines, keep the
+#: validator's process within a few hundred MiB even when every line breaks a rule.
+DEFAULT_MAX_INVOICE_ELEMENTS = 20_000
 
 
 class Settings(BaseSettings):
@@ -61,6 +65,35 @@ class Settings(BaseSettings):
     )
     refresh_token_days: int = Field(
         default=30, ge=1, le=90, validation_alias="SEF_REFRESH_TOKEN_DAYS"
+    )
+    max_invoice_elements: int = Field(
+        default=DEFAULT_MAX_INVOICE_ELEMENTS,
+        ge=100,
+        le=1_000_000,
+        validation_alias="SEF_MAX_INVOICE_ELEMENTS",
+        description="The most elements an invoice may have; more answer 413.",
+    )
+    validation_seconds: float = Field(
+        default=15.0,
+        gt=0,
+        le=600,
+        validation_alias="SEF_VALIDATION_SECONDS",
+        description="How long one validation may take before it is stopped (422).",
+    )
+    max_validations_in_flight: int = Field(
+        default=8,
+        ge=1,
+        le=1000,
+        validation_alias="SEF_MAX_VALIDATIONS_IN_FLIGHT",
+        description="Validations that may wait or run at once; the next answers 503.",
+    )
+    validator: Literal["process", "thread"] = Field(
+        default="process",
+        validation_alias="SEF_VALIDATOR",
+        description=(
+            "`process`: a child process with a time limit, for the API. `thread`: a thread of "
+            "the API's process, without one, for tests and tools."
+        ),
     )
 
     @property
