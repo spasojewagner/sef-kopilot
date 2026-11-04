@@ -16,6 +16,7 @@ from sef_api import __version__
 from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
+from sef_api.invoices import routes as invoices
 from sef_api.invoices.validator import Admission, ProcessValidator, ThreadValidator, Validator
 from sef_api.members import routes as members
 from sef_api.routes import health
@@ -37,6 +38,10 @@ OPENAPI_TAGS = [
         "name": "auth",
         "description": "Accounts, sign-in and tokens: a short-lived access token for requests "
         "and a refresh token that is spent on use.",
+    },
+    {
+        "name": "invoices",
+        "description": "Invoices and credit notes: the deterministic validator's report on them.",
     },
     {
         "name": "members",
@@ -94,6 +99,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.admission = Admission(settings.max_validations_in_flight)
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(invoices.router)
     app.include_router(members.router)
     app.include_router(members.invitations_router)
     return app

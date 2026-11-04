@@ -15,6 +15,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
+from einvoice_core.xml import DEFAULT_MAX_BYTES
+
 Environment = Literal["development", "test", "production"]
 
 #: The database of ``infra/docker-compose.yml``, so that a fresh clone runs without a ``.env``.
@@ -22,6 +24,9 @@ LOCAL_DATABASE_URL = "postgresql+asyncpg://sef:sef@localhost:5432/sef_kopilot"
 DRIVER = "postgresql+asyncpg"
 #: The shortest signing key accepted: 32 characters, 256 bits for a random one.
 MINIMUM_JWT_SECRET_LENGTH = 32
+#: The default size limit of an invoice the API accepts: 5 MiB leaves room for the attachments
+#: an invoice may embed and stays below the validator's own ceiling.
+DEFAULT_MAX_INVOICE_BYTES = 5 * 1024 * 1024
 #: The default budget of elements. Validating costs memory and time per element, not per byte
 #: (an embedded PDF is one text node): 20 000 elements, some 1 500 invoice lines, keep the
 #: validator's process within a few hundred MiB even when every line breaks a rule.
@@ -66,12 +71,26 @@ class Settings(BaseSettings):
     refresh_token_days: int = Field(
         default=30, ge=1, le=90, validation_alias="SEF_REFRESH_TOKEN_DAYS"
     )
+    max_invoice_bytes: int = Field(
+        default=DEFAULT_MAX_INVOICE_BYTES,
+        ge=1024,
+        le=DEFAULT_MAX_BYTES,
+        validation_alias="SEF_MAX_INVOICE_BYTES",
+        description="The largest invoice the API accepts, in bytes; larger ones answer 413.",
+    )
     max_invoice_elements: int = Field(
         default=DEFAULT_MAX_INVOICE_ELEMENTS,
         ge=100,
         le=1_000_000,
         validation_alias="SEF_MAX_INVOICE_ELEMENTS",
         description="The most elements an invoice may have; more answer 413.",
+    )
+    upload_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        le=600,
+        validation_alias="SEF_UPLOAD_SECONDS",
+        description="How long a client has to send an invoice; a slower one answers 408.",
     )
     validation_seconds: float = Field(
         default=15.0,

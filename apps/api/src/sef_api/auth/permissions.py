@@ -24,12 +24,14 @@ class Permission(StrEnum):
     """See the organization's members and their roles."""
     MEMBERS_MANAGE = "members:manage"
     """Invite people, change members' roles and remove members."""
+    INVOICES_VALIDATE = "invoices:validate"
+    """Have an invoice checked by the validator."""
 
 
 ROLE_PERMISSIONS: Final[Mapping[Role, frozenset[Permission]]] = MappingProxyType(
     {
         Role.OWNER: frozenset(Permission),
-        Role.ACCOUNTANT: frozenset({Permission.MEMBERS_READ}),
-        Role.CLIENT: frozenset(),
+        Role.ACCOUNTANT: frozenset({Permission.MEMBERS_READ, Permission.INVOICES_VALIDATE}),
+        Role.CLIENT: frozenset({Permission.INVOICES_VALIDATE}),
     }
 )

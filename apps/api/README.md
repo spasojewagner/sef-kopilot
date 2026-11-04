@@ -18,13 +18,9 @@ make api              # uv run uvicorn sef_api.main:create_app --factory --reloa
 - Liveness: `GET /health` · Readiness: `GET /ready` (503 while the database does not answer or
   the validator cannot run, for example without its rule sets)
 
-The validator runs in a child process that the application starts with it, and which compiles
-the validator's schemas and rule sets first (a few seconds), so that no request pays for it;
-fetch them first with `make rulesets`. Saxon holds Python's global interpreter lock while it
-applies a rule set, so in the API's own process a large document would stall every other
-request; in a child, a validation that runs too long (`SEF_VALIDATION_SECONDS`) is stopped and
-the child replaced at once. `SEF_VALIDATOR=thread` validates in a thread of the API's process
-instead, without a time limit, for tests and tools.
+Invoices are validated in a child process that the application starts with it, and which
+compiles the validator's schemas and rule sets first (a few seconds), so that no request pays
+for it; fetch them first with `make rulesets`. See [Validating an invoice](#validating-an-invoice).
 
 Configuration comes from the environment or a `.env` file in the working directory; the
 variables are in [`.env.example`](../../.env.example). Without `DATABASE_URL` the API uses the
@@ -56,6 +52,7 @@ Endpoints ask for a permission; a member's role grants permissions (ADR-0013):
 | --- | :-: | :-: | :-: |
 | `members:read`: see the members and their roles | yes | yes | no |
 | `members:manage`: invite people, change roles, remove members | yes | no | no |
+| `invoices:validate`: have an invoice checked by the validator | yes | yes | yes |
 
 `GET /members`, `PATCH /members/{user_id}` and `DELETE /members/{user_id}` work in the
 organization of the caller's access token. The role is read from the membership on every
@@ -71,6 +68,39 @@ otherwise asks for its password, then signs them in to the organization. Only th
 is stored; `GET /invitations` lists the open ones and `DELETE /invitations/{id}` revokes one. An
 invitation stops working when the owner who issued it is removed, demoted or deactivated, so a
 departing owner cannot return through it.
+
+## Validating an invoice
+
+`POST /invoices/validate` takes the invoice or credit note itself as the request body
+(`Content-Type: application/xml`) and returns the validator's report (ADR-0015). `?profile=`
+chooses `srb` (the default, as SEF validates), `en16931` or `peppol`. Nothing is stored: the
+document lives in memory for the length of the request (no-store mode), and its content never
+reaches a log.
+
+```bash
+curl -s localhost:8000/invoices/validate -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/xml' --data-binary @fixtures/invoices/synthetic/srb-final-invoice.xml
+```
+
+A document the validator cannot read, because the XML is malformed or declares a DOCTYPE or an
+entity, is a violation in the report, not an error. A warm validation of a typical invoice takes
+about 10 ms. The limits, all in [`.env.example`](../../.env.example):
+
+| Answer | When | Setting (default) |
+| --- | --- | --- |
+| 413 | the body is larger than the limit, declared or counted while it is read | `SEF_MAX_INVOICE_BYTES` (5 MiB) |
+| 413 | the document has more elements than the budget (an embedded PDF is one) | `SEF_MAX_INVOICE_ELEMENTS` (20 000) |
+| 408 | the body has not arrived in time | `SEF_UPLOAD_SECONDS` (30) |
+| 415 | the media type is not `application/xml` or `text/xml` | |
+| 422 | the validation took longer than allowed and was stopped | `SEF_VALIDATION_SECONDS` (15) |
+| 503 + `Retry-After` | as many validations as allowed are waiting or running | `SEF_MAX_VALIDATIONS_IN_FLIGHT` (8) |
+| 503 | the validator cannot run on this server | |
+
+The validator runs in a child process, one invoice at a time (`SEF_VALIDATOR=process`). Saxon
+holds Python's global interpreter lock while it applies a rule set, so in the API's own process
+a large document would stall every other request; in a child, a validation that runs too long
+can be stopped, and the child is replaced at once. `SEF_VALIDATOR=thread` validates in a thread
+of the API's process instead, without a time limit, for tests and tools.
 
 ## Database and migrations
 
@@ -97,7 +127,8 @@ uv run pytest apps/api --cov=apps/api/src/sef_api      # or: make test-api
 Database tests run on the server named by `SEF_TEST_DATABASE_URL` (environment or `.env`), for
 example `postgresql+asyncpg://sef:sef@localhost:5432/postgres` with `make up`. The suite creates
 a database of its own, migrates it, rolls every test back and drops the database at the end.
-Without the variable those tests are skipped; CI always runs them.
+Without the variable those tests are skipped; CI always runs them. The validator's tests need
+the fetched rule sets (`make rulesets`), as the core's do.
 
 ## Layout
 
