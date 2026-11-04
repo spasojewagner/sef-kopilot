@@ -12,6 +12,7 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0004](0004-ubl-schema-validation-layer.md) | UBL 2.1 schema validation: official schemas, confined loading, located violations | accepted | 2026-11-03 |
 | [0005](0005-schematron-runner.md) | Schematron rule sets: executed as published with Saxon-HE, Peppol compiled with the ISO pipeline | accepted | 2026-11-03 |
 | [0006](0006-srb-cius-rules-in-python.md) | SRB-CIUS rules: authored in Python, one rule per module, each cited and tested | accepted | 2026-11-04 |
+| [0007](0007-calculation-rules-in-python.md) | EN 16931 calculation rules: recomputed in Python with CEN's semantics, proven equivalent | accepted | 2026-11-04 |
 
 Planned (recorded when the work lands): validation pipeline and profiles (M1), multi-tenant data model and row-level access (M2),
 hybrid retrieval and citation model (M2), job runner interface and SSE progress (M2), patch

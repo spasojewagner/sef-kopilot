@@ -16,6 +16,10 @@ is tagged.
 
 ### Added
 
+- `einvoice_core`: arithmetic layer. The EN 16931 calculation rules BR-CO-10 to BR-CO-17 are
+  computed in Python from the typed model, with CEN's rounding and tolerance, and report the
+  expected and the found amount; a differential test checks them against CEN's XSLT on
+  generated invoices (ADR-0007).
 - `einvoice_core`: SRB-CIUS extension rules SRB-025 to SRB-029: the reduced total with VAT of
   a final invoice (BT-E13 = BT-112 - BT-113), advances used that are also preceding invoices,
   the RSD VAT breakdowns of foreign-currency invoices (BG-E5, BG-E6, BG-E7), and the extended
