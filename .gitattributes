@@ -20,6 +20,10 @@
 *.p12 binary
 *.pfx binary
 
+# Official example documents are kept byte for byte (their SHA-256 is pinned in a manifest),
+# so their line endings are never normalised.
+fixtures/invoices/official/**/*.xml -text
+
 # Generated lock files: collapsed in GitHub diffs, never hand-edited.
 uv.lock linguist-generated=true
 pnpm-lock.yaml linguist-generated=true
