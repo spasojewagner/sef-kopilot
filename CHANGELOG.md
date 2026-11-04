@@ -11,6 +11,17 @@ is tagged.
 
 ### Added
 
+- `apps/api`: permissions, members and invitations. Endpoints ask for a permission that the
+  member's role grants (the owner holds every permission; an accountant may see the members;
+  only an owner manages them), checked against the current membership on every request, so
+  that removal, deactivation and role changes act at once; `GET /auth/me` reports the role held
+  now. `GET /members`, `PATCH /members/{user_id}` and `DELETE /members/{user_id}`, with at least
+  one active owner kept. Invitations with one-time codes: `POST`, `GET` and
+  `DELETE /invitations`, redeemed with `POST /auth/accept-invitation`; an invitation stops
+  working when its issuer may no longer invite. Changes to an organization's members and its
+  sessions are ordered by an advisory lock per organization, and the tokens of one session are
+  locked in a fixed order. A route audit, a refused-role test and a cross-tenant test for every
+  guarded endpoint run in CI (ADR-0013).
 - `apps/api`: accounts and tokens. `POST /auth/register` creates an account, its organization
   and makes the person the owner; `POST /auth/login` signs in to one organization (a member of
   several chooses one). Passwords are hashed with argon2id; access tokens are 15-minute JWTs
