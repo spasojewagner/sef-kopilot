@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final
 
-from sqlalchemy import ColumnElement, Select, func, select, tuple_
+from sqlalchemy import ColumnElement, Select, delete, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.invoices.validation import InvoiceSummary, ProfileName, Validation
@@ -39,6 +39,7 @@ __all__ = [
     "content_of",
     "cursor_after",
     "find",
+    "forget",
     "page_of",
     "store",
     "stored_bytes",
@@ -186,3 +187,15 @@ async def content_of(session: AsyncSession, scope: Scope, invoice_id: uuid.UUID)
     return await session.scalar(
         select(StoredInvoice.content).where(scope.holds(), StoredInvoice.id == invoice_id)
     )
+
+
+async def forget(session: AsyncSession, scope: Scope, invoice_id: uuid.UUID) -> bool:
+    """Delete the invoice with ``invoice_id`` in ``scope``, its document and its report, and
+    commit; False when there is no such invoice."""
+    deleted = await session.scalar(
+        delete(StoredInvoice)
+        .where(scope.holds(), StoredInvoice.id == invoice_id)
+        .returning(StoredInvoice.id)
+    )
+    await session.commit()
+    return deleted is not None

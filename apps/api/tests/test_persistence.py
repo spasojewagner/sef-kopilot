@@ -208,3 +208,20 @@ async def test_a_stored_invoice_is_kept(
     assert response.status_code == 201
     async with committed_database.sessions() as session:
         assert await session.scalar(select(StoredInvoice.content)) == INVOICE.read_bytes()
+
+
+async def test_a_deleted_invoice_stays_deleted(
+    committed_api: AsyncClient, committed_database: Database
+) -> None:
+    ana = await register(committed_api)
+    location = (
+        await committed_api.post(
+            "/invoices",
+            content=INVOICE.read_bytes(),
+            headers={"Content-Type": "application/xml"} | bearer(ana),
+        )
+    ).headers["Location"]
+
+    assert (await committed_api.delete(location, headers=bearer(ana))).status_code == 204
+    async with committed_database.sessions() as session:
+        assert await session.scalar(select(StoredInvoice.id)) is None

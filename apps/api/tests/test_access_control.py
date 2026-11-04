@@ -251,6 +251,11 @@ async def _stored_in_ogled(response: Response, session: AsyncSession, w: World) 
     )
 
 
+async def _primers_invoice_stays(response: Response, session: AsyncSession, w: World) -> None:
+    assert response.status_code == 404
+    assert await session.scalar(select(StoredInvoice.id)) == w.invoice.id
+
+
 async def _lists_no_invoices(response: Response, session: AsyncSession, w: World) -> None:
     assert response.json() == {"invoices": [], "next": None}
 
@@ -281,6 +286,13 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda w: f"/invoices/{w.invoice.id}",
         None,
         _primers_invoice_is_not_found,
+    ),
+    ("DELETE", "/invoices/{invoice_id}"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}",
+        None,
+        _primers_invoice_stays,
     ),
     ("GET", "/invoices/{invoice_id}/content"): Guarded(
         Permission.INVOICES_SUBMIT,

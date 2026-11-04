@@ -327,6 +327,21 @@ async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Se
     )
 
 
+@router.delete(
+    "/{invoice_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a stored invoice",
+    description=(
+        "Deletes the invoice, its document and its report; what the organization stores "
+        "shrinks by as much."
+    ),
+    responses=_NOT_FOUND,
+)
+async def delete_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Session) -> None:
+    if not await store.forget(session, _scope(caller), invoice_id):
+        raise _not_found()
+
+
 async def _validated(
     request: Request, session: AsyncSession, profile: ProfileName
 ) -> tuple[bytes, Validation]:
