@@ -1,8 +1,10 @@
-"""The tenancy schema: organizations, the people who use the product, and their memberships.
+"""The tenancy schema: organizations, the people who use the product, their memberships and
+their sign-in sessions.
 
 An organization is the tenant: every table that holds a tenant's data carries an
 ``organization_id`` (ADR-0011). People are global — one e-mail address, one account — and
-belong to organizations through memberships, each with one role.
+belong to organizations through memberships, each with one role. A refresh token belongs to a
+person's session in one organization (ADR-0012).
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from sef_api.db import Base
 
-__all__ = ["Membership", "Organization", "Role", "User"]
+__all__ = ["Membership", "Organization", "RefreshToken", "Role", "User"]
 
 
 class Role(StrEnum):
@@ -54,13 +56,17 @@ class Organization(Base):
 
 
 class User(Base):
-    """A person who signs in; the e-mail address is stored in lower case and is unique."""
+    """A person who signs in; the e-mail address is stored in lower case and is unique.
+
+    ``password_hash`` is an argon2id hash in PHC format, never the password.
+    """
 
     __tablename__ = "users"
     __table_args__ = (CheckConstraint("email = lower(email)", name="email_lower_case"),)
 
     id: Mapped[uuid.UUID] = _id()
     email: Mapped[str] = mapped_column(Text, unique=True)
+    password_hash: Mapped[str] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
     created_at: Mapped[datetime] = _created_at()
 
@@ -87,3 +93,28 @@ class Membership(Base):
         )
     )
     created_at: Mapped[datetime] = _created_at()
+
+
+class RefreshToken(Base):
+    """One refresh token of a sign-in session, stored as the SHA-256 digest of the token.
+
+    The tokens of one session share a ``family_id``: each is spent once (``used_at``) and
+    replaced by the next. Presenting a spent or revoked token again means it was stolen or
+    replayed, and revokes the whole family.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[uuid.UUID] = _id()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    family_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    digest: Mapped[str] = mapped_column(Text, unique=True)
+    created_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime]
+    used_at: Mapped[datetime | None]
+    revoked_at: Mapped[datetime | None]

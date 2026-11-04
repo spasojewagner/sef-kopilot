@@ -103,6 +103,9 @@ markers = [
 
 [tool.coverage.run]
 branch = true
+# SQLAlchemy's asyncio layer runs the ORM in greenlets; without this, lines after an awaited
+# database call are reported as not executed.
+concurrency = ["thread", "greenlet"]
 
 [tool.coverage.report]
 show_missing = true

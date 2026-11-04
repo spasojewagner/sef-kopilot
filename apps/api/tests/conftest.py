@@ -23,6 +23,7 @@ from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from sef_api.db import get_session
 from sef_api.main import create_app
 from sef_api.migrations import alembic_config
 from sef_api.settings import Settings
@@ -115,6 +116,20 @@ async def client() -> AsyncIterator[AsyncClient]:
     validation and serialisation without opening a network socket.
     """
     app = create_app(settings_for())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+    await app.state.database.engine.dispose()
+
+
+@pytest.fixture
+async def api(session: AsyncSession) -> AsyncIterator[AsyncClient]:
+    """A client of an application whose requests all use the test's rolled-back session."""
+    app = create_app(settings_for())
+
+    async def the_test_session() -> AsyncIterator[AsyncSession]:
+        yield session
+
+    app.dependency_overrides[get_session] = the_test_session
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
     await app.state.database.engine.dispose()
