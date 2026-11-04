@@ -20,6 +20,7 @@ from sef_api.db import Database
 from sef_api.invoices import routes as invoices
 from sef_api.invoices.validator import Admission, ProcessValidator, ThreadValidator, Validator
 from sef_api.members import routes as members
+from sef_api.rate_limits import DEFAULT_LIMITS, RateLimiter
 from sef_api.routes import health
 from sef_api.settings import Settings
 
@@ -98,6 +99,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.tokens = TokenSettings.from_settings(settings)
     app.state.validator = _validator(settings)
     app.state.admission = Admission(settings.max_validations_in_flight)
+    app.state.limiter = RateLimiter()
+    app.state.limits = DEFAULT_LIMITS
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(invoices.router)

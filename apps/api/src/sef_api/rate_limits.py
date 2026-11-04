@@ -15,18 +15,36 @@ Times are integer nanoseconds of a monotonic clock, so that no rounding refuses 
 limit allows. The counts live in the process, as the validator's admission does (ADR-0015):
 behind several workers each would count its own. A shared store can take them over behind
 the same methods.
+
+What the API counts, and against which limit, is :class:`Counted` and :data:`DEFAULT_LIMITS`.
+A request beyond a limit answers 429 with ``Retry-After``.
 """
 
 from __future__ import annotations
 
+import math
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Final
+from enum import StrEnum
+from functools import cache
+from types import MappingProxyType
+from typing import Final, cast
 
-__all__ = ["Limit", "RateLimiter", "Rule"]
+from fastapi import HTTPException, Request, status
+
+__all__ = [
+    "DEFAULT_LIMITS",
+    "Counted",
+    "Limit",
+    "RateLimiter",
+    "Rule",
+    "client_address",
+    "per_address",
+    "too_many",
+]
 
 _NANOSECONDS: Final = 1_000_000_000
 
@@ -140,3 +158,59 @@ class RateLimiter:
             kept = sorted(live.items(), key=lambda item: item[1], reverse=True)
             live = dict(kept[: self._capacity * 9 // 10])
         self._arrivals = live
+
+
+class Counted(StrEnum):
+    """What the API counts against a limit, as an answer of 429 names it."""
+
+    SIGN_IN = "sign-in attempts"
+    REGISTRATION = "registrations"
+    REFRESH = "refresh-token requests"
+    INVITATION = "attempts to accept an invitation"
+
+
+#: The limits the API counts against. Per address: what one client may try, generous enough
+#: for an office of people behind one address.
+DEFAULT_LIMITS: Final[Mapping[Counted, Limit]] = MappingProxyType(
+    {
+        Counted.SIGN_IN: Limit(30, timedelta(minutes=1)),
+        Counted.REGISTRATION: Limit(10, timedelta(hours=1)),
+        Counted.REFRESH: Limit(60, timedelta(minutes=1)),
+        Counted.INVITATION: Limit(10, timedelta(minutes=1)),
+    }
+)
+
+
+def client_address(request: Request) -> str:
+    """The address the request came from, as the server saw it. Behind a proxy it is the one
+    the server was told to trust (uvicorn's ``--forwarded-allow-ips``), never a header the
+    client wrote."""
+    return request.client.host if request.client is not None else "unknown"
+
+
+def too_many(counted: Counted, wait: float) -> HTTPException:
+    """429 for a request beyond the limit of ``counted``, with the whole seconds to wait."""
+    seconds = max(1, math.ceil(wait))
+    return HTTPException(
+        status.HTTP_429_TOO_MANY_REQUESTS,
+        f"too many {counted}; try again in {seconds} s",
+        headers={"Retry-After": str(seconds)},
+    )
+
+
+def per_address(counted: Counted) -> Callable[[Request], None]:
+    """A dependency that counts the request against the application's limit of ``counted``,
+    by the address it came from, and answers 429 beyond it."""
+    return _per_address(counted)
+
+
+@cache
+def _per_address(counted: Counted) -> Callable[[Request], None]:
+    def count(request: Request) -> None:
+        limiter = cast(RateLimiter, request.app.state.limiter)
+        limits = cast(Mapping[Counted, Limit], request.app.state.limits)
+        wait = limiter.hit(Rule(counted, client_address(request), limits[counted]))
+        if wait > 0:
+            raise too_many(counted, wait)
+
+    return count

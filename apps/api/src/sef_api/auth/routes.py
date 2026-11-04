@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
@@ -23,6 +23,7 @@ from sef_api.auth.passwords import MAXIMUM_LENGTH, MINIMUM_LENGTH
 from sef_api.auth.service import SignedIn, TokenSettings
 from sef_api.db import get_session
 from sef_api.models import Membership, Organization, Role, User
+from sef_api.rate_limits import Counted, per_address
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -122,6 +123,16 @@ class Problem(BaseModel):
     detail: str
 
 
+#: The answer of an endpoint whose requests are counted per address.
+TOO_MANY: dict[int | str, dict[str, Any]] = {
+    status.HTTP_429_TOO_MANY_REQUESTS: {
+        "model": Problem,
+        "description": "Too many requests from this address; try again after `Retry-After` "
+        "seconds.",
+    }
+}
+
+
 def _tokens(signed_in: SignedIn) -> TokenResponse:
     now = datetime.now(UTC)
     return TokenResponse(
@@ -142,8 +153,9 @@ def _tokens(signed_in: SignedIn) -> TokenResponse:
     status_code=status.HTTP_201_CREATED,
     summary="Create an account and its organization",
     description="Creates the account, an organization owned by it, and signs the person in.",
-    dependencies=[NO_STORE],
-    responses={status.HTTP_409_CONFLICT: {"model": Problem, "description": "E-mail taken."}},
+    dependencies=[NO_STORE, Depends(per_address(Counted.REGISTRATION))],
+    responses=TOO_MANY
+    | {status.HTTP_409_CONFLICT: {"model": Problem, "description": "E-mail taken."}},
 )
 async def register(body: RegisterRequest, session: Session, tokens: Tokens) -> TokenResponse:
     try:
@@ -170,8 +182,9 @@ async def register(body: RegisterRequest, session: Session, tokens: Tokens) -> T
         "answer is 409 with the list to choose from."
     ),
     response_model=TokenResponse,
-    dependencies=[NO_STORE],
-    responses={
+    dependencies=[NO_STORE, Depends(per_address(Counted.SIGN_IN))],
+    responses=TOO_MANY
+    | {
         status.HTTP_401_UNAUTHORIZED: {"model": Problem, "description": "Wrong credentials."},
         status.HTTP_403_FORBIDDEN: {"model": Problem, "description": "Not a member."},
         status.HTTP_409_CONFLICT: {
@@ -224,8 +237,9 @@ async def login(body: LoginRequest, session: Session, tokens: Tokens) -> TokenRe
         "otherwise checks its password, then adds the membership and signs the person in to "
         "the organization. A code is good once."
     ),
-    dependencies=[NO_STORE],
-    responses={
+    dependencies=[NO_STORE, Depends(per_address(Counted.INVITATION))],
+    responses=TOO_MANY
+    | {
         status.HTTP_400_BAD_REQUEST: {"model": Problem, "description": "Unusable code."},
         status.HTTP_401_UNAUTHORIZED: {"model": Problem, "description": "Wrong password."},
         status.HTTP_409_CONFLICT: {"model": Problem, "description": "The address just registered."},
@@ -272,8 +286,8 @@ async def accept_invitation(
         "Spends the refresh token and returns a new access token and a new refresh token for "
         "the same session. A refresh token presented a second time ends the session."
     ),
-    dependencies=[NO_STORE],
-    responses={status.HTTP_401_UNAUTHORIZED: {"model": Problem}},
+    dependencies=[NO_STORE, Depends(per_address(Counted.REFRESH))],
+    responses=TOO_MANY | {status.HTTP_401_UNAUTHORIZED: {"model": Problem}},
 )
 async def refresh(body: RefreshRequest, session: Session, tokens: Tokens) -> TokenResponse:
     try:
@@ -292,6 +306,8 @@ async def refresh(body: RefreshRequest, session: Session, tokens: Tokens) -> Tok
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Sign out",
     description="Ends the session of the refresh token; an unknown token changes nothing.",
+    dependencies=[Depends(per_address(Counted.REFRESH))],
+    responses=TOO_MANY,
 )
 async def logout(body: RefreshRequest, session: Session) -> None:
     await service.logout(session, refresh_token=body.refresh_token)
