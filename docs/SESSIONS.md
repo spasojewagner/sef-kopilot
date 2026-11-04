@@ -284,3 +284,14 @@ breakdown on an invoice that has one.
 Verification: 1 473 tests green; core coverage 100 % (branches included).
 
 Next: release `v0.1.0` (changelog section, version bump, annotated tag prepared).
+
+## 2026-11-04 — `chore/release-0.1.0` (2 commits, stacked on `feat/core-fixtures-corpus`)
+
+Outcome: milestone M1 released as 0.1.0. Every package moves from 0.0.0 to 0.1.0 (`uv.lock`
+updated); the changelog's Unreleased section becomes `[0.1.0] - 2026-11-04`, opened by a summary
+of the milestone, with links to the tag; the README roadmap marks M1 done and M2 next. The
+annotated tag `v0.1.0` and the release notes are prepared for the maintainer.
+
+Verification: 1 473 tests green; `einvoice --version` and `GET /health` report 0.1.0.
+
+Next: M2, starting with `feat/api-skeleton-db-auth`.

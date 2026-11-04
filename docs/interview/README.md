@@ -19,3 +19,4 @@ per branch, to keep them with the code they describe.
 | `feat/core-validation-pipeline` | [m1-core-validation-pipeline.md](m1-core-validation-pipeline.md) |
 | `feat/core-cli` | [m1-core-cli.md](m1-core-cli.md) |
 | `feat/core-fixtures-corpus` | [m1-core-fixtures-corpus.md](m1-core-fixtures-corpus.md) |
+| `chore/release-0.1.0` | [m1-release-0.1.0.md](m1-release-0.1.0.md) |

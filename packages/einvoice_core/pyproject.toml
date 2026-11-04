@@ -1,6 +1,6 @@
 [project]
 name = "einvoice-core"
-version = "0.0.0"
+version = "0.1.0"
 description = "Deterministic validation engine for UBL 2.1 e-invoices: XSD, EN 16931 and Peppol BIS Schematron, SRB-CIUS rules, patch engine and CLI."
 readme = "README.md"
 requires-python = ">=3.12"
