@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Final
 
 from lxml import etree
 
@@ -24,10 +23,7 @@ from einvoice_core import model
 from einvoice_core.violations import Severity
 from einvoice_core.xml import NAMESPACES
 
-__all__ = ["NAMESPACES_SRB", "Document", "Finding", "Reference", "Rule"]
-
-#: Prefixes available to rules: the canonical UBL prefixes plus the SRB-CIUS extension.
-NAMESPACES_SRB: Final = {**NAMESPACES, "sbt": "http://mfin.gov.rs/srbdt/srbdtext"}
+__all__ = ["Document", "Finding", "Reference", "Rule"]
 
 
 @dataclass(frozen=True)
@@ -64,8 +60,8 @@ class Document:
         return self.tree.getroot()
 
     def find_all(self, path: str, context: etree._Element | None = None) -> list[etree._Element]:
-        """Elements matching ``path`` (with the prefixes of :data:`NAMESPACES_SRB`)."""
-        found = (self.root if context is None else context).xpath(path, namespaces=NAMESPACES_SRB)
+        """Elements matching ``path``, written with the canonical prefixes (``NAMESPACES``)."""
+        found = (self.root if context is None else context).xpath(path, namespaces=NAMESPACES)
         if not isinstance(found, list):
             return []
         return [node for node in found if isinstance(node, etree._Element)]

@@ -101,6 +101,11 @@ for violation in validate_srb(tree):
 | SRB-022 | A VAT exemption reason code is one of its own category's codes | BT-118, BT-121 | fatal |
 | SRB-023 | A VAT exemption reason code is in the Ministry's list | BT-121 | warning |
 | SRB-024 | Exempt and non-taxed VAT breakdowns give an exemption reason code | BT-118, BT-121 | fatal |
+| SRB-025 | The reduced total with VAT is the total with VAT minus the paid amount | BT-E13, BT-112, BT-113 | fatal |
+| SRB-026 | Every advance used names one of the invoice's preceding invoices | BG-E1, BT-E1, BG-3, BT-25 | fatal |
+| SRB-027 | On a foreign-currency invoice the extension's VAT breakdowns are also in RSD | BG-E5, BG-E6 | fatal |
+| SRB-028 | A foreign-currency invoice gives its VAT breakdown in RSD as well | BG-E7, BT-5 | fatal |
+| SRB-029 | An invoice that uses the Serbian extension says so in BT-24 | BT-24 | warning |
 
 A test keeps this table identical to the rules.
 

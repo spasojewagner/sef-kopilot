@@ -16,6 +16,11 @@ is tagged.
 
 ### Added
 
+- `einvoice_core`: SRB-CIUS extension rules SRB-025 to SRB-029: the reduced total with VAT of
+  a final invoice (BT-E13 = BT-112 - BT-113), advances used that are also preceding invoices,
+  the RSD VAT breakdowns of foreign-currency invoices (BG-E5, BG-E6, BG-E7), and the extended
+  specification identifier when the extension is used (a warning). The Serbian extension
+  namespace has the canonical prefix `sbt` in every layer.
 - `einvoice_core`: SRB-CIUS VAT rules SRB-020 to SRB-024: VAT category codes (S, Z, E, AE, R,
   O, OE, SS, N) on breakdowns, allowances, charges and lines; S and AE at 20 or 10 percent;
   VAT exemption reason codes checked against the Ministry's list of 1 September 2024 (a code of

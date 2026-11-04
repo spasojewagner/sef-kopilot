@@ -14,6 +14,7 @@ from lxml import etree
 from einvoice_core.xml import (
     CAC,
     NAMESPACES,
+    SRBDT_EXT,
     UBL,
     ParseError,
     canonical_xpath,
@@ -95,6 +96,23 @@ def test_predicates_only_where_siblings_share_a_name() -> None:
     assert canonical_xpath(first_line) == "/ubl:Invoice/cac:InvoiceLine[1]"
     assert canonical_xpath(second_line) == "/ubl:Invoice/cac:InvoiceLine[2]"
     assert canonical_xpath(second_line_id) == "/ubl:Invoice/cac:InvoiceLine[2]/cbc:ID"
+
+
+def test_the_serbian_extension_has_a_canonical_prefix() -> None:
+    root = etree.fromstring(
+        f'<Invoice xmlns="{UBL}" xmlns:ext="{NAMESPACES["ext"]}" xmlns:srb="{SRBDT_EXT}">'
+        "<ext:UBLExtensions><ext:UBLExtension><ext:ExtensionContent>"
+        "<srb:SrbDtExt><srb:ReducedTotals/></srb:SrbDtExt>"
+        "</ext:ExtensionContent></ext:UBLExtension></ext:UBLExtensions></Invoice>"
+    )
+    (reduced,) = root.iter(f"{{{SRBDT_EXT}}}ReducedTotals")
+    xpath = canonical_xpath(reduced)
+
+    assert xpath == (
+        "/ubl:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent"
+        "/sbt:SrbDtExt/sbt:ReducedTotals"
+    )
+    assert root.xpath(xpath, namespaces=NAMESPACES) == [reduced]
 
 
 def test_unknown_namespaces_use_the_document_prefix_or_clark_notation() -> None:
