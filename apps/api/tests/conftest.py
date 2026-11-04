@@ -31,6 +31,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 #: A database URL nothing listens on: the application starts, its database checks fail.
 UNREACHABLE_DATABASE = "postgresql+asyncpg://sef:sef@127.0.0.1:1/sef_kopilot"
+#: Signs the test applications' access tokens; obviously not a key used anywhere else.
+TEST_JWT_SECRET = "test" * 10
 
 
 class _TestServer(BaseSettings):
@@ -44,7 +46,13 @@ TEST_SERVER_URL = _TestServer().sef_test_database_url
 
 def settings_for(database_url: str = UNREACHABLE_DATABASE) -> Settings:
     """Settings for a test application, independent of the environment and of ``.env``."""
-    return Settings.model_validate({"SEF_ENVIRONMENT": "test", "DATABASE_URL": database_url})
+    return Settings.model_validate(
+        {
+            "SEF_ENVIRONMENT": "test",
+            "DATABASE_URL": database_url,
+            "SEF_JWT_SECRET": TEST_JWT_SECRET,
+        }
+    )
 
 
 async def _execute(server: URL, statement: str) -> None:
