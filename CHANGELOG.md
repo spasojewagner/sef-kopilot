@@ -11,6 +11,20 @@ is tagged.
 
 ### Added
 
+- `apps/api`: invoice validation. `POST /invoices/validate` takes a UBL 2.1 invoice or credit
+  note as the request body (`application/xml`), checks it against the chosen profile (`srb` by
+  default, `en16931` or `peppol`) and answers with the validator's own report, marked
+  `Cache-Control: no-store`; nothing is stored and no invoice content is logged. The body is
+  refused with 413 beyond `SEF_MAX_INVOICE_BYTES` (5 MiB), counted while it is read, or beyond
+  `SEF_MAX_INVOICE_ELEMENTS` (20 000); with 408 when it has not arrived within
+  `SEF_UPLOAD_SECONDS`; with 415 when it is not XML. Every role holds the new permission
+  `invoices:validate` (ADR-0015).
+- `apps/api`: the validator runs in a child process that the application starts with it,
+  warmed up with every rule set, one invoice at a time. A validation longer than
+  `SEF_VALIDATION_SECONDS` (15) is stopped (422) and the child replaced; one that dies, or
+  answers another message than the one sent, is replaced too. A validation whose request is
+  cancelled still ends before the next one begins. At most `SEF_MAX_VALIDATIONS_IN_FLIGHT` (8)
+  validations wait or run; the next answers 503 with `Retry-After` (ADR-0015).
 - `apps/api`: permissions, members and invitations. Endpoints ask for a permission that the
   member's role grants (the owner holds every permission; an accountant may see the members;
   only an owner manages them), checked against the current membership on every request, so
@@ -37,7 +51,8 @@ is tagged.
 
 ### Changed
 
-- `GET /ready` checks the database and answers 503 while it does not respond.
+- `GET /ready` checks the database and the validator, and answers 503 while either cannot
+  serve.
 - The API starts from its factory: `uvicorn sef_api.main:create_app --factory` (`make api`); the
   module-level `app` is gone, so importing the module has no side effects.
 

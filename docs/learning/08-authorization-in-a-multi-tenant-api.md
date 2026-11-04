@@ -55,7 +55,7 @@ case.
 
 "An organization keeps at least one owner" cannot be checked with a `SELECT count(*)` followed
 by an `UPDATE`. Two owners who step down at the same moment both count two owners. Every change
-to an organization's members therefore locks the organization's row first. The changes take
+to an organization's members therefore takes the organization's lock first. The changes take
 turns, and the second one counts again after the first one has committed.
 
 The same check-then-act trap applies to permissions. A role read before the lock may change

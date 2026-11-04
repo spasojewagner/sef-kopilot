@@ -148,6 +148,21 @@ jobs:
       - name: Install Python workspace
         run: uv sync --all-packages --locked
 
+      # The validator behind the invoice endpoints needs the UBL schemas and the rule sets,
+      # fetched as in the core job and from the same cache.
+      - name: Cache fetched rule sets
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            third_party/*
+            !third_party/README.md
+            !third_party/manifest.json
+            !third_party/_compiled
+          key: rulesets-${{ hashFiles('third_party/manifest.json') }}
+
+      - name: Fetch rule sets (UBL 2.1, EN 16931, Peppol BIS, ISO Schematron)
+        run: python scripts/fetch_rulesets.py
+
       - name: Migrations apply, undo one step and apply again
         run: |
           uv run alembic -c apps/api/alembic.ini upgrade head

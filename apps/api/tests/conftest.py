@@ -48,13 +48,19 @@ class _TestServer(BaseSettings):
 TEST_SERVER_URL = _TestServer().sef_test_database_url
 
 
-def settings_for(database_url: str = UNREACHABLE_DATABASE) -> Settings:
-    """Settings for a test application, independent of the environment and of ``.env``."""
+def settings_for(database_url: str = UNREACHABLE_DATABASE, **variables: str) -> Settings:
+    """Settings for a test application, independent of the environment and of ``.env``;
+    ``variables`` set or override environment variables (``SEF_MAX_INVOICE_BYTES="1024"``).
+
+    Invoices are validated in a thread of the test's process: the child process of the API is
+    tested on its own (``test_validator.py``)."""
     return Settings.model_validate(
         {
             "SEF_ENVIRONMENT": "test",
             "DATABASE_URL": database_url,
             "SEF_JWT_SECRET": TEST_JWT_SECRET,
+            "SEF_VALIDATOR": "thread",
+            **variables,
         }
     )
 

@@ -23,7 +23,7 @@ from fastapi import FastAPI
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
 from httpx import AsyncClient, Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.routing import BaseRoute, Route
 
@@ -31,12 +31,15 @@ from sef_api.auth.dependencies import current_principal, require
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.main import create_app
 from sef_api.members import invitations
-from sef_api.models import Invitation, Membership, Role
+from sef_api.models import Invitation, Membership, Organization, RefreshToken, Role, User
 
-from .conftest import settings_for
+from .conftest import REPOSITORY_ROOT, settings_for
 from .factories import Office, bearer, office
 
 Endpoint = tuple[str, str]
+
+#: A valid synthetic SEF invoice, for the endpoints that take a document.
+INVOICE = REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic" / "srb-final-invoice.xml"
 
 #: Endpoints anyone may call: probes, and the ways to obtain or end a session.
 PUBLIC: set[Endpoint] = {
@@ -161,8 +164,15 @@ class Guarded:
     permission: Permission
     changes_members: bool
     url: Callable[[World], str]
-    body: dict[str, Any] | None
+    body: dict[str, Any] | bytes | None
     cross_tenant: CrossTenantCheck
+
+    async def send(self, api: AsyncClient, method: str, world: World, **headers: str) -> Response:
+        """The request, with a JSON body or an XML document."""
+        if isinstance(self.body, bytes):
+            headers["Content-Type"] = "application/xml"
+            return await api.request(method, self.url(world), content=self.body, headers=headers)
+        return await api.request(method, self.url(world), json=self.body, headers=headers)
 
 
 async def _lists_only_ogleds_members(response: Response, session: AsyncSession, w: World) -> None:
@@ -204,7 +214,31 @@ async def _primers_invitation_is_not_found(
     assert await primer_invitation_is_open(session, w)
 
 
+async def _validation_keeps_nothing(response: Response, session: AsyncSession, w: World) -> None:
+    """A validation answers with its report and leaves no trace in any organization."""
+    assert response.status_code == 200
+    assert response.json()["profile"] == "srb"
+    counts = {
+        model.__tablename__: await session.scalar(select(func.count()).select_from(model))
+        for model in (Organization, User, Membership, Invitation, RefreshToken)
+    }
+    assert counts == {
+        "organizations": 2,
+        "users": 6,
+        "memberships": 6,
+        "invitations": 1,
+        "refresh_tokens": 0,
+    }
+
+
 GUARDED: dict[Endpoint, Guarded] = {
+    ("POST", "/invoices/validate"): Guarded(
+        Permission.INVOICES_VALIDATE,
+        False,
+        lambda _: "/invoices/validate",
+        INVOICE.read_bytes(),
+        _validation_keeps_nothing,
+    ),
     ("GET", "/members"): Guarded(
         Permission.MEMBERS_READ, False, lambda _: "/members", None, _lists_only_ogleds_members
     ),
@@ -294,11 +328,8 @@ async def test_a_member_whose_role_lacks_the_permission_is_refused(
     guarded = GUARDED[endpoint]
     member = {Role.ACCOUNTANT: world.primer.accountant, Role.CLIENT: world.primer.client}[role]
 
-    response = await api.request(
-        endpoint[0],
-        guarded.url(world),
-        json=guarded.body,
-        headers=bearer(member, world.primer.organization, role),
+    response = await guarded.send(
+        api, endpoint[0], world, **bearer(member, world.primer.organization, role)
     )
 
     assert response.status_code == 403
@@ -311,9 +342,7 @@ async def test_an_organization_cannot_reach_into_another(
 ) -> None:
     guarded = GUARDED[endpoint]
 
-    response = await api.request(
-        endpoint[0], guarded.url(world), json=guarded.body, headers=world.ogled.as_owner()
-    )
+    response = await guarded.send(api, endpoint[0], world, **world.ogled.as_owner())
 
     await guarded.cross_tenant(response, session, world)
 

@@ -106,6 +106,8 @@ branch = true
 # SQLAlchemy's asyncio layer runs the ORM in greenlets; without this, lines after an awaited
 # database call are reported as not executed.
 concurrency = ["thread", "greenlet"]
+# The API validates invoices in a child process; measure it too.
+patch = ["subprocess"]
 
 [tool.coverage.report]
 show_missing = true

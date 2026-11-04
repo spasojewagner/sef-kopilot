@@ -6,17 +6,19 @@ treat them differently:
 * ``GET /health`` — *liveness*: is the process up and able to answer HTTP? It never touches a
   dependency, so a slow database cannot make the platform restart a healthy process.
 * ``GET /ready`` — *readiness*: can this instance serve real traffic right now? It checks the
-  database (Redis and the rule sets join the list when the API starts to use them) and answers
-  503 as soon as one check fails, so a load balancer stops sending traffic to it.
+  database and that the validator can run, with its rule sets compiled (Redis joins the list
+  when the API starts to use it), and answers 503 as soon as one check fails, so a load
+  balancer stops sending traffic to it.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from pydantic import BaseModel, Field
 
 from sef_api import __version__
 from sef_api.db import Database, get_database
+from sef_api.invoices.validator import Validator
 
 SERVICE_NAME = "sef-kopilot-api"
 
@@ -39,7 +41,7 @@ class ReadinessResponse(BaseModel):
     )
     checks: dict[str, Literal["ok", "failed"]] = Field(
         default_factory=dict,
-        description="Result per dependency (for example `database`, `redis`, `rulesets`).",
+        description="Result per dependency (for example `database`, `redis`, `validator`).",
     )
 
 
@@ -69,10 +71,12 @@ async def health() -> HealthResponse:
     },
 )
 async def ready(
-    response: Response, database: Annotated[Database, Depends(get_database)]
+    request: Request, response: Response, database: Annotated[Database, Depends(get_database)]
 ) -> ReadinessResponse:
+    validator = cast(Validator, request.app.state.validator)
     checks: dict[str, Literal["ok", "failed"]] = {
         "database": "ok" if await database.ping() else "failed",
+        "validator": "ok" if validator.problem is None else "failed",
     }
     if all(result == "ok" for result in checks.values()):
         return ReadinessResponse(status="ready", checks=checks)

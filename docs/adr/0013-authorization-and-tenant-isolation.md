@@ -33,7 +33,7 @@ machine clients follow after the invoice endpoints (`feat/api-keys`).
    membership from the database; the organization only from the access token; another
    organization's objects answer 404; a route audit and a cross-tenant case for every guarded
    endpoint; invitations as one-time codes; changes to an organization's members and its
-   sessions ordered by a lock on the organization's row.** Chosen.
+   sessions ordered by one advisory lock per organization.** Chosen.
 2. Role checks in each endpoint (`if role is not Role.OWNER`).
 3. Trust the role in the access token and skip the database.
 4. A policy engine (Casbin, OPA, Cedar).
