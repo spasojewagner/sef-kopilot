@@ -443,3 +443,64 @@ Verification: 1 795 tests green with PostgreSQL (core 1 530, coverage 100 %); wi
 1 649 pass and 146 are skipped. Every commit was checked on its own.
 
 Next: `feat/api-invoices-validate`, stacked on this branch.
+
+## 2026-11-04 — `feat/api-invoices-validate` (4 commits, stacked on `fix/core-hostile-documents`)
+
+Outcome: the validator behind the API, bounded, with nothing stored.
+
+- `POST /invoices/validate` takes the invoice as the request body (`application/xml`) and
+  answers with the validator's own report for `?profile=` (`srb` by default). Nothing is
+  stored, and the answer is marked `Cache-Control: no-store`.
+- Limits:
+  - bytes: 413 beyond `SEF_MAX_INVOICE_BYTES`, declared or counted while read;
+  - time: 408 for a body that has not arrived within `SEF_UPLOAD_SECONDS`;
+  - elements: 413 beyond `SEF_MAX_INVOICE_ELEMENTS`, counted before any validation;
+  - type: 415 for anything but XML.
+- The validator runs in a child process, warmed up with the application, one invoice at a
+  time. It is killed at `SEF_VALIDATION_SECONDS` (422) and replaced, as is a child that dies.
+  Admission turns away the ninth validation in flight (503, `Retry-After`).
+- A turn, once begun, ends whole even when its request is cancelled, and every answer names
+  the message it answers.
+- Every role holds `invoices:validate`; the route audit pins it, with a cross-tenant case.
+- ADR-0015, learning note 09, interview notes. ADR-0013 and its notes now call the
+  organization's lock the advisory lock it is.
+
+Findings:
+
+- The first version validated in a worker thread. An independent review of it measured:
+  - one client stalling every other request, sign-ins included, for 5 s with one document
+    and 42 s with seven;
+  - schema-valid documents that crashed the validator, or made Saxon print invoice data;
+  - a half-installed rule set crashing the startup while `/ready` said "ok";
+  - tests that passed with the parser's hardening switched off, or with the body read whole.
+  The core's share became `fix/core-hostile-documents`; this branch now bounds what remains.
+- Saxon holds the GIL: a 2 s transform stalled the main thread for 1.7 s. Hence a process,
+  not a thread. With it, `/health` answered within 5 ms while a validation ran into its limit.
+- Memory, not bytes, sets the limits: a warm child holds about 210 MiB, and a document near
+  20 000 elements adds 80 MiB, or 210 MiB if every line breaks a rule.
+- The endpoint first held its database connection while it read the body and validated.
+  Fifteen slow uploads would have used up the pool; the transaction now ends right after the
+  permission check, and a test watches the pool.
+- uvicorn on Windows with `--reload` runs a selector event loop, which cannot start
+  subprocesses. So the child is started with `multiprocessing`, and its pipe is read in a
+  thread.
+- A second review, of the child process, found one leak and five tests that could not fail:
+  - A request cancelled while the child worked released the lock, and the turn's settling
+    (the kill at the time limit) never ran. The child's late answer stayed in the pipe, and
+    the next request, of any organization, read it as its own; every answer after it was one
+    behind. Nothing in the shipped stack cancels a request, but a timeout around the call
+    would. The turn now runs in a shielded task, and messages are numbered.
+  - Mutations that left the suite green: no admission check before the body is read; the
+    error's message logged for any error; the child without its silenced streams; a counter
+    that keeps what it counts; Saxon without its configuration, seen through the API. Each
+    now fails a test.
+  - Peak memory read with `getrusage` in a child process includes the peak of the process it
+    was forked from, so the counter's memory test reads `VmHWM` from `/proc` instead (Linux).
+  - The residual cost is the published rule sets': a document within the element budget can
+    still run into the time limit (8000 empty extension elements take 15 s), so one member can
+    keep the validator busy until `feat/api-rate-limits`.
+
+Verification: 1 879 tests green with PostgreSQL (API 286, coverage 100 %); without it 1 700
+pass and 179 are skipped. Every commit was checked on its own.
+
+Next: `feat/api-invoices-store`, then `feat/api-keys`.

@@ -36,11 +36,14 @@ the system without a green validator.
 
 ## Request flow (target, M2–M3)
 
-1. Upload (`POST /invoices`) — size and type limits, hardened XML parsing (no DTD, no external
-   entities). In no-store mode the bytes never touch the database.
-2. Validate — a job on `arq` behind the `JobRunner` interface; progress events over SSE.
-   Layer 1 runs XSD → Schematron (compiled once, cached) → SRB-CIUS rules → arithmetic, in
-   one call per profile (`srb`, `en16931`, `peppol`) that reports what a profile sets aside and why.
+1. Upload (`POST /invoices`) — limits on bytes, time and elements, hardened XML parsing (no DTD,
+   no external entities). In no-store mode (`POST /invoices/validate`, ADR-0015) the bytes
+   never touch the database.
+2. Validate — in a child process of the API, one invoice at a time, stopped at a time limit
+   (ADR-0015). Layer 1 runs XSD → Schematron → SRB-CIUS rules → arithmetic, in one call per
+   profile (`srb`, `en16931`, `peppol`) that reports what a profile sets aside and why. Work
+   that takes seconds (explanations, the repair loop, batches) runs as jobs on `arq` behind the
+   `JobRunner` interface, with progress events over SSE.
 3. Explain — for each violation: curated `rule_id → passages` map first, then pgvector
    similarity and `pg_trgm` keyword retrieval; the model writes the explanation with
    structured output; citations are checked against stored chunk ids.
@@ -55,7 +58,7 @@ the system without a green validator.
 | Path | Responsibility | Status |
 | --- | --- | --- |
 | `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 in progress: semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation, EN 16931 and Peppol BIS Schematron, SRB-CIUS rule set v1 (29 rules, ADR-0006), BR-CO arithmetic in Python (ADR-0007), validation pipeline with profiles (ADR-0008), `einvoice` CLI (ADR-0009), hostile documents: linear addressing, bounded numbers and reports, values read whole (ADR-0014) |
-| `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M2 in progress: settings, PostgreSQL with Alembic migrations, the tenancy schema (ADR-0011), accounts, sign-in and tokens (ADR-0012), permissions, members and invitations (ADR-0013); `/health`, `/ready` |
+| `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M2 in progress: settings, PostgreSQL with Alembic migrations, the tenancy schema (ADR-0011), accounts, sign-in and tokens (ADR-0012), permissions, members and invitations (ADR-0013), invoice validation in a child process, without storage (ADR-0015); `/health`, `/ready` (database and validator) |
 | `apps/web` | upload, report, explanations, diff and approval UI (sr-Latn / en) | M0 skeleton |
 | `third_party/` | fetched UBL 2.1 schemas, EN 16931 and Peppol BIS artefacts, the ISO Schematron compiler, with their terms; compiled-stylesheet cache | M1 (UBL 2.1 and ISO Schematron added) |
 | `corpus/` | regulation texts from official sources with `source_url`, `fetched_at`, `valid_from` | planned (M2) |
@@ -70,7 +73,7 @@ the system without a green validator.
 - **Multi-tenancy:** every table that holds a tenant's data carries `organization_id`; people are
   global and belong to organizations through memberships with a role. Row-level access is
   enforced in the service layer and covered by tests that attempt cross-tenant requests
-  (ADR-0011; the tests arrive with the first tenant endpoints).
+  (ADR-0011; every guarded endpoint has a cross-tenant test, ADR-0013).
 - **No-store mode:** an invoice can be processed entirely in memory; nothing about its content
   reaches logs, traces, metrics or error reports in either mode.
 - **Configuration:** environment variables only (`.env.example` lists the names); secrets are

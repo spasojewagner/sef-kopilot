@@ -71,7 +71,12 @@ system are marked as such.
 - [ ] All request bodies are validated with Pydantic models (strict types, bounded sizes).
 - [ ] Business guardrails (forbidden patch fields, arithmetic rules in code, citation
       resolution) are enforced server-side and covered by tests.
-- [ ] Rate limiting on upload, validation and explanation endpoints.
+- [~] Rate limiting on upload, validation and explanation endpoints: validations are admitted
+      a few at a time (503 with `Retry-After` beyond); limits per client come with
+      `feat/api-rate-limits`.
+- [x] The work one upload causes is bounded: a budget of elements counted before any
+      validation (413), a time limit enforced by killing the validator's child process
+      (422), and a deadline for the body (408).
 
 ### V3 Web frontend security
 
@@ -89,9 +94,11 @@ system are marked as such.
 
 ### V5 File handling
 
-- [ ] Upload size limit, MIME/type checks, and content sniffing for XML (later PDF).
-- [ ] Uploaded files are stored outside the web root (or not stored at all in no-store mode)
-      and referenced by opaque ids.
+- [x] XML uploads: a size limit counted while the body is read (413), the media type checked
+      (415), and the content judged by the hardened parser, never by the declared type.
+- [ ] The same for PDF uploads (M7).
+- [~] Uploaded files are stored outside the web root (or not stored at all in no-store mode)
+      and referenced by opaque ids. Validation stores nothing; stored invoices come next.
 
 ### V6 Authentication
 
@@ -121,6 +128,9 @@ system are marked as such.
       ordered by one advisory lock, granted in arrival order, and the permission for such a
       change is checked again under it.
 - [x] An invitation stops working when the owner who issued it may no longer invite.
+- [x] A validation's answer reaches only its own request: the validator's turns end whole
+      even when a request is cancelled, and every answer names its message (tested by
+      cancelling a validation in flight).
 
 ### V9 Self-contained tokens
 
@@ -152,12 +162,18 @@ system are marked as such.
 
 ### V14 Data protection
 
-- [ ] No invoice content in logs, traces, metrics or crash reports (tested with a log capture
-      fixture).
+- [x] No invoice content in logs: a failure logs only the type of its error, and a test sends
+      a marked invoice through every outcome of the validation endpoint, checking both the log
+      records and the file descriptors.
+- [ ] No invoice content in traces, metrics or crash reports (with Langfuse and Sentry).
 - [x] The validator writes nothing to the process's standard streams: Saxon's warnings, which
       can quote a document, go to the null device (tested on the file descriptors); where that
       device cannot be opened, a log warning says that they reach the standard error instead.
-- [ ] No-store mode; retention policy for stored invoices; deletion endpoint.
+- [~] No-store mode: `POST /invoices/validate` keeps the invoice in memory for the length of
+      the request, and a test checks that it leaves no row behind; explanations follow.
+- [~] Responses that carry invoice data send `Cache-Control: no-store`; the validation report
+      does, and a test checks it.
+- [ ] Retention policy for stored invoices; deletion endpoint.
 
 ### V15 Secure coding and architecture
 
