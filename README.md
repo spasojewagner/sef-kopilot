@@ -161,6 +161,8 @@ uv run einvoice rules --profile srb   # what the SEF profile checks and sets asi
 ```
 
 Copy `.env.example` to `.env` to override the local defaults. Nothing up to M1 needs a secret.
+The API's database tests run when `SEF_TEST_DATABASE_URL` names a PostgreSQL server (with
+`make up`: `postgresql+asyncpg://sef:sef@localhost:5432/postgres`); otherwise they are skipped.
 
 ## Documentation
 

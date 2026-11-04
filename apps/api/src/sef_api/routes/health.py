@@ -5,17 +5,18 @@ treat them differently:
 
 * ``GET /health`` — *liveness*: is the process up and able to answer HTTP? It never touches a
   dependency, so a slow database cannot make the platform restart a healthy process.
-* ``GET /ready`` — *readiness*: can this instance serve real traffic right now? It will check
-  the database, Redis and the loaded rule sets once those exist; until then the check list is
-  empty and the instance is always ready.
+* ``GET /ready`` — *readiness*: can this instance serve real traffic right now? It checks the
+  database (Redis and the rule sets join the list when the API starts to use them) and answers
+  503 as soon as one check fails, so a load balancer stops sending traffic to it.
 """
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, Field
 
 from sef_api import __version__
+from sef_api.db import Database, get_database
 
 SERVICE_NAME = "sef-kopilot-api"
 
@@ -58,12 +59,22 @@ async def health() -> HealthResponse:
     summary="Readiness probe",
     description=(
         "Reports whether this instance can serve traffic. Each dependency is listed under "
-        "`checks`; the overall status is `degraded` as soon as one of them fails."
+        "`checks`; as soon as one of them fails the status is `degraded` and the response 503."
     ),
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": ReadinessResponse,
+            "description": "A dependency failed; the instance should not receive traffic.",
+        }
+    },
 )
-async def ready() -> ReadinessResponse:
-    checks: dict[str, Literal["ok", "failed"]] = {}
-    status: Literal["ready", "degraded"] = (
-        "ready" if all(result == "ok" for result in checks.values()) else "degraded"
-    )
-    return ReadinessResponse(status=status, checks=checks)
+async def ready(
+    response: Response, database: Annotated[Database, Depends(get_database)]
+) -> ReadinessResponse:
+    checks: dict[str, Literal["ok", "failed"]] = {
+        "database": "ok" if await database.ping() else "failed",
+    }
+    if all(result == "ok" for result in checks.values()):
+        return ReadinessResponse(status="ready", checks=checks)
+    response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return ReadinessResponse(status="degraded", checks=checks)

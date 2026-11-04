@@ -15,7 +15,10 @@ classifiers = [
 ]
 dependencies = [
   "einvoice-core",
+  "asyncpg>=0.32",
   "fastapi>=0.162",
+  "pydantic-settings>=2.16",
+  "sqlalchemy[asyncio]>=2.1.8",
   "uvicorn[standard]>=0.54",
 ]
 

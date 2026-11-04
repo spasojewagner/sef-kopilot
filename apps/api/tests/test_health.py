@@ -2,9 +2,12 @@
 
 from importlib.metadata import version
 
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 import sef_api
+from sef_api.main import create_app
+
+from .conftest import settings_for
 
 
 def test_version_matches_package_metadata() -> None:
@@ -22,13 +25,31 @@ async def test_health_reports_ok_with_service_and_version(client: AsyncClient) -
     }
 
 
-async def test_ready_reports_ready_when_no_check_fails(client: AsyncClient) -> None:
+async def test_ready_is_503_while_the_database_does_not_answer(client: AsyncClient) -> None:
     response = await client.get("/ready")
 
+    assert response.status_code == 503
+    assert response.json() == {"status": "degraded", "checks": {"database": "failed"}}
+
+
+async def test_ready_reports_ready_when_the_database_answers(database_url: str) -> None:
+    app = create_app(settings_for(database_url))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/ready")
+    await app.state.database.engine.dispose()
+
     assert response.status_code == 200
-    body = response.json()
-    assert body["status"] == "ready"
-    assert all(result == "ok" for result in body["checks"].values())
+    assert response.json() == {"status": "ready", "checks": {"database": "ok"}}
+
+
+async def test_shutting_down_disposes_of_the_database_engine() -> None:
+    app = create_app(settings_for())
+    engine = app.state.database.engine
+
+    async with app.router.lifespan_context(app):
+        pass
+
+    assert engine.pool.checkedout() == 0
 
 
 async def test_openapi_documents_the_health_endpoints(client: AsyncClient) -> None:

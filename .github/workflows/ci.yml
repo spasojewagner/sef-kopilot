@@ -115,6 +115,24 @@ jobs:
   api:
     name: api tests
     runs-on: ubuntu-latest
+    # PostgreSQL 16 with pgvector, the image of infra/docker-compose.yml. The test suite creates
+    # and drops its own databases on this server.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sef
+          POSTGRES_PASSWORD: sef
+          POSTGRES_DB: sef_kopilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sef -d sef_kopilot"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      SEF_TEST_DATABASE_URL: postgresql+asyncpg://sef:sef@localhost:5432/postgres
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

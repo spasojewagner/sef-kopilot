@@ -42,6 +42,7 @@ test: test-core test-api test-web ## Run every test suite
 test-core: ## Tests for packages/einvoice_core with the coverage gate (>= 90 %)
 	$(UV) run pytest packages/einvoice_core --cov=einvoice_core --cov-report=term-missing --cov-fail-under=90
 
+# Database tests need SEF_TEST_DATABASE_URL (see .env.example); without it they are skipped.
 test-api: ## Tests for apps/api with the coverage gate (>= 80 %)
 	$(UV) run pytest apps/api --cov=sef_api --cov-report=term-missing --cov-fail-under=80
 
@@ -49,7 +50,7 @@ test-web: ## Vitest suite for apps/web
 	$(PNPM) --filter @sef-kopilot/web test
 
 api: ## Run the API locally with auto-reload (http://127.0.0.1:8000/docs)
-	$(UV) run uvicorn sef_api.main:app --reload
+	$(UV) run uvicorn sef_api.main:create_app --factory --reload
 
 web: ## Run the web app locally (http://localhost:3000)
 	$(PNPM) --filter @sef-kopilot/web dev
