@@ -119,6 +119,16 @@ async def test_signing_in_gives_tokens_for_the_only_organization(api: AsyncClien
     assert response.json()["role"] == "owner"
 
 
+async def test_no_cache_may_keep_an_answer_that_carries_tokens(api: AsyncClient) -> None:
+    registered = await api.post("/auth/register", json=REGISTRATION)
+    signed_in = await login(api)
+    renewed = await refresh(api, signed_in.json()["refresh_token"])
+
+    for answer in (registered, signed_in, renewed):
+        assert answer.is_success, answer.text
+        assert answer.headers.get("Cache-Control") == "no-store", answer.url
+
+
 async def test_a_wrong_password_and_an_unknown_address_get_the_same_answer(
     api: AsyncClient,
 ) -> None:

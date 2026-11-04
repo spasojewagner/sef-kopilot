@@ -61,6 +61,21 @@ async def test_an_owner_invites_and_sees_the_code_once(
     assert listed == [{key: value for key, value in issued.items() if key != "code"}]
 
 
+async def test_no_cache_may_keep_an_invitation_code_or_the_tokens_it_buys(
+    api: AsyncClient, primer: Office
+) -> None:
+    invited = await api.post(
+        "/invitations",
+        json={"email": "nova@primer.example", "role": "client"},
+        headers=primer.as_owner(),
+    )
+    joined = await accept(api, invited.json()["code"])
+
+    for answer in (invited, joined):
+        assert answer.is_success, answer.text
+        assert answer.headers.get("Cache-Control") == "no-store", answer.url
+
+
 @pytest.mark.parametrize("caller", ["accountant", "client"])
 async def test_only_owners_invite_and_see_invitations(
     api: AsyncClient, primer: Office, caller: str
