@@ -28,9 +28,9 @@ token is only a hint for the client; `GET /auth/me` reports the role held now.
 
 **3. "Two owners demote each other at the same moment. What happens?"**
 
-One succeeds and the other gets 409. Each change locks the organization's row first
-(`FOR NO KEY UPDATE`), so the second one waits. Under READ COMMITTED its next statement then
-sees the first one's commit and counts a single owner. The test holds the first change at a
+One succeeds and the other gets 409. Each change takes the organization's lock first, so the
+second one waits. Under READ COMMITTED its next statement then sees the first one's commit and
+counts a single owner. The test holds the first change at a
 gate after it has counted, so the second certainly arrives in between; without the lock, both
 succeed every time.
 
@@ -66,5 +66,5 @@ in every query, as the caller's `organization_id`. Another organization's object
 - For endpoints that change the members the role is checked again under the lock, so a
   demotion at the same moment cannot let a change through; reading endpoints take no lock.
 - A token that can do nothing (unknown, revoked, expired unspent) takes no lock at all.
-- Not yet: API keys (after the invoice endpoints), rate limiting, leaving an organization oneself, row-level
-  security.
+- Not yet: API keys (after the invoice endpoints), rate limiting, leaving an organization
+  oneself, row-level security.
