@@ -119,6 +119,19 @@ def test_loading_never_opens_a_connection() -> None:
             server.accept()
 
 
+def test_comments_and_processing_instructions_are_dropped_so_that_a_value_reads_whole() -> None:
+    """``1<!-- -->2000.00`` is one value. Kept, the comment would split it into two text nodes."""
+    value = "1<!-- a note -->20<?note about the amount?>00.00"
+    document = "<!-- a header -->" + MINIMAL.replace(">1</cbc:ID>", f">{value}</cbc:ID>")
+
+    tree = load_document(document.encode())
+
+    (identifier,) = tree.getroot()
+    assert identifier.text == "12000.00"
+    assert len(identifier) == 0
+    assert tree.getroot().getprevious() is None
+
+
 def test_parse_error_message_includes_xpath_when_known() -> None:
     assert str(ParseError("boom")) == "boom"
     assert str(ParseError("boom", xpath="/ubl:Invoice/cbc:ID")) == "boom (at /ubl:Invoice/cbc:ID)"

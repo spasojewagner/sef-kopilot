@@ -7,6 +7,7 @@ import json
 from typing import Any
 
 import pytest
+from lxml import etree
 
 import make_fixtures
 from einvoice_core import schematron
@@ -24,6 +25,13 @@ SEF_EXAMPLES: list[dict[str, Any]] = SEF_MANIFEST["documents"]
 VERDICTS: dict[str, dict[str, Any]] = json.loads(
     (REPOSITORY_ROOT / make_fixtures.VERDICTS).read_text(encoding="utf-8")
 )["documents"]
+
+#: The documents of the corpus that can be read: the others are refused before any value is.
+READABLE = sorted(
+    document
+    for document, profiles in VERDICTS.items()
+    if not any("XML" in verdict["fatal"] for verdict in profiles.values())
+)
 
 #: The examples' placeholder PIBs, and the same serial numbers with their valid check digits.
 PLACEHOLDER_PIBS = {b"123456789": b"123456788", b"987654321": b"987654328"}
@@ -103,3 +111,38 @@ def test_the_verdicts_on_the_corpus_are_unchanged(document: str) -> None:
         assert make_fixtures.judge(REPOSITORY_ROOT, document, profile) == expected, (
             f"the {profile} verdict on {document} changed: run `make fixtures`, review the diff"
         )
+
+
+def _a_comment_inside_every_value(source: bytes) -> bytes:
+    """``source`` with a comment or a processing instruction in the middle of every value."""
+    root = etree.fromstring(source, etree.XMLParser(resolve_entities=False))
+    values = [
+        element
+        for element in root.iter()
+        if isinstance(element.tag, str)
+        and len(element) == 0
+        and len((element.text or "").strip()) > 1
+    ]
+    for number, element in enumerate(values):
+        text = element.text or ""
+        middle = len(text) // 2
+        mark = etree.Comment(" a note ") if number % 2 else etree.ProcessingInstruction("note")
+        element.text, mark.tail = text[:middle], text[middle:]
+        element.append(mark)
+    return etree.tostring(root.getroottree(), xml_declaration=True, encoding="UTF-8")
+
+
+@needs_rule_sets
+@pytest.mark.parametrize("document", READABLE)
+def test_a_comment_inside_every_value_changes_no_verdict(document: str) -> None:
+    """XML lets a comment sit inside a value: ``1<!-- -->2000.00`` is the amount ``12000.00``.
+
+    Read as two text nodes, the value was ``1`` to the model and to the SRB rules, so the
+    arithmetic reported totals that do not add up, and the Peppol rules that read ``text()``
+    stopped with an error.
+    """
+    source = _a_comment_inside_every_value((REPOSITORY_ROOT / document).read_bytes())
+
+    for profile, expected in VERDICTS[document].items():
+        report = validate(source, profile, max_violations=100_000)
+        assert make_fixtures.verdict(report) == expected, profile

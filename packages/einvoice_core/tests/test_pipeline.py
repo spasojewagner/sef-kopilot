@@ -396,6 +396,22 @@ def test_an_amount_too_long_to_compute_with_exactly_is_reported_not_raised(profi
 
 
 @needs_rule_sets
+@pytest.mark.parametrize("profile", sorted(PROFILES))
+def test_a_comment_cannot_hide_a_wrong_amount(profile: str) -> None:
+    """``14400<!-- -->1`` is 144001 to the schema and to CEN's rules. Read up to the comment, it
+    was 14400 to the arithmetic layer, which checks CEN's totals in their place, and an invoice
+    due ten times its total was valid."""
+    hidden = edited(
+        INVOICE, (">14400.00</cbc:PayableAmount>", ">14400<!-- -->1</cbc:PayableAmount>")
+    )
+
+    report = validate(hidden, profile)
+
+    assert rule_ids(report, "arithmetic") == {"BR-CO-16"}
+    assert not report.valid
+
+
+@needs_rule_sets
 def test_a_schema_valid_document_the_model_cannot_read(monkeypatch: pytest.MonkeyPatch) -> None:
     def refuse(_root: object) -> None:
         raise ParseError("missing required element cac:Party", xpath="/ubl:Invoice")

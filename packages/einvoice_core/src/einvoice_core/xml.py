@@ -106,8 +106,10 @@ def _parser() -> etree.XMLParser:
         dtd_validation=False,
         attribute_defaults=False,
         huge_tree=False,  # keep libxml2's depth and size guards
-        remove_comments=False,
-        remove_pis=False,
+        # Comments and processing instructions mean nothing in UBL. Dropping them leaves every
+        # value one text node, which is how this code and the published rule sets read it.
+        remove_comments=True,
+        remove_pis=True,
         recover=False,  # malformed input is an error, never "repaired"
     )
 
@@ -119,6 +121,11 @@ def load_document(source: Source, *, max_bytes: int = DEFAULT_MAX_BYTES) -> etre
     declares a DOCTYPE (invoices never need one, and it is the entry point for entity
     attacks). A ``str`` is treated as a *path*, never as XML text, so that a caller cannot
     accidentally parse user-controlled text through the path branch.
+
+    Comments and processing instructions are dropped. XML lets them sit inside a value:
+    ``<cbc:PayableAmount>1<!-- -->2000.00</cbc:PayableAmount>`` is the amount ``12000.00``.
+    Kept, they split the value into two text nodes, ``element.text`` reads ``1``, and a rule
+    that reads ``text()`` fails or compares only a part. Dropped, the value is one node again.
     """
     data = _read_bytes(source, max_bytes)
     try:
