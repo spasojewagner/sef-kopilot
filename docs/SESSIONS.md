@@ -504,3 +504,42 @@ Verification: 1 879 tests green with PostgreSQL (API 286, coverage 100 %); witho
 pass and 179 are skipped. Every commit was checked on its own.
 
 Next: `feat/api-invoices-store`, then `feat/api-keys`.
+
+## 2026-11-04 — `feat/api-invoices-store` (6 commits)
+
+Outcome: an organization keeps its invoices, each with the validator's report on it.
+
+- `POST /invoices` validates the body as `/invoices/validate` does and stores the document
+  byte for byte with the report and what the validator read: 201 and `Location`. An unreadable
+  document is stored with the report that says why.
+- `GET /invoices` lists the newest first, a page at a time with an opaque keyset cursor;
+  `GET /invoices/{id}` adds the report; `GET /invoices/{id}/content` downloads the document as
+  an attachment with `nosniff`; `DELETE /invoices/{id}` deletes it.
+- Owners and accountants see every invoice of the organization (`invoices:manage`), a client
+  the ones they submitted (`invoices:submit`); anything else answers 404.
+- An organization stores at most `SEF_MAX_STORED_BYTES` (100 MiB) of documents and reports
+  together, under an advisory lock on its invoices; 507 beyond.
+- Migration 0004, ADR-0016, learning note 10, interview notes.
+
+Findings:
+
+- A list needs what the validator read, so the child now sends a summary with its report:
+  built from the model, only for a schema-valid invoice, each text cut at 200 characters.
+- A report can be many times its document: an invoice that breaks a thousand rules has a report
+  of hundreds of KiB. A quota on documents alone would leave reports unbounded, so it counts
+  both.
+- Adding up and storing is a check-then-act race. A test makes two uploads add up at the same
+  moment: without the lock both are stored, with it one.
+- The upload and the validation outlast the transaction of the permission check, so it is
+  made again where the invoice is stored; a test removes the member during the validation.
+- PostgreSQL's `now()` is the start of the transaction, so invoices can share a time. The
+  cursor carries the id as well, and a test reads three invoices of one moment one per page.
+- The core's report models are strict, and a report read back from JSONB has lists where they
+  have tuples: it is validated in lax mode.
+- Since the parser drops comments (ADR-0014), the API's log test hid its marker where the
+  validator never sees it; the marker now sits in a note.
+
+Verification: 1 925 tests green with PostgreSQL (API 332, coverage 100 %); without it 1 707
+pass and 218 are skipped. Every commit was checked on its own.
+
+Next: `feat/api-keys`, then `feat/api-rate-limits`.

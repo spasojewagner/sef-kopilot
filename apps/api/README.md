@@ -53,6 +53,8 @@ Endpoints ask for a permission; a member's role grants permissions (ADR-0013):
 | `members:read`: see the members and their roles | yes | yes | no |
 | `members:manage`: invite people, change roles, remove members | yes | no | no |
 | `invoices:validate`: have an invoice checked by the validator | yes | yes | yes |
+| `invoices:submit`: store invoices, and read and delete the ones submitted oneself | yes | yes | yes |
+| `invoices:manage`: read and delete every invoice the organization stores | yes | yes | no |
 
 `GET /members`, `PATCH /members/{user_id}` and `DELETE /members/{user_id}` work in the
 organization of the caller's access token. The role is read from the membership on every
@@ -102,6 +104,33 @@ a large document would stall every other request; in a child, a validation that 
 can be stopped, and the child is replaced at once. `SEF_VALIDATOR=thread` validates in a thread
 of the API's process instead, without a time limit, for tests and tools.
 
+## Stored invoices
+
+`POST /invoices` validates the invoice in the body exactly as `POST /invoices/validate` does,
+with the same limits, then keeps it for the caller's organization: the document byte for byte,
+its SHA-256 digest, the profile, the validator's report and what the validator read from it
+(type, number, issue date, currency, seller, buyer, amount due). It answers 201, and `Location`
+names the stored invoice (ADR-0016). A document the validator cannot read is stored too, with
+the report that says why.
+
+```bash
+curl -si localhost:8000/invoices -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/xml' --data-binary @fixtures/invoices/synthetic/srb-final-invoice.xml
+curl -s "localhost:8000/invoices?limit=20" -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+| Endpoint | Answer |
+| --- | --- |
+| `GET /invoices?limit=&after=` | the newest invoices first, up to 100 a page (50 by default), without their reports; `next` is the `after` of the next page |
+| `GET /invoices/{id}` | one invoice with its report |
+| `GET /invoices/{id}/content` | the document byte for byte, as an attachment |
+| `DELETE /invoices/{id}` | 204; the document and its report are gone |
+
+Owners and accountants see every invoice of the organization; a client sees the ones they
+submitted, and anything else is not found (404). An organization stores at most
+`SEF_MAX_STORED_BYTES` (100 MiB) of documents and reports together; `POST /invoices` answers 507
+beyond it, and deleting makes room. Every answer is marked `Cache-Control: no-store`.
+
 ## Database and migrations
 
 PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
@@ -137,8 +166,13 @@ src/sef_api/
   main.py        application factory (`create_app`): settings, database, routers
   settings.py    configuration from the environment (pydantic-settings)
   db.py          declarative base, engine, sessions, the `get_session` dependency
-  models.py      organizations, users, memberships, roles, refresh tokens
+  models.py      organizations, users, memberships, roles, invitations, refresh tokens,
+                 stored invoices
+  locks.py       the advisory locks on an organization's members and on its invoices
   auth/          passwords, tokens, the sign-in service, `/auth` routes, `current_principal`
+  invoices/      upload limits, the validator and its child process, stored invoices,
+                 `/invoices` routes
+  members/       members and invitations, `/members` and `/invitations` routes
   migrations/    Alembic environment and revisions (`versions/`)
   routes/        one router module per resource
 alembic.ini      command-line configuration of the migrations

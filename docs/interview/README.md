@@ -25,3 +25,4 @@ per branch, to keep them with the code they describe.
 | `feat/api-rbac-members` | [m2-api-rbac-members.md](m2-api-rbac-members.md) |
 | `fix/core-hostile-documents` | [m2-core-hostile-documents.md](m2-core-hostile-documents.md) |
 | `feat/api-invoices-validate` | [m2-api-invoices-validate.md](m2-api-invoices-validate.md) |
+| `feat/api-invoices-store` | [m2-api-invoices-store.md](m2-api-invoices-store.md) |

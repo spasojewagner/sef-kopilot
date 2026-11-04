@@ -97,8 +97,11 @@ system are marked as such.
 - [x] XML uploads: a size limit counted while the body is read (413), the media type checked
       (415), and the content judged by the hardened parser, never by the declared type.
 - [ ] The same for PDF uploads (M7).
-- [~] Uploaded files are stored outside the web root (or not stored at all in no-store mode)
-      and referenced by opaque ids. Validation stores nothing; stored invoices come next.
+- [x] Uploaded files are stored outside the web root (or not stored at all in no-store mode)
+      and referenced by opaque ids: a stored invoice is a database row named by a random UUID,
+      and its document is served back only as an attachment with `nosniff`.
+- [x] What an organization stores is bounded: documents and their reports together, under a
+      lock, so concurrent uploads cannot overshoot (507 beyond the quota; tested with two).
 
 ### V6 Authentication
 
@@ -128,6 +131,10 @@ system are marked as such.
       ordered by one advisory lock, granted in arrival order, and the permission for such a
       change is checked again under it.
 - [x] An invitation stops working when the owner who issued it may no longer invite.
+- [x] Within an organization, a client reads and deletes only the invoices they submitted;
+      another member's answers 404, as another organization's does (tested per role).
+- [x] An upload that outlasts its permission check is checked again before it is stored: a
+      member removed during the validation stores nothing.
 - [x] A validation's answer reaches only its own request: the validator's turns end whole
       even when a request is cancelled, and every answer names its message (tested by
       cancelling a validation in flight).
@@ -171,9 +178,10 @@ system are marked as such.
       device cannot be opened, a log warning says that they reach the standard error instead.
 - [~] No-store mode: `POST /invoices/validate` keeps the invoice in memory for the length of
       the request, and a test checks that it leaves no row behind; explanations follow.
-- [~] Responses that carry invoice data send `Cache-Control: no-store`; the validation report
-      does, and a test checks it.
-- [ ] Retention policy for stored invoices; deletion endpoint.
+- [x] Responses that carry invoice data send `Cache-Control: no-store`: the validation report
+      and every answer about a stored invoice, each checked by a test.
+- [~] Deletion: `DELETE /invoices/{id}` removes the invoice, its document and its report. A
+      retention policy, deleting stored invoices after a period, is still to come.
 
 ### V15 Secure coding and architecture
 
