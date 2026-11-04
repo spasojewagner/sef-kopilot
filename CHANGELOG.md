@@ -16,6 +16,12 @@ is tagged.
 
 ### Added
 
+- `einvoice_core`: validation pipeline. `validate(source, profile)` reads the document, checks
+  it against the UBL 2.1 schemas and, when it is schema-valid, runs the profile's Schematron
+  rule sets, the SRB-CIUS rules and the calculation rules, and returns one report with the
+  verdict, the violations in layer order, the layers that ran, and the published rules the
+  profile sets aside, each with its reason. Profiles `srb`, `en16931` and `peppol`; the
+  violation model gains the layer `xml` for unreadable documents (ADR-0008).
 - `einvoice_core`: arithmetic layer. The EN 16931 calculation rules BR-CO-10 to BR-CO-17 are
   computed in Python from the typed model, with CEN's rounding and tolerance, and report the
   expected and the found amount; a differential test checks them against CEN's XSLT on

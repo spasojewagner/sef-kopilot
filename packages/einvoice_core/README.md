@@ -19,6 +19,8 @@ einvoice_core/
                 pipeline and cached; SVRL reports turned into located violations
   srb/          SRB-CIUS rules authored from the specification: the rule shape, the cited sources,
                 identifier checks (PIB, JBKJS) and one module per rule in srb/rules/
+  pipeline.py   one call for all layers under a profile (srb, en16931, peppol): the verdict, the
+                violations, and the published rules a profile sets aside, with reasons
   arithmetic.py EN 16931 calculation rules BR-CO-10 to BR-CO-17 in Python, CEN's semantics,
                 with the expected and the found amount in each violation
   patches/      planned: patch model, forbidden-field guard, apply + re-validate + diff
@@ -26,6 +28,23 @@ einvoice_core/
 ```
 
 ## Usage
+
+One call validates a document under a profile and returns the whole verdict (ADR-0008):
+
+```python
+from pathlib import Path
+
+from einvoice_core.pipeline import validate
+
+report = validate(Path("invoice.xml").read_bytes(), "srb")
+report.valid  # False when any violation is fatal
+for violation in report.violations:  # XSD, Schematron, SRB-CIUS, arithmetic, in that order
+    print(violation.layer, violation.rule_id, violation.xpath, violation.message)
+for item in report.set_aside:  # EN 16931 rules SRB-CIUS widens, with the reason
+    print(item.violation.rule_id, item.reason, item.replaced_by)
+```
+
+The layers can also be used one by one:
 
 ```python
 from einvoice_core.ubl import parse_invoice
