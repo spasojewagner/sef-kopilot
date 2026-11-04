@@ -7,7 +7,19 @@ from __future__ import annotations
 
 from typing import Final
 
-__all__ = ["BUYER", "PAYEE", "SELLER", "TAX_REPRESENTATIVE", "VAT_IDENTIFIER"]
+__all__ = [
+    "BUYER",
+    "CITY",
+    "COUNTRY_CODE",
+    "LEGAL_REGISTRATION",
+    "PAYEE",
+    "POST_CODE",
+    "SELLER",
+    "SERBIA",
+    "TAX_REPRESENTATIVE",
+    "VAT_IDENTIFIER",
+    "VAT_STATUS",
+]
 
 #: The seller (BG-4).
 SELLER: Final = "cac:AccountingSupplierParty/cac:Party"
@@ -21,3 +33,19 @@ TAX_REPRESENTATIVE: Final = "cac:TaxRepresentativeParty"
 VAT_IDENTIFIER: Final = (
     "cac:PartyTaxScheme[normalize-space(cac:TaxScheme/cbc:ID) = 'VAT']/cbc:CompanyID"
 )
+#: A party's VAT registration status (BT-32, seller only): the registration filed under the
+#: Serbian scheme RS-VAT-STATUS.
+VAT_STATUS: Final = (
+    "cac:PartyTaxScheme[normalize-space(cac:TaxScheme/cbc:ID) = 'RS-VAT-STATUS']/cbc:CompanyID"
+)
+#: A party's legal registration identifier (BT-30, BT-47, BT-61).
+LEGAL_REGISTRATION: Final = "cac:PartyLegalEntity/cbc:CompanyID"
+#: A party's city (BT-37, BT-52, BT-66).
+CITY: Final = "cac:PostalAddress/cbc:CityName"
+#: A party's post code (BT-38, BT-53, BT-67).
+POST_CODE: Final = "cac:PostalAddress/cbc:PostalZone"
+#: A party's country code (BT-40, BT-55, BT-69).
+COUNTRY_CODE: Final = "cac:PostalAddress/cac:Country/cbc:IdentificationCode"
+#: The country code SRB-CIUS prescribes for Serbia (BT-40, BT-55, BT-69). Where a usage note
+#: applies to residents, a party whose address has this code is treated as resident.
+SERBIA: Final = "RS"

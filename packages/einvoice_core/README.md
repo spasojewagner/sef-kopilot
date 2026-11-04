@@ -86,6 +86,16 @@ for violation in validate_srb(tree):
 | SRB-007 | Seller, buyer and tax representative have a VAT identifier RS followed by a PIB | BT-31, BT-48, BT-63 | fatal |
 | SRB-008 | Seller and buyer electronic addresses are a PIB with scheme 9948 | BT-34, BT-49 | fatal |
 | SRB-009 | Every nine-digit PIB has a serial number in range and a valid check digit | BT-31, BT-34, BT-48, BT-49, BT-63 | fatal |
+| SRB-010 | A public-procurement buyer reference is JN-JBKJS: followed by five digits | BT-10 | fatal |
+| SRB-011 | A preceding invoice reference gives the preceding invoice's issue date | BG-3, BT-26 | fatal |
+| SRB-012 | Buyer, payee and a resident seller give a legal registration number, without a scheme | BT-30, BT-47, BT-61 | fatal |
+| SRB-013 | The seller states its VAT registration status | BT-32 | warning |
+| SRB-014 | The seller's VAT registration status is VAT or NO-VAT | BT-32 | fatal |
+| SRB-015 | Seller, buyer and tax representative addresses name the city | BT-37, BT-52, BT-66 | fatal |
+| SRB-016 | A resident seller and a tax representative give a post code | BT-38, BT-67 | fatal |
+| SRB-017 | The buyer's address gives a post code | BT-53 | warning |
+| SRB-018 | The actual delivery date is given when VAT is due on supply or on collection | BT-8, BT-72 | fatal |
+| SRB-019 | A payment model in the remittance information is written (modNN) reference | BT-83 | fatal |
 
 A test keeps this table identical to the rules.
 

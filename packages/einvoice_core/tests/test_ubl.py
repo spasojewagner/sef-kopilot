@@ -52,7 +52,7 @@ def test_invoice_parties(invoice: model.Invoice) -> None:
     assert seller.trading_name == "Primer Softver"
     assert seller.electronic_address == model.Identifier(value="100000024", scheme="9948")
     assert seller.vat_identifier == "RS100000024"
-    assert seller.tax_registration_identifier is None
+    assert seller.tax_registration_identifier == "VAT"  # SRB-CIUS: the VAT status
     assert seller.legal_registration_id == model.Identifier(value="20000006", scheme=None)
     assert seller.address is not None
     assert (
@@ -84,7 +84,7 @@ def test_invoice_delivery_and_payment(invoice: model.Invoice) -> None:
     assert payment.xpath == "/ubl:Invoice/cac:PaymentMeans"
     assert payment.means_code == "30"
     assert payment.means_text == "Prenos na račun"
-    assert payment.remittance_information == ("97 12-345678-00123",)
+    assert payment.remittance_information == ("(mod97) 12-345678-00123",)
     assert payment.due_date is None
     (account,) = payment.credit_transfers
     assert account.account_id == "160-0000000123456-78"

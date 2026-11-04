@@ -40,6 +40,12 @@
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
       </cac:PartyTaxScheme>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>VAT</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>RS-VAT-STATUS</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>Primer Softver d.o.o.</cbc:RegistrationName>
         <cbc:CompanyID>20000006</cbc:CompanyID>
@@ -77,7 +83,7 @@
   </cac:Delivery>
   <cac:PaymentMeans>
     <cbc:PaymentMeansCode name="Prenos na račun">30</cbc:PaymentMeansCode>
-    <cbc:PaymentID>97 12-345678-00123</cbc:PaymentID>
+    <cbc:PaymentID>(mod97) 12-345678-00123</cbc:PaymentID>
     <cac:PayeeFinancialAccount>
       <cbc:ID>160-0000000123456-78</cbc:ID>
       <cbc:Name>Primer Softver d.o.o.</cbc:Name>

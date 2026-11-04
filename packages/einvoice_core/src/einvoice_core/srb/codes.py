@@ -13,6 +13,7 @@ __all__ = [
     "SPECIFICATION_IDENTIFIER",
     "SPECIFICATION_IDENTIFIERS",
     "SPECIFICATION_IDENTIFIER_EXTENDED",
+    "VAT_STATUSES",
 ]
 
 #: BT-24 without the Serbian extension (SRB-CIUS 1.2).
@@ -29,4 +30,10 @@ INVOICE_TYPE_CODES: Final[dict[str, str]] = {
     "381": "credit note",
     "383": "debit note",
     "386": "advance invoice",
+}
+
+#: BT-32, the seller's VAT registration status (SRB-CIUS 1.3, Table 1, BT-32).
+VAT_STATUSES: Final[dict[str, str]] = {
+    "VAT": "in the VAT register",
+    "NO-VAT": "not in the VAT register",
 }

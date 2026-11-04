@@ -75,6 +75,16 @@ class Document:
         found = self.find_all(path, context)
         return found[0] if found else None
 
+    def text(self, path: str, context: etree._Element | None = None) -> str | None:
+        """The stripped text of the first element matching ``path``; ``None`` if absent or empty.
+
+        Rules treat an element without text like a missing one: both leave the business term
+        without a value.
+        """
+        element = self.find(path, context)
+        value = (element.text or "").strip() if element is not None else ""
+        return value or None
+
 
 @dataclass(frozen=True)
 class Rule:

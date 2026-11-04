@@ -9,7 +9,10 @@ from einvoice_core.srb.rules.srb_007_vat_identifiers import RULE
 from .conftest import Case
 
 SELLER = "cac:AccountingSupplierParty/cac:Party"
-SELLER_VAT = f"{SELLER}/cac:PartyTaxScheme/cbc:CompanyID"
+SELLER_VAT_SCHEME = f"{SELLER}/cac:PartyTaxScheme[cac:TaxScheme/cbc:ID = 'VAT']"
+SELLER_VAT = f"{SELLER_VAT_SCHEME}/cbc:CompanyID"
+#: The seller files two tax registrations: VAT (BT-31) first, the VAT status (BT-32) second.
+SELLER_VAT_XPATH = f"/ubl:Invoice/{SELLER}/cac:PartyTaxScheme[1]/cbc:CompanyID"
 VAT_SCHEME = (
     "<cac:PartyTaxScheme><cbc:CompanyID>RS100000032</cbc:CompanyID>"
     "<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>"
@@ -47,21 +50,21 @@ def test_satisfied_by_a_tax_representative_with_a_vat_identifier(case: Case) -> 
 def test_broken_by_a_missing_prefix_or_a_malformed_pib(case: Case, value: str) -> None:
     (violation,) = case.set_text(SELLER_VAT, value).violations(RULE)
 
-    assert violation.xpath == f"/ubl:Invoice/{SELLER_VAT}"
+    assert violation.xpath == SELLER_VAT_XPATH
     assert violation.message.endswith(f"found '{value}'.")
 
 
 def test_broken_by_a_missing_seller_vat_identifier(case: Case) -> None:
-    (violation,) = case.remove(f"{SELLER}/cac:PartyTaxScheme").violations(RULE)
+    (violation,) = case.remove(SELLER_VAT_SCHEME).violations(RULE)
 
     assert violation.xpath == f"/ubl:Invoice/{SELLER}"
     assert "seller VAT identifier (BT-31) is required" in violation.message
 
 
 def test_broken_by_a_registration_under_another_tax_scheme(case: Case) -> None:
-    scheme = f"{SELLER}/cac:PartyTaxScheme/cac:TaxScheme/cbc:ID"
-
-    (violation,) = case.set_text(scheme, "RS-VAT-STATUS").violations(RULE)
+    (violation,) = case.set_text(f"{SELLER_VAT_SCHEME}/cac:TaxScheme/cbc:ID", "PDV").violations(
+        RULE
+    )
 
     assert "seller VAT identifier (BT-31) is required" in violation.message
 

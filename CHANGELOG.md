@@ -16,6 +16,12 @@ is tagged.
 
 ### Added
 
+- `einvoice_core`: SRB-CIUS rules SRB-010 to SRB-019: the public-procurement buyer reference,
+  the preceding invoice's issue date, legal registration numbers, the seller's VAT
+  registration status (BT-32, `RS-VAT-STATUS`), cities and post codes, the delivery date when
+  VAT is due on supply or on collection, and the notation of payment models in BT-83. A
+  missing VAT status and a missing buyer post code are warnings, because the official
+  examples omit them (ADR-0006).
 - `einvoice_core`: SRB-CIUS rule layer, authored from the specification (version of
   06.06.2025): one rule per module with an `SRB-NNN` identifier, the business terms it concerns
   and the passages it cites; violations in the `srb-cius` layer. The first nine rules cover the
