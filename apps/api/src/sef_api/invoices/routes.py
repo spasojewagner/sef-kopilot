@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from einvoice_core.model import DocumentType
 from einvoice_core.pipeline import ValidationReport
 from sef_api.auth.dependencies import Principal, check_again, require
-from sef_api.auth.permissions import Permission
+from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.routes import Problem
 from sef_api.db import get_session
 from sef_api.invoices import store
@@ -102,6 +102,41 @@ class StoredInvoiceOut(InvoiceOut):
     """A stored invoice with the validator's report on it when it was stored."""
 
     report: ValidationReport
+
+
+class InvoicePage(BaseModel):
+    """Stored invoices, the newest first."""
+
+    invoices: list[InvoiceOut]
+    next: str | None = Field(
+        description="Pass as `after` for the next page; null on the last page."
+    )
+
+
+_NOT_FOUND: dict[int | str, dict[str, Any]] = {
+    status.HTTP_404_NOT_FOUND: {
+        "model": Problem,
+        "description": "No such invoice among those the caller may see.",
+    }
+}
+_DOWNLOAD: dict[int | str, dict[str, Any]] = {
+    status.HTTP_200_OK: {
+        "description": "The UBL 2.1 document.",
+        "content": {"application/xml": {"schema": {"type": "string", "format": "binary"}}},
+    }
+}
+
+
+def _scope(caller: Principal) -> store.Scope:
+    """The invoices ``caller`` may see: every one of the organization's with
+    ``invoices:manage``, otherwise the ones they submitted."""
+    if Permission.INVOICES_MANAGE in ROLE_PERMISSIONS[caller.role]:
+        return store.Scope(caller.organization_id)
+    return store.Scope(caller.organization_id, submitted_by=caller.user_id)
+
+
+def _not_found() -> HTTPException:
+    return HTTPException(status.HTTP_404_NOT_FOUND, "no such invoice in this organization")
 
 
 def _summary(invoice: StoredInvoice) -> InvoiceSummary | None:
@@ -214,6 +249,82 @@ async def store_invoice(
     response.headers["Location"] = f"/invoices/{invoice.id}"
     response.headers["Cache-Control"] = "no-store"
     return _stored(invoice)
+
+
+@router.get(
+    "",
+    summary="List stored invoices",
+    description=(
+        "The organization's stored invoices, the newest first, a page at a time: what the "
+        "validator read from each and whether it is valid, without the reports. A member "
+        "without `invoices:manage` sees the invoices they submitted."
+    ),
+    responses={
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": Problem,
+            "description": "`after` is not a cursor this API gave.",
+        }
+    },
+)
+async def list_invoices(
+    response: Response,
+    caller: CanSubmit,
+    session: Session,
+    limit: Annotated[int, Query(ge=1, le=store.MAX_PAGE, description="Invoices per page.")] = 50,
+    after: Annotated[
+        str | None,
+        Query(max_length=200, description="The `next` of the page before, to continue it."),
+    ] = None,
+) -> InvoicePage:
+    try:
+        page = await store.page_of(session, _scope(caller), limit=limit, after=after)
+    except store.InvalidCursorError:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "after is not a cursor this API gave"
+        ) from None
+    response.headers["Cache-Control"] = "no-store"
+    return InvoicePage(invoices=[_invoice(invoice) for invoice in page.invoices], next=page.next)
+
+
+@router.get(
+    "/{invoice_id}",
+    summary="Read a stored invoice",
+    description="What the validator read from the invoice and its report when it was stored.",
+    responses=_NOT_FOUND,
+)
+async def get_invoice(
+    invoice_id: uuid.UUID, response: Response, caller: CanSubmit, session: Session
+) -> StoredInvoiceOut:
+    invoice = await store.find(session, _scope(caller), invoice_id)
+    if invoice is None:
+        raise _not_found()
+    response.headers["Cache-Control"] = "no-store"
+    return _stored(invoice)
+
+
+@router.get(
+    "/{invoice_id}/content",
+    summary="Download a stored invoice",
+    description=(
+        "The document as it was sent, byte for byte, as an attachment: a browser saves it "
+        "rather than renders it."
+    ),
+    response_class=Response,
+    responses=_DOWNLOAD | _NOT_FOUND,
+)
+async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Session) -> Response:
+    content = await store.content_of(session, _scope(caller), invoice_id)
+    if content is None:
+        raise _not_found()
+    return Response(
+        content,
+        media_type="application/xml",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": f'attachment; filename="invoice-{invoice_id}.xml"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 async def _validated(

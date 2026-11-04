@@ -30,6 +30,13 @@ def test_every_role_may_have_an_invoice_validated_and_store_invoices() -> None:
     }
 
 
+def test_owners_and_accountants_read_every_stored_invoice_and_clients_their_own() -> None:
+    assert [role for role in Role if Permission.INVOICES_MANAGE in ROLE_PERMISSIONS[role]] == [
+        Role.OWNER,
+        Role.ACCOUNTANT,
+    ]
+
+
 def test_only_owners_manage_members() -> None:
     assert [role for role in Role if Permission.MEMBERS_MANAGE in ROLE_PERMISSIONS[role]] == [
         Role.OWNER
