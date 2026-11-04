@@ -17,3 +17,4 @@ per branch, to keep them with the code they describe.
 | `feat/core-srb-cius-extension-rules` | [m1-core-srb-cius-extension-rules.md](m1-core-srb-cius-extension-rules.md) |
 | `feat/core-arithmetic-rules` | [m1-core-arithmetic-rules.md](m1-core-arithmetic-rules.md) |
 | `feat/core-validation-pipeline` | [m1-core-validation-pipeline.md](m1-core-validation-pipeline.md) |
+| `feat/core-cli` | [m1-core-cli.md](m1-core-cli.md) |

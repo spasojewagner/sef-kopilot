@@ -247,3 +247,20 @@ rule ids where a rule is right about the invoice and wrong only about a Serbian 
 schema errors; a violation limit that does not affect the verdict.
 
 Next: `feat/core-cli`.
+
+## 2026-11-04 — `feat/core-cli` (4 commits, stacked on `feat/core-validation-pipeline`)
+
+Outcome: the `einvoice` command. `einvoice validate PATH ...` runs the pipeline under a profile
+and prints each document's verdict with located violations (or, with `--format json`, the full
+reports); `--show-set-aside` lists the EN 16931 rules the profile does not apply, with their
+reasons. `einvoice rules` lists what a profile checks. Exit status 0 valid, 1 invalid, 2 error.
+A path may be a directory or a pattern such as `*.xml`, which cmd and PowerShell leave to the
+program. ADR-0009, interview notes, README quick start. Pipeline follow-up: a set-aside
+calculation report names only its own rule as the one that checks the matter instead.
+
+Verification: 1 279 tests green; core coverage 100 % (branches included).
+
+Decisions: `argparse` rather than a CLI library; a missing file is an error (2), a malformed
+document a verdict (1); JSON ASCII-escaped; streams that cannot encode a character replace it.
+
+Next: `feat/core-fixtures-corpus`.
