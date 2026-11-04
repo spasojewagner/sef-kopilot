@@ -5,8 +5,9 @@ from __future__ import annotations
 import pytest
 
 from einvoice_core import pipeline, schematron
-from einvoice_core.pipeline import PROFILES, ValidationReport, validate
+from einvoice_core.pipeline import PROFILES, SRB_SET_ASIDE, ValidationReport, validate
 from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
+from einvoice_core.violations import Severity, Violation
 from einvoice_core.xml import ParseError, load_document
 
 from .conftest import SYNTHETIC_DIR, THIRD_PARTY
@@ -64,6 +65,67 @@ def test_a_document_that_is_not_xml_is_reported_not_raised() -> None:
     assert not report.valid
     assert ran(report) == dict.fromkeys(ALL_LAYERS, False) | {"xml": True}
     assert {o.note for o in report.layers if not o.ran} == {"the document could not be read"}
+
+
+@pytest.mark.parametrize(
+    ("xpath", "currency", "expected"),
+    [
+        ("/ubl:Invoice/cac:TaxTotal[2]/cac:TaxSubtotal/cac:TaxCategory", "EUR", True),
+        ("/ubl:Invoice/cac:TaxTotal[1]/cbc:TaxAmount", "EUR", False),
+        ("/ubl:Invoice/cac:TaxTotal", "RSD", False),
+        ("/ubl:Invoice/cac:TaxTotal[7]", "EUR", False),
+        ("/ubl:Invoice/cac:LegalMonetaryTotal", "EUR", False),
+        (None, "EUR", False),
+    ],
+)
+def test_a_vat_total_in_another_currency_is_the_rsd_copy(
+    xpath: str | None, currency: str, expected: bool
+) -> None:
+    source = INVOICE.replace(
+        ">RSD</cbc:DocumentCurrencyCode>", f">{currency}</cbc:DocumentCurrencyCode>"
+    )
+    source = source.replace(
+        '<cbc:TaxAmount currencyID="RSD">2400.00</cbc:TaxAmount>',
+        f'<cbc:TaxAmount currencyID="{currency}">2400.00</cbc:TaxAmount>',
+        1,
+    )
+    source = source.replace(
+        "  <cac:LegalMonetaryTotal>",
+        '  <cac:TaxTotal><cbc:TaxAmount currencyID="RSD">2400.00</cbc:TaxAmount></cac:TaxTotal>\n'
+        "  <cac:LegalMonetaryTotal>",
+    )
+    root = load_document(source.encode()).getroot()
+    violation = Violation(
+        rule_id="BR-S-08", severity=Severity.FATAL, message="m", xpath=xpath, layer="schematron"
+    )
+    rsd_copy = SRB_SET_ASIDE[-1]
+
+    assert rsd_copy.applies_to(violation, root) is expected
+
+
+def test_the_vat_copy_needs_an_invoice_currency_to_compare_with() -> None:
+    root = load_document(
+        edited(INVOICE, ("<cbc:DocumentCurrencyCode>RSD</cbc:DocumentCurrencyCode>", ""))
+    ).getroot()
+    violation = Violation(
+        rule_id="BR-S-08",
+        severity=Severity.FATAL,
+        message="m",
+        xpath="/ubl:Invoice/cac:TaxTotal",
+        layer="schematron",
+    )
+
+    assert not SRB_SET_ASIDE[-1].applies_to(violation, root)
+
+
+def test_the_building_code_set_aside_needs_a_located_violation() -> None:
+    root = load_document(INVOICE.encode()).getroot()
+    (building,) = (rule for rule in SRB_SET_ASIDE if rule.rule_ids == frozenset({"BR-S-10"}))
+    violation = Violation(
+        rule_id="BR-S-10", severity=Severity.FATAL, message="m", xpath=None, layer="schematron"
+    )
+
+    assert not building.applies_to(violation, root)
 
 
 def test_every_profile_hands_the_calculation_rules_to_the_arithmetic_layer() -> None:
@@ -129,6 +191,91 @@ def test_the_arithmetic_layer_reports_the_calculation_rules_with_the_amounts() -
     assert rule_ids(report, "schematron") == set()
     assert set(set_aside(report)) == {"BR-CO-15", "BR-CO-16"}
     assert "states the expected amount" in set_aside(report)["BR-CO-15"]
+
+
+@needs_rule_sets
+def test_srb_sets_aside_reverse_charge_at_a_rate_and_serbian_codes() -> None:
+    reverse_charge = edited(
+        INVOICE,
+        ("<cbc:ID>S</cbc:ID>", "<cbc:ID>AE</cbc:ID>"),
+        ("<cbc:ID>S</cbc:ID>", "<cbc:ID>AE</cbc:ID>"),
+        (
+            "<cbc:Percent>20</cbc:Percent>",
+            "<cbc:Percent>20</cbc:Percent>"
+            "<cbc:TaxExemptionReasonCode>PDV-RS-10-2-1</cbc:TaxExemptionReasonCode>",
+        ),
+    )
+
+    srb = validate(reverse_charge, "srb")
+    en16931 = validate(reverse_charge, "en16931")
+
+    assert srb.valid
+    assert set(set_aside(srb)) == {"BR-AE-05", "BR-AE-09", "BR-CL-22"}
+    assert rule_ids(en16931, "schematron") == {"BR-AE-05", "BR-AE-09", "BR-CL-22"}
+
+
+@needs_rule_sets
+def test_srb_sets_aside_the_building_code_on_s_only() -> None:
+    def with_code(code: str) -> bytes:
+        return edited(
+            INVOICE,
+            (
+                "<cbc:Percent>20</cbc:Percent>",
+                f"<cbc:Percent>20</cbc:Percent><cbc:TaxExemptionReasonCode>{code}"
+                "</cbc:TaxExemptionReasonCode>",
+            ),
+        )
+
+    building = validate(with_code("PDV-RS-OBJ"), "srb")
+    other = validate(with_code("PDV-RS-25-1-1"), "srb")
+
+    assert set(set_aside(building)) == {"BR-CL-22", "BR-S-10"}
+    assert "BR-S-10" in rule_ids(other, "schematron")
+    assert "SRB-022" in rule_ids(other, "srb-cius")
+
+
+@needs_rule_sets
+def test_srb_sets_aside_what_en16931_says_about_the_serbian_extension() -> None:
+    extension = (
+        "<ext:UBLExtensions xmlns:ext='urn:oasis:names:specification:ubl:schema:xsd:"
+        "CommonExtensionComponents-2'><ext:UBLExtension><ext:ExtensionContent>"
+        "<sbt:SrbDtExt xmlns:sbt='http://mfin.gov.rs/srbdt/srbdtext'><sbt:ReducedTotals>"
+        "<cac:LegalMonetaryTotal><cbc:TaxExclusiveAmount currencyID='RSD'>0.00"
+        "</cbc:TaxExclusiveAmount><cbc:PayableAmount currencyID='RSD'>0.00</cbc:PayableAmount>"
+        "</cac:LegalMonetaryTotal></sbt:ReducedTotals></sbt:SrbDtExt>"
+        "</ext:ExtensionContent></ext:UBLExtension></ext:UBLExtensions>"
+    )
+    document = edited(INVOICE, ("  <cbc:CustomizationID>", f"{extension}<cbc:CustomizationID>"))
+
+    srb = validate(document, "srb")
+    en16931 = validate(document, "en16931")
+
+    assert {"BR-12", "UBL-CR-001"} <= set(set_aside(srb))
+    assert "Serbian extension" in set_aside(srb)["BR-12"]
+    assert rule_ids(srb, "schematron") == set()
+    assert {"BR-12", "UBL-CR-001"} <= rule_ids(en16931, "schematron")
+
+
+@needs_rule_sets
+def test_srb_sets_aside_reports_about_the_rsd_copy_of_the_breakdown() -> None:
+    rsd_copy = edited(
+        CREDIT_NOTE,
+        (
+            '<cbc:TaxAmount currencyID="RSD">21215.20</cbc:TaxAmount>',
+            '<cbc:TaxAmount currencyID="RSD">21215.20</cbc:TaxAmount><cac:TaxSubtotal>'
+            '<cbc:TaxableAmount currencyID="RSD">106076.00</cbc:TaxableAmount>'
+            '<cbc:TaxAmount currencyID="RSD">21215.20</cbc:TaxAmount><cac:TaxCategory>'
+            "<cbc:ID>S</cbc:ID><cbc:Percent>20</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID>"
+            "</cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal>",
+        ),
+    )
+
+    srb = validate(rsd_copy, "srb")
+    en16931 = validate(rsd_copy, "en16931")
+
+    assert "BR-S-08" in set_aside(srb)
+    assert "RSD copy" in set_aside(srb)["BR-S-08"]
+    assert "BR-S-08" in rule_ids(en16931, "schematron")
 
 
 @needs_rule_sets
