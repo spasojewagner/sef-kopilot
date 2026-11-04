@@ -1,4 +1,4 @@
-"""Issuing API keys, and finding the member a key acts for.
+"""Issuing, listing and revoking API keys, and finding the member a key acts for.
 
 A key is ``sefk_`` and 43 characters of base64url, 256 random bits. The prefix tells a key from
 an access token in the same ``Authorization: Bearer`` header, and lets a secret scanner
@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Final
 
-from sqlalchemy import ColumnElement, func, or_, select
+from sqlalchemy import ColumnElement, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
@@ -34,10 +34,13 @@ __all__ = [
     "Holder",
     "Issued",
     "NotGrantedError",
+    "Scope",
     "TooManyKeysError",
     "authenticate",
     "is_api_key",
     "issue",
+    "keys_in",
+    "revoke",
     "still_works",
     "working_keys",
 ]
@@ -79,6 +82,21 @@ class Holder:
     organization_id: uuid.UUID
     role: Role
     grant: Grant
+
+
+@dataclass(frozen=True)
+class Scope:
+    """The keys a caller may see and revoke: the organization's, or only those acting for
+    ``user_id``."""
+
+    organization_id: uuid.UUID
+    user_id: uuid.UUID | None = None
+
+    def holds(self) -> ColumnElement[bool]:
+        own = ApiKey.organization_id == self.organization_id
+        if self.user_id is None:
+            return own
+        return own & (ApiKey.user_id == self.user_id)
 
 
 @dataclass(frozen=True)
@@ -201,3 +219,31 @@ async def still_works(
         select(ApiKey.id).where(ApiKey.id == key_id).where(*_live(now or datetime.now(UTC)))
     )
     return found is not None
+
+
+async def keys_in(
+    session: AsyncSession, scope: Scope, *, now: datetime | None = None
+) -> list[ApiKey]:
+    """The keys in ``scope`` that work, the newest first."""
+    found = await session.scalars(
+        select(ApiKey)
+        .where(scope.holds())
+        .where(*_live(now or datetime.now(UTC)))
+        .order_by(ApiKey.created_at.desc(), ApiKey.id.desc())
+    )
+    return list(found.all())
+
+
+async def revoke(
+    session: AsyncSession, scope: Scope, key_id: uuid.UUID, *, now: datetime | None = None
+) -> bool:
+    """Stop the key with ``key_id`` in ``scope`` from working, and commit; False when there is
+    no such key. Revoking a key that works no longer changes nothing."""
+    revoked = await session.scalar(
+        update(ApiKey)
+        .where(scope.holds(), ApiKey.id == key_id)
+        .values(revoked_at=func.coalesce(ApiKey.revoked_at, now or datetime.now(UTC)))
+        .returning(ApiKey.id)
+    )
+    await session.commit()
+    return revoked is not None

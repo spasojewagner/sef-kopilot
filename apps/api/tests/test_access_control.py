@@ -306,7 +306,29 @@ async def _issued_in_ogled(response: Response, session: AsyncSession, w: World) 
     )
 
 
+async def _lists_only_ogleds_keys(response: Response, session: AsyncSession, w: World) -> None:
+    assert [key["id"] for key in response.json()] == [str(w.ogled_key.row.id)]
+
+
+async def _primers_key_still_works(response: Response, session: AsyncSession, w: World) -> None:
+    assert (response.status_code, response.json()) == (
+        404,
+        {"detail": "no such API key in this organization"},
+    )
+    assert await session.scalar(select(ApiKey.revoked_at).where(ApiKey.id == w.key.row.id)) is None
+
+
 GUARDED: dict[Endpoint, Guarded] = {
+    ("GET", "/api-keys"): Guarded(
+        Permission.API_KEYS_ISSUE, False, lambda _: "/api-keys", None, _lists_only_ogleds_keys
+    ),
+    ("DELETE", "/api-keys/{key_id}"): Guarded(
+        Permission.API_KEYS_ISSUE,
+        False,
+        lambda w: f"/api-keys/{w.key.row.id}",
+        None,
+        _primers_key_still_works,
+    ),
     ("POST", "/api-keys"): Guarded(
         Permission.API_KEYS_ISSUE,
         False,

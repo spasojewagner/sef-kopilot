@@ -1,4 +1,5 @@
-"""API keys on PostgreSQL: issuing one, and a machine client acting for its member with it."""
+"""API keys on PostgreSQL: issuing one, a machine client acting for its member with it, and
+listing and revoking keys."""
 
 from __future__ import annotations
 
@@ -310,6 +311,89 @@ async def test_who_am_i_names_the_member_a_key_acts_for(
     assert response.json()["role"] == "client"
 
 
+# --- listing and revoking ----------------------------------------------------------------------
+
+
+async def test_a_member_lists_the_keys_that_work_newest_first_without_the_keys(
+    api: AsyncClient, session: AsyncSession, primer: Office
+) -> None:
+    moment = datetime.now(UTC)
+    await api_key(session, primer.organization, primer.client, revoked_at=moment)
+    await api_key(session, primer.organization, primer.client, expires_at=moment)
+    older = await api_key(
+        session,
+        primer.organization,
+        primer.client,
+        Permission.INVOICES_SUBMIT,
+        created_at=moment - timedelta(days=1),
+    )
+    issued = (await issue(api, primer.as_client(), name="Minimax")).json()
+
+    listed = await api.get("/api-keys", headers=primer.as_client())
+
+    assert listed.status_code == 200
+    assert [key["id"] for key in listed.json()] == [issued["id"], str(older.row.id)]
+    assert listed.json()[0] == {field: value for field, value in issued.items() if field != "key"}
+
+
+async def test_an_owner_sees_and_revokes_every_key_of_the_organization(
+    api: AsyncClient, session: AsyncSession, primer: Office
+) -> None:
+    clients = await api_key(session, primer.organization, primer.client, Permission.INVOICES_SUBMIT)
+    accountants = await api_key(session, primer.organization, primer.accountant)
+
+    listed = await api.get("/api-keys", headers=primer.as_owner())
+    revoked = await api.delete(f"/api-keys/{clients.row.id}", headers=primer.as_owner())
+
+    assert sorted(key["id"] for key in listed.json()) == sorted(
+        [str(clients.row.id), str(accountants.row.id)]
+    )
+    assert revoked.status_code == 204
+    assert (await api.get("/invoices", headers=clients.header())).status_code == 401
+    assert (await api.get("/invoices", headers=accountants.header())).status_code == 200
+
+
+async def test_a_member_without_api_keys_manage_sees_and_revokes_only_their_own(
+    api: AsyncClient, session: AsyncSession, primer: Office
+) -> None:
+    clients = await api_key(session, primer.organization, primer.client, Permission.INVOICES_SUBMIT)
+    accountants = await api_key(session, primer.organization, primer.accountant)
+
+    listed = await api.get("/api-keys", headers=primer.as_accountant())
+    refused = await api.delete(f"/api-keys/{clients.row.id}", headers=primer.as_accountant())
+
+    assert [key["id"] for key in listed.json()] == [str(accountants.row.id)]
+    assert (refused.status_code, refused.json()) == (
+        404,
+        {"detail": "no such API key in this organization"},
+    )
+    assert (await api.get("/invoices", headers=clients.header())).status_code == 200
+
+
+async def test_a_revoked_key_stops_working_and_revoking_it_again_changes_nothing(
+    api: AsyncClient, session: AsyncSession, primer: Office
+) -> None:
+    key = await api_key(session, primer.organization, primer.client, Permission.INVOICES_SUBMIT)
+
+    revoked = await api.delete(f"/api-keys/{key.row.id}", headers=primer.as_client())
+    await session.refresh(key.row)
+    first = key.row.revoked_at
+    again = await api.delete(f"/api-keys/{key.row.id}", headers=primer.as_client())
+    await session.refresh(key.row)
+
+    assert (revoked.status_code, again.status_code) == (204, 204)
+    assert first is not None
+    assert key.row.revoked_at == first
+    assert (await api.get("/invoices", headers=key.header())).status_code == 401
+    assert (await api.get("/api-keys", headers=primer.as_client())).json() == []
+
+
+async def test_an_unknown_key_is_not_found(api: AsyncClient, primer: Office) -> None:
+    response = await api.delete(f"/api-keys/{primer.organization.id}", headers=primer.as_owner())
+
+    assert response.status_code == 404
+
+
 # --- how many keys a member may have -----------------------------------------------------------
 
 
@@ -378,14 +462,20 @@ async def test_keys_issued_at_the_same_moment_cannot_exceed_the_limit(
     assert sorted(results) == ["issued", "refused"]
 
 
-async def test_openapi_documents_issuing_a_key(client: AsyncClient) -> None:
+async def test_openapi_documents_the_api_keys(client: AsyncClient) -> None:
     schema = (await client.get("/openapi.json")).json()
-    operation = schema["paths"]["/api-keys"]["post"]
+    paths = schema["paths"]
     request = schema["components"]["schemas"]["KeyRequest"]["properties"]
 
-    assert operation["tags"] == ["api keys"]
-    assert operation["security"] == [{"access token or API key": []}]
-    assert set(operation["responses"]) == {"201", "403", "409", "422"}
+    for path, method in [
+        ("/api-keys", "post"),
+        ("/api-keys", "get"),
+        ("/api-keys/{key_id}", "delete"),
+    ]:
+        assert paths[path][method]["tags"] == ["api keys"]
+        assert paths[path][method]["security"] == [{"access token or API key": []}]
+    assert set(paths["/api-keys"]["post"]["responses"]) == {"201", "403", "409", "422"}
+    assert set(paths["/api-keys/{key_id}"]["delete"]["responses"]) == {"204", "404", "422"}
     assert request["permissions"]["items"]["enum"] == [
         "invoices:validate",
         "invoices:submit",

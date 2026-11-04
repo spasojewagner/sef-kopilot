@@ -227,17 +227,18 @@ async def test_a_deleted_invoice_stays_deleted(
         assert await session.scalar(select(StoredInvoice.id)) is None
 
 
-async def test_an_issued_api_key_is_kept(committed_api: AsyncClient) -> None:
+async def test_an_issued_api_key_and_its_revocation_are_kept(committed_api: AsyncClient) -> None:
     ana = await register(committed_api)
     issued = await committed_api.post(
         "/api-keys",
         json={"name": "ERP", "permissions": ["invoices:validate"]},
         headers=bearer(ana),
     )
+    key = {"Authorization": f"Bearer {issued.json()['key']}"}
 
-    response = await committed_api.get(
-        "/auth/me", headers={"Authorization": f"Bearer {issued.json()['key']}"}
-    )
+    working = await committed_api.get("/auth/me", headers=key)
+    await committed_api.delete(f"/api-keys/{issued.json()['id']}", headers=bearer(ana))
+    revoked = await committed_api.get("/auth/me", headers=key)
 
     assert issued.status_code == 201
-    assert response.status_code == 200
+    assert (working.status_code, revoked.status_code) == (200, 401)

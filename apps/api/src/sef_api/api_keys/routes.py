@@ -62,6 +62,14 @@ class IssuedKey(KeyOut):
     )
 
 
+def _scope(caller: Principal) -> service.Scope:
+    """The keys ``caller`` may see and revoke: every key of the organization with
+    ``api_keys:manage``, otherwise their own."""
+    if caller.may(Permission.API_KEYS_MANAGE):
+        return service.Scope(caller.organization_id)
+    return service.Scope(caller.organization_id, user_id=caller.user_id)
+
+
 def _key(key: ApiKey) -> KeyOut:
     return KeyOut(
         id=key.id,
@@ -117,3 +125,31 @@ async def issue_key(body: KeyRequest, caller: CanIssue, session: Session) -> Iss
             f"a member has at most {service.MAX_KEYS_PER_MEMBER} API keys; revoke one first",
         ) from None
     return IssuedKey(**_key(issued.key).model_dump(), key=issued.secret)
+
+
+@router.get(
+    "",
+    summary="List API keys",
+    description=(
+        "The keys that work, the newest first, without the keys themselves: the caller's own, "
+        "or with `api_keys:manage` every key of the organization."
+    ),
+)
+async def list_keys(caller: CanIssue, session: Session) -> list[KeyOut]:
+    return [_key(key) for key in await service.keys_in(session, _scope(caller))]
+
+
+@router.delete(
+    "/{key_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revoke an API key",
+    description=(
+        "The key stops working at once. The caller revokes their own keys, or with "
+        "`api_keys:manage` any key of the organization. Revoking a key that works no longer "
+        "changes nothing."
+    ),
+    responses={status.HTTP_404_NOT_FOUND: {"model": Problem, "description": "No such key."}},
+)
+async def revoke_key(key_id: uuid.UUID, caller: CanIssue, session: Session) -> None:
+    if not await service.revoke(session, _scope(caller), key_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such API key in this organization")

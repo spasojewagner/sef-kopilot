@@ -34,7 +34,9 @@ class Permission(StrEnum):
     """Read and delete every invoice the organization stores, whoever submitted it."""
     API_KEYS_ISSUE = "api_keys:issue"
     """Issue API keys with which machine clients act for oneself, with some of one's
-    permissions."""
+    permissions, and see and revoke one's own."""
+    API_KEYS_MANAGE = "api_keys:manage"
+    """See and revoke every API key of the organization, whoever it acts for."""
 
 
 #: What an API key may be allowed: the work on invoices that machine clients do. A key

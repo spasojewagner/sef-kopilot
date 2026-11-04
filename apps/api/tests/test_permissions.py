@@ -58,8 +58,11 @@ def test_a_caller_may_do_what_their_role_grants(role: Role) -> None:
     )
 
 
-def test_every_role_may_issue_api_keys() -> None:
+def test_every_role_may_issue_api_keys_and_only_owners_see_everyones() -> None:
     assert all(Permission.API_KEYS_ISSUE in ROLE_PERMISSIONS[role] for role in Role)
+    assert [role for role in Role if Permission.API_KEYS_MANAGE in ROLE_PERMISSIONS[role]] == [
+        Role.OWNER
+    ]
 
 
 def test_a_key_may_hold_only_permissions_for_work_on_invoices() -> None:
