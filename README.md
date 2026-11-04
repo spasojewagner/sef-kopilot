@@ -144,6 +144,7 @@ cd sef-kopilot
 make setup        # uv sync --all-packages · pnpm install --frozen-lockfile · pre-commit hooks
 make rulesets     # fetch the pinned EN 16931 and Peppol BIS rule sets into third_party/
 make up           # PostgreSQL 16 + pgvector and Redis in Docker (needs a running Docker daemon)
+make migrate      # apply the database migrations (Alembic) to the database of `make up`
 make test         # core, api and web test suites with their coverage gates
 make lint         # ruff, Prettier, ESLint — no changes
 make typecheck    # mypy --strict and tsc --noEmit

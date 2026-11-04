@@ -15,6 +15,7 @@ classifiers = [
 ]
 dependencies = [
   "einvoice-core",
+  "alembic>=1.20",
   "asyncpg>=0.32",
   "fastapi>=0.162",
   "pydantic-settings>=2.16",

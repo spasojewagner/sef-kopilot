@@ -2,8 +2,8 @@
 
 Tests that need PostgreSQL run on the server named by ``SEF_TEST_DATABASE_URL`` (taken from the
 environment or the repository's ``.env``), for example the one ``make up`` starts. The suite
-creates a database of its own there and drops it at the end, and every test runs in a
-transaction that is rolled back. Without the variable those tests are skipped; CI sets it.
+creates a database of its own there, migrates it and drops it at the end, and every test runs in
+a transaction that is rolled back. Without the variable those tests are skipped; CI sets it.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+from alembic import command
 from httpx import ASGITransport, AsyncClient
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import text
@@ -23,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from sef_api.main import create_app
+from sef_api.migrations import alembic_config
 from sef_api.settings import Settings
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -70,7 +72,15 @@ def temporary_database() -> Iterator[str]:
 
 @pytest.fixture(scope="session")
 def database_url() -> Iterator[str]:
-    """The suite's database."""
+    """The suite's database, migrated to the latest revision."""
+    with temporary_database() as url:
+        command.upgrade(alembic_config(url), "head")
+        yield url
+
+
+@pytest.fixture
+def empty_database_url() -> Iterator[str]:
+    """A database for one test, without any migration applied."""
     with temporary_database() as url:
         yield url
 

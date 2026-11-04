@@ -116,7 +116,7 @@ jobs:
     name: api tests
     runs-on: ubuntu-latest
     # PostgreSQL 16 with pgvector, the image of infra/docker-compose.yml. The test suite creates
-    # and drops its own databases on this server.
+    # and drops its own databases on this server; the migrations step uses sef_kopilot.
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -132,6 +132,7 @@ jobs:
           --health-timeout 3s
           --health-retries 12
     env:
+      DATABASE_URL: postgresql+asyncpg://sef:sef@localhost:5432/sef_kopilot
       SEF_TEST_DATABASE_URL: postgresql+asyncpg://sef:sef@localhost:5432/postgres
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -147,10 +148,18 @@ jobs:
       - name: Install Python workspace
         run: uv sync --all-packages --locked
 
+      - name: Migrations apply, undo one step and apply again
+        run: |
+          uv run alembic -c apps/api/alembic.ini upgrade head
+          uv run alembic -c apps/api/alembic.ini downgrade -1
+          uv run alembic -c apps/api/alembic.ini upgrade head
+
+      # By path: Alembic runs env.py and the revisions as standalone modules, which a package
+      # name (--cov=sef_api) does not match.
       - name: Test with coverage gate (>= 80 %)
         run: >-
           uv run pytest apps/api
-          --cov=sef_api --cov-report=term-missing --cov-report=xml:coverage-api.xml
+          --cov=apps/api/src/sef_api --cov-report=term-missing --cov-report=xml:coverage-api.xml
           --cov-fail-under=80
 
       - name: Test the helper scripts
