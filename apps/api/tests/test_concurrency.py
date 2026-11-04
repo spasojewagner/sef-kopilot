@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient, Response
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 
 from sef_api.auth import dependencies
 from sef_api.auth import service as auth
@@ -25,8 +25,9 @@ from sef_api.auth.service import TokenSettings
 from sef_api.auth.tokens import new_opaque_token, opaque_token_digest
 from sef_api.db import Database
 from sef_api.locks import lock_organization
+from sef_api.members import invitations
 from sef_api.members import service as members
-from sef_api.models import Membership, Organization, RefreshToken, Role, User
+from sef_api.models import Invitation, Membership, Organization, RefreshToken, Role, User
 
 from .conftest import TEST_JWT_SECRET
 from .factories import bearer
@@ -188,6 +189,8 @@ async def outcome(action: Awaitable[Any]) -> str:
         members.LastOwnerError,
         auth.InvalidRefreshTokenError,
         auth.NotAMemberError,
+        auth.InvalidInvitationError,
+        auth.AuthenticationError,
     ) as refused:
         return f"refused: {type(refused).__name__}"
     return "done"
@@ -548,3 +551,169 @@ async def test_sign_ins_do_not_wait_for_each_other(
         await holder.rollback()
 
     assert signed_in.organization.id == organization.id
+
+
+# --- invitations -------------------------------------------------------------------------------
+
+
+async def open_invitations(database: Database) -> int | None:
+    async with database.sessions() as check:
+        return await check.scalar(
+            select(func.count())
+            .select_from(Invitation)
+            .where(Invitation.accepted_at.is_(None), Invitation.revoked_at.is_(None))
+        )
+
+
+async def test_two_invitations_of_one_address_at_once_leave_one_open(
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The second waits for the lock, then replaces the first instead of colliding with it."""
+    organization, ana, milan = primer
+    held_at = gate(monkeypatch, invitations, "lock_organization", after=True)
+
+    async def invite(owner: User) -> str:
+        async with committed_database.sessions() as session:
+            await invitations.invite(
+                session, organization.id, owner.id, email="nova@primer.example", role=Role.CLIENT
+            )
+        return "done"
+
+    results = await while_held(invite(ana), lambda: invite(milan), held_at, then_waits=True)
+
+    assert results == ["done", "done"]
+    assert await open_invitations(committed_database) == 1
+
+
+async def test_a_code_accepted_twice_at_once_admits_one_person(
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    organization, ana, _ = primer
+    async with committed_database.sessions() as session:
+        issued = await invitations.invite(
+            session, organization.id, ana.id, email="nova@primer.example", role=Role.CLIENT
+        )
+    held_at = gate(monkeypatch, auth, "lock_organization", after=True)
+
+    async def accept() -> str:
+        async with committed_database.sessions() as session:
+            return await outcome(
+                auth.accept_invitation(session, TOKENS, code=issued.code, password=PASSWORD)
+            )
+
+    results = await while_held(accept(), accept, held_at, then_waits=True)
+
+    assert results == ["done", "refused: InvalidInvitationError"]
+
+
+async def test_an_invitation_withdrawn_while_it_is_being_accepted_is_refused(
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Milan's invitation is being redeemed when Ana demotes him; under the lock, the redemption
+    finds it withdrawn."""
+    organization, _, milan = primer
+    async with committed_database.sessions() as session:
+        issued = await invitations.invite(
+            session, organization.id, milan.id, email="nova@primer.example", role=Role.OWNER
+        )
+    held_at = gate(monkeypatch, auth, "lock_organization")
+
+    async def accept() -> str:
+        async with committed_database.sessions() as session:
+            return await outcome(
+                auth.accept_invitation(session, TOKENS, code=issued.code, password=PASSWORD)
+            )
+
+    async def demote_milan() -> str:
+        async with committed_database.sessions() as session:
+            return await outcome(
+                members.change_role(session, organization.id, milan.id, Role.CLIENT)
+            )
+
+    results = await while_held(accept(), demote_milan, held_at, then_waits=False)
+
+    assert results == ["refused: InvalidInvitationError", "done"]
+
+
+async def test_an_account_deactivated_while_it_joins_is_refused(
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The password was right; by the time the lock is taken, the account is deactivated."""
+    organization, ana, _ = primer
+    async with committed_database.sessions() as session:
+        nova = User(email="nova@ogled.example", password_hash=await hash_password(PASSWORD))
+        session.add(nova)
+        await session.commit()
+    async with committed_database.sessions() as session:
+        issued = await invitations.invite(
+            session, organization.id, ana.id, email="nova@ogled.example", role=Role.CLIENT
+        )
+    held_at = gate(monkeypatch, auth, "lock_organization")
+
+    async def accept() -> str:
+        async with committed_database.sessions() as session:
+            return await outcome(
+                auth.accept_invitation(session, TOKENS, code=issued.code, password=PASSWORD)
+            )
+
+    async def deactivate() -> None:
+        async with committed_database.sessions() as session:
+            await session.execute(update(User).where(User.id == nova.id).values(is_active=False))
+            await session.commit()
+
+    results = await while_held(accept(), deactivate, held_at, then_waits=False)
+
+    assert results[0] == "refused: AuthenticationError"
+
+
+async def test_a_wrong_password_for_an_invitation_holds_nothing_up(
+    committed_database: Database, primer: tuple[Organization, User, User]
+) -> None:
+    """The password is checked before the organization is locked, so a code holder guessing
+    passwords cannot stall the organization's changes."""
+    organization, ana, _ = primer
+    async with committed_database.sessions() as session:
+        session.add(User(email="nova@ogled.example", password_hash=await hash_password(PASSWORD)))
+        await session.commit()
+    async with committed_database.sessions() as session:
+        issued = await invitations.invite(
+            session, organization.id, ana.id, email="nova@ogled.example", role=Role.CLIENT
+        )
+    async with committed_database.sessions() as holder:
+        await lock_organization(holder, organization.id)  # a change to the members in progress
+        async with committed_database.sessions() as session:
+            refused = await asyncio.wait_for(
+                outcome(auth.accept_invitation(session, TOKENS, code=issued.code, password="x")),
+                timeout=SETTLE_SECONDS * 4,
+            )
+        await holder.rollback()
+
+    assert refused == "refused: AuthenticationError"
+
+
+async def test_listing_the_invitations_takes_no_lock(
+    committed_api: AsyncClient,
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+) -> None:
+    """Reading is not a change: it does not wait for a sign-in in progress, nor hold one up."""
+    organization, ana, _ = primer
+    async with committed_database.sessions() as holder:
+        await lock_organization(holder, organization.id, shared=True)  # a sign-in in progress
+        try:
+            listed = await asyncio.wait_for(
+                committed_api.get("/invitations", headers=bearer(ana, organization, Role.OWNER)),
+                timeout=SETTLE_SECONDS * 4,
+            )
+        finally:
+            await holder.rollback()
+
+    assert listed.status_code == 200

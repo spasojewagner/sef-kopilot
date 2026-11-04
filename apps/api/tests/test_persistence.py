@@ -126,3 +126,66 @@ async def test_a_removal_is_kept_and_ends_the_members_session(
         "/auth/refresh", json={"refresh_token": milan["refresh_token"]}
     )
     assert refreshed.status_code == 401
+
+
+async def test_an_invitation_its_acceptance_and_its_revocation_are_kept(
+    committed_api: AsyncClient,
+) -> None:
+    ana = await register(committed_api)
+    invited = (
+        await committed_api.post(
+            "/invitations",
+            json={"email": "nova@primer.example", "role": "accountant"},
+            headers=bearer(ana),
+        )
+    ).json()
+    revoked = (
+        await committed_api.post(
+            "/invitations",
+            json={"email": "jovana@primer.example", "role": "client"},
+            headers=bearer(ana),
+        )
+    ).json()
+
+    listed = (await committed_api.get("/invitations", headers=bearer(ana))).json()
+    joined = await committed_api.post(
+        "/auth/accept-invitation", json={"code": invited["code"], "password": PASSWORD}
+    )
+    await committed_api.delete(f"/invitations/{revoked['id']}", headers=bearer(ana))
+    refused = await committed_api.post(
+        "/auth/accept-invitation", json={"code": revoked["code"], "password": PASSWORD}
+    )
+
+    assert sorted(item["email"] for item in listed) == [
+        "jovana@primer.example",
+        "nova@primer.example",
+    ]
+    assert joined.status_code == 200
+    assert (await sign_in(committed_api, "nova@primer.example")).status_code == 200
+    assert refused.status_code == 400
+
+
+async def test_the_withdrawal_of_a_removed_owners_invitations_is_kept(
+    committed_api: AsyncClient, committed_database: Database
+) -> None:
+    ana = await register(committed_api)
+    milan_user = await add_accountant(committed_database, ana)
+    await committed_api.patch(
+        f"/members/{milan_user.id}", json={"role": "owner"}, headers=bearer(ana)
+    )
+    milan = (await sign_in(committed_api, "milan@primer.example")).json()
+    issued = (
+        await committed_api.post(
+            "/invitations",
+            json={"email": "milan@ogled.example", "role": "owner"},
+            headers=bearer(milan),
+        )
+    ).json()
+
+    await committed_api.delete(f"/members/{milan_user.id}", headers=bearer(ana))
+
+    assert (await committed_api.get("/invitations", headers=bearer(ana))).json() == []
+    refused = await committed_api.post(
+        "/auth/accept-invitation", json={"code": issued["code"], "password": PASSWORD}
+    )
+    assert refused.status_code == 400

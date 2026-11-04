@@ -17,7 +17,17 @@ from typing import Final
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 
-__all__ = ["hash_password", "needs_rehash", "verify_password"]
+__all__ = [
+    "MAXIMUM_LENGTH",
+    "MINIMUM_LENGTH",
+    "hash_password",
+    "needs_rehash",
+    "verify_password",
+]
+
+#: A new password's length: long enough for a passphrase, short enough to bound hashing work.
+MINIMUM_LENGTH: Final = 12
+MAXIMUM_LENGTH: Final = 128
 
 MEMORY_KIB: Final = 19 * 1024
 TIME_COST: Final = 2

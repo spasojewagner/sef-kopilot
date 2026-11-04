@@ -36,8 +36,8 @@ OPENAPI_TAGS = [
     },
     {
         "name": "members",
-        "description": "The people of the caller's organization and their roles: owner, "
-        "accountant, client.",
+        "description": "The people of the caller's organization, their roles (owner, "
+        "accountant, client) and the invitations to join it.",
     },
 ]
 
@@ -74,4 +74,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(members.router)
+    app.include_router(members.invitations_router)
     return app

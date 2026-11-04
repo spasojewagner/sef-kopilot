@@ -1,10 +1,11 @@
-"""The tenancy schema: organizations, the people who use the product, their memberships and
-their sign-in sessions.
+"""The tenancy schema: organizations, the people who use the product, their memberships, the
+invitations that create memberships, and sign-in sessions.
 
 An organization is the tenant: every table that holds a tenant's data carries an
 ``organization_id`` (ADR-0011). People are global — one e-mail address, one account — and
-belong to organizations through memberships, each with one role. A refresh token belongs to a
-person's session in one organization (ADR-0012).
+belong to organizations through memberships, each with one role; an invitation lets a person
+join in a role (ADR-0013). A refresh token belongs to a person's session in one organization
+(ADR-0012).
 """
 
 from __future__ import annotations
@@ -13,12 +14,12 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, Enum, ForeignKey, Text, func, text, true
+from sqlalchemy import CheckConstraint, Enum, ForeignKey, Index, Text, func, text, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sef_api.db import Base
 
-__all__ = ["Membership", "Organization", "RefreshToken", "Role", "User"]
+__all__ = ["Invitation", "Membership", "Organization", "RefreshToken", "Role", "User"]
 
 
 class Role(StrEnum):
@@ -40,6 +41,19 @@ def _id() -> Mapped[uuid.UUID]:
 
 def _created_at() -> Mapped[datetime]:
     return mapped_column(server_default=func.now())
+
+
+def _role() -> Enum:
+    """A role column: VARCHAR with a CHECK on the values, which is simpler to migrate than a
+    native PostgreSQL enumeration."""
+    return Enum(
+        Role,
+        name="role",
+        native_enum=False,
+        create_constraint=True,
+        length=16,
+        values_callable=lambda roles: [role.value for role in roles],
+    )
 
 
 class Organization(Base):
@@ -82,17 +96,44 @@ class Membership(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
     )
-    role: Mapped[Role] = mapped_column(
-        Enum(
-            Role,
-            name="role",
-            native_enum=False,
-            create_constraint=True,
-            length=16,
-            values_callable=lambda roles: [role.value for role in roles],
-        )
+    role: Mapped[Role] = mapped_column(_role())
+    created_at: Mapped[datetime] = _created_at()
+
+
+class Invitation(Base):
+    """An invitation to join an organization in a role, redeemed once with its code.
+
+    The code is shown once to the owner who creates the invitation, who passes it on; the table
+    keeps its SHA-256 digest. An address has at most one open invitation per organization
+    (``uq_invitations_organization_id_email_open``); an accepted or revoked one is closed.
+    """
+
+    __tablename__ = "invitations"
+    __table_args__ = (
+        CheckConstraint("email = lower(email)", name="email_lower_case"),
+        Index(
+            "uq_invitations_organization_id_email_open",
+            "organization_id",
+            "email",
+            unique=True,
+            postgresql_where=text("accepted_at IS NULL AND revoked_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _id()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    email: Mapped[str] = mapped_column(Text)
+    role: Mapped[Role] = mapped_column(_role())
+    digest: Mapped[str] = mapped_column(Text, unique=True)
+    invited_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
     created_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime]
+    accepted_at: Mapped[datetime | None]
+    revoked_at: Mapped[datetime | None]
 
 
 class RefreshToken(Base):

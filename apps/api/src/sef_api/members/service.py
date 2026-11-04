@@ -15,7 +15,9 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.locks import lock_organization
+from sef_api.members.invitations import withdraw_invitations_of
 from sef_api.models import Membership, RefreshToken, Role, User
 
 __all__ = [
@@ -59,11 +61,14 @@ async def list_members(session: AsyncSession, organization_id: uuid.UUID) -> lis
 async def change_role(
     session: AsyncSession, organization_id: uuid.UUID, user_id: uuid.UUID, role: Role
 ) -> Member:
-    """Give a member another role; the last active owner cannot be given another one."""
+    """Give a member another role; the last active owner cannot be given another one. A member
+    who may no longer invite loses the open invitations they issued."""
     await lock_organization(session, organization_id)
     membership, user = await _find(session, organization_id, user_id)
     if membership.role is Role.OWNER and role is not Role.OWNER:
         await _keep_an_owner(session, organization_id, leaving=user_id)
+    if _may_invite(membership.role) and not _may_invite(role):
+        await withdraw_invitations_of(session, organization_id, user_id, now=datetime.now(UTC))
     membership.role = role
     await session.commit()
     return Member(user, role, membership.created_at)
@@ -76,11 +81,14 @@ async def remove(
     *,
     now: datetime | None = None,
 ) -> None:
-    """Remove a member and end their sessions in the organization; not the last active owner."""
+    """Remove a member, end their sessions in the organization and withdraw the invitations
+    they issued; not the last active owner."""
+    moment = now or datetime.now(UTC)
     await lock_organization(session, organization_id)
     membership, _ = await _find(session, organization_id, user_id)
     if membership.role is Role.OWNER:
         await _keep_an_owner(session, organization_id, leaving=user_id)
+    await withdraw_invitations_of(session, organization_id, user_id, now=moment)
     await session.delete(membership)
     await session.execute(
         update(RefreshToken)
@@ -89,9 +97,13 @@ async def remove(
             RefreshToken.user_id == user_id,
             RefreshToken.revoked_at.is_(None),
         )
-        .values(revoked_at=now or datetime.now(UTC))
+        .values(revoked_at=moment)
     )
     await session.commit()
+
+
+def _may_invite(role: Role) -> bool:
+    return Permission.MEMBERS_MANAGE in ROLE_PERMISSIONS[role]
 
 
 async def _find(

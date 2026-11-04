@@ -1,4 +1,4 @@
-"""Sign-up, sign-in, token refresh and sign-out, on the database.
+"""Sign-up, sign-in, accepting an invitation, token refresh and sign-out, on the database.
 
 Each function receives the request's session and commits its own unit of work. Failures are
 exceptions that the routes turn into responses; none of them says which half of a credential
@@ -11,24 +11,28 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import ColumnElement, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sef_api.auth.passwords import hash_password, needs_rehash, verify_password
+from sef_api.auth.passwords import MINIMUM_LENGTH, hash_password, needs_rehash, verify_password
+from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.tokens import issue_access_token, new_opaque_token, opaque_token_digest
 from sef_api.locks import lock_organization
-from sef_api.models import Membership, Organization, RefreshToken, Role, User
+from sef_api.models import Invitation, Membership, Organization, RefreshToken, Role, User
 from sef_api.settings import Settings
 
 __all__ = [
     "AuthenticationError",
     "EmailTakenError",
+    "InvalidInvitationError",
     "InvalidRefreshTokenError",
+    "NewPasswordTooShortError",
     "NotAMemberError",
     "OrganizationRequiredError",
     "SignedIn",
     "TokenSettings",
+    "accept_invitation",
     "login",
     "logout",
     "normalize_email",
@@ -89,6 +93,14 @@ class OrganizationRequiredError(Exception):
 
 class InvalidRefreshTokenError(Exception):
     """Unknown, expired, spent or revoked refresh token, or a session that has ended."""
+
+
+class InvalidInvitationError(Exception):
+    """Unknown, expired, revoked or already accepted invitation code."""
+
+
+class NewPasswordTooShortError(Exception):
+    """The password for a new account is shorter than the minimum."""
 
 
 def normalize_email(email: str) -> str:
@@ -176,6 +188,87 @@ async def login(
     if renewed_hash is not None:  # changed only now, after the lock, like every other row
         user.password_hash = renewed_hash
     signed_in = await _sign_in(session, tokens, user, organization, role, family_id=uuid.uuid4())
+    await session.commit()
+    return signed_in
+
+
+async def accept_invitation(
+    session: AsyncSession,
+    tokens: TokenSettings,
+    *,
+    code: str,
+    password: str,
+    now: datetime | None = None,
+) -> SignedIn:
+    """Join the organization of an invitation and sign in to it.
+
+    Without an account for the invited address, one is created with ``password``; with one,
+    ``password`` must be its password, so that a code alone never gives access to an account.
+    A code is good once, and only while the owner who issued it may still invite. A person who
+    is a member already keeps the role they have.
+
+    The password is checked, or the new one hashed, before the organization is locked, so that
+    a wrong password holds nothing up; under the lock the invitation is checked again.
+    """
+    moment = now if now is not None else datetime.now(UTC)
+    digest = opaque_token_digest(code)
+    found = (
+        await session.execute(
+            select(Invitation.organization_id, Invitation.email).where(
+                Invitation.digest == digest, *_open(moment)
+            )
+        )
+    ).one_or_none()
+    if found is None:
+        raise InvalidInvitationError
+    organization_id, email = found
+    user = await session.scalar(select(User).where(User.email == email))
+    password_hash: str | None = None
+    if user is None:
+        if len(password) < MINIMUM_LENGTH:
+            raise NewPasswordTooShortError
+        password_hash = await hash_password(password)
+    elif not await verify_password(user.password_hash, password) or not user.is_active:
+        raise AuthenticationError
+    elif needs_rehash(user.password_hash):
+        password_hash = await hash_password(password)
+    # The organization first, as every change to its members does, then the invitation.
+    await lock_organization(session, organization_id)
+    invitation = await session.scalar(
+        select(Invitation).where(Invitation.digest == digest, *_open(moment)).with_for_update()
+    )
+    if invitation is None or not await _issuer_may_invite(session, invitation):
+        raise InvalidInvitationError
+    if user is None:
+        assert password_hash is not None
+        user = User(email=email, password_hash=password_hash)
+        session.add(user)
+        try:
+            await session.flush()
+        except IntegrityError as error:  # the address registered a moment ago
+            await session.rollback()
+            raise EmailTakenError from error
+    else:
+        if not await session.scalar(select(User.is_active).where(User.id == user.id)):
+            raise AuthenticationError  # deactivated or deleted while the password was checked
+        if password_hash is not None:
+            user.password_hash = password_hash
+    membership = await session.scalar(
+        select(Membership).where(
+            Membership.organization_id == invitation.organization_id,
+            Membership.user_id == user.id,
+        )
+    )
+    if membership is None:
+        membership = Membership(
+            organization_id=invitation.organization_id, user_id=user.id, role=invitation.role
+        )
+        session.add(membership)
+    invitation.accepted_at = moment
+    organization = await session.get_one(Organization, invitation.organization_id)
+    signed_in = await _sign_in(
+        session, tokens, user, organization, membership.role, family_id=uuid.uuid4(), now=moment
+    )
     await session.commit()
     return signed_in
 
@@ -332,6 +425,32 @@ async def _lock_family(session: AsyncSession, family_id: uuid.UUID) -> None:
         .order_by(RefreshToken.id)
         .with_for_update()
     )
+
+
+def _open(moment: datetime) -> tuple[ColumnElement[bool], ...]:
+    """The conditions of an invitation that can still be accepted at ``moment``."""
+    return (
+        Invitation.accepted_at.is_(None),
+        Invitation.revoked_at.is_(None),
+        Invitation.expires_at > moment,
+    )
+
+
+async def _issuer_may_invite(session: AsyncSession, invitation: Invitation) -> bool:
+    """Whether the member who issued the invitation may still invite. An invitation stops
+    working once its issuer is removed, demoted, deactivated or deleted (ADR-0013)."""
+    if invitation.invited_by is None:
+        return False
+    role = await session.scalar(
+        select(Membership.role)
+        .join(User, User.id == Membership.user_id)
+        .where(
+            Membership.organization_id == invitation.organization_id,
+            Membership.user_id == invitation.invited_by,
+            User.is_active.is_(True),
+        )
+    )
+    return role is not None and Permission.MEMBERS_MANAGE in ROLE_PERMISSIONS[role]
 
 
 async def _revoke_family(session: AsyncSession, family_id: uuid.UUID, now: datetime) -> None:
