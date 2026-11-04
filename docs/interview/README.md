@@ -13,3 +13,4 @@ per branch, to keep them with the code they describe.
 | `feat/core-schematron-runner` | [m1-core-schematron-runner.md](m1-core-schematron-runner.md) |
 | `feat/core-srb-cius-rules` | [m1-core-srb-cius-rules.md](m1-core-srb-cius-rules.md) |
 | `feat/core-srb-cius-party-rules` | [m1-core-srb-cius-party-rules.md](m1-core-srb-cius-party-rules.md) |
+| `feat/core-srb-cius-vat-rules` | [m1-core-srb-cius-vat-rules.md](m1-core-srb-cius-vat-rules.md) |

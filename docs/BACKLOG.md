@@ -31,7 +31,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/core-schematron-runner` — EN 16931 and Peppol BIS Schematron via `saxonche`, compiled once and cached (ADR-0005)
 - [x] `feat/core-srb-cius-rules` — SRB-CIUS rule framework (one rule per module, cited, tested) and the first nine rules: document codes, identifiers, PIB check digits (ADR-0006)
 - [x] `feat/core-srb-cius-party-rules` — legal registration numbers (BT-30, BT-47, BT-61), the seller's VAT status (BT-32, `RS-VAT-STATUS`), cities and post codes (BT-37, BT-38, BT-52, BT-53, BT-66, BT-67), preceding invoice date (BT-26), delivery date when BT-8 requires it (BT-72), public-procurement reference (BT-10), payment model notation (BT-83)
-- [ ] `feat/core-srb-cius-vat-rules` — VAT categories and exemption codes from the Ministry's code list (BT-95, BT-102, BT-118, BT-121, BT-151), the extension identifier and totals (Table 2)
+- [x] `feat/core-srb-cius-vat-rules` — VAT categories, rates and exemption codes from the Ministry's code list (BT-95, BT-102, BT-118, BT-119, BT-121, BT-151)
+- [ ] `feat/core-srb-cius-extension-rules` — the Serbian extension (Table 2): advance payments used on final invoices, reduced totals, RSD amounts of foreign-currency invoices, the extended specification identifier
 - [ ] BR-CO arithmetic rules in Python (property-based tests)
 - [x] Violation model `{rule_id, severity, xpath, message}`
 - [ ] `feat/core-fixtures-corpus` — 200+ fixtures: official EN 16931 test files, Peppol examples, SEF examples, synthetic mutations (`scripts/make_fixtures.py`)
@@ -41,7 +42,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       (with the validation pipeline: XSD, then Schematron only for schema-valid documents,
       SRB-CIUS and arithmetic; profiles choose the rule sets; one violation cap for all layers;
       the SRB profile sets aside, with reasons, the EN 16931 rules that SRB-CIUS widens:
-      `BR-CL-17`, `BR-CL-18`, `BR-CL-22`, `BR-O-*` and the checks of the RSD and extension totals)
+      `BR-CL-17`, `BR-CL-18`, `BR-CL-22`, `BR-O-*`, `BR-AE-05` to `BR-AE-08` (AE carries 20 or
+      10 percent), `BR-Z-10` and `BR-S-10` (Serbian codes for Z and S), and the checks of the RSD
+      and extension totals)
 - [x] Learning notes: ~~Schematron and XPath assertions~~ (03), ~~UBL 2.1 document model~~ (02), ~~EN 16931 business rules vs. CIUS~~ (04)
 - [ ] Release: changelog move, version bump, `v0.1.0` tag prepared
 
