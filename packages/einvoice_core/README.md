@@ -96,6 +96,8 @@ for violation in validate_srb(tree):
 | SRB-017 | The buyer's address gives a post code | BT-53 | warning |
 | SRB-018 | The actual delivery date is given when VAT is due on supply or on collection | BT-8, BT-72 | fatal |
 | SRB-019 | A payment model in the remittance information is written (modNN) reference | BT-83 | fatal |
+| SRB-020 | Every VAT category code is one SRB-CIUS allows | BT-95, BT-102, BT-118, BT-151 | fatal |
+| SRB-021 | Categories S and AE are charged at 20 or 10 percent | BT-96, BT-103, BT-119, BT-152 | fatal |
 
 A test keeps this table identical to the rules.
 
