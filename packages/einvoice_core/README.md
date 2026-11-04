@@ -24,10 +24,19 @@ einvoice_core/
   arithmetic.py EN 16931 calculation rules BR-CO-10 to BR-CO-17 in Python, CEN's semantics,
                 with the expected and the found amount in each violation
   patches/      planned: patch model, forbidden-field guard, apply + re-validate + diff
-  cli.py        planned: `einvoice validate file.xml --profile srb`
+  cli.py        `einvoice validate` and `einvoice rules`: text or JSON, exit status 0 / 1 / 2
 ```
 
 ## Usage
+
+From the command line (ADR-0009):
+
+```bash
+einvoice validate invoice.xml                   # SRB profile; exit 0 valid, 1 invalid, 2 error
+einvoice validate a.xml b.xml --format json     # the full reports
+einvoice validate invoice.xml --show-set-aside  # with the EN 16931 rules the profile sets aside
+einvoice rules --profile srb                    # rule sets, SRB-CIUS rules, set-asides
+```
 
 One call validates a document under a profile and returns the whole verdict (ADR-0008):
 
