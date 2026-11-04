@@ -1,4 +1,4 @@
-"""The fixture corpus: the Ministry's SEF examples, kept byte for byte."""
+"""The fixture corpus: the Ministry's SEF examples, kept byte for byte, and what they show."""
 
 from __future__ import annotations
 
@@ -8,6 +8,10 @@ from typing import Any
 
 import pytest
 
+from einvoice_core import schematron
+from einvoice_core.pipeline import validate
+from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
+from einvoice_core.violations import Severity
 from einvoice_core.xml import load_document
 
 from .conftest import REPOSITORY_ROOT
@@ -15,6 +19,28 @@ from .conftest import REPOSITORY_ROOT
 SEF_DIR = REPOSITORY_ROOT / "fixtures" / "invoices" / "official" / "sef"
 SEF_MANIFEST: dict[str, Any] = json.loads((SEF_DIR / "manifest.json").read_text(encoding="utf-8"))
 SEF_EXAMPLES: list[dict[str, Any]] = SEF_MANIFEST["documents"]
+
+#: The examples' placeholder PIBs, and the same serial numbers with their valid check digits.
+PLACEHOLDER_PIBS = {b"123456789": b"123456788", b"987654321": b"987654328"}
+
+#: What is still wrong once the PIBs are valid: an allowance without a reason, and an
+#: attachment whose content the Ministry abbreviated to "...", which is not base64.
+GENUINE_PROBLEMS = {
+    "faktura-sa-popustom.xml": ["BR-33", "BR-CO-21"],
+    "faktura-sa-prilogom.xml": ["XSD"],
+}
+
+
+def _fetched() -> bool:
+    try:
+        for package in ("ubl-2.1", "en16931", schematron.COMPILER_PACKAGE):
+            ruleset_path(package)
+    except RulesetNotFoundError:
+        return False
+    return True
+
+
+needs_rule_sets = pytest.mark.skipif(not _fetched(), reason="rule sets not fetched")
 
 
 def test_the_manifest_lists_every_sef_example_once_in_order() -> None:
@@ -33,3 +59,18 @@ def test_each_sef_example_is_the_published_file(entry: dict[str, Any]) -> None:
     assert hashlib.sha256(data).hexdigest() == entry["sha256"]
     assert entry["url"].startswith("https://www.efaktura.gov.rs/extfile/sr/")
     assert load_document(data).getroot() is not None
+
+
+@needs_rule_sets
+@pytest.mark.parametrize("entry", SEF_EXAMPLES, ids=lambda entry: entry["file"])
+def test_the_sef_examples_are_valid_once_their_pibs_are(entry: dict[str, Any]) -> None:
+    source = (SEF_DIR / entry["file"]).read_bytes()
+    for placeholder, pib in PLACEHOLDER_PIBS.items():
+        source = source.replace(placeholder, pib)
+
+    report = validate(source, "srb")
+
+    fatal = sorted(v.rule_id for v in report.violations if v.severity is Severity.FATAL)
+    warnings = {v.rule_id for v in report.violations if v.severity is not Severity.FATAL}
+    assert fatal == GENUINE_PROBLEMS.get(entry["file"], [])
+    assert warnings <= {"SRB-013", "SRB-017", "SRB-023", "SRB-029"}
