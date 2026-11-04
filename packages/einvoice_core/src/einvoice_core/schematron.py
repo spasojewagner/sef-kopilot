@@ -52,7 +52,13 @@ from saxonche import PySaxonApiError, PySaxonProcessor, PyXslt30Processor, PyXsl
 
 from einvoice_core.rulesets import ruleset_path, rulesets_dir
 from einvoice_core.violations import Severity, Violation
-from einvoice_core.xml import ParseError, canonical_xpath, load_document
+from einvoice_core.xml import (
+    ParseError,
+    canonical_xpath,
+    child_element,
+    load_document,
+    sibling_index,
+)
 
 __all__ = [
     "CACHE_DIR",
@@ -256,11 +262,12 @@ def _element_at(steps: list[re.Match[str]], root: etree._Element) -> etree._Elem
         if position < 1:
             return None  # an attribute step that is not the last step, or position 0
         tag = f"{{{step['uri']}}}{step['local']}" if step["local"] else step["name"]
-        candidates = [root] if element is None else list(element)
-        same = [candidate for candidate in candidates if candidate.tag == tag]
-        if position > len(same):
+        if element is None:
+            element = root if root.tag == tag and position == 1 else None
+        else:
+            element = child_element(element, tag, position)
+        if element is None:
             return None
-        element = same[position - 1]
     return element
 
 
@@ -289,6 +296,7 @@ def _locate(location: str, root: etree._Element) -> tuple[str | None, int | None
     return (None, line) if qualified in element.attrib else (None, None)
 
 
+@sibling_index()
 def _violations(report: str, root: etree._Element) -> tuple[Violation, ...]:
     """The violations listed in an SVRL report, in report order.
 

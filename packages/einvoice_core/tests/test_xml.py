@@ -11,6 +11,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from lxml import etree
 
+from einvoice_core import xml
 from einvoice_core.xml import (
     CAC,
     NAMESPACES,
@@ -18,8 +19,10 @@ from einvoice_core.xml import (
     UBL,
     ParseError,
     canonical_xpath,
+    child_element,
     load_document,
     qualified_name,
+    sibling_index,
 )
 
 MINIMAL = f'<Invoice xmlns="{UBL}" xmlns:cbc="{NAMESPACES["cbc"]}"><cbc:ID>1</cbc:ID></Invoice>'
@@ -151,3 +154,69 @@ def test_every_canonical_xpath_selects_exactly_its_element(root: etree._Element)
     for element in root.iter():
         selected = tree.xpath(canonical_xpath(element), namespaces=NAMESPACES)
         assert selected == [element]
+
+
+@given(_trees())
+def test_the_sibling_index_changes_no_xpath(root: etree._Element) -> None:
+    plain = [canonical_xpath(element) for element in root.iter()]
+
+    with sibling_index():
+        indexed = [canonical_xpath(element) for element in root.iter()]
+
+    assert indexed == plain
+
+
+def test_within_the_index_each_element_s_children_are_read_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Addressing every one of N siblings reads their parent's children once, not N times."""
+    lines = "".join(f"<cac:InvoiceLine><cbc:ID>{n}</cbc:ID></cac:InvoiceLine>" for n in range(500))
+    namespaces = f'xmlns="{UBL}" xmlns:cac="{CAC}" xmlns:cbc="{NAMESPACES["cbc"]}"'
+    root = etree.fromstring(f"<Invoice {namespaces}>{lines}</Invoice>")
+    reads: list[etree._Element] = []
+    real = xml._Children
+
+    def counted(parent: etree._Element) -> xml._Children:
+        reads.append(parent)
+        return real(parent)
+
+    monkeypatch.setattr(xml, "_Children", counted)
+
+    with sibling_index():
+        xpaths = [canonical_xpath(line[0]) for line in root]
+
+    assert xpaths[499] == "/ubl:Invoice/cac:InvoiceLine[500]/cbc:ID"
+    assert len(reads) == 1 + 500  # the document element once, each line once
+    reads.clear()
+    canonical_xpath(root[499][0])  # outside the block, every call reads again
+    assert len(reads) == 2
+
+
+def test_nested_blocks_share_the_index_and_leaving_forgets_it() -> None:
+    root = etree.fromstring(MINIMAL)
+
+    with sibling_index():
+        canonical_xpath(root[0])
+        outer = xml._INDEX.get()
+        with sibling_index():
+            assert xml._INDEX.get() is outer
+        assert xml._INDEX.get() is outer
+
+    assert xml._INDEX.get() is None
+
+
+def test_child_element_counts_same_named_children_from_one() -> None:
+    root = etree.fromstring(
+        f'<Invoice xmlns="{UBL}" xmlns:cbc="{NAMESPACES["cbc"]}">'
+        "<cbc:Note>a</cbc:Note><cbc:ID>1</cbc:ID><cbc:Note>b</cbc:Note></Invoice>"
+    )
+    note = f"{{{NAMESPACES['cbc']}}}Note"
+
+    assert [child_element(root, note, n) is not None for n in (0, 1, 2, 3)] == [
+        False,
+        True,
+        True,
+        False,
+    ]
+    assert child_element(root, note, 2) is root[2]
+    assert child_element(root, f"{{{NAMESPACES['cbc']}}}Missing", 1) is None

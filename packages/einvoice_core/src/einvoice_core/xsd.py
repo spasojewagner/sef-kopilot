@@ -36,7 +36,7 @@ from lxml import etree
 
 from einvoice_core.rulesets import ruleset_path
 from einvoice_core.violations import Severity, Violation
-from einvoice_core.xml import CN, NAMESPACES, UBL, canonical_xpath, qualified_name
+from einvoice_core.xml import CN, NAMESPACES, UBL, canonical_xpath, qualified_name, sibling_index
 
 if TYPE_CHECKING:
     from lxml.etree._docloader import _InputDocument
@@ -243,6 +243,7 @@ class XsdValidator:
         }
         self._lock = threading.Lock()
 
+    @sibling_index()
     def validate(self, tree: etree._ElementTree) -> tuple[Violation, ...]:
         """All schema violations of the document, in the order libxml2 found them."""
         root = tree.getroot()

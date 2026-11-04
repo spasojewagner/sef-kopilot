@@ -24,7 +24,7 @@ from einvoice_core.srb.rules import load_rules
 from einvoice_core.srb.sources import SOURCES, Source
 from einvoice_core.ubl import build_invoice
 from einvoice_core.violations import Violation
-from einvoice_core.xml import canonical_xpath
+from einvoice_core.xml import canonical_xpath, sibling_index
 
 __all__ = [
     "RULES",
@@ -56,6 +56,7 @@ def _violation(rule: Rule, finding: Finding) -> Violation:
     )
 
 
+@sibling_index()
 def validate_srb(
     tree: etree._ElementTree,
     invoice: model.Invoice | None = None,

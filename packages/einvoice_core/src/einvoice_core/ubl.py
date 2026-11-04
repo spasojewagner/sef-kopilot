@@ -26,6 +26,7 @@ from einvoice_core.xml import (
     canonical_xpath,
     load_document,
     qualified_name,
+    sibling_index,
 )
 
 __all__ = ["build_invoice", "parse_invoice"]
@@ -518,6 +519,7 @@ def _required_party(root: etree._Element, path: str) -> model.Party:
     return party
 
 
+@sibling_index()
 def build_invoice(root: etree._Element) -> model.Invoice:
     """Build the model from the root element of a parsed UBL document."""
     document_type = _ROOTS.get(root.tag if isinstance(root.tag, str) else "")

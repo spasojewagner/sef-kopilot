@@ -30,7 +30,7 @@ from einvoice_core.schematron import validate_schematron
 from einvoice_core.srb import validate_srb
 from einvoice_core.ubl import build_invoice
 from einvoice_core.violations import Severity, ValidationLayer, Violation, is_valid
-from einvoice_core.xml import NAMESPACES, ParseError, Source, load_document
+from einvoice_core.xml import NAMESPACES, ParseError, Source, load_document, sibling_index
 from einvoice_core.xsd import validate_xsd
 
 __all__ = [
@@ -307,6 +307,7 @@ def _not_run(layer: ValidationLayer, why: str) -> LayerOutcome:
     return LayerOutcome(layer=layer, ran=False, violations=0, note=why)
 
 
+@sibling_index()
 def validate(
     source: Source | etree._ElementTree,
     profile: str = "srb",

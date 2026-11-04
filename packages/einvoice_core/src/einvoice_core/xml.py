@@ -9,11 +9,16 @@ the API layer applies its own, stricter, upload limits on top.
 :func:`canonical_xpath` produces the XPath used throughout the system to point at a place in
 the original document (violations, explanations, patches). It is deterministic, readable and
 unambiguous: a positional predicate is added only where the element has same-named siblings.
+Each layer addresses many elements of one document inside :func:`sibling_index`, so that the
+work stays linear in the size of the document however many siblings an element has.
 """
 
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import IO, Final
 
@@ -30,8 +35,10 @@ __all__ = [
     "UBL",
     "ParseError",
     "canonical_xpath",
+    "child_element",
     "load_document",
     "qualified_name",
+    "sibling_index",
 ]
 
 UBL: Final = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
@@ -133,12 +140,70 @@ def qualified_name(element: etree._Element) -> str:
     return f"{prefix}:{qname.localname}" if prefix else f"{{{qname.namespace}}}{qname.localname}"
 
 
+class _Children:
+    """The children of one element, grouped by name, with each one's place in its group."""
+
+    __slots__ = ("named", "place")
+
+    def __init__(self, parent: etree._Element) -> None:
+        self.named: dict[object, list[etree._Element]] = {}
+        self.place: dict[etree._Element, int] = {}
+        for child in parent:
+            same = self.named.setdefault(child.tag, [])
+            same.append(child)
+            self.place[child] = len(same)
+
+
+#: The children of every element visited in the current :func:`sibling_index` block.
+_INDEX: ContextVar[dict[etree._Element, _Children] | None] = ContextVar(
+    "einvoice_core.xml.index", default=None
+)
+
+
+@contextmanager
+def sibling_index() -> Iterator[None]:
+    """Within the block, remember the children of every element once they are looked at.
+
+    Finding where an element stands among its same-named siblings means reading all of them,
+    so addressing each of a document's N invoice lines would read N siblings N times. Inside
+    this block each element's children are read once, which keeps the work linear in the size
+    of the document. It is a context manager and a decorator; nested blocks share the outer
+    index, and leaving the outermost block forgets it. It must not be held across documents
+    that change: the index describes the tree as it was read.
+    """
+    if _INDEX.get() is not None:
+        yield
+        return
+    token = _INDEX.set({})
+    try:
+        yield
+    finally:
+        _INDEX.reset(token)
+
+
+def _children(parent: etree._Element) -> _Children:
+    index = _INDEX.get()
+    if index is None:
+        return _Children(parent)
+    children = index.get(parent)
+    if children is None:
+        children = index[parent] = _Children(parent)
+    return children
+
+
+def child_element(parent: etree._Element, tag: str, position: int) -> etree._Element | None:
+    """The ``position``-th child (from 1) of ``parent`` with ``tag`` (Clark notation), if any."""
+    same = _children(parent).named.get(tag, [])
+    return same[position - 1] if 0 < position <= len(same) else None
+
+
 def canonical_xpath(element: etree._Element) -> str:
     """Absolute XPath of ``element`` with canonical prefixes and minimal positional predicates.
 
     ``/ubl:Invoice/cac:InvoiceLine[2]/cbc:ID``: the predicate appears only on steps whose
     element has siblings with the same name, so the expression always selects exactly one
-    node and stays readable for the people who have to act on it.
+    node and stays readable for the people who have to act on it. Called for many elements of
+    one document, it should run inside :func:`sibling_index`.
     """
     steps: list[str] = []
     current: etree._Element | None = element
@@ -146,9 +211,9 @@ def canonical_xpath(element: etree._Element) -> str:
         step = qualified_name(current)
         parent = current.getparent()
         if parent is not None:
-            same = [sibling for sibling in parent if sibling.tag == current.tag]
-            if len(same) > 1:
-                step = f"{step}[{same.index(current) + 1}]"
+            children = _children(parent)
+            if len(children.named[current.tag]) > 1:
+                step = f"{step}[{children.place[current]}]"
         steps.append(step)
         current = parent
     return "/" + "/".join(reversed(steps))
