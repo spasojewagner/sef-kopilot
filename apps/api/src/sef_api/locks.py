@@ -53,10 +53,14 @@ async def lock_organization(
 
 
 async def lock_invoice_storage(session: AsyncSession, organization_id: uuid.UUID) -> None:
-    """Hold the lock on the organization's stored invoices until the transaction ends. The
-    second key is the first four bytes of the organization's id; two organizations that share
-    it merely wait for each other."""
+    """Hold the lock on the organization's stored invoices until the transaction ends."""
+    await _lock_in_two_keys(session, _STORAGE, organization_id)
+
+
+async def _lock_in_two_keys(session: AsyncSession, what: int, organization_id: uuid.UUID) -> None:
+    """Hold a lock in the two-key space: ``what`` it orders, and the first four bytes of the
+    organization's id. Two organizations that share them merely wait for each other."""
     key = int.from_bytes(organization_id.bytes[:4], "big", signed=True)
     await session.execute(
-        select(func.pg_advisory_xact_lock(literal(_STORAGE, Integer), literal(key, Integer)))
+        select(func.pg_advisory_xact_lock(literal(what, Integer), literal(key, Integer)))
     )
