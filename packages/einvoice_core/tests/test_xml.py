@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import io
+import socket
 from pathlib import Path
 
 import pytest
@@ -73,6 +74,49 @@ def test_rejects_malformed_xml() -> None:
 def test_rejects_any_doctype(prolog: str) -> None:
     with pytest.raises(ParseError, match="DOCTYPE"):
         load_document((prolog + MINIMAL).encode())
+
+
+def test_the_parser_expands_no_entity(tmp_path: Path) -> None:
+    """Refusing a DOCTYPE happens after parsing; during it, no entity may be expanded."""
+    secret = tmp_path / "secret.txt"
+    secret.write_text("the-contents-of-a-private-file", encoding="utf-8")
+    internal = '<!ENTITY greeting "the-text-of-an-internal-entity">'
+    external = f'<!ENTITY file SYSTEM "{secret.as_uri()}">'
+    document = f"<!DOCTYPE a [{internal}{external}]><a>&greeting;&file;</a>".encode()
+
+    parsed = etree.tostring(etree.fromstring(document, parser=xml._parser()))
+
+    assert b"the-text-of-an-internal-entity" not in parsed
+    assert b"the-contents-of-a-private-file" not in parsed
+
+
+def test_the_parser_reads_no_dtd(tmp_path: Path) -> None:
+    """A DOCTYPE is refused after parsing; during it, no DTD may be read, not even a local one."""
+    dtd = tmp_path / "invoice.dtd"
+    dtd.write_text('<!ATTLIST a injected CDATA "from-the-dtd">', encoding="utf-8")
+    document = f'<!DOCTYPE a SYSTEM "{dtd.as_uri()}"><a/>'.encode()
+
+    root = etree.fromstring(document, parser=xml._parser())
+
+    assert root.get("injected") is None
+    assert root.getroottree().docinfo.externalDTD is None
+
+
+def test_loading_never_opens_a_connection() -> None:
+    """Neither an external DTD nor an external entity is fetched while the document is read."""
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        server.setblocking(False)
+        url = f"http://127.0.0.1:{server.getsockname()[1]}"
+        for prolog in (
+            f'<!DOCTYPE Invoice SYSTEM "{url}/invoice.dtd">',
+            f'<!DOCTYPE Invoice [<!ENTITY remote SYSTEM "{url}/entity">]>',
+        ):
+            with pytest.raises(ParseError, match="DOCTYPE"):
+                load_document(
+                    (prolog + MINIMAL.replace("1</cbc:ID>", "&remote;</cbc:ID>")).encode()
+                )
+        with pytest.raises(BlockingIOError):
+            server.accept()
 
 
 def test_parse_error_message_includes_xpath_when_known() -> None:
