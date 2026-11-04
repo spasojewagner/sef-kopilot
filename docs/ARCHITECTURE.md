@@ -39,7 +39,8 @@ the system without a green validator.
 1. Upload (`POST /invoices`) — size and type limits, hardened XML parsing (no DTD, no external
    entities). In no-store mode the bytes never touch the database.
 2. Validate — a job on `arq` behind the `JobRunner` interface; progress events over SSE.
-   Layer 1 runs XSD → Schematron (compiled once, cached) → SRB-CIUS rules → arithmetic.
+   Layer 1 runs XSD → Schematron (compiled once, cached) → SRB-CIUS rules → arithmetic, in
+   one call per profile (`srb`, `en16931`, `peppol`) that reports what a profile sets aside and why.
 3. Explain — for each violation: curated `rule_id → passages` map first, then pgvector
    similarity and `pg_trgm` keyword retrieval; the model writes the explanation with
    structured output; citations are checked against stored chunk ids.
@@ -53,7 +54,7 @@ the system without a green validator.
 
 | Path | Responsibility | Status |
 | --- | --- | --- |
-| `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 in progress: semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation, EN 16931 and Peppol BIS Schematron, SRB-CIUS rule set v1 (29 rules, ADR-0006) |
+| `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 in progress: semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation, EN 16931 and Peppol BIS Schematron, SRB-CIUS rule set v1 (29 rules, ADR-0006), BR-CO arithmetic in Python (ADR-0007), validation pipeline with profiles (ADR-0008) |
 | `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M0 skeleton (`/health`, `/ready`) |
 | `apps/web` | upload, report, explanations, diff and approval UI (sr-Latn / en) | M0 skeleton |
 | `third_party/` | fetched UBL 2.1 schemas, EN 16931 and Peppol BIS artefacts, the ISO Schematron compiler, with their terms; compiled-stylesheet cache | M1 (UBL 2.1 and ISO Schematron added) |

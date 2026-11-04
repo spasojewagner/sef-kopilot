@@ -33,18 +33,13 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/core-srb-cius-party-rules` — legal registration numbers (BT-30, BT-47, BT-61), the seller's VAT status (BT-32, `RS-VAT-STATUS`), cities and post codes (BT-37, BT-38, BT-52, BT-53, BT-66, BT-67), preceding invoice date (BT-26), delivery date when BT-8 requires it (BT-72), public-procurement reference (BT-10), payment model notation (BT-83)
 - [x] `feat/core-srb-cius-vat-rules` — VAT categories, rates and exemption codes from the Ministry's code list (BT-95, BT-102, BT-118, BT-119, BT-121, BT-151)
 - [x] `feat/core-srb-cius-extension-rules` — the Serbian extension (Table 2): advance payments used on final invoices, reduced totals, RSD amounts of foreign-currency invoices, the extended specification identifier
-- [ ] BR-CO arithmetic rules in Python (property-based tests)
+- [x] `feat/core-arithmetic-rules` — BR-CO-10 to BR-CO-17 in Python with CEN's semantics, differential property-based test against CEN's XSLT (ADR-0007)
 - [x] Violation model `{rule_id, severity, xpath, message}`
+- [x] `feat/core-validation-pipeline` — one call for all layers: XSD, then Schematron only for schema-valid documents, SRB-CIUS and arithmetic; profiles `srb`, `en16931`, `peppol`; the SRB profile sets aside, with reasons, the EN 16931 rules SRB-CIUS widens; one violation limit (ADR-0008)
+- [ ] `feat/core-cli` — `einvoice validate file.xml --profile srb` on the pipeline: text and JSON output, exit codes, `einvoice rules` to list the rules of a profile
 - [ ] `feat/core-fixtures-corpus` — 200+ fixtures: official EN 16931 test files, Peppol examples, SEF examples, synthetic mutations (`scripts/make_fixtures.py`)
-      (the 17 SEF examples pinned by URL and SHA-256, each with its expected violations: placeholder
-      PIBs, one abbreviated attachment)
-- [ ] `feat/core-cli` — `einvoice validate file.xml --profile srb`
-      (with the validation pipeline: XSD, then Schematron only for schema-valid documents,
-      SRB-CIUS and arithmetic; profiles choose the rule sets; one violation cap for all layers;
-      the SRB profile sets aside, with reasons, the EN 16931 rules that SRB-CIUS widens:
-      `BR-CL-17`, `BR-CL-18`, `BR-CL-22`, `BR-O-*`, `BR-AE-05` to `BR-AE-08` (AE carries 20 or
-      10 percent), `BR-Z-10` and `BR-S-10` (Serbian codes for Z and S), and the checks of the RSD
-      and extension totals)
+      (the 17 SEF examples committed with their source URL and SHA-256 — official materials of a
+      state body, not copyrighted works — each with the pipeline's verdict as golden result)
 - [x] Learning notes: ~~Schematron and XPath assertions~~ (03), ~~UBL 2.1 document model~~ (02), ~~EN 16931 business rules vs. CIUS~~ (04)
 - [ ] Release: changelog move, version bump, `v0.1.0` tag prepared
 

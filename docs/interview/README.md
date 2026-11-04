@@ -15,3 +15,5 @@ per branch, to keep them with the code they describe.
 | `feat/core-srb-cius-party-rules` | [m1-core-srb-cius-party-rules.md](m1-core-srb-cius-party-rules.md) |
 | `feat/core-srb-cius-vat-rules` | [m1-core-srb-cius-vat-rules.md](m1-core-srb-cius-vat-rules.md) |
 | `feat/core-srb-cius-extension-rules` | [m1-core-srb-cius-extension-rules.md](m1-core-srb-cius-extension-rules.md) |
+| `feat/core-arithmetic-rules` | [m1-core-arithmetic-rules.md](m1-core-arithmetic-rules.md) |
+| `feat/core-validation-pipeline` | [m1-core-validation-pipeline.md](m1-core-validation-pipeline.md) |

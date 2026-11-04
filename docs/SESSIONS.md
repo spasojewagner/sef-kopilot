@@ -203,3 +203,47 @@ both spellings of the advances element read; no rule for BT-E10, whose formula t
 not give and the examples contradict.
 
 Next: BR-CO arithmetic in Python, then `feat/core-fixtures-corpus` and `feat/core-cli`.
+
+## 2026-11-04 — `feat/core-arithmetic-rules` (3 commits, stacked on `feat/core-srb-cius-extension-rules`)
+
+Outcome: the arithmetic layer. `einvoice_core.arithmetic` recomputes BR-CO-10 to BR-CO-17
+from the typed model with exact decimals and CEN's semantics — XPath rounding of halves towards
+positive infinity, BR-CO-17's tolerance of one currency unit, the presence cases of BR-CO-11,
+13, 15 and 16 — and reports the expected and the found amount with the amount's XPath. It reads
+the document totals only, so the totals repeated in the Serbian extension, on which CEN's rules
+misfire, are not judged as invoice totals. ADR-0007, interview notes.
+
+Verification: 1 231 tests green; core coverage 100 % (branches included). Differential test
+against CEN's XSLT: 400 generated invoices per run, no disagreement; a local run of 1 500 had
+none either, with every rule firing 89 to 581 times. No arithmetic violation on the 17 Ministry
+examples or the synthetic fixtures. 6–10 µs per invoice given the model.
+
+Decisions: CEN's semantics rather than stricter arithmetic under the same rule ids; the model's
+scope rather than CEN's relative contexts; per-category taxable amounts (BR-S-08 family) left to
+the Schematron layer for now.
+
+Next: `feat/core-fixtures-corpus`, then `feat/core-cli` with the validation pipeline and
+profiles.
+
+## 2026-11-04 — `feat/core-validation-pipeline` (3 commits, stacked on `feat/core-arithmetic-rules`)
+
+Outcome: one call for the whole validator. `einvoice_core.pipeline.validate(source, profile)`
+reads the document, checks the UBL schemas and, for a schema-valid document, runs the profile's
+Schematron rule sets, the SRB-CIUS rules and the calculation rules, and returns a frozen report:
+verdict, violations in layer order, which layers ran and why not, and the published rules the
+profile set aside with their reasons. Profiles `srb`, `en16931`, `peppol`; CEN's BR-CO rules go
+to the arithmetic layer in every profile; the SRB profile sets aside the EN 16931 rules SRB-CIUS
+widens, partly by condition on the location (the extension, the RSD copy of the breakdown). The
+violation model gained the layer `xml`. ADR-0008, interview notes. The fixtures corpus moves after
+the CLI, because its golden results are the pipeline's verdicts.
+
+Verification: 1 255 tests green; core coverage 100 % (branches included). The 17 Ministry
+examples under `srb`: only the placeholder PIBs and two genuine problems are fatal; with valid
+check digits 15 of 17 are valid with warnings only. Warm 6–12 ms per invoice for the whole
+pipeline.
+
+Decisions: set-asides as data with reasons, kept in the report; location conditions rather than
+rule ids where a rule is right about the invoice and wrong only about a Serbian copy; stop after
+schema errors; a violation limit that does not affect the verdict.
+
+Next: `feat/core-cli`.

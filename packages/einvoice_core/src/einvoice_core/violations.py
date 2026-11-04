@@ -33,8 +33,12 @@ class Severity(StrEnum):
     """The document is acceptable, but something is likely wrong or will become an error."""
 
 
-ValidationLayer = Literal["xsd", "schematron", "srb-cius", "arithmetic"]
-"""The validation layer that produced a violation, in the order the validator runs them."""
+ValidationLayer = Literal["xml", "xsd", "schematron", "srb-cius", "arithmetic"]
+"""The validation layer that produced a violation, in the order the validator runs them.
+
+``xml`` is for a document that cannot be read at all (not well-formed, a DOCTYPE, too large)
+or, though schema-valid, cannot be read as an invoice.
+"""
 
 
 class Violation(BaseModel):
