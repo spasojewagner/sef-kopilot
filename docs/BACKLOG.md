@@ -46,6 +46,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/api-settings-database` — settings from the environment, async PostgreSQL (SQLAlchemy 2 + asyncpg), Alembic with organizations, users and memberships (`owner`, `accountant`, `client`), `/ready` on the database, test databases, a PostgreSQL service in CI (ADR-0011)
 - [x] `feat/api-auth-tokens` — email + password (argon2id), JWT access tokens and rotating refresh tokens with reuse detection; registration creates an organization and its owner (ADR-0012)
 - [x] `feat/api-rbac-members` — permissions per role checked against the current membership, the members of an organization (roles, removal, the last-owner rule), invitations with one-time codes, a route audit and a cross-tenant case for every guarded endpoint (ADR-0013)
+- [x] `fix/core-hostile-documents` — addressing in linear time, numbers of at most 28 digits computed exactly, values read whole when a comment splits them, reports bounded by the violation limit, Saxon's warnings off the error stream (ADR-0014; found by the reviews of the invoice endpoint)
 - [ ] `feat/api-invoices-validate` — upload and validate endpoints with size/type limits
 - [ ] `feat/api-keys` — API keys for machine clients (ERPs): random, hashed at rest, limited to chosen permissions such as validating invoices, revocable; their cross-tenant cases (after the invoice endpoints, so that a key has something to be allowed)
 - [ ] `feat/api-jobs-sse` — `arq` jobs behind `JobRunner`, progress over SSE

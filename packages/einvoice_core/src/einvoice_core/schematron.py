@@ -38,6 +38,7 @@ import contextlib
 import functools
 import hashlib
 import json
+import logging
 import os
 import re
 import tempfile
@@ -46,13 +47,20 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
+from xml.sax.saxutils import quoteattr
 
 from lxml import etree
 from saxonche import PySaxonApiError, PySaxonProcessor, PyXslt30Processor, PyXsltExecutable
 
 from einvoice_core.rulesets import ruleset_path, rulesets_dir
 from einvoice_core.violations import Severity, Violation
-from einvoice_core.xml import ParseError, canonical_xpath, load_document
+from einvoice_core.xml import (
+    ParseError,
+    canonical_xpath,
+    child_element,
+    load_document,
+    sibling_index,
+)
 
 __all__ = [
     "CACHE_DIR",
@@ -153,12 +161,41 @@ RULE_SETS: Final[dict[str, RuleSet]] = {
     )
 }
 
+logger = logging.getLogger(__name__)
+
 _saxon_lock = threading.Lock()
 
 
 @functools.cache
 def _processor() -> PySaxonProcessor:
-    """The process-wide Saxon processor; only called while holding ``_saxon_lock``."""
+    """The process-wide Saxon processor; only called while holding ``_saxon_lock``.
+
+    Saxon writes its warnings to the process's standard error, and some quote the document:
+    a dynamic error in a rule set's match pattern is reported with the value it met. Only a
+    configuration file, read when the processor is made, can send that stream elsewhere, so
+    the processor is made from one that sends it to the null device. Errors still arrive as
+    exceptions.
+
+    Saxon refuses the configuration if it cannot open the null device. Validating does not
+    depend on where Saxon's warnings go, so the processor is then made without it, and a
+    warning, which quotes nothing, says that they will reach the standard error.
+    """
+    configuration = (
+        '<configuration xmlns="http://saxon.sf.net/ns/configuration" edition="HE">'
+        f"<global standardErrorOutputFile={quoteattr(os.devnull)}/>"
+        "</configuration>"
+    )
+    with tempfile.TemporaryDirectory(prefix="einvoice-saxon-") as directory:
+        path = Path(directory, "configuration.xml")
+        path.write_text(configuration, encoding="utf-8")
+        try:
+            return PySaxonProcessor(config_file=str(path), license=False)
+        except PySaxonApiError:
+            logger.warning(
+                "Saxon cannot send its standard error to %s: its warnings, which can quote "
+                "a document, will reach this process's standard error",
+                os.devnull,
+            )
     return PySaxonProcessor(license=False)
 
 
@@ -256,11 +293,12 @@ def _element_at(steps: list[re.Match[str]], root: etree._Element) -> etree._Elem
         if position < 1:
             return None  # an attribute step that is not the last step, or position 0
         tag = f"{{{step['uri']}}}{step['local']}" if step["local"] else step["name"]
-        candidates = [root] if element is None else list(element)
-        same = [candidate for candidate in candidates if candidate.tag == tag]
-        if position > len(same):
+        if element is None:
+            element = root if root.tag == tag and position == 1 else None
+        else:
+            element = child_element(element, tag, position)
+        if element is None:
             return None
-        element = same[position - 1]
     return element
 
 
@@ -289,6 +327,7 @@ def _locate(location: str, root: etree._Element) -> tuple[str | None, int | None
     return (None, line) if qualified in element.attrib else (None, None)
 
 
+@sibling_index()
 def _violations(report: str, root: etree._Element) -> tuple[Violation, ...]:
     """The violations listed in an SVRL report, in report order.
 

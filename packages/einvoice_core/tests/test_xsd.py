@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
+from lxml import etree
 
 from einvoice_core import xsd
 from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
@@ -77,7 +78,9 @@ def test_validator_needs_both_document_schemas(tmp_path: Path) -> None:
 
 
 def _locator(xml: bytes) -> xsd._Locator:
-    return xsd._Locator(load_document(xml))
+    """A locator on a tree parsed as lxml does by default: unlike ``load_document``, it keeps
+    comments, which any tree handed to the validator may have."""
+    return xsd._Locator(etree.ElementTree(etree.fromstring(xml)))
 
 
 @pytest.mark.parametrize(

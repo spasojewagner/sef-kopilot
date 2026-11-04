@@ -59,7 +59,12 @@ system are marked as such.
 - [ ] Output encoding is applied by the templating / UI layer; API responses are JSON only.
 - [ ] XPath and XSLT inputs that originate from users (rule ids, paths) are validated against an
       allow-list, never interpolated into expressions.
-- [ ] XML parsers reject external entities and DTDs; entity expansion limits are enforced.
+- [x] XML parsers reject external entities and DTDs: a document that declares a DOCTYPE is
+      refused, and while it is parsed no entity is expanded, no DTD read and no socket opened
+      (tested on the parser itself).
+- [x] A value is read whole by every layer: comments and processing instructions, which could
+      split it and hide a wrong amount from the arithmetic, are dropped while parsing (tested
+      on every document of the fixture corpus).
 
 ### V2 Validation and business logic
 
@@ -149,6 +154,9 @@ system are marked as such.
 
 - [ ] No invoice content in logs, traces, metrics or crash reports (tested with a log capture
       fixture).
+- [x] The validator writes nothing to the process's standard streams: Saxon's warnings, which
+      can quote a document, go to the null device (tested on the file descriptors); where that
+      device cannot be opened, a log warning says that they reach the standard error instead.
 - [ ] No-store mode; retention policy for stored invoices; deletion endpoint.
 
 ### V15 Secure coding and architecture

@@ -10,7 +10,8 @@ profile sets aside the EN 16931 rules that SRB-CIUS widens — Serbian VAT categ
 exemption codes, reverse charge at a rate, category O beside taxed supplies — and the reports
 EN 16931's rules make about the Serbian extension and the RSD copy of the VAT breakdown, which
 EN 16931 does not know. Set-aside violations stay in the report, apart, with their reason, so
-that nothing disappears silently.
+that nothing disappears silently. Both lists are cut at the same limit, and what is beyond it
+is counted, so that the report stays as small as the limit says however many rules fail.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ from einvoice_core.schematron import validate_schematron
 from einvoice_core.srb import validate_srb
 from einvoice_core.ubl import build_invoice
 from einvoice_core.violations import Severity, ValidationLayer, Violation, is_valid
-from einvoice_core.xml import NAMESPACES, ParseError, Source, load_document
+from einvoice_core.xml import NAMESPACES, ParseError, Source, load_document, sibling_index
 from einvoice_core.xsd import validate_xsd
 
 __all__ = [
@@ -263,6 +264,9 @@ class ValidationReport(BaseModel):
     set_aside: tuple[SetAsideViolation, ...] = ()
     layers: tuple[LayerOutcome, ...]
     omitted: int = Field(default=0, description="Violations beyond the limit, counted only.")
+    set_aside_omitted: int = Field(
+        default=0, description="Set-aside violations beyond the same limit, counted only."
+    )
 
 
 # --- the pipeline ------------------------------------------------------------------------------
@@ -307,6 +311,7 @@ def _not_run(layer: ValidationLayer, why: str) -> LayerOutcome:
     return LayerOutcome(layer=layer, ran=False, violations=0, note=why)
 
 
+@sibling_index()
 def validate(
     source: Source | etree._ElementTree,
     profile: str = "srb",
@@ -318,6 +323,9 @@ def validate(
     ``source`` is anything :func:`einvoice_core.xml.load_document` accepts, or a tree it
     returned. The function does not raise for a bad document: what is wrong with it is the
     report. It raises :class:`ValueError` for an unknown profile.
+
+    At most ``max_violations`` violations are listed, and as many set-aside ones; the others
+    are counted in ``omitted`` and ``set_aside_omitted``. Validity is decided on all of them.
     """
     if profile not in PROFILES:
         raise ValueError(f"unknown profile {profile!r}; choose one of {', '.join(PROFILES)}")
@@ -389,7 +397,8 @@ def _report(
         profile=profile.name,
         valid=is_valid(violations),
         violations=tuple(violations[:max_violations]),
-        set_aside=tuple(set_aside),
+        set_aside=tuple(set_aside[:max_violations]),
         layers=tuple(layers),
         omitted=max(0, len(violations) - max_violations),
+        set_aside_omitted=max(0, len(set_aside) - max_violations),
     )

@@ -157,7 +157,7 @@ def _counts(rule_ids: Iterable[str]) -> dict[str, int]:
 
 def verdict(report: ValidationReport) -> dict[str, Any]:
     """The verdict as recorded: validity and, per rule, how often it was reported."""
-    if report.omitted:
+    if report.omitted or report.set_aside_omitted:
         raise ValueError("the report was cut at the violation limit")
     return {
         "valid": report.valid,

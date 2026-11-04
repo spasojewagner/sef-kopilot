@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import io
+import socket
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from lxml import etree
 
+from einvoice_core import xml
 from einvoice_core.xml import (
     CAC,
     NAMESPACES,
@@ -18,8 +20,10 @@ from einvoice_core.xml import (
     UBL,
     ParseError,
     canonical_xpath,
+    child_element,
     load_document,
     qualified_name,
+    sibling_index,
 )
 
 MINIMAL = f'<Invoice xmlns="{UBL}" xmlns:cbc="{NAMESPACES["cbc"]}"><cbc:ID>1</cbc:ID></Invoice>'
@@ -70,6 +74,62 @@ def test_rejects_malformed_xml() -> None:
 def test_rejects_any_doctype(prolog: str) -> None:
     with pytest.raises(ParseError, match="DOCTYPE"):
         load_document((prolog + MINIMAL).encode())
+
+
+def test_the_parser_expands_no_entity(tmp_path: Path) -> None:
+    """Refusing a DOCTYPE happens after parsing; during it, no entity may be expanded."""
+    secret = tmp_path / "secret.txt"
+    secret.write_text("the-contents-of-a-private-file", encoding="utf-8")
+    internal = '<!ENTITY greeting "the-text-of-an-internal-entity">'
+    external = f'<!ENTITY file SYSTEM "{secret.as_uri()}">'
+    document = f"<!DOCTYPE a [{internal}{external}]><a>&greeting;&file;</a>".encode()
+
+    parsed = etree.tostring(etree.fromstring(document, parser=xml._parser()))
+
+    assert b"the-text-of-an-internal-entity" not in parsed
+    assert b"the-contents-of-a-private-file" not in parsed
+
+
+def test_the_parser_reads_no_dtd(tmp_path: Path) -> None:
+    """A DOCTYPE is refused after parsing; during it, no DTD may be read, not even a local one."""
+    dtd = tmp_path / "invoice.dtd"
+    dtd.write_text('<!ATTLIST a injected CDATA "from-the-dtd">', encoding="utf-8")
+    document = f'<!DOCTYPE a SYSTEM "{dtd.as_uri()}"><a/>'.encode()
+
+    root = etree.fromstring(document, parser=xml._parser())
+
+    assert root.get("injected") is None
+    assert root.getroottree().docinfo.externalDTD is None
+
+
+def test_loading_never_opens_a_connection() -> None:
+    """Neither an external DTD nor an external entity is fetched while the document is read."""
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        server.setblocking(False)
+        url = f"http://127.0.0.1:{server.getsockname()[1]}"
+        for prolog in (
+            f'<!DOCTYPE Invoice SYSTEM "{url}/invoice.dtd">',
+            f'<!DOCTYPE Invoice [<!ENTITY remote SYSTEM "{url}/entity">]>',
+        ):
+            with pytest.raises(ParseError, match="DOCTYPE"):
+                load_document(
+                    (prolog + MINIMAL.replace("1</cbc:ID>", "&remote;</cbc:ID>")).encode()
+                )
+        with pytest.raises(BlockingIOError):
+            server.accept()
+
+
+def test_comments_and_processing_instructions_are_dropped_so_that_a_value_reads_whole() -> None:
+    """``1<!-- -->2000.00`` is one value. Kept, the comment would split it into two text nodes."""
+    value = "1<!-- a note -->20<?note about the amount?>00.00"
+    document = "<!-- a header -->" + MINIMAL.replace(">1</cbc:ID>", f">{value}</cbc:ID>")
+
+    tree = load_document(document.encode())
+
+    (identifier,) = tree.getroot()
+    assert identifier.text == "12000.00"
+    assert len(identifier) == 0
+    assert tree.getroot().getprevious() is None
 
 
 def test_parse_error_message_includes_xpath_when_known() -> None:
@@ -151,3 +211,69 @@ def test_every_canonical_xpath_selects_exactly_its_element(root: etree._Element)
     for element in root.iter():
         selected = tree.xpath(canonical_xpath(element), namespaces=NAMESPACES)
         assert selected == [element]
+
+
+@given(_trees())
+def test_the_sibling_index_changes_no_xpath(root: etree._Element) -> None:
+    plain = [canonical_xpath(element) for element in root.iter()]
+
+    with sibling_index():
+        indexed = [canonical_xpath(element) for element in root.iter()]
+
+    assert indexed == plain
+
+
+def test_within_the_index_each_element_s_children_are_read_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Addressing every one of N siblings reads their parent's children once, not N times."""
+    lines = "".join(f"<cac:InvoiceLine><cbc:ID>{n}</cbc:ID></cac:InvoiceLine>" for n in range(500))
+    namespaces = f'xmlns="{UBL}" xmlns:cac="{CAC}" xmlns:cbc="{NAMESPACES["cbc"]}"'
+    root = etree.fromstring(f"<Invoice {namespaces}>{lines}</Invoice>")
+    reads: list[etree._Element] = []
+    real = xml._Children
+
+    def counted(parent: etree._Element) -> xml._Children:
+        reads.append(parent)
+        return real(parent)
+
+    monkeypatch.setattr(xml, "_Children", counted)
+
+    with sibling_index():
+        xpaths = [canonical_xpath(line[0]) for line in root]
+
+    assert xpaths[499] == "/ubl:Invoice/cac:InvoiceLine[500]/cbc:ID"
+    assert len(reads) == 1 + 500  # the document element once, each line once
+    reads.clear()
+    canonical_xpath(root[499][0])  # outside the block, every call reads again
+    assert len(reads) == 2
+
+
+def test_nested_blocks_share_the_index_and_leaving_forgets_it() -> None:
+    root = etree.fromstring(MINIMAL)
+
+    with sibling_index():
+        canonical_xpath(root[0])
+        outer = xml._INDEX.get()
+        with sibling_index():
+            assert xml._INDEX.get() is outer
+        assert xml._INDEX.get() is outer
+
+    assert xml._INDEX.get() is None
+
+
+def test_child_element_counts_same_named_children_from_one() -> None:
+    root = etree.fromstring(
+        f'<Invoice xmlns="{UBL}" xmlns:cbc="{NAMESPACES["cbc"]}">'
+        "<cbc:Note>a</cbc:Note><cbc:ID>1</cbc:ID><cbc:Note>b</cbc:Note></Invoice>"
+    )
+    note = f"{{{NAMESPACES['cbc']}}}Note"
+
+    assert [child_element(root, note, n) is not None for n in (0, 1, 2, 3)] == [
+        False,
+        True,
+        True,
+        False,
+    ]
+    assert child_element(root, note, 2) is root[2]
+    assert child_element(root, f"{{{NAMESPACES['cbc']}}}Missing", 1) is None

@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
-import pytest
+import re
+from collections.abc import Callable
 
-from einvoice_core import pipeline, schematron
+import pytest
+from lxml import etree
+
+from einvoice_core import pipeline, schematron, xml
 from einvoice_core.pipeline import PROFILES, SRB_SET_ASIDE, ValidationReport, validate
 from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
+from einvoice_core.srb import validate_srb
+from einvoice_core.ubl import build_invoice
 from einvoice_core.violations import Severity, Violation
 from einvoice_core.xml import ParseError, load_document
+from einvoice_core.xsd import validate_xsd
 
 from .conftest import SYNTHETIC_DIR, THIRD_PARTY
 
@@ -284,6 +291,54 @@ def test_srb_sets_aside_reports_about_the_rsd_copy_of_the_breakdown() -> None:
     assert "BR-S-08" in rule_ids(en16931, "schematron")
 
 
+def lines(count: int, old: str, new: str) -> etree._ElementTree:
+    """The minimal invoice with ``count`` copies of its line, each with ``old`` made ``new``."""
+    line = re.search(r"<cac:InvoiceLine>.*?</cac:InvoiceLine>", INVOICE, re.DOTALL)
+    assert line is not None
+    assert old in line[0], old
+    return load_document(INVOICE.replace(line[0], line[0].replace(old, new) * count).encode())
+
+
+#: What each layer addresses on every line once the line is edited, and how to count it.
+UNKNOWN_CATEGORY = ("<cbc:ID>S</cbc:ID>", "<cbc:ID>XX</cbc:ID>")
+DECIMAL_COMMA = (">12000.00<", ">12000,00<")
+LAYERS: dict[str, tuple[tuple[str, str], Callable[[etree._ElementTree], int]]] = {
+    "pipeline": (
+        UNKNOWN_CATEGORY,
+        lambda tree: len(validate(tree, "srb", max_violations=100_000).violations),
+    ),
+    "xsd": (DECIMAL_COMMA, lambda tree: len(validate_xsd(tree))),
+    "schematron": (
+        UNKNOWN_CATEGORY,
+        lambda tree: len(schematron.validate_schematron(tree, ["en16931"])),
+    ),
+    "srb-cius": (UNKNOWN_CATEGORY, lambda tree: len(validate_srb(tree))),
+    "model": (UNKNOWN_CATEGORY, lambda tree: len(build_invoice(tree.getroot()).lines)),
+}
+
+
+@needs_rule_sets
+@pytest.mark.parametrize("layer", LAYERS)
+def test_every_layer_reads_the_children_of_an_element_once(
+    layer: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each layer addresses all 300 lines, but reads the invoice's children once, not 300 times:
+    its entry point opens a sibling index, and the pipeline opens one for all the layers."""
+    edit, addressed = LAYERS[layer]
+    tree = lines(300, *edit)
+    reads: list[int] = []
+    real = xml._Children
+
+    def counted(parent: etree._Element) -> xml._Children:
+        reads.append(len(parent))
+        return real(parent)
+
+    monkeypatch.setattr(xml, "_Children", counted)
+
+    assert addressed(tree) >= 300
+    assert sum(reads) < sum(1 for _ in tree.iter())
+
+
 @needs_rule_sets
 def test_violations_come_in_layer_order() -> None:
     document = edited(
@@ -313,6 +368,64 @@ def test_only_so_many_violations_are_listed() -> None:
 
     assert len(report.violations) == 1
     assert report.omitted == 1
+    assert not report.valid
+
+
+@needs_rule_sets
+def test_only_so_many_set_aside_violations_are_listed() -> None:
+    """Thousands of set-aside reports would make a report of megabytes from a small document."""
+    serbian_code = (
+        "<cbc:Percent>20</cbc:Percent>",
+        "<cbc:Percent>20</cbc:Percent>"
+        "<cbc:TaxExemptionReasonCode>PDV-RS-OBJ</cbc:TaxExemptionReasonCode>",
+    )
+
+    whole = validate(edited(INVOICE, serbian_code), "srb")
+    cut = validate(edited(INVOICE, serbian_code), "srb", max_violations=1)
+
+    assert (len(whole.set_aside), whole.set_aside_omitted) == (2, 0)
+    assert cut.set_aside == whole.set_aside[:1]
+    assert cut.set_aside_omitted == 1
+    assert cut.valid == whole.valid
+
+
+@needs_rule_sets
+@pytest.mark.parametrize("profile", sorted(PROFILES))
+def test_an_amount_too_long_to_compute_with_exactly_is_reported_not_raised(profile: str) -> None:
+    """``xs:decimal`` has no bound on its digits; the model accepts 28, far beyond any invoice."""
+    amount = "1" + "0" * 27 + ".00"
+    source = edited(
+        INVOICE,
+        (
+            '<cbc:LineExtensionAmount currencyID="RSD">12000.00</cbc:LineExtensionAmount>\n'
+            "    <cac:Item>",
+            f'<cbc:LineExtensionAmount currencyID="RSD">{amount}</cbc:LineExtensionAmount>\n'
+            "    <cac:Item>",
+        ),
+    )
+
+    report = validate(source, profile)
+
+    (model,) = (v for v in report.violations if v.code == "MODEL")
+    assert model.xpath == "/ubl:Invoice/cac:InvoiceLine/cbc:LineExtensionAmount"
+    assert "more than 28 digits" in model.message
+    assert not report.valid
+    assert not ran(report)["arithmetic"]
+
+
+@needs_rule_sets
+@pytest.mark.parametrize("profile", sorted(PROFILES))
+def test_a_comment_cannot_hide_a_wrong_amount(profile: str) -> None:
+    """``14400<!-- -->1`` is 144001 to the schema and to CEN's rules. Read up to the comment, it
+    was 14400 to the arithmetic layer, which checks CEN's totals in their place, and an invoice
+    due ten times its total was valid."""
+    hidden = edited(
+        INVOICE, (">14400.00</cbc:PayableAmount>", ">14400<!-- -->1</cbc:PayableAmount>")
+    )
+
+    report = validate(hidden, profile)
+
+    assert rule_ids(report, "arithmetic") == {"BR-CO-16"}
     assert not report.valid
 
 

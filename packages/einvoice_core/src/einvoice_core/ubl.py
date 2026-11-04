@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Final
 
 from lxml import etree
 
-from einvoice_core import model
+from einvoice_core import model, numbers
 from einvoice_core.xml import (
     CN,
     NAMESPACES,
@@ -26,11 +26,13 @@ from einvoice_core.xml import (
     canonical_xpath,
     load_document,
     qualified_name,
+    sibling_index,
 )
 
 __all__ = ["build_invoice", "parse_invoice"]
 
-_DECIMAL: Final = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$")
+#: How much of a value a message quotes.
+_SHOWN: Final = 40
 _DATE: Final = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:Z|[+-]\d{2}:\d{2})?$")
 _INVOICED_OBJECT_TYPE_CODE: Final = "130"
 _PROJECT_REFERENCE_TYPE_CODE: Final = "50"
@@ -91,14 +93,20 @@ def _required_text(parent: etree._Element, path: str) -> str:
 
 def _decimal_of(element: etree._Element) -> Decimal:
     text = _text_of(element) or ""
-    if not _DECIMAL.match(text):
-        raise ParseError(f"not a decimal number: {text!r}", xpath=canonical_xpath(element))
-    try:
-        return Decimal(text)
-    except InvalidOperation as error:  # pragma: no cover - the regex already excludes this
+    if not numbers.is_decimal(text):
+        raise ParseError(f"not a decimal number: {_shown(text)}", xpath=canonical_xpath(element))
+    if numbers.digits(text) > numbers.MAX_DIGITS:
         raise ParseError(
-            f"not a decimal number: {text!r}", xpath=canonical_xpath(element)
-        ) from error
+            f"a number of more than {numbers.MAX_DIGITS} digits, which the checks cannot "
+            f"compute with exactly: {_shown(text)}",
+            xpath=canonical_xpath(element),
+        )
+    return Decimal(text)
+
+
+def _shown(text: str) -> str:
+    """``text`` quoted for a message, cut short if it is long."""
+    return repr(text) if len(text) <= _SHOWN else f"{text[:_SHOWN]!r}..."
 
 
 def _decimal(parent: etree._Element, path: str) -> Decimal | None:
@@ -518,6 +526,7 @@ def _required_party(root: etree._Element, path: str) -> model.Party:
     return party
 
 
+@sibling_index()
 def build_invoice(root: etree._Element) -> model.Invoice:
     """Build the model from the root element of a parsed UBL document."""
     document_type = _ROOTS.get(root.tag if isinstance(root.tag, str) else "")

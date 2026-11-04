@@ -56,3 +56,16 @@ def test_broken_by_reduced_totals_without_the_reduced_total(final_invoice: Case)
 
     assert violation.xpath == f"/ubl:Invoice/{REDUCED}"
     assert "must give the reduced total with VAT (BT-E13)" in violation.message
+
+
+def test_broken_by_a_reduced_total_a_cent_off_beyond_twenty_eight_digits(case: Case) -> None:
+    """Python's default context keeps 28 digits: there, 10^27 - 0.01 rounds to 10^27, and a
+    reduced total a cent off would be accepted."""
+    whole = "1" + "0" * 27
+    case = settle_advance(case, reduced_total=whole)
+    case.set_text("cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount", whole)
+    case.set_text("cac:LegalMonetaryTotal/cbc:PrepaidAmount", "0.01")
+
+    (violation,) = case.violations(RULE)
+
+    assert violation.message.endswith(f"{whole} - 0.01 = {'9' * 27}.99; found {whole}.")

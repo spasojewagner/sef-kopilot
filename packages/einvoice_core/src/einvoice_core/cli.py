@@ -86,7 +86,10 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive,
         default=DEFAULT_MAX_VIOLATIONS,
         metavar="N",
-        help=f"list at most N violations per document (default {DEFAULT_MAX_VIOLATIONS})",
+        help=(
+            f"list at most N violations, and N set aside, per document "
+            f"(default {DEFAULT_MAX_VIOLATIONS})"
+        ),
     )
     validate_command.add_argument(
         "--show-set-aside",
@@ -180,10 +183,12 @@ def _text_report(name: str, report: ValidationReport, show_set_aside: bool) -> l
             instead = f" (checked by {', '.join(item.replaced_by)})" if item.replaced_by else ""
             lines.append(f"  set aside {item.violation.rule_id:<10} {item.violation.xpath or ''}")
             lines.append(f"           {item.reason}{instead}")
+        if report.set_aside_omitted:
+            lines.append(f"  ... {report.set_aside_omitted} more set aside (--max-violations)")
     elif report.set_aside:
         lines.append(
-            f"  {len(report.set_aside)} published rule report(s) set aside by the "
-            f"{report.profile} profile (--show-set-aside lists them)"
+            f"  {len(report.set_aside) + report.set_aside_omitted} published rule report(s) set "
+            f"aside by the {report.profile} profile (--show-set-aside lists them)"
         )
     not_run = [outcome for outcome in report.layers if not outcome.ran]
     for note in dict.fromkeys(outcome.note for outcome in not_run):

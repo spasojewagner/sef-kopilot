@@ -19,12 +19,13 @@ from typing import Final
 from lxml import etree
 
 from einvoice_core import model
+from einvoice_core.numbers import exact
 from einvoice_core.srb.rule import Document, Finding, Reference, Rule
 from einvoice_core.srb.rules import load_rules
 from einvoice_core.srb.sources import SOURCES, Source
 from einvoice_core.ubl import build_invoice
 from einvoice_core.violations import Violation
-from einvoice_core.xml import canonical_xpath
+from einvoice_core.xml import canonical_xpath, sibling_index
 
 __all__ = [
     "RULES",
@@ -56,6 +57,7 @@ def _violation(rule: Rule, finding: Finding) -> Violation:
     )
 
 
+@sibling_index()
 def validate_srb(
     tree: etree._ElementTree,
     invoice: model.Invoice | None = None,
@@ -69,4 +71,7 @@ def validate_srb(
     cannot represent).
     """
     document = Document(tree=tree, invoice=invoice or build_invoice(tree.getroot()))
-    return tuple(_violation(rule, finding) for rule in rules for finding in rule.check(document))
+    with exact():
+        return tuple(
+            _violation(rule, finding) for rule in rules for finding in rule.check(document)
+        )

@@ -231,3 +231,17 @@ def test_without_a_rate_the_vat_amount_must_round_to_zero(
 
 def test_every_rule_has_a_statement() -> None:
     assert tuple(f"BR-CO-{number}" for number in range(10, 18)) == RULE_IDS
+
+
+def test_amounts_of_twenty_eight_digits_add_up_exactly() -> None:
+    """Python's default context keeps 28 digits: rounding a 28-digit amount to cents there
+    gives 50000000000000000000000000.02, and BR-CO-10 would fail for a correct invoice."""
+    source = INVOICE
+    for old, new in (
+        ("12000.00", "50000000000000000000000000.01"),
+        ("2400.00", "10000000000000000000000000.00"),
+        ("14400.00", "60000000000000000000000000.01"),
+    ):
+        source = source.replace(f">{old}<", f">{new}<")
+
+    assert validate_arithmetic(load_document(source.encode("utf-8"))) == ()
