@@ -1,6 +1,7 @@
 # 8. The validation pipeline: fixed layer order, profiles that set aside published rules with reasons
 
-- Status: accepted
+- Status: accepted; amended by [0014](0014-hostile-documents-in-the-core.md), under which
+  the set-aside list is cut at the violation limit too, and the rest counted
 - Date: 2026-11-04
 - Deciders: Marko Spasojević
 - Technical story: milestone M1, branch `feat/core-validation-pipeline`

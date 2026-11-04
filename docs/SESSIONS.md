@@ -384,3 +384,62 @@ Verification: 1 671 tests green with PostgreSQL (API 202, coverage 99 %).
 
 Next: `feat/api-invoices-validate`, then `feat/api-keys`, so that an API key has something to be
 allowed to do.
+
+## 2026-11-04 — `fix/core-hostile-documents` (7 commits)
+
+Outcome: the validator survives the documents the two reviews of the invoice endpoint built
+against it.
+
+- `canonical_xpath` and the SVRL resolver read each element's children once per validation
+  (`sibling_index()`, a context-scoped index) instead of all siblings for every element.
+- A number of more than 28 digits is a `MODEL` violation. The SRB-CIUS and arithmetic checks
+  compute in a 128-digit context, where sums and products of such numbers are exact.
+- The parser drops comments and processing instructions, so every layer reads a value whole.
+- The set-aside list of a report is cut at the violation limit, and the rest counted.
+- Saxon's processor is made from a configuration file that sends its error stream to the
+  null device, and without one, with a warning, where that device cannot be opened.
+- Tests pin that the parser expands no entity, reads no DTD and opens no socket.
+- ADR-0014 (which amends ADR-0008), interview notes.
+
+Findings:
+
+- The first review of `feat/api-invoices-validate` measured the problems and confirmed each
+  one:
+  - 8000 lines took 39 s, 8000 empty document references 73 s;
+  - an amount of 10^27 made the pipeline raise `InvalidOperation` under every profile;
+  - a seller with two VAT identifiers made Saxon print their country prefix on stderr.
+- A profile found the quadratic part: `canonical_xpath`, 3.3 s of 5.7 s at 3000 lines. After
+  the fix, 8000 lines take 5 s and 8000 references 22 s. The rest is inside the published
+  rule sets, whose cost grows faster than linearly with failing elements.
+- Python's default decimal context also rounded sums beyond 28 digits silently; a test of
+  28-digit amounts that add up shows it, failing BR-CO-10 without the exact context.
+- Saxon ignores its error-stream setting once the processor exists. Only a configuration
+  file read when the processor is made works, which a test proves on the file descriptors.
+- Saxon holds the GIL while it transforms: the main thread stalled 1.7 s during a 2 s run.
+  That is for the API to handle; the branch records it in ADR-0014.
+- The second review found what the first version of this branch still let through:
+  - A comment inside a value split it into two text nodes, and the model read only the
+    first. `14400<!-- -->1` was 14400 to the arithmetic layer and 144001 to the schema and
+    to CEN's rules, whose BR-CO-16 is set aside for ours, so an invoice due ten times its
+    total was valid under two profiles. Put in the middle of every value of the corpus,
+    comments changed 87 of 91 verdicts. Choosing the parser's flags over reading the string
+    value at each of eleven places also covers the Peppol rules, which read `text()` and
+    stopped with an error on a split identifier.
+  - The set-aside list had no limit: 8000 empty elements in an extension, 144 KB, made
+    16 005 set-aside reports and a report of 7.6 MB, now 0.5 MB.
+  - `\d` accepted Arabic-Indic and full-width digits in the Serbian extension, which
+    `Decimal` reads as 0 to 9.
+  - Saxon refuses a configuration whose file it cannot open, which would have stopped all
+    validation where the null device cannot be opened.
+  - Mutations that left the suite green: DTD loading turned on, a layer's entry point
+    without its index, SRB rules outside the exact context. Each now fails a test.
+  - Fetching an external DTD is stopped twice over: the bundled libxml2 has no HTTP client,
+    and `no_network` is set. No test can show the second here.
+- On Linux, a configuration naming `nul`, as `os.devnull` does on Windows, made Saxon create
+  a file of that name in the working directory. On Windows that name is the null device; the
+  maintainer's run of the core tests there has to show that Saxon opens it as such.
+
+Verification: 1 795 tests green with PostgreSQL (core 1 530, coverage 100 %); without it
+1 649 pass and 146 are skipped. Every commit was checked on its own.
+
+Next: `feat/api-invoices-validate`, stacked on this branch.

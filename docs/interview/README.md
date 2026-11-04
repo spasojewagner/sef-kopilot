@@ -23,3 +23,4 @@ per branch, to keep them with the code they describe.
 | `feat/api-settings-database` | [m2-api-settings-database.md](m2-api-settings-database.md) |
 | `feat/api-auth-tokens` | [m2-api-auth-tokens.md](m2-api-auth-tokens.md) |
 | `feat/api-rbac-members` | [m2-api-rbac-members.md](m2-api-rbac-members.md) |
+| `fix/core-hostile-documents` | [m2-core-hostile-documents.md](m2-core-hostile-documents.md) |

@@ -41,6 +41,27 @@ is tagged.
 - The API starts from its factory: `uvicorn sef_api.main:create_app --factory` (`make api`); the
   module-level `app` is gone, so importing the module has no side effects.
 
+### Fixed
+
+- `einvoice_core`: addressing elements takes time linear in the size of the document. Canonical
+  XPaths and SVRL locations read each element's children once (`sibling_index()`) instead of
+  all of an element's siblings for every element: an invoice of 8000 lines validates in 5 s
+  instead of 39 s (ADR-0014).
+- `einvoice_core`: a number of more than 28 digits is a `MODEL` violation instead of an
+  exception, and the SRB-CIUS and arithmetic checks compute exactly instead of rounding beyond
+  28 digits. Amounts in the Serbian extension must have the form of `xs:decimal`, with the
+  digits 0 to 9 only (ADR-0014).
+- `einvoice_core`: a comment or a processing instruction inside a value no longer splits it.
+  The parser drops both, so every layer reads `14400<!-- -->1` as 144001, as the schema does;
+  the arithmetic layer read 14400 and passed an invoice whose amount due did not add up
+  (ADR-0014).
+- `einvoice_core`: the set-aside list of a report is cut at `max_violations` like the
+  violations, and the rest counted in `set_aside_omitted`; a document of 144 KB made a report
+  of 7.6 MB (ADR-0014).
+- `einvoice_core`: Saxon's warnings, some of which quote the document, no longer reach the
+  process's standard error; where the null device cannot be opened, a log warning says that
+  they will (ADR-0014).
+
 ## [0.1.0] - 2026-11-04
 
 The validator core (milestone M1) on the bootstrapped monorepo (M0): UBL 2.1 invoices and
