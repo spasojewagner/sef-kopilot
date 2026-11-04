@@ -49,6 +49,10 @@ def set_aside(report: ValidationReport) -> dict[str, str]:
     return {item.violation.rule_id: item.reason for item in report.set_aside}
 
 
+def replaced_by(report: ValidationReport) -> dict[str, tuple[str, ...]]:
+    return {item.violation.rule_id: item.replaced_by for item in report.set_aside}
+
+
 # --- without rule sets -----------------------------------------------------------------------
 
 
@@ -191,6 +195,7 @@ def test_the_arithmetic_layer_reports_the_calculation_rules_with_the_amounts() -
     assert rule_ids(report, "schematron") == set()
     assert set(set_aside(report)) == {"BR-CO-15", "BR-CO-16"}
     assert "states the expected amount" in set_aside(report)["BR-CO-15"]
+    assert replaced_by(report) == {"BR-CO-15": ("BR-CO-15",), "BR-CO-16": ("BR-CO-16",)}
 
 
 @needs_rule_sets
@@ -211,6 +216,7 @@ def test_srb_sets_aside_reverse_charge_at_a_rate_and_serbian_codes() -> None:
 
     assert srb.valid
     assert set(set_aside(srb)) == {"BR-AE-05", "BR-AE-09", "BR-CL-22"}
+    assert replaced_by(srb)["BR-CL-22"] == ("SRB-022", "SRB-023")
     assert rule_ids(en16931, "schematron") == {"BR-AE-05", "BR-AE-09", "BR-CL-22"}
 
 

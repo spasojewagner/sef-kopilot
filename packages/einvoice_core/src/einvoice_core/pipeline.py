@@ -243,7 +243,10 @@ class SetAsideViolation(BaseModel):
     violation: Violation
     reason: str
     replaced_by: tuple[str, ...] = Field(
-        description="The rules that check the matter instead, if any."
+        description=(
+            "The rules that check the matter instead, if any; a rule recomputed under its own "
+            "id (BR-CO-*) is replaced by that rule alone."
+        )
     )
 
 
@@ -286,9 +289,12 @@ def _split(
         if rule is None:
             kept.append(violation)
         else:
+            same_rule = violation.rule_id in rule.replaced_by
             set_aside.append(
                 SetAsideViolation(
-                    violation=violation, reason=rule.reason, replaced_by=rule.replaced_by
+                    violation=violation,
+                    reason=rule.reason,
+                    replaced_by=(violation.rule_id,) if same_rule else rule.replaced_by,
                 )
             )
     return kept, set_aside
