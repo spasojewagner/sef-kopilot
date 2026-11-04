@@ -26,3 +26,4 @@ per branch, to keep them with the code they describe.
 | `fix/core-hostile-documents` | [m2-core-hostile-documents.md](m2-core-hostile-documents.md) |
 | `feat/api-invoices-validate` | [m2-api-invoices-validate.md](m2-api-invoices-validate.md) |
 | `feat/api-invoices-store` | [m2-api-invoices-store.md](m2-api-invoices-store.md) |
+| `feat/api-keys` | [m2-api-keys.md](m2-api-keys.md) |

@@ -88,7 +88,8 @@ system are marked as such.
 
 - [ ] CORS restricted to the configured web origin.
 - [x] Every endpoint is public by name or requires a permission; a test over the application's
-      routes enforces it, and OpenAPI documents the access token.
+      routes enforces it, and OpenAPI documents the bearer scheme (an access token or an API
+      key).
 - [ ] OpenAPI names the permission each endpoint requires.
 - [ ] Consistent error schema; no stack traces or internal paths in responses.
 
@@ -110,7 +111,9 @@ system are marked as such.
 - [ ] Breached-password check against a local list (the self-hosted mode makes no external calls).
 - [x] Generic authentication error messages; an unknown address takes as long as a wrong password.
 - [ ] Rate limiting on sign-in and token refresh.
-- [ ] API keys for machine clients are random, hashed at rest, revocable.
+- [x] API keys for machine clients: 256 random bits, shown once and stored as a SHA-256
+      digest, revoked at once. A removed member's keys are deleted with the membership, and a
+      deactivated account's are refused. A rule in `.gitleaks.toml` recognizes a leaked key.
 
 ### V7 Session management
 
@@ -133,8 +136,11 @@ system are marked as such.
 - [x] An invitation stops working when the owner who issued it may no longer invite.
 - [x] Within an organization, a client reads and deletes only the invoices they submitted;
       another member's answers 404, as another organization's does (tested per role).
+- [x] An API key allows what it holds and its member's role grants at that moment, both. A key
+      holds only permissions for work on invoices, so it administers no one and issues no keys;
+      every guarded endpoint has a cross-tenant case with another organization's key.
 - [x] An upload that outlasts its permission check is checked again before it is stored: a
-      member removed during the validation stores nothing.
+      member removed, or an API key revoked, during the validation stores nothing.
 - [x] A validation's answer reaches only its own request: the validator's turns end whole
       even when a request is cancelled, and every answer names its message (tested by
       cancelling a validation in flight).
@@ -180,6 +186,9 @@ system are marked as such.
       the request, and a test checks that it leaves no row behind; explanations follow.
 - [x] Responses that carry invoice data send `Cache-Control: no-store`: the validation report
       and every answer about a stored invoice, each checked by a test.
+- [x] Responses that carry a credential send `Cache-Control: no-store` as well (RFC 6749): the
+      tokens of registration, sign-in, accepting an invitation and refreshing, an invitation's
+      code and a new API key, each checked by a test.
 - [~] Deletion: `DELETE /invoices/{id}` removes the invoice, its document and its report. A
       retention policy, deleting stored invoices after a period, is still to come.
 
