@@ -55,7 +55,7 @@ the system without a green validator.
 | Path | Responsibility | Status |
 | --- | --- | --- |
 | `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 in progress: semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation, EN 16931 and Peppol BIS Schematron, SRB-CIUS rule set v1 (29 rules, ADR-0006), BR-CO arithmetic in Python (ADR-0007), validation pipeline with profiles (ADR-0008), `einvoice` CLI (ADR-0009) |
-| `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M2 in progress: settings, PostgreSQL with Alembic migrations, the tenancy schema (ADR-0011); `/health`, `/ready` |
+| `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M2 in progress: settings, PostgreSQL with Alembic migrations, the tenancy schema (ADR-0011), accounts, sign-in and tokens (ADR-0012); `/health`, `/ready` |
 | `apps/web` | upload, report, explanations, diff and approval UI (sr-Latn / en) | M0 skeleton |
 | `third_party/` | fetched UBL 2.1 schemas, EN 16931 and Peppol BIS artefacts, the ISO Schematron compiler, with their terms; compiled-stylesheet cache | M1 (UBL 2.1 and ISO Schematron added) |
 | `corpus/` | regulation texts from official sources with `source_url`, `fetched_at`, `valid_from` | planned (M2) |

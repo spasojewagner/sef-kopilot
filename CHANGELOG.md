@@ -11,6 +11,12 @@ is tagged.
 
 ### Added
 
+- `apps/api`: accounts and tokens. `POST /auth/register` creates an account, its organization
+  and makes the person the owner; `POST /auth/login` signs in to one organization (a member of
+  several chooses one). Passwords are hashed with argon2id; access tokens are 15-minute JWTs
+  (HS256, `at+jwt`); refresh tokens live 30 days, are stored as digests, are spent on use, and a
+  replayed one ends the session. `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`
+  (ADR-0012).
 - `apps/api`: PostgreSQL persistence. Settings from the environment (`pydantic-settings`;
   `DATABASE_URL` required in production and never echoed), one async SQLAlchemy engine per
   application with a session per request, and Alembic migrations (`make migrate`) starting with

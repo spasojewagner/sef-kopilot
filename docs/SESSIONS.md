@@ -310,3 +310,22 @@ downgrade -1, upgrade. ADR-0011, learning note 06, interview notes.
 Verification: 1 503 tests green (API 34, coverage 99 %); local PostgreSQL 16.15.
 
 Next: `feat/api-auth-tokens`.
+
+## 2026-11-04 — `feat/api-auth-tokens` (4 commits, stacked on `feat/api-settings-database`)
+
+Outcome: accounts, sign-in and tokens. Registration creates an account, its organization and the
+owner's membership; sign-in returns a 15-minute JWT access token (HS256, `at+jwt`, every claim
+required) and a 30-day refresh token, stored as a SHA-256 digest, spent on use, whose replay
+revokes the whole session; refresh re-reads the role and ends the session of a deactivated person
+or a former member. Passwords: argon2id with OWASP's minimum parameters, in a worker thread,
+rehashed when the parameters change, the same answer and timing for unknown addresses. Migration
+`0002` adds the hashes and the refresh tokens. ADR-0012, learning note 07, interview notes,
+`SECURITY.md` ticked where done.
+
+Findings: coverage lost lines after awaited database calls until `concurrency = ["thread",
+"greenlet"]` (SQLAlchemy's asyncio layer runs the ORM in greenlets); an empty `SEF_JWT_SECRET=`
+copied from `.env.example` stopped the API until empty variables counted as unset.
+
+Verification: 1 561 tests green with PostgreSQL (API 92, coverage 99 %).
+
+Next: `feat/api-rbac-api-keys`.
