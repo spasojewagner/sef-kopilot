@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 from sef_api.migrations import alembic_config
+from sef_api.models import StoredInvoice
 
 TABLES = {
     "alembic_version",
@@ -114,6 +115,37 @@ def test_an_invoice_stored_before_0007_was_last_validated_when_it_was_stored(
     ) == [True]
 
 
+INVALID_INVOICES = "ix_invoices_invalid_organization_id_created_at_id"
+
+
+def test_the_invalid_invoices_have_the_index_the_model_declares(database_url: str) -> None:
+    """Alembic compares an index's name and columns with the model's, not its predicate."""
+    (definition,) = asyncio.run(
+        run(database_url, f"SELECT indexdef FROM pg_indexes WHERE indexname = '{INVALID_INVOICES}'")
+    )
+    (declared,) = [
+        index
+        for index in StoredInvoice.metadata.tables["invoices"].indexes
+        if index.name == INVALID_INVOICES
+    ]
+
+    assert str(definition).endswith(
+        "USING btree (organization_id, created_at, id) WHERE (NOT valid)"
+    )
+    assert [column.name for column in declared.columns] == ["organization_id", "created_at", "id"]
+    assert str(declared.dialect_options["postgresql"]["where"]) == "NOT valid"
+
+
+def test_undoing_0009_drops_the_index_of_the_invalid_invoices(empty_database_url: str) -> None:
+    config = alembic_config(empty_database_url)
+    command.upgrade(config, "0009")
+
+    command.downgrade(config, "0008")
+
+    indexes = f"SELECT indexname FROM pg_indexes WHERE indexname = '{INVALID_INVOICES}'"
+    assert asyncio.run(run(empty_database_url, indexes)) == []
+
+
 def test_the_revision_ids_are_sequence_numbers() -> None:
     config = alembic_config("postgresql+asyncpg://reviewer@localhost/sef")
     revisions = [script.revision for script in ScriptDirectory.from_config(config).walk_revisions()]
@@ -144,6 +176,12 @@ def test_the_migrations_render_as_sql_for_review() -> None:
         assert f"CREATE TABLE {table}" in sql
     assert "ON DELETE CASCADE" in sql
     assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
+    index = "ix_invoices_invalid_organization_id_created_at_id"
+    assert (  # outside the transaction, holding no writes back, after what a failure left
+        f"COMMIT;\n\nDROP INDEX CONCURRENTLY IF EXISTS {index};\n\n"
+        f"CREATE INDEX CONCURRENTLY {index} ON invoices (organization_id, created_at, id) "
+        "WHERE NOT valid;\n\nBEGIN;"
+    ) in sql
 
 
 def test_the_corpus_is_searched_through_indexes_of_its_own_kinds(database_url: str) -> None:

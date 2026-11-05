@@ -10,8 +10,10 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.invoices import store
 from sef_api.invoices.store import cursor_after
 
 from .factories import Office, office, stored_invoice
@@ -117,6 +119,42 @@ async def test_a_client_lists_by_verdict_only_the_invoices_they_submitted(
     await stored_invoice(session, primer.organization, primer.client, created_at=at(3), valid=True)
 
     assert ids(await listed(api, primer.as_client(), valid="false")) == [str(own.id)]
+
+
+async def test_the_invalid_invoices_are_read_through_an_index_of_their_own(
+    primer: Office, session: AsyncSession
+) -> None:
+    """The planner may use a partial index only for a query whose predicate implies the
+    index's, ``NOT valid``. The listing's statement says ``valid = false`` in its text, not as
+    a parameter, so that a generic plan of the prepared statement may use it too. With the
+    other index of the listing dropped (inside the test's transaction, which is rolled back)
+    and sequential scans off, the plan reads the partial index exactly when it may."""
+    for minute in range(40):
+        await stored_invoice(
+            session, primer.organization, None, created_at=at(minute), valid=minute % 10 != 0
+        )
+    connection = await session.connection()
+    await connection.exec_driver_sql("DROP INDEX ix_invoices_organization_id_created_at_id")
+    statements: list[tuple[str, Any]] = []
+
+    def capture(*arguments: Any) -> None:
+        _, _, statement, parameters, *_ = arguments
+        statements.append((statement, parameters))
+
+    event.listen(connection.sync_connection, "before_cursor_execute", capture)
+    try:
+        page = await store.page_of(
+            session, store.Scope(primer.organization.id), limit=10, valid=False
+        )
+    finally:
+        event.remove(connection.sync_connection, "before_cursor_execute", capture)
+    ((statement, parameters),) = statements
+    await connection.exec_driver_sql("SET LOCAL enable_seqscan = off")
+    plan = await connection.exec_driver_sql(f"EXPLAIN {statement}", parameters)
+
+    assert len(page.invoices) == 4
+    assert "invoices.valid = false" in statement
+    assert "ix_invoices_invalid_organization_id_created_at_id" in "\n".join(plan.scalars())
 
 
 async def test_a_verdict_is_true_or_false(api: AsyncClient, primer: Office) -> None:
