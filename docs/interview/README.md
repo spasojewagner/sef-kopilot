@@ -30,3 +30,4 @@ per branch, to keep them with the code they describe.
 | `feat/api-rate-limits` | [m2-api-rate-limits.md](m2-api-rate-limits.md) |
 | `feat/api-jobs-sse` | [m2-api-jobs-sse.md](m2-api-jobs-sse.md) |
 | `feat/rag-corpus-ingest` | [m2-rag-corpus-ingest.md](m2-rag-corpus-ingest.md) |
+| `fix/rag-corpus-sources` | [m2-rag-corpus-sources.md](m2-rag-corpus-sources.md) |

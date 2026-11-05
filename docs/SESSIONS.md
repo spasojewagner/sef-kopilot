@@ -729,3 +729,29 @@ corpus's lock the first key of the invoice storage's, which would only make an i
 an upload; the two corrected identifiers are checked only with the sources downloaded.
 
 Next: `feat/rag-explain-citations`.
+
+## 2026-11-05 — `fix/rag-corpus-sources` (1 commit)
+
+Outcome: `make corpus` downloads the Legal Information System's texts. The maintainer's first
+run against the live sites kept only the two PDFs of the Ministry.
+
+- `corpus/manifest.toml`: the five digests of the system's texts are those of a download, which
+  begins with a line that names the system; a comment says why.
+- The converter already left that line out, with everything before the first article; the
+  test text has it now, so a reader that kept it would fail. Interview notes for the branch.
+
+Findings:
+
+- The system starts a text with "Преузето са https://pravno-informacioni-sistem.rs" unless the
+  request comes from its own web application, by its `Referer`. The sources had been pinned as
+  the browser received them inside the application, so a download from anywhere else failed
+  its digest. Sending the application's `Referer` would have returned the pinned bytes, but it
+  would have passed the converter off as the application; the digests follow what a plain
+  client receives instead.
+- Either form is the same on every request: three downloads of each text gave the same bytes.
+
+Verification: the five sources, rebuilt from the pinned ones with the line added, have the
+digests of the system's answers; `build_corpus.py --check` says the corpus is what they make,
+and the converter's tests pass.
+
+Next: `feat/rag-explain-citations`, stacked on this branch.
