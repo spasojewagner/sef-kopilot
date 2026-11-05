@@ -37,6 +37,13 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "REDIS_URL",
         "EMBEDDINGS_PROVIDER",
         "JINA_API_KEY",
+        "LLM_PROVIDER",
+        "GROQ_API_KEY",
+        "SEF_LLM_MODEL",
+        "SEF_MAX_EXPLANATIONS",
+        "SEF_EXPLANATION_SECONDS",
+        "SEF_EXPLANATIONS_PER_MINUTE",
+        "SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)

@@ -246,6 +246,17 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
     """A validation answers with its report and leaves no trace in any organization."""
     assert response.status_code == 200
     assert response.json()["profile"] == "srb"
+    await _the_world_as_it_was(session)
+
+
+async def _explanation_keeps_nothing(response: Response, session: AsyncSession, w: World) -> None:
+    """An explanation answers with the report and its explanations, and leaves no trace."""
+    assert response.status_code == 200
+    assert response.json()["report"]["profile"] == "srb"
+    await _the_world_as_it_was(session)
+
+
+async def _the_world_as_it_was(session: AsyncSession) -> None:
     counts = {
         model.__tablename__: await session.scalar(select(func.count()).select_from(model))
         for model in (
@@ -423,6 +434,13 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda _: "/invoices/validate",
         INVOICE.read_bytes(),
         _validation_keeps_nothing,
+    ),
+    ("POST", "/invoices/explain"): Guarded(
+        Permission.INVOICES_VALIDATE,
+        False,
+        lambda _: "/invoices/explain",
+        INVOICE.read_bytes(),
+        _explanation_keeps_nothing,
     ),
     ("GET", "/members"): Guarded(
         Permission.MEMBERS_READ, False, lambda _: "/members", None, _lists_only_ogleds_members

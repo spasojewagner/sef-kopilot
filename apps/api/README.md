@@ -216,8 +216,10 @@ what was counted (ADR-0018):
 | `POST /auth/refresh` and `/auth/logout` | address | 60 a minute, together |
 | `POST /auth/accept-invitation` | address | 10 a minute |
 | wrong passwords, at sign-in and when accepting an invitation | e-mail address | 10 in 15 minutes |
-| `POST /invoices/validate` and `POST /invoices` | caller: a member, or one API key | `SEF_VALIDATIONS_PER_MINUTE` (60) |
-| `POST /invoices/validate` and `POST /invoices` | organization | `SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE` (300) |
+| `POST /invoices/validate`, `/invoices/explain` and `POST /invoices` | caller: a member, or one API key | `SEF_VALIDATIONS_PER_MINUTE` (60) |
+| `POST /invoices/validate`, `/invoices/explain` and `POST /invoices` | organization | `SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE` (300) |
+| `POST /invoices/explain`, beside the validations | caller | `SEF_EXPLANATIONS_PER_MINUTE` (10) |
+| `POST /invoices/explain`, beside the validations | organization | `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE` (30) |
 
 A limit allows its count at once, then one request every period divided by the count. Wrong
 passwords are counted before the next password is checked, also for addresses no account has,
@@ -255,6 +257,82 @@ diacritics, with a trigram index) and, once embedded, by meaning (`embedding`, a
 
 The migration that creates the tables needs a role that may create the `vector` and `pg_trgm`
 extensions: the superuser of `make up` locally, Neon's default role in production.
+
+## Explanations
+
+`POST /invoices/explain` takes an invoice as `POST /invoices/validate` does, validates it in the
+same way, and explains each rule its report names: what the rule asks, why the invoice fails it
+and what to change, citing the corpus's passages that apply on the invoice's issue date
+(ADR-0021). `?language=` is `sr` (the default, in Latin script) or `en`. Nothing is stored, and
+the answer is `no-store`.
+
+```bash
+curl -s 'localhost:8000/invoices/explain?language=sr' -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/xml' \
+  --data-binary @fixtures/invoices/synthetic/mutations/srb-009-pib-check-digit.xml
+```
+
+The answer, with the report as `POST /invoices/validate` gives it, shortened:
+
+```json
+{
+  "report": { "profile": "srb", "valid": false, "violations": ["…"] },
+  "day": "2026-10-05",
+  "language": "sr",
+  "model": "groq/openai/gpt-oss-120b",
+  "explanations": [
+    {
+      "rule_id": "SRB-009",
+      "violations": 2,
+      "text": "…",
+      "fix": "…",
+      "citations": [
+        {
+          "id": "pib-rulebook/article-2/2018-10-01",
+          "document": "pib-rulebook",
+          "title": "Pravilnik o poreskom identifikacionom broju",
+          "label": "Члан 2.",
+          "heading": "Поступак, начин и рокови одређивања и додељивања ПИБ-а",
+          "version": "Službeni glasnik RS, br. 57/2003, 68/2003, 32/2009, 48/2010 i 44/2018",
+          "valid_from": "2018-10-01",
+          "valid_to": null,
+          "source_url": "https://…"
+        }
+      ],
+      "problem": null
+    }
+  ],
+  "unexplained": []
+}
+```
+
+Each rule is explained once, from its first violation; rules with a fatal violation come first,
+and those beyond `SEF_MAX_EXPLANATIONS` (5) are named in `unexplained`. A rule that cannot be
+explained (no passage concerns it, the model gave no usable answer in three, or the time ran
+out) has `text` and `fix` null and a `problem` that says why; the others stand. Every citation
+is a stored passage: the model may cite only the ids retrieval gave it, and its answer is
+checked before it is used.
+
+| `LLM_PROVIDER` | What explains |
+| --- | --- |
+| `none` (default) | nothing: `/invoices/explain` answers 503, and nothing leaves the server |
+| `groq` | with `GROQ_API_KEY`: Groq's `openai/gpt-oss-120b`, or the model `SEF_LLM_MODEL` names |
+
+The model is sent the rule's first violation (its rule, place and message, which may quote a
+value of the invoice) and the passages; nothing else of the invoice. With
+`EMBEDDINGS_PROVIDER=jina`, what each rule says (its title, its statement or its rule set's
+message, never the violation's message) is embedded too, to find passages by meaning in a
+corpus embedded by the same model; the embedder is still sent public text only. All of a
+request's explanations have `SEF_EXPLANATION_SECONDS` (30), the embeddings a fifth of them.
+The answers are those of a validation, and:
+
+| Answer | When | Setting (default) |
+| --- | --- | --- |
+| 503 | no model is configured; answered before the body is read | `LLM_PROVIDER` |
+| 429 + `Retry-After` | the caller, or their organization, has asked for as many explanations this minute as allowed | `SEF_EXPLANATIONS_PER_MINUTE` (10), `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE` (30) |
+
+Without the model's answers, a request for a synthetic invoice takes 100 to 170 ms; with them,
+the budget is under 6 s an explanation.
 
 ## Database and migrations
 

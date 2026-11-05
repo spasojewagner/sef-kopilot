@@ -11,6 +11,20 @@ is tagged.
 
 ### Added
 
+- `apps/api`: explanations (ADR-0021). `POST /invoices/explain?language=sr|en` validates an
+  invoice as `/invoices/validate` does, keeping nothing, and explains each rule its report
+  names, fatal ones first and five at most (`SEF_MAX_EXPLANATIONS`): what the rule asks, why the
+  invoice fails it and what to change, citing the passages of the corpus that apply on the
+  invoice's issue date. Retrieval finds them by the rule's references, the terms its message
+  names, its place, the tax codes it names, then by words and, with embeddings, meaning, fused
+  by rank; an embedder is sent what the rules say, never what the invoice holds. The model
+  answers a JSON schema whose citations can only be the ids of those passages; an answer is
+  checked again and sent back with what was wrong, three answers at most, and a rule without an
+  explanation says why. `LLM_PROVIDER=groq` with `GROQ_API_KEY` uses Groq's
+  `openai/gpt-oss-120b` (`SEF_LLM_MODEL` names another), behind the `LLMClient` adapter; the
+  default, `none`, sends nothing and answers 503. Requests for explanations count as validations
+  and against `SEF_EXPLANATIONS_PER_MINUTE` (10) and `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE`
+  (30), and have `SEF_EXPLANATION_SECONDS` (30).
 - `corpus/`: the official documents that explanations cite (ADR-0020): the Law and the
   Rulebook on Electronic Invoicing, the Rulebook on the Tax Identification Number, the SRB-CIUS
   specification and the Ministry's list of tax categories, seven editions in all, as Markdown

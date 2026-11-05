@@ -168,6 +168,59 @@ class Settings(BaseSettings):
         validation_alias="JINA_API_KEY",
         description="The key to Jina's embeddings API: required with `EMBEDDINGS_PROVIDER=jina`.",
     )
+    llm_provider: Literal["none", "groq"] = Field(
+        default="none",
+        validation_alias="LLM_PROVIDER",
+        description=(
+            "The language model that writes explanations. `none`: no model, and explanations "
+            "answer 503; `groq`: Groq's API, with `GROQ_API_KEY`."
+        ),
+    )
+    groq_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="GROQ_API_KEY",
+        description="The key to Groq's API: required with `LLM_PROVIDER=groq`.",
+    )
+    llm_model: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+        validation_alias="SEF_LLM_MODEL",
+        description=(
+            "The provider's model, when not its default (`openai/gpt-oss-120b` on Groq); it "
+            "must support structured outputs."
+        ),
+    )
+    max_explanations: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        validation_alias="SEF_MAX_EXPLANATIONS",
+        description="The most rules of one report explained in one request; the rest are named.",
+    )
+    explanation_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        le=300,
+        validation_alias="SEF_EXPLANATION_SECONDS",
+        description="Seconds the explanations of one request may take; a rule not explained "
+        "by then says so.",
+    )
+    explanations_per_minute: int = Field(
+        default=10,
+        ge=1,
+        le=100_000,
+        validation_alias="SEF_EXPLANATIONS_PER_MINUTE",
+        description="Requests for explanations one caller may make a minute; 429 beyond.",
+    )
+    organization_explanations_per_minute: int = Field(
+        default=30,
+        ge=1,
+        le=1_000_000,
+        validation_alias="SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE",
+        description="Requests for explanations all the callers of one organization may make a "
+        "minute; 429 beyond.",
+    )
 
     @property
     def access_token_lifetime(self) -> timedelta:
@@ -201,6 +254,12 @@ class Settings(BaseSettings):
     def _check_embeddings(self) -> Self:
         if self.embeddings_provider == "jina" and self.jina_api_key is None:
             raise ValueError("JINA_API_KEY must be set when EMBEDDINGS_PROVIDER is jina")
+        return self
+
+    @model_validator(mode="after")
+    def _check_llm(self) -> Self:
+        if self.llm_provider == "groq" and self.groq_api_key is None:
+            raise ValueError("GROQ_API_KEY must be set when LLM_PROVIDER is groq")
         return self
 
     @model_validator(mode="after")
