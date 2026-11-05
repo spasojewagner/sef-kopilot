@@ -12,4 +12,4 @@ it can run inside the API, in a command-line tool, in tests and in evaluation ha
 __all__ = ["__version__"]
 
 # Kept in sync with ``pyproject.toml`` by ``tests/test_package.py``.
-__version__ = "0.1.0"
+__version__ = "0.2.0"

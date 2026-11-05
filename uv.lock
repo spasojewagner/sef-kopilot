@@ -734,7 +734,7 @@ wheels = [
 
 [[package]]
 name = "einvoice-core"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/einvoice_core" }
 dependencies = [
     { name = "lxml" },
@@ -2137,7 +2137,7 @@ wheels = [
 
 [[package]]
 name = "sef-kopilot-api"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "apps/api" }
 dependencies = [
     { name = "alembic" },
