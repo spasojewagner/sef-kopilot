@@ -1,6 +1,8 @@
 # 16. Stored invoices: the document and its report in PostgreSQL, seen by organization and submitter, within a quota
 
-- Status: accepted
+- Status: accepted; amended by [0019](0019-jobs-and-progress.md), under which a stored
+  invoice's report is its latest, made again when the invoice is validated again, and
+  `validated_at` tells when
 - Date: 2026-11-04
 - Deciders: Marko Spasojević
 - Technical story: milestone M2, branch `feat/api-invoices-store`

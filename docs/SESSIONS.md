@@ -618,3 +618,51 @@ pass and 305 are skipped. Every commit was checked on its own, and every limit w
 seeding the fault that breaks it.
 
 Next: `feat/api-jobs-sse`, then `feat/rag-corpus-ingest`.
+
+## 2026-11-05 — `feat/api-jobs-sse` (7 commits)
+
+Outcome: work that outlasts a request runs as a job that survives its worker, a member follows
+it as server-sent events, and the first job validates stored invoices again.
+
+- `jobs` (migration 0006): the row is the truth; `version` for readers, `attempts` as a
+  fencing token, and a partial unique index that allows a member one unfinished job of each
+  kind.
+- Running a job: taking it on counts an attempt, and every later write requires the attempt to
+  be the latest. An attempt sees the progress of those before it, and may write its progress in
+  the transaction of the work it counts, so that it continues where they stopped and a
+  superseded attempt leaves nothing behind.
+- `POST /invoices/revalidations`: the invoices the caller may see, stored by the time the job
+  started, one per transaction with its count; a larger report held to the quota under the
+  upload lock; 409 while one is under way. `validated_at` (migration 0007) amends ADR-0016.
+- `GET /jobs/{id}` and `GET /jobs/{id}/events`: the stream reads the job once a second without
+  holding a connection, numbers its events with the job's version for `Last-Event-ID`, answers
+  404 before it begins, and ends with the finished job or after five minutes.
+- Runners: inline by default, resumed when the API starts and cut short when it stops;
+  `SEF_JOBS=arq` with `REDIS_URL` and `python -m sef_api.jobs.worker`, ids taken once, no
+  results kept, a sweep when a worker starts and every minute, attempts of at most an hour.
+  CI runs the worker tests on Redis.
+- ADR-0019, learning notes 13 (SSE vs. WebSockets) and 14 (idempotent jobs), interview notes.
+
+Findings:
+
+- A fence on the progress alone would not have stopped a superseded attempt's report: the
+  invoice's update would have been committed on its own. The report and the count are one
+  transaction, and a test makes the two attempts judge the invoice differently.
+- arq keeps a job's result for an hour by default, and takes no id again while it does: a job
+  cut short by its time limit could not have gone back on the queue. Results are not kept, and
+  a test cuts an attempt short and lets the next worker continue it.
+- A stream's dependencies last as long as the stream. Without committing first, every open
+  stream would hold a pooled connection; a test counts the connections checked out while a
+  stream waits.
+- The invoices deleted before the job reached them never turn up, so `done` would have ended
+  short of `total`; the result counts them as deleted.
+- httpx's ASGI transport hands a response over only once it is complete. The stream tests use a
+  small ASGI client that sees each event as it is sent.
+- Render's free web service has no background worker: a free deployment runs jobs inline.
+
+Verification: 2 108 tests green with PostgreSQL and Redis (API 515, coverage 100 %); without
+them 1 744 pass and 364 are skipped. Every commit was checked on its own, and the guards were
+checked by seeding the faults that break them: 51 seeded, 50 caught, and the one left is a
+second tenant filter behind the first.
+
+Next: `feat/rag-corpus-ingest`.

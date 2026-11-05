@@ -51,11 +51,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/api-invoices-store` — invoices and their reports kept per organization: store, list a page at a time, read, download and delete; a client sees what they submitted; a storage quota per organization (ADR-0016)
 - [x] `feat/api-keys` — API keys for machine clients (ERPs): 256 random bits shown once and kept as a digest, acting for the member who issued them with chosen invoice permissions within the member's role, revoked by the member or an owner, deleted with the membership; a cross-tenant case with another organization's key for every endpoint; credentials kept out of caches (ADR-0017)
 - [x] `feat/api-rate-limits` — rate limits in the API's process (GCRA): sign-in, registration, refresh and accepting invitations per address, wrong passwords per e-mail address, validations per caller and per organization (429 with `Retry-After`; ADR-0018)
-- [ ] `feat/api-jobs-sse` — `arq` jobs behind `JobRunner`, progress over SSE
+- [x] `feat/api-jobs-sse` — jobs whose row is the truth, with fenced attempts that continue from their progress; inline or on `arq` workers with a sweep, behind `JobRunner`; the first job validates stored invoices again within the quota; progress over SSE, resumable with `Last-Event-ID` (ADR-0019)
 - [ ] `feat/rag-corpus-ingest` — ingestion of the law, rulebook, technical instruction and SRB-CIUS specification with `valid_from` / `valid_to`
 - [ ] `feat/rag-explain-citations` — explanation endpoint; citations must resolve to stored chunks; no-store mode
 - [ ] Langfuse and Sentry wiring; structured JSON logs with security events (sign-in, API key use, and when each key was last used); health and readiness checks
-- [ ] Learning notes: pgvector and hybrid retrieval, SSE vs. WebSockets, idempotent job design, ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11), ~~rate limits~~ (12)
+- [ ] Stored invoices listed by verdict (`GET /invoices?valid=false`), to find the invoices a revalidation judged invalid; finished jobs deleted after a period, with the retention of stored invoices (`SECURITY.md`, V14)
+- [ ] Learning notes: pgvector and hybrid retrieval, ~~SSE vs. WebSockets~~ (13), ~~idempotent job design~~ (14), ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11), ~~rate limits~~ (12)
 - [ ] Release: `v0.2.0`
 
 ## M3 — Repair loop + web UI (weeks 5–6) · tag `v0.3.0`

@@ -134,7 +134,47 @@ curl -s "localhost:8000/invoices?limit=20" -H "Authorization: Bearer $ACCESS_TOK
 Owners and accountants see every invoice of the organization; a client sees the ones they
 submitted, and anything else is not found (404). An organization stores at most
 `SEF_MAX_STORED_BYTES` (100 MiB) of documents and reports together; `POST /invoices` answers 507
-beyond it, and deleting makes room. Every answer is marked `Cache-Control: no-store`.
+beyond it, and deleting makes room. Every answer is marked `Cache-Control: no-store`. An
+invoice's report is its latest, and `validated_at` says when the validator made it: when the
+invoice was stored, or validated again.
+
+## Jobs
+
+Work that outlasts a request runs as a job (ADR-0019). The first one validates stored invoices
+again with the rules the server has now:
+
+```bash
+curl -si -X POST localhost:8000/invoices/revalidations -H "Authorization: Bearer $ACCESS_TOKEN"
+curl -sN localhost:8000/jobs/$JOB_ID/events -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+`POST /invoices/revalidations` answers 202 with the job, and `Location` names it. The job takes
+on the invoices the caller may see, as `GET /invoices` lists them, that were stored by the time
+it was started, and makes each new report the invoice's latest. An invoice whose new report
+would take the organization past its quota keeps the one it has. Its progress and its result
+count `total`, `done`, `valid`, `invalid`, `kept`, `failed` and `deleted`. A member has one
+revalidation under way at a time: another request answers 409, with the one under way in
+`Location`.
+
+| Endpoint | Answer |
+| --- | --- |
+| `GET /jobs/{id}` | the job: its status, progress, result or error, and `version` |
+| `GET /jobs/{id}/events` | server-sent events: a `job` event at once and whenever the job changes, with its `version` as the `id`; resume with `Last-Event-ID`; the stream ends with the finished job or after five minutes |
+
+A client sees the jobs it would see the invoices of. In a browser, read the stream with `fetch`,
+since `EventSource` cannot send an `Authorization` header.
+
+Jobs run in the API's own process by default (`SEF_JOBS=inline`): unfinished ones are taken on
+again when it starts. With more than one process, set `SEF_JOBS=arq` and `REDIS_URL`, and run
+workers beside the API:
+
+```bash
+SEF_JOBS=arq make worker   # uv run python -m sef_api.jobs.worker
+```
+
+A worker puts every unfinished job back on the queue when it starts and once a minute, so
+nothing is lost with Redis, and cuts an attempt short after an hour; the next attempt continues
+where it stopped.
 
 ## API keys
 
@@ -213,8 +253,10 @@ uv run pytest apps/api --cov=apps/api/src/sef_api      # or: make test-api
 Database tests run on the server named by `SEF_TEST_DATABASE_URL` (environment or `.env`), for
 example `postgresql+asyncpg://sef:sef@localhost:5432/postgres` with `make up`. The suite creates
 a database of its own, migrates it, rolls every test back and drops the database at the end.
-Without the variable those tests are skipped; CI always runs them. The validator's tests need
-the fetched rule sets (`make rulesets`), as the core's do.
+Without the variable those tests are skipped; CI always runs them. The worker tests need Redis
+as well, the database named by `SEF_TEST_REDIS_URL` (`redis://localhost:6379/15` with
+`make up`), which they empty. The validator's tests need the fetched rule sets
+(`make rulesets`), as the core's do.
 
 ## Layout
 
@@ -224,13 +266,15 @@ src/sef_api/
   settings.py    configuration from the environment (pydantic-settings)
   db.py          declarative base, engine, sessions, the `get_session` dependency
   models.py      organizations, users, memberships, roles, invitations, refresh tokens,
-                 stored invoices, API keys
+                 stored invoices, API keys, jobs
   locks.py       the advisory locks on an organization's members, invoices and API keys
   rate_limits.py the rate limiter (GCRA), what it counts and the limits
   api_keys/      issuing, authenticating, listing and revoking API keys, `/api-keys` routes
   auth/          passwords, tokens, the sign-in service, `/auth` routes, `current_principal`
-  invoices/      upload limits, the validator and its child process, stored invoices,
-                 `/invoices` routes
+  invoices/      upload limits, the validator and its child process, stored invoices and
+                 validating them again, `/invoices` routes
+  jobs/          running a job, the inline runner, the Redis queue and its worker, `/jobs`
+                 routes with the event stream
   members/       members and invitations, `/members` and `/invitations` routes
   migrations/    Alembic environment and revisions (`versions/`)
   routes/        one router module per resource

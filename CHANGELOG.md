@@ -11,6 +11,17 @@ is tagged.
 
 ### Added
 
+- `apps/api`: jobs (ADR-0019). A job's row in PostgreSQL is the truth: taking a job on counts
+  an attempt, and every later write requires the attempt to be the latest, so that a job
+  delivered twice does its work once and one cut short continues from its progress. The first
+  job validates stored invoices again: `POST /invoices/revalidations` (202 with `Location`;
+  409 while the caller has one under way) takes the invoices the caller may see, one at a
+  time, makes each new report the invoice's latest and counts what became of it (`valid`,
+  `invalid`, `kept` when the new report would not fit the quota, `failed`, `deleted`).
+  `GET /jobs/{id}` reads a job, and `GET /jobs/{id}/events` follows it as server-sent events,
+  resumable with `Last-Event-ID`. Jobs run in the API's process (`SEF_JOBS=inline`, the
+  default), or in arq workers on a Redis queue (`SEF_JOBS=arq` with `REDIS_URL`;
+  `make worker`) that sweep unfinished jobs back onto it once a minute.
 - `apps/api`: rate limits (ADR-0018). Per address: signing in 30 a minute, registering 10 an
   hour, refreshing and signing out 60 a minute, accepting an invitation 10 a minute. Per
   e-mail address: 10 wrong passwords in 15 minutes, at sign-in and when an invitation is
@@ -80,6 +91,8 @@ is tagged.
 
 ### Changed
 
+- A stored invoice's report is its latest, and `validated_at` tells when the validator made it
+  (migration 0007 fills it from when the invoice was stored); ADR-0016 is amended.
 - The OpenAPI security scheme is named `access token or API key`: the same bearer header takes
   either.
 - `GET /ready` checks the database and the validator, and answers 503 while either cannot

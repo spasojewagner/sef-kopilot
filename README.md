@@ -149,6 +149,7 @@ make test         # core, api and web test suites with their coverage gates
 make lint         # ruff, Prettier, ESLint — no changes
 make typecheck    # mypy --strict and tsc --noEmit
 make api          # FastAPI with auto-reload → http://127.0.0.1:8000/docs
+make worker       # an arq worker for the jobs on the Redis queue (with SEF_JOBS=arq)
 make web          # Next.js dev server → http://localhost:3000
 ```
 
@@ -163,7 +164,9 @@ uv run einvoice rules --profile srb   # what the SEF profile checks and sets asi
 
 Copy `.env.example` to `.env` to override the local defaults. Nothing up to M1 needs a secret.
 The API's database tests run when `SEF_TEST_DATABASE_URL` names a PostgreSQL server (with
-`make up`: `postgresql+asyncpg://sef:sef@localhost:5432/postgres`); otherwise they are skipped.
+`make up`: `postgresql+asyncpg://sef:sef@localhost:5432/postgres`), and its worker tests when
+`SEF_TEST_REDIS_URL` names a Redis database they may empty (`redis://localhost:6379/15`);
+otherwise they are skipped.
 
 ## Documentation
 

@@ -18,7 +18,9 @@ flowchart LR
     WEB -->|HTTP + SSE| API
     API --> CORE["packages/einvoice_core"]
     API --> DB[("PostgreSQL 16 + pgvector")]
-    API --> REDIS[("Redis / arq jobs")]
+    API -.->|SEF_JOBS=arq| REDIS[("Redis job queue")]
+    REDIS -.-> WORKER["arq workers"]
+    WORKER --> DB
     API -->|BYOK| LLM["LLM provider (Groq by default)"]
     API -->|demo only| SEF["SEF demo environment"]
 ```
@@ -42,8 +44,11 @@ the system without a green validator.
 2. Validate — in a child process of the API, one invoice at a time, stopped at a time limit
    (ADR-0015). Layer 1 runs XSD → Schematron → SRB-CIUS rules → arithmetic, in one call per
    profile (`srb`, `en16931`, `peppol`) that reports what a profile sets aside and why. Work
-   that takes seconds (explanations, the repair loop, batches) runs as jobs on `arq` behind the
-   `JobRunner` interface, with progress events over SSE.
+   that outlasts a request runs as a job (ADR-0019): its row in PostgreSQL is the truth, and it
+   runs in the API's event loop or in arq workers on a Redis queue, behind the `JobRunner`
+   interface, with its progress streamed over SSE (`GET /jobs/{id}/events`). The first job
+   validates stored invoices again with the current rules (`POST /invoices/revalidations`);
+   explanations, the repair loop and sending to SEF follow.
 3. Explain — for each violation: curated `rule_id → passages` map first, then pgvector
    similarity and `pg_trgm` keyword retrieval; the model writes the explanation with
    structured output; citations are checked against stored chunk ids.
@@ -58,7 +63,7 @@ the system without a green validator.
 | Path | Responsibility | Status |
 | --- | --- | --- |
 | `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 in progress: semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation, EN 16931 and Peppol BIS Schematron, SRB-CIUS rule set v1 (29 rules, ADR-0006), BR-CO arithmetic in Python (ADR-0007), validation pipeline with profiles (ADR-0008), `einvoice` CLI (ADR-0009), hostile documents: linear addressing, bounded numbers and reports, values read whole (ADR-0014) |
-| `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M2 in progress: settings, PostgreSQL with Alembic migrations, the tenancy schema (ADR-0011), accounts, sign-in and tokens (ADR-0012), permissions, members and invitations (ADR-0013), invoice validation in a child process (ADR-0015), stored invoices with their reports, seen by organization and submitter, within a quota (ADR-0016), API keys that act for a member within their role (ADR-0017), rate limits per address, account, caller and organization (ADR-0018); `/health`, `/ready` (database and validator) |
+| `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M2 in progress: settings, PostgreSQL with Alembic migrations, the tenancy schema (ADR-0011), accounts, sign-in and tokens (ADR-0012), permissions, members and invitations (ADR-0013), invoice validation in a child process (ADR-0015), stored invoices with their reports, seen by organization and submitter, within a quota (ADR-0016), API keys that act for a member within their role (ADR-0017), rate limits per address, account, caller and organization (ADR-0018), jobs with fenced attempts that continue from their progress, inline or on arq workers, followed over SSE, and the first of them, validating stored invoices again (ADR-0019); `/health`, `/ready` (database and validator) |
 | `apps/web` | upload, report, explanations, diff and approval UI (sr-Latn / en) | M0 skeleton |
 | `third_party/` | fetched UBL 2.1 schemas, EN 16931 and Peppol BIS artefacts, the ISO Schematron compiler, with their terms; compiled-stylesheet cache | M1 (UBL 2.1 and ISO Schematron added) |
 | `corpus/` | regulation texts from official sources with `source_url`, `fetched_at`, `valid_from` | planned (M2) |
@@ -74,6 +79,10 @@ the system without a green validator.
   global and belong to organizations through memberships with a role. Row-level access is
   enforced in the service layer and covered by tests that attempt cross-tenant requests
   (ADR-0011; every guarded endpoint has a cross-tenant test, ADR-0013).
+- **Background work:** a job's row is the truth and a queue carries only its id; taking a job
+  on counts an attempt, every later write requires the attempt to be the latest, and progress
+  is written with the work it counts, so that a job delivered twice does its work once
+  (ADR-0019).
 - **No-store mode:** an invoice can be processed entirely in memory; nothing about its content
   reaches logs, traces, metrics or error reports in either mode.
 - **Configuration:** environment variables only (`.env.example` lists the names); secrets are
