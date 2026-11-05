@@ -163,7 +163,10 @@ uv run einvoice validate invoices/                     # every .xml file under a
 uv run einvoice rules --profile srb   # what the SEF profile checks and sets aside
 ```
 
-Copy `.env.example` to `.env` to override the local defaults. Nothing up to M1 needs a secret.
+Copy `.env.example` to `.env` to override the local defaults. Nothing up to M1 needs a secret;
+explanations (`POST /invoices/explain`) need a language model: `LLM_PROVIDER=groq` with a
+`GROQ_API_KEY` of your own (Groq's free tier is enough), and without one the endpoint answers
+503.
 The API's database tests run when `SEF_TEST_DATABASE_URL` names a PostgreSQL server (with
 `make up`: `postgresql+asyncpg://sef:sef@localhost:5432/postgres`), and its worker tests when
 `SEF_TEST_REDIS_URL` names a Redis database they may empty (`redis://localhost:6379/15`);

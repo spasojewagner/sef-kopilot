@@ -39,8 +39,9 @@ The project is pre-alpha. Only the `main` branch and the latest tagged release r
 3. XML parsing is hardened: no external entities, no DTD processing, size and type limits on
    uploads, no network access during parsing.
 4. Model output is data, not instructions: structured, schema-validated, applied by code, and
-   re-validated by layer 1. Patches that touch amounts, VAT, tax identifiers or dates of supply
-   are rejected automatically.
+   re-validated by layer 1. An explanation may cite only the passages retrieval found, and is
+   checked before it is used. Patches that touch amounts, VAT, tax identifiers or dates of
+   supply are rejected automatically.
 5. Multi-tenancy is enforced in the service layer on every query (`organization_id`) and
    covered by tests.
 6. Dependencies are audited in CI (`pip-audit`, `pnpm audit`); secrets are scanned with
@@ -48,7 +49,10 @@ The project is pre-alpha. Only the `main` branch and the latest tagged release r
 7. Everything that talks to the outside world is explicit and configurable; a self-hosted
    deployment makes no external calls except the LLM provider the operator chooses. Embedding
    the corpus is off by default (`EMBEDDINGS_PROVIDER=none`), and what an embedder is sent is
-   official public text, never an organization's data.
+   public text: the official documents and what the rules of a report say, never an
+   organization's data. Explaining is off by default too (`LLM_PROVIDER=none`); the model is
+   sent the first violation of each rule a report names, whose message may quote a value of
+   the invoice, and public passages, and nothing else of the invoice.
 
 ## OWASP ASVS 5.0 — Level 1 checklist
 
@@ -71,11 +75,18 @@ system are marked as such.
 ### V2 Validation and business logic
 
 - [ ] All request bodies are validated with Pydantic models (strict types, bounded sizes).
-- [ ] Business guardrails (forbidden patch fields, arithmetic rules in code, citation
-      resolution) are enforced server-side and covered by tests.
-- [~] Rate limiting on upload, validation and explanation endpoints: validations are admitted
+- [~] Business guardrails (forbidden patch fields, arithmetic rules in code, citation
+      resolution) are enforced server-side and covered by tests: the arithmetic rules are
+      computed in Python, and an explanation cites only passages retrieval read from the
+      database, enforced by its answer's schema and checked again (tests send answers that
+      cite other ids); the patch guard comes with the repairer (M3).
+- [x] Rate limiting on upload, validation and explanation endpoints: validations are admitted
       a few at a time (503 with `Retry-After` beyond), and counted per caller and per
-      organization (429 with `Retry-After`) before the body is read; explanations follow.
+      organization (429 with `Retry-After`) before the body is read; a request for
+      explanations is counted as a validation and against limits of its own, per caller and
+      per organization, in the same step.
+- [x] The work one request for explanations causes is bounded: five rules at most, passages
+      cut to 6 000 characters, three answers a rule, and 30 seconds in all.
 - [x] The work one upload causes is bounded: a budget of elements counted before any
       validation (413), a time limit enforced by killing the validator's child process
       (422), and a deadline for the body (408).
@@ -187,6 +198,9 @@ system are marked as such.
       server elsewhere).
 - [x] `JINA_API_KEY` is a secret setting too; `EMBEDDINGS_PROVIDER=jina` without it refuses to
       start, and an embedder's error names the status it got, never the texts it was sent.
+- [x] `GROQ_API_KEY` is a secret setting as well; `LLM_PROVIDER=groq` without it refuses to
+      start, and the model client's error names the status and Groq's error code, never what
+      it was asked or answered.
 - [x] The corpus's sources are pinned by SHA-256 in `corpus/manifest.toml`: the converter
       refuses a download whose digest differs, and loading the corpus refuses an edition file
       that is not exactly what the converter writes (ADR-0020).
@@ -203,11 +217,13 @@ system are marked as such.
 - [x] The validator writes nothing to the process's standard streams: Saxon's warnings, which
       can quote a document, go to the null device (tested on the file descriptors); where that
       device cannot be opened, a log warning says that they reach the standard error instead.
-- [~] No-store mode: `POST /invoices/validate` keeps the invoice in memory for the length of
-      the request, and a test checks that it leaves no row behind; explanations follow.
+- [x] No-store mode: `POST /invoices/validate` and `POST /invoices/explain` keep the invoice
+      in memory for the length of the request, and tests check that they leave no row behind.
+      Explaining logs the rules, the model and the number of answers, never a message (tested
+      with a message that quotes the invoice).
 - [x] Responses that carry invoice data send `Cache-Control: no-store`: the validation report,
-      every answer about a stored invoice, and every job and its event stream, each checked by
-      a test.
+      the explanations, every answer about a stored invoice, and every job and its event
+      stream, each checked by a test.
 - [x] Responses that carry a credential send `Cache-Control: no-store` as well (RFC 6749): the
       tokens of registration, sign-in, accepting an invitation and refreshing, an invitation's
       code and a new API key, each checked by a test.
@@ -218,7 +234,12 @@ system are marked as such.
 
 ### V15 Secure coding and architecture
 
-- [ ] Deterministic validator as the single source of truth; LLM output treated as untrusted.
+- [~] Deterministic validator as the single source of truth; LLM output treated as untrusted:
+      the explainer is asked about violations layer 1 reported in the same request, never
+      about violations a client sends; its answer is parsed against a schema, its citations
+      checked, and the response built from stored passages, not from what the model wrote
+      about them. The violation and the passages are sent as data the model is told not to
+      follow. Repairs (M3) follow.
 - [ ] Static typing (`mypy --strict`), linting and tests gate every change.
 
 ### V16 Security logging and error handling

@@ -755,3 +755,64 @@ digests of the system's answers; `build_corpus.py --check` says the corpus is wh
 and the converter's tests pass.
 
 Next: `feat/rag-explain-citations`, stacked on this branch.
+
+## 2026-11-05 — `feat/rag-explain-citations` (5 commits)
+
+Outcome: the second layer. `POST /invoices/explain` validates an invoice and explains each rule
+its report names, in Serbian or English, citing the corpus's passages that apply on the
+invoice's issue date; every citation is a stored passage.
+
+- `sef_api.llm`: `LLMClient` and `GroqClient` (`openai/gpt-oss-120b`, strict structured
+  outputs, temperature 0, brief reasoning that is not sent back); `LLM_PROVIDER=none` by
+  default, `GROQ_API_KEY` required with `groq`.
+- `sef_api.rag.retrieval`: the rule's references, the BT and BG terms, the place, the tax
+  codes, then words and meaning fused by reciprocal rank; six passages at most, all applying
+  on the day.
+- `sef_api.rag.explainer`: the question as delimited data within 6 000 characters, a schema
+  whose citations are an enum of the ids given, the answer checked again and sent back with
+  the reason, three answers at most; each rule once, fatal first, five at most, in 30 seconds.
+- The endpoint counts as a validation and against limits of its own, answers 503 without a
+  model before it reads anything, stores nothing, and logs nothing of the invoice.
+- ADR-0021, learning note 16, interview notes; SECURITY.md marks the no-store mode, the rate
+  limits and the citation guard done for explanations.
+
+Findings:
+
+- The embedder would have been sent the invoice. The messages of the SRB-CIUS rules, the
+  arithmetic and the schema quote PIBs, amounts and dates, and embedding them to search by
+  meaning would have made Jina a second party that sees invoices, where ADR-0020 accepted it
+  for public text only. It came up while SECURITY.md was being written. The meaning is now
+  searched with what the rule says: a Schematron rule's message, an SRB-CIUS rule's title, an
+  arithmetic rule's statement; a test checks that none of the 2 128 messages of the pinned
+  rule sets is computed from the document.
+- Embedding was outside the time limit: Jina's client waits up to 60 seconds, four times,
+  before it gives up. It now has a fifth of the request's time, after which the words find the
+  passages alone.
+- A message can quote any text of the invoice, a buyer reference among them, so one could
+  close the tag it is sent in. Its angle brackets are escaped.
+- The schema's messages name elements (`cac:Party`) that every row's path shares, so their
+  words found every party; the place finds them better. English messages find the Serbian
+  rows because the rows' headings carry the English term: `BR-CO-15`'s message finds BT-109,
+  BT-112 and BT-110 at 0.75, 0.70 and 0.60.
+- The lists of tax categories run to 8 500 characters. Passages are cut to 2 000 and 6 000 in
+  all, which keeps a question near 2 000 tokens, a quarter of the free tier's minute.
+- `reasoning_effort` and `include_reasoning` belong to the GPT-OSS models: another model that
+  `SEF_LLM_MODEL` names is not sent them.
+- Seeding faults: 87 seeded, 73 caught at first. The test of the fusion passed whatever the
+  fusion did, because its rule (SRB-008) found both passages by its references first; it now
+  uses no rule and checks that a passage second in both lists comes before one first in one.
+  Also missed: the bounds of the day for references and meaning, a code another category's
+  code begins with (PDV-RS-6 and PDV-RS-6-1-1), a rule that names categories it does not cite
+  (SRB-020), the bound of the backoff, the lengths of the texts, the prompt's "never invent",
+  and the endpoint's time and embedder. Each has a test now; the one left changes nothing, as
+  the specification's paths always go below the root.
+- Not measured here, for want of a key and a route to Groq: the latency and the quality of a
+  live explanation. The PR's test measures the latency; the evaluation set of M6, the quality.
+
+Verification: 2 320 tests green with PostgreSQL, Redis and the downloaded sources (API 701,
+coverage 100 %); without them 1 899 pass and 421 are skipped. Every commit was checked on its
+own, and the guards by seeding the faults that break them: 87 seeded, 86 caught. A smoke run
+against the scratch database with a stand-in model answered in 100 to 170 ms.
+
+Next: `feat/api-invoices-by-verdict` (stored invoices listed by verdict, finished jobs deleted
+after a period), then the scheduled check of the corpus's sources and the release `v0.2.0`.

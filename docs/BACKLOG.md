@@ -55,9 +55,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/rag-corpus-ingest` — the corpus: the law and the rulebook on e-invoicing, the PIB rulebook, the SRB-CIUS specification and the tax categories as Markdown editions made from sources pinned by URL and SHA-256 (`scripts/build_corpus.py`); passages dated by edition, deferral and renumbering, with ids that name their first day; `corpus_passages` with pgvector and trigram indexes, an idempotent ingest that embeds with Jina when configured, and the passages each SRB-CIUS rule cites (ADR-0020)
 - [ ] The SEF internal technical instruction (Interno tehničko uputstvo) in the corpus, once its official text can be pinned like the others
 - [ ] A scheduled CI job that downloads the corpus's sources and reports a digest that changed (a new edition to review)
-- [ ] `feat/rag-explain-citations` — explanation endpoint; citations must resolve to stored chunks; no-store mode
+- [x] `feat/rag-explain-citations` — `POST /invoices/explain`: each rule of a report explained once, in Serbian or English, from the passages that apply on the invoice's day, found by the rule's references, its terms, its place, its codes, then words and meaning fused by rank; a strict JSON schema whose citations can only be those passages' ids, checked again and sent back with the reason, three answers at most; Groq's `openai/gpt-oss-120b` behind `LLMClient`; limits per caller and organization, a time limit, nothing stored (ADR-0021)
+- [ ] An explanation's latency with a live Groq key measured against the budget (< 6 s) and noted in the API's README
 - [ ] Stored invoices listed by verdict (`GET /invoices?valid=false`), to find the invoices a revalidation judged invalid; finished jobs deleted after a period, with the retention of stored invoices (`SECURITY.md`, V14)
-- [ ] Learning notes: pgvector and hybrid retrieval, ~~law that changes: dated passages~~ (15), ~~SSE vs. WebSockets~~ (13), ~~idempotent job design~~ (14), ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11), ~~rate limits~~ (12)
+- [x] Learning notes: ~~hybrid retrieval~~ (16), ~~law that changes: dated passages~~ (15), ~~SSE vs. WebSockets~~ (13), ~~idempotent job design~~ (14), ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11), ~~rate limits~~ (12)
 - [ ] Release: `v0.2.0`
 
 ## M3 — Repair loop + web UI (weeks 5–6) · tag `v0.3.0`
@@ -66,6 +67,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] `feat/repair-loop-audit` — approval flow and audit log
 - [ ] `feat/web-bootstrap` — Next.js app shell, shadcn/ui, TanStack Query, `next-intl` (sr-Latn default, en)
 - [ ] `feat/web-upload-report` — upload, report, violation detail with citations
+- [ ] Explanations of a stored invoice kept with its report, written once by a job and read with the invoice; the embeddings of what the rules say kept for reuse
 - [ ] `feat/web-diff-approve` — diff view, approval, history
 - [ ] `chore/infra-deploy` — public demo on Render + Neon + Upstash + Cloudflare Pages, "waking up" state for cold starts
 - [ ] Playwright smoke test for the golden path (upload → report → fix → approve)
@@ -93,6 +95,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] `feat/evals-harness` — golden sets, eval runner, `evals/thresholds.yaml`, offline cassettes
 - [ ] `ci/evals-gate` — CI fails below thresholds; README badge from the latest report
 - [ ] `feat/billing-stripe-sandbox` — Stripe sandbox credits per invoice, verified webhooks
+- [ ] OpenAI and Anthropic adapters behind `LLMClient` (the operator's key, `LLM_PROVIDER=openai|anthropic`), and an organization's own key kept encrypted like its SEF key (BYOK), compared on the evaluation set
 - [ ] Release: `v0.6.0`
 
 ## M7 — PDF beta, case study, 1.0 (week 10) · tag `v1.0.0`
