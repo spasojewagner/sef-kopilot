@@ -10,7 +10,8 @@ quota.
 Every read is within a :class:`Scope`: the organization, and for a member who may not see
 every invoice of it, only the ones they submitted. An invoice outside the scope does not
 exist for the caller. Lists are newest first and come in pages, each continued from a
-:data:`Cursor` that names the last invoice of the page before.
+:data:`Cursor` that names the last invoice of the page before; a list may hold only the
+invoices the validator last found valid, or only those it found invalid.
 """
 
 from __future__ import annotations
@@ -216,11 +217,19 @@ def _scoped(scope: Scope) -> Select[StoredInvoice]:
 
 
 async def page_of(
-    session: AsyncSession, scope: Scope, *, limit: int, after: str | None = None
+    session: AsyncSession,
+    scope: Scope,
+    *,
+    limit: int,
+    after: str | None = None,
+    valid: bool | None = None,
 ) -> Page:
     """The newest ``limit`` invoices in ``scope``, or the next ones ``after`` a cursor; raises
-    :class:`InvalidCursorError` for a cursor this API did not give."""
+    :class:`InvalidCursorError` for a cursor this API did not give. With ``valid``, only the
+    invoices whose latest report says so."""
     query = _scoped(scope)
+    if valid is not None:
+        query = query.where(StoredInvoice.valid == valid)
     if after is not None:
         moment, identifier = _position(after)
         query = query.where(

@@ -85,6 +85,46 @@ async def test_invoices_stored_at_the_same_moment_are_each_listed_once(
     assert sorted(seen) == sorted(stored)
 
 
+async def test_invoices_are_listed_by_the_verdict_of_their_latest_report(
+    api: AsyncClient, primer: Office, session: AsyncSession
+) -> None:
+    """The invalid ones, a page at a time: what a revalidation left to fix."""
+    stored = [
+        await stored_invoice(
+            session, primer.organization, primer.client, created_at=at(n), valid=verdict
+        )
+        for n, verdict in enumerate([True, False, True, False, False])
+    ]
+    newest_first = list(reversed(stored))
+
+    first = await listed(api, primer.as_owner(), valid="false", limit=2)
+    second = await listed(api, primer.as_owner(), valid="false", limit=2, after=first["next"])
+    valid = await listed(api, primer.as_owner(), valid="true")
+    every = await listed(api, primer.as_owner())
+
+    assert ids(first) + ids(second) == [str(each.id) for each in newest_first if not each.valid]
+    assert second["next"] is None
+    assert [invoice["valid"] for invoice in first["invoices"] + second["invoices"]] == [False] * 3
+    assert ids(valid) == [str(each.id) for each in newest_first if each.valid]
+    assert ids(every) == [str(each.id) for each in newest_first]
+
+
+async def test_a_client_lists_by_verdict_only_the_invoices_they_submitted(
+    api: AsyncClient, primer: Office, session: AsyncSession
+) -> None:
+    own = await stored_invoice(session, primer.organization, primer.client, created_at=at(1))
+    await stored_invoice(session, primer.organization, primer.accountant, created_at=at(2))
+    await stored_invoice(session, primer.organization, primer.client, created_at=at(3), valid=True)
+
+    assert ids(await listed(api, primer.as_client(), valid="false")) == [str(own.id)]
+
+
+async def test_a_verdict_is_true_or_false(api: AsyncClient, primer: Office) -> None:
+    response = await api.get("/invoices", params={"valid": "maybe"}, headers=primer.as_owner())
+
+    assert response.status_code == 422
+
+
 async def test_a_list_says_what_the_validator_read_without_the_reports(
     api: AsyncClient, primer: Office
 ) -> None:

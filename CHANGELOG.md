@@ -11,6 +11,9 @@ is tagged.
 
 ### Added
 
+- `apps/api`: `GET /invoices?valid=false` lists only the stored invoices whose latest report is
+  invalid, and `valid=true` only the valid ones, a page at a time as before: after a
+  revalidation, the invoices it found invalid.
 - `apps/api`: explanations (ADR-0021). `POST /invoices/explain?language=sr|en` validates an
   invoice as `/invoices/validate` does, keeping nothing, and explains each rule its report
   names, fatal ones first and five at most (`SEF_MAX_EXPLANATIONS`): what the rule asks, why the
