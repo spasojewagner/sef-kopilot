@@ -19,7 +19,7 @@ from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
 from sef_api.invoices import routes as invoices
-from sef_api.invoices.validator import Admission, ProcessValidator, ThreadValidator, Validator
+from sef_api.invoices.validator import Admission, Validator, validator_for
 from sef_api.jobs import routes as jobs
 from sef_api.jobs import store as job_store
 from sef_api.jobs.kinds import HANDLERS
@@ -62,14 +62,6 @@ OPENAPI_TAGS = [
         "accountant, client) and the invitations to join it.",
     },
 ]
-
-
-def _validator(settings: Settings) -> Validator:
-    if settings.validator == "thread":
-        return ThreadValidator(max_elements=settings.max_invoice_elements)
-    return ProcessValidator(
-        max_elements=settings.max_invoice_elements, seconds=settings.validation_seconds
-    )
 
 
 def _runner(app: FastAPI) -> JobRunner:
@@ -136,7 +128,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.database = database
     app.state.tokens = TokenSettings.from_settings(settings)
-    app.state.validator = _validator(settings)
+    app.state.validator = validator_for(settings)
     app.state.admission = Admission(settings.max_validations_in_flight)
     app.state.limiter = RateLimiter()
     app.state.limits = limits(settings)
