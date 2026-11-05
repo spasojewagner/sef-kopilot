@@ -41,6 +41,11 @@ A source whose digest is not the manifest's is refused: the publisher changed it
 new text, then record a new edition (or a new digest) in the manifest, rebuild, and read the
 diff of the Markdown: it is the diff of the regulation.
 
+The workflow `Corpus sources` (`.github/workflows/corpus-sources.yml`) downloads every source
+afresh each Monday and runs `--fetch --check`; a failed run names the source whose digest
+changed, and GitHub reports it to the maintainer. It can also be started by hand, from the
+Actions tab. In a public repository GitHub stops scheduled workflows after 60 days without activity.
+
 ## Adding an edition
 
 1. Add an `[[documents.editions]]` entry with `valid_from`, `version`, `source_url`,

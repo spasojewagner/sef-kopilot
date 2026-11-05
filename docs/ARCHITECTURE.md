@@ -90,11 +90,12 @@ the system without a green validator.
   (ADR-0019).
 - **No-store mode:** an invoice can be processed entirely in memory; nothing about its content
   reaches logs, traces, metrics or error reports in either mode.
-- **The corpus:** official text in the repository, generated and checked against pinned
-  sources; passages carry the days they apply, and an id that names the first, so a citation
-  never changes meaning. It is public data shared by every organization, so its tables carry
-  no `organization_id`; only the ingest command writes them, and nothing leaves the server to
-  embed it unless `EMBEDDINGS_PROVIDER` says so (ADR-0020).
+- **The corpus:** official text in the repository, generated and checked against pinned sources,
+  which a weekly job downloads afresh to find a text a publisher changed; passages carry the
+  days they apply, and an id that names the first, so a citation never changes meaning. It is
+  public data shared by every organization, so its tables carry no `organization_id`; only the
+  ingest command writes them, and nothing leaves the server to embed it unless
+  `EMBEDDINGS_PROVIDER` says so (ADR-0020).
 - **The language model:** untrusted, and asked only about violations layer 1 reported in the
   same request. It is sent the first violation of each rule and public passages, never the
   document; an embedder is sent what the rules say, never what the invoice holds. Nothing

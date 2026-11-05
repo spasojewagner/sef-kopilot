@@ -1,0 +1,40 @@
+name: Corpus sources
+
+# The official sources the corpus is made from, downloaded afresh once a week and compared with
+# the digests corpus/manifest.toml pins (ADR-0020). A failed run is the report: a publisher
+# changed a text, which is reviewed, and the manifest updated, before the corpus is rebuilt.
+on:
+  schedule:
+    - cron: "23 4 * * 1" # Mondays, 04:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  FORCE_COLOR: "1"
+
+jobs:
+  sources:
+    name: the corpus is what its sources make
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python workspace
+        run: uv sync --all-packages --locked
+
+      # Nothing of corpus/raw is cached: every run downloads every source again, which is the
+      # point of the run.
+      - name: Download the sources and compare the corpus with them
+        run: uv run python scripts/build_corpus.py --fetch --check
