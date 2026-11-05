@@ -28,7 +28,10 @@ from sef_api.jobs.kinds import HANDLERS
 from sef_api.jobs.queue import ArqRunner, redis_settings
 from sef_api.jobs.runners import InlineRunner, JobRunner
 from sef_api.jobs.runs import JobContext, run_job
+from sef_api.llm import llm_for
 from sef_api.members import routes as members
+from sef_api.rag.embeddings import Embedder, embedder_for
+from sef_api.rag.explainer import Explainer
 from sef_api.rate_limits import RateLimiter, limits
 from sef_api.routes import health
 from sef_api.settings import Settings
@@ -52,7 +55,8 @@ OPENAPI_TAGS = [
     },
     {
         "name": "invoices",
-        "description": "Invoices and credit notes: the deterministic validator's report on them.",
+        "description": "Invoices and credit notes: the deterministic validator's report on them, "
+        "and explanations of its rules that cite the official documents.",
     },
     {
         "name": "jobs",
@@ -79,6 +83,12 @@ def _runner(app: FastAPI, settings: Settings) -> JobRunner:
         await run_job(context, job_id, HANDLERS)
 
     return InlineRunner(run)
+
+
+def _explainer(settings: Settings) -> Explainer | None:
+    """The explainer with the language model the settings name, or None without one."""
+    llm = llm_for(settings)
+    return Explainer(llm) if llm is not None else None
 
 
 async def _resume(app: FastAPI) -> None:
@@ -120,6 +130,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         yield
         await application.state.jobs.stop()
         await validator.stop()
+        explainer: Explainer | None = application.state.explainer
+        if explainer is not None:
+            await explainer.aclose()
+        embedder: Embedder | None = application.state.embedder
+        if embedder is not None:
+            await embedder.aclose()
         await database.engine.dispose()
 
     app = FastAPI(
@@ -141,6 +157,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.limiter = RateLimiter()
     app.state.limits = limits(settings)
     app.state.jobs = _runner(app, settings)
+    app.state.explainer = _explainer(settings)
+    app.state.embedder = embedder_for(settings)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(invoices.router)

@@ -31,7 +31,10 @@ from sqlalchemy.pool import NullPool
 from sef_api.db import Database, get_session
 from sef_api.main import create_app
 from sef_api.migrations import alembic_config
+from sef_api.rag.explainer import Explainer
 from sef_api.settings import Settings
+
+from .corpora import QuotingModel
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
@@ -152,10 +155,11 @@ class RecordingRunner:
 
 @pytest.fixture
 async def api(session: AsyncSession) -> AsyncIterator[AsyncClient]:
-    """A client of an application whose requests all use the test's rolled-back session, and
-    whose jobs are noted rather than run."""
+    """A client of an application whose requests all use the test's rolled-back session, whose
+    jobs are noted rather than run, and whose explanations a stand-in model writes."""
     app = create_app(settings_for())
     app.state.jobs = RecordingRunner()
+    app.state.explainer = Explainer(QuotingModel())
 
     async def the_test_session() -> AsyncIterator[AsyncSession]:
         yield session

@@ -1,11 +1,12 @@
-"""``/invoices``: the validator's report on an invoice, and the invoices an organization keeps."""
+"""``/invoices``: the validator's report on an invoice and the explanations of its rules, and the
+invoices an organization keeps."""
 
 from __future__ import annotations
 
 import logging
 import uuid
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, date, datetime
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -35,6 +36,8 @@ from sef_api.jobs import store as job_store
 from sef_api.jobs.routes import JobOut, job_out
 from sef_api.jobs.runners import JobRunner
 from sef_api.models import JobKind, StoredInvoice
+from sef_api.rag.embeddings import Embedder
+from sef_api.rag.explainer import Explainer, Explanation, Language, explain_report
 from sef_api.rate_limits import Counted, Limit, RateLimiter, Rule, too_many
 from sef_api.settings import Settings
 
@@ -60,6 +63,10 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 Profile = Annotated[
     ProfileName,
     Query(description="`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0)."),
+]
+Explaining = Annotated[
+    Language,
+    Query(description="The language of the explanations: `sr` (Serbian, Latin script) or `en`."),
 ]
 CanValidate = Annotated[Principal, Depends(require(Permission.INVOICES_VALIDATE))]
 CanSubmit = Annotated[Principal, Depends(require(Permission.INVOICES_SUBMIT))]
@@ -116,6 +123,25 @@ class StoredInvoiceOut(InvoiceOut):
     """A stored invoice with the validator's latest report on it."""
 
     report: ValidationReport
+
+
+class Explained(BaseModel):
+    """The validator's report on an invoice, and the explanations of the rules it names."""
+
+    report: ValidationReport
+    day: date = Field(
+        description="The day whose law the explanations cite: the invoice's issue date (BT-2), "
+        "or today when the invoice cannot be read."
+    )
+    language: Language
+    model: str = Field(description="The language model that wrote the explanations.")
+    explanations: list[Explanation] = Field(
+        description="One for each rule of the report, those with a fatal violation first."
+    )
+    unexplained: list[str] = Field(
+        description="Rules of the report beyond the most one request explains; ask again for "
+        "them once the others are fixed."
+    )
 
 
 class InvoicePage(BaseModel):
@@ -217,6 +243,75 @@ async def validate(
     _, validation = await _validated(request, session, caller, profile)
     response.headers["Cache-Control"] = "no-store"
     return validation.report
+
+
+_EXPLANATION_RESPONSES: dict[int | str, dict[str, Any]] = _VALIDATION_RESPONSES | {
+    status.HTTP_429_TOO_MANY_REQUESTS: {
+        "model": Problem,
+        "description": "Too many validations or requests for explanations by the caller, or in "
+        "their organization; try again after `Retry-After` seconds.",
+    },
+    status.HTTP_503_SERVICE_UNAVAILABLE: {
+        "model": Problem,
+        "description": "No language model is configured on this server, or the validator is "
+        "busy (retry after `Retry-After` seconds) or not available.",
+    },
+}
+
+
+@router.post(
+    "/explain",
+    summary="Explain an invoice's violations",
+    description=(
+        "Validates the invoice in the request body as `POST /invoices/validate` does, then "
+        "explains each rule its report names: what the rule requires, why the invoice fails "
+        "it and what to change, citing the passages of the official documents that apply on "
+        "the invoice's issue date. Every citation is a passage of the corpus this server "
+        "holds. Each rule is explained once, those that make the invoice invalid first, as many "
+        "as the server allows in one request; a rule without an explanation says why. Nothing "
+        "is stored. The language model is sent each rule's first violation, whose message may "
+        "quote the invoice, and the passages; nothing else of the invoice."
+    ),
+    openapi_extra=_DOCUMENT,
+    responses=_EXPLANATION_RESPONSES,
+)
+async def explain(
+    request: Request,
+    response: Response,
+    *,
+    caller: CanValidate,
+    session: Session,
+    profile: Profile = "srb",
+    language: Explaining = "sr",
+) -> Explained:
+    explainer = cast(Explainer | None, request.app.state.explainer)
+    if explainer is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "no language model is configured on this server"
+        )
+    settings = cast(Settings, request.app.state.settings)
+    _, validation = await _validated(request, session, caller, profile, explaining=True)
+    summary = validation.summary
+    day = summary.issue_date if summary is not None else datetime.now(UTC).date()
+    explanations, unexplained = await explain_report(
+        session,
+        validation.report,
+        day=day,
+        language=language,
+        explainer=explainer,
+        embedder=cast(Embedder | None, request.app.state.embedder),
+        max_rules=settings.max_explanations,
+        seconds=settings.explanation_seconds,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return Explained(
+        report=validation.report,
+        day=day,
+        language=language,
+        model=explainer.model,
+        explanations=explanations,
+        unexplained=unexplained,
+    )
 
 
 @router.post(
@@ -405,9 +500,10 @@ async def delete_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Sess
         raise _not_found()
 
 
-def _count(request: Request, caller: Principal) -> None:
-    """Count a validation against the caller's limit and their organization's, both at once;
-    429 beyond either. A caller is a member signed in, whatever the device, or one API key."""
+def _count(request: Request, caller: Principal, *, explaining: bool) -> None:
+    """Count a validation, and a request for explanations if it is one, against the caller's
+    limits and their organization's, all at once; 429 beyond any. A caller is a member signed
+    in, whatever the device, or one API key."""
     limiter = cast(RateLimiter, request.app.state.limiter)
     limits = cast(Mapping[Counted, Limit], request.app.state.limits)
     who = (
@@ -415,26 +511,35 @@ def _count(request: Request, caller: Principal) -> None:
         if caller.key is not None
         else f"member {caller.organization_id} {caller.user_id}"
     )
-    rules = (
-        Rule(Counted.VALIDATION, who, limits[Counted.VALIDATION]),
-        Rule(
-            Counted.ORGANIZATION_VALIDATION,
-            str(caller.organization_id),
-            limits[Counted.ORGANIZATION_VALIDATION],
-        ),
-    )
+    organization = str(caller.organization_id)
+    counted = [(Counted.VALIDATION, Counted.ORGANIZATION_VALIDATION)]
+    if explaining:
+        counted.append((Counted.EXPLANATION, Counted.ORGANIZATION_EXPLANATION))
+    rules = [
+        rule
+        for each, together in counted
+        for rule in (
+            Rule(each, who, limits[each]),
+            Rule(together, organization, limits[together]),
+        )
+    ]
     if (wait := limiter.hit(*rules)) > 0:
         holding = max(rules, key=limiter.wait)
         raise too_many(Counted(holding.name), wait)
 
 
 async def _validated(
-    request: Request, session: AsyncSession, caller: Principal, profile: ProfileName
+    request: Request,
+    session: AsyncSession,
+    caller: Principal,
+    profile: ProfileName,
+    *,
+    explaining: bool = False,
 ) -> tuple[bytes, Validation]:
     """The invoice in the request body and the validator's report on it with what it read, or
     the HTTP error that says why there is none."""
     # Counted before the body is read, so that nothing is read for a client held back.
-    _count(request, caller)
+    _count(request, caller, explaining=explaining)
     # The permission check was this request's only database work. Ending its transaction gives
     # the pooled connection back before the body is read and validated, so that neither a slow
     # upload nor a validation waiting for its turn keeps it from other requests.

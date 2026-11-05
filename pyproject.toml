@@ -69,6 +69,7 @@ ignore = [
 "apps/api/src/sef_api/rag/**" = ["RUF001", "RUF002", "RUF003"]
 "apps/api/tests/test_corpus*.py" = ["RUF001", "RUF002", "RUF003"]
 "apps/api/tests/test_explainer.py" = ["RUF001", "RUF002", "RUF003"]
+"apps/api/tests/test_invoices_explain.py" = ["RUF001", "RUF002", "RUF003"]
 "scripts/build_corpus.py" = ["RUF001", "RUF002", "RUF003"]
 "scripts/tests/test_build_corpus.py" = ["RUF001", "RUF002", "RUF003"]
 
