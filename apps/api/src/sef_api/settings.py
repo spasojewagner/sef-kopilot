@@ -9,6 +9,7 @@ from __future__ import annotations
 import secrets
 from datetime import timedelta
 from typing import Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -140,6 +141,20 @@ class Settings(BaseSettings):
             "the API's process, without one, for tests and tools."
         ),
     )
+    jobs: Literal["inline", "arq"] = Field(
+        default="inline",
+        validation_alias="SEF_JOBS",
+        description=(
+            "Where jobs run. `inline`: in the API's own process, for a deployment of one "
+            "process. `arq`: in workers (`python -m sef_api.jobs.worker`) that take them from "
+            "a Redis queue, beside any number of API processes."
+        ),
+    )
+    redis_url: SecretStr | None = Field(
+        default=None,
+        validation_alias="REDIS_URL",
+        description="The Redis server of the job queue: required with `SEF_JOBS=arq`.",
+    )
 
     @property
     def access_token_lifetime(self) -> timedelta:
@@ -157,6 +172,16 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"SEF_JWT_SECRET must have at least {MINIMUM_JWT_SECRET_LENGTH} characters"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _check_redis_url(self) -> Self:
+        if self.redis_url is None:
+            if self.jobs == "arq":
+                raise ValueError("REDIS_URL must be set when SEF_JOBS is arq")
+            return self
+        if urlsplit(self.redis_url.get_secret_value()).scheme not in {"redis", "rediss"}:
+            raise ValueError("REDIS_URL must use the redis:// or rediss:// scheme")
         return self
 
     @model_validator(mode="after")

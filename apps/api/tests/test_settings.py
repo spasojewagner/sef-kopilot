@@ -1,4 +1,5 @@
-"""Settings: variable names, defaults, the checks on DATABASE_URL, secrets kept out of sight."""
+"""Settings: variable names, defaults, the checks on DATABASE_URL and REDIS_URL, secrets kept out
+of sight."""
 
 from __future__ import annotations
 
@@ -32,6 +33,8 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "SEF_MAX_STORED_BYTES",
         "SEF_VALIDATIONS_PER_MINUTE",
         "SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE",
+        "SEF_JOBS",
+        "REDIS_URL",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)
@@ -198,3 +201,29 @@ def test_the_database_password_never_shows() -> None:
 def test_an_unknown_environment_is_refused() -> None:
     with pytest.raises(ValidationError, match="SEF_ENVIRONMENT"):
         Settings.model_validate({"SEF_ENVIRONMENT": "staging"})
+
+
+def test_jobs_run_in_the_api_unless_told_otherwise() -> None:
+    settings = Settings()
+
+    assert (settings.jobs, settings.redis_url) == ("inline", None)
+
+
+def test_jobs_on_a_redis_queue_need_its_server(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SEF_JOBS", "arq")
+    with pytest.raises(ValidationError, match="REDIS_URL must be set when SEF_JOBS is arq"):
+        Settings()
+
+    monkeypatch.setenv("REDIS_URL", f"rediss://default:{PASSWORD}@queue.example:6379")
+    settings = Settings()
+
+    assert settings.jobs == "arq"
+    assert PASSWORD not in repr(settings)
+
+
+@pytest.mark.parametrize("url", ["http://queue.example:6379", "queue.example:6379"])
+def test_the_redis_url_names_redis(monkeypatch: pytest.MonkeyPatch, url: str) -> None:
+    monkeypatch.setenv("REDIS_URL", url)
+
+    with pytest.raises(ValidationError, match="REDIS_URL must use the redis:// or rediss://"):
+        Settings()

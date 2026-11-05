@@ -10,8 +10,10 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import cast
 
 from fastapi import FastAPI
+from pydantic import SecretStr
 
 from sef_api import __version__
 from sef_api.api_keys import routes as api_keys
@@ -23,6 +25,7 @@ from sef_api.invoices.validator import Admission, Validator, validator_for
 from sef_api.jobs import routes as jobs
 from sef_api.jobs import store as job_store
 from sef_api.jobs.kinds import HANDLERS
+from sef_api.jobs.queue import ArqRunner, redis_settings
 from sef_api.jobs.runners import InlineRunner, JobRunner
 from sef_api.jobs.runs import JobContext, run_job
 from sef_api.members import routes as members
@@ -64,9 +67,12 @@ OPENAPI_TAGS = [
 ]
 
 
-def _runner(app: FastAPI) -> JobRunner:
-    """Jobs run in the application's own event loop, each with the database, the validator and
-    the settings the application has when the job runs."""
+def _runner(app: FastAPI, settings: Settings) -> JobRunner:
+    """Jobs go on the Redis queue of the workers, or run in the application's own event loop,
+    each with the database, the validator and the settings the application has when it runs."""
+    if settings.jobs == "arq":
+        url = cast(SecretStr, settings.redis_url)  # the settings require it with arq
+        return ArqRunner(redis_settings(url.get_secret_value()))
 
     async def run(job_id: uuid.UUID) -> None:
         context = JobContext(app.state.database, app.state.validator, app.state.settings)
@@ -94,8 +100,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     A factory (instead of a module-level singleton) lets tests build a fresh application with
     their own settings, and keeps importing the module free of side effects. The database
-    engine connects on first use and is disposed of when the application shuts down. Jobs left
-    unfinished are run again when it starts; those running when it stops stay unfinished.
+    engine connects on first use and is disposed of when the application shuts down. Jobs that
+    run inline and were left unfinished are run again when it starts, and those running when it
+    stops stay unfinished; the workers' sweep looks after the jobs on the Redis queue.
     """
     settings = settings if settings is not None else Settings()
     database = Database.connect(settings.database_url.get_secret_value())
@@ -108,7 +115,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await validator.start()
         if validator.problem is not None:
             logger.warning("the validator cannot run: %s", validator.problem)
-        await _resume(application)
+        if settings.jobs == "inline":
+            await _resume(application)
         yield
         await application.state.jobs.stop()
         await validator.stop()
@@ -132,7 +140,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.admission = Admission(settings.max_validations_in_flight)
     app.state.limiter = RateLimiter()
     app.state.limits = limits(settings)
-    app.state.jobs = _runner(app)
+    app.state.jobs = _runner(app, settings)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(invoices.router)

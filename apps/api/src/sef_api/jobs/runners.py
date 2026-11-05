@@ -1,4 +1,5 @@
-"""Runners: what carries the news that a job waits to the worker that runs it.
+"""Runners: what carries the news that a job waits to the worker that runs it. The inline runner
+is here; :class:`~sef_api.jobs.queue.ArqRunner` puts jobs on the Redis queue of the workers.
 
 A runner never decides what a job is or how it ends; the job's row does. Enqueueing a job twice
 is therefore harmless: the second run takes the job on again, and the first, superseded, stops.

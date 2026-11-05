@@ -6,7 +6,8 @@ creates a database of its own there, migrates it and drops it at the end. Most t
 transaction that is rolled back (``session``, ``api``); the tests about commits, locks,
 concurrent requests and jobs use real sessions that commit (``committed_database``,
 ``committed_api``), and the tables are emptied after each of them. Without the variable the
-database tests are skipped; CI sets it.
+database tests are skipped; CI sets it. The worker tests need Redis as well, the server named by
+``SEF_TEST_REDIS_URL``, and are skipped without it.
 """
 
 from __future__ import annotations
@@ -44,9 +45,12 @@ class _TestServer(BaseSettings):
     model_config = SettingsConfigDict(env_file=REPOSITORY_ROOT / ".env", extra="ignore")
 
     sef_test_database_url: str | None = None
+    sef_test_redis_url: str | None = None
 
 
 TEST_SERVER_URL = _TestServer().sef_test_database_url
+#: The Redis server of the worker tests, whose database they empty; without it they are skipped.
+TEST_REDIS_URL = _TestServer().sef_test_redis_url
 
 
 def settings_for(database_url: str = UNREACHABLE_DATABASE, **variables: str) -> Settings:

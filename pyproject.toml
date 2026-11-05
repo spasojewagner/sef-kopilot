@@ -96,7 +96,11 @@ pythonpath = ["scripts", "scripts/hooks"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 xfail_strict = true
-filterwarnings = ["error"]
+filterwarnings = [
+  "error",
+  # arq 0.28 closes its Redis connections with the method redis-py 5 renamed to aclose.
+  "ignore:Call to deprecated close:DeprecationWarning:arq",
+]
 markers = [
   "conformance: applies the fetched third-party rule sets to their published unit tests and examples; deselect with -m 'not conformance'",
 ]
