@@ -10,7 +10,7 @@ UV      ?= uv
 PNPM    ?= pnpm
 COMPOSE ?= docker compose --project-directory . -f infra/docker-compose.yml
 
-.PHONY: help setup sync lint format typecheck test test-core test-api test-web api worker web build-web rulesets rulesets-check fixtures migrate up down logs psql clean
+.PHONY: help setup sync lint format typecheck test test-core test-api test-web api worker web build-web rulesets rulesets-check fixtures corpus corpus-check migrate up down logs psql clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -73,8 +73,14 @@ rulesets: ## Fetch the pinned EN 16931 and Peppol BIS rule sets into third_party
 rulesets-check: ## Verify that third_party/ holds the pinned rule-set versions (no network)
 	$(UV) run python scripts/fetch_rulesets.py --check
 
-fixtures: ## Regenerate the mutation fixtures and the verdicts on the corpus (needs rulesets)
+fixtures: ## Regenerate the mutation fixtures and the verdicts on the fixture corpus (needs rulesets)
 	$(UV) run python scripts/make_fixtures.py
+
+corpus: ## Download the corpus's official sources that are missing, then rewrite corpus/ from them
+	$(UV) run python scripts/build_corpus.py --fetch
+
+corpus-check: ## Fail if corpus/ is not what its downloaded sources make (no network)
+	$(UV) run python scripts/build_corpus.py --check
 
 up: ## Start PostgreSQL (pgvector) and Redis in Docker and wait until they are healthy
 	$(COMPOSE) up -d --wait

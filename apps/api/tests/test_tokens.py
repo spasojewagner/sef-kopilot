@@ -105,7 +105,8 @@ def test_a_jwt_of_another_type_is_refused() -> None:
 
 
 def test_an_unsigned_token_is_refused() -> None:
-    unsigned = jwt.encode({"sub": str(USER)}, key=None, algorithm="none", headers={"typ": "at+jwt"})
+    # PyJWT signs nothing with algorithm "none": an empty key, the same token as no key at all.
+    unsigned = jwt.encode({"sub": str(USER)}, key="", algorithm="none", headers={"typ": "at+jwt"})
 
     with pytest.raises(InvalidTokenError):
         decode_access_token(unsigned, secret=TEST_JWT_SECRET)
