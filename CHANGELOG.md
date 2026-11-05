@@ -11,6 +11,9 @@ is tagged.
 
 ### Added
 
+- `.github/workflows/corpus-sources.yml`: every Monday, and by hand, the corpus's official
+  sources are downloaded afresh and compared with their pinned digests and with the corpus; a
+  failed run reports a source a publisher changed.
 - `apps/api`: `GET /invoices?valid=false` lists only the stored invoices whose latest report is
   invalid, and `valid=true` only the valid ones, a page at a time as before: after a
   revalidation, the invoices it found invalid. The invalid ones are read through an index of

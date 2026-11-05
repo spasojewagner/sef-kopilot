@@ -857,3 +857,28 @@ added for them.
 Next: `ci/corpus-sources-check`, a scheduled job that downloads the corpus's sources and
 reports a digest that changed; then the release `v0.2.0`, once the latency of a live
 explanation is noted.
+
+## 2026-11-05 — `ci/corpus-sources-check` (1 commit)
+
+Outcome: a workflow downloads the corpus's sources afresh each Monday, and by hand, and fails
+when one is not what the manifest pins or the corpus not what they make.
+
+- `.github/workflows/corpus-sources.yml`: `--fetch --check` with `contents: read`, no cache of
+  the sources, and the actions pinned to the commits `ci.yml` uses.
+- `corpus/README.md` says how a failure is reported, and that in a public repository GitHub
+  stops scheduled workflows after 60 days without activity. Interview notes.
+
+Findings:
+
+- The converter's errors already tell a site that did not answer ("cannot download …") from a
+  text that changed (its new SHA-256), so the job needs nothing of its own to say which.
+- Not run here: the build environment has neither GitHub's runners nor a route to the official
+  sites. pre-commit checks the workflow against its schema; its first run, started by hand from
+  the Actions tab after the merge, is the test.
+
+Verification: pre-commit on all files, the workflow's schema included; no code changed, and the
+2 326 tests of the branch below pass.
+
+Next: the release `v0.2.0` once the four branches are merged and the latency of a live
+explanation is noted; then deleting finished jobs and the retention of stored invoices, with the
+period the maintainer chooses.
