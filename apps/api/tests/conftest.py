@@ -3,16 +3,18 @@
 Tests that need PostgreSQL run on the server named by ``SEF_TEST_DATABASE_URL`` (taken from the
 environment or the repository's ``.env``), for example the one ``make up`` starts. The suite
 creates a database of its own there, migrates it and drops it at the end. Most tests run in a
-transaction that is rolled back (``session``, ``api``); the tests about commits, locks and
-concurrent requests use real sessions that commit (``committed_database``, ``committed_api``),
-and the tables are emptied after each of them. Without the variable the database tests are
-skipped; CI sets it.
+transaction that is rolled back (``session``, ``api``); the tests about commits, locks,
+concurrent requests and jobs use real sessions that commit (``committed_database``,
+``committed_api``), and the tables are emptied after each of them. Without the variable the
+database tests are skipped; CI sets it. The worker tests need Redis as well, the server named by
+``SEF_TEST_REDIS_URL``, and are skipped without it.
 """
 
 from __future__ import annotations
 
 import asyncio
 import secrets
+import uuid
 from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -43,9 +45,12 @@ class _TestServer(BaseSettings):
     model_config = SettingsConfigDict(env_file=REPOSITORY_ROOT / ".env", extra="ignore")
 
     sef_test_database_url: str | None = None
+    sef_test_redis_url: str | None = None
 
 
 TEST_SERVER_URL = _TestServer().sef_test_database_url
+#: The Redis server of the worker tests, whose database they empty; without it they are skipped.
+TEST_REDIS_URL = _TestServer().sef_test_redis_url
 
 
 def settings_for(database_url: str = UNREACHABLE_DATABASE, **variables: str) -> Settings:
@@ -131,10 +136,26 @@ async def client() -> AsyncIterator[AsyncClient]:
     await app.state.database.engine.dispose()
 
 
+class RecordingRunner:
+    """A job runner that runs nothing and notes the jobs it is given: no worker could see them
+    in a transaction that is rolled back."""
+
+    def __init__(self) -> None:
+        self.enqueued: list[uuid.UUID] = []
+
+    async def enqueue(self, job_id: uuid.UUID) -> None:
+        self.enqueued.append(job_id)
+
+    async def stop(self) -> None:
+        pass
+
+
 @pytest.fixture
 async def api(session: AsyncSession) -> AsyncIterator[AsyncClient]:
-    """A client of an application whose requests all use the test's rolled-back session."""
+    """A client of an application whose requests all use the test's rolled-back session, and
+    whose jobs are noted rather than run."""
     app = create_app(settings_for())
+    app.state.jobs = RecordingRunner()
 
     async def the_test_session() -> AsyncIterator[AsyncSession]:
         yield session

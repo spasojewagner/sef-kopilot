@@ -21,9 +21,10 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0013](0013-authorization-and-tenant-isolation.md) | Authorization: permissions per role, checked against the current membership, tenant isolation proven by tests | accepted, amended by 0017 | 2026-11-04 |
 | [0014](0014-hostile-documents-in-the-core.md) | Hostile documents in the core: linear addressing, bounded numbers and reports, whole values, a silent Saxon | accepted | 2026-11-04 |
 | [0015](0015-validating-invoices-through-the-api.md) | Validating invoices through the API: XML bodies within limits, a child process with a time limit, nothing stored | accepted | 2026-11-04 |
-| [0016](0016-stored-invoices.md) | Stored invoices: the document and its report in PostgreSQL, seen by organization and submitter, within a quota | accepted | 2026-11-04 |
+| [0016](0016-stored-invoices.md) | Stored invoices: the document and its report in PostgreSQL, seen by organization and submitter, within a quota | accepted, amended by 0019 | 2026-11-04 |
 | [0017](0017-api-keys.md) | API keys: a member's credentials for machine clients, narrowed to the work on invoices | accepted | 2026-11-04 |
 | [0018](0018-rate-limits.md) | Rate limits: GCRA in the API's process, per address, per e-mail address, per caller and per organization | accepted | 2026-11-04 |
+| [0019](0019-jobs-and-progress.md) | Jobs: a row that is the truth, fenced attempts that continue, inline or arq runners, progress over SSE | accepted | 2026-11-05 |
 
-Planned (recorded when the work lands): hybrid retrieval and citation model (M2), job runner interface and SSE progress (M2), patch
+Planned (recorded when the work lands): hybrid retrieval and citation model (M2), patch
 model and forbidden-field guard (M3), OAuth 2.1 for MCP (M4), evaluation thresholds (M6).

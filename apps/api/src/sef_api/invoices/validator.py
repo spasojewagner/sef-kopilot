@@ -42,6 +42,7 @@ from sef_api.invoices.validation import (
     rule_sets_missing,
     warm_up,
 )
+from sef_api.settings import Settings
 
 __all__ = [
     "Admission",
@@ -54,6 +55,7 @@ __all__ = [
     "ValidatorBusyError",
     "ValidatorFailedError",
     "ValidatorUnavailableError",
+    "validator_for",
 ]
 
 logger = logging.getLogger(__name__)
@@ -351,3 +353,12 @@ class ProcessValidator:
                 self._child = None
             self._problem = "the validator has stopped"
         self._executor.shutdown(wait=False)
+
+
+def validator_for(settings: Settings) -> Validator:
+    """The validator ``settings`` choose: a child process, or a thread for tests and tools."""
+    if settings.validator == "thread":
+        return ThreadValidator(max_elements=settings.max_invoice_elements)
+    return ProcessValidator(
+        max_elements=settings.max_invoice_elements, seconds=settings.validation_seconds
+    )

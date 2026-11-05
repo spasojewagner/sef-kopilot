@@ -18,6 +18,7 @@ just used. New notes are added in the pull request that introduces the concept.
 | 10 | [Keeping a tenant's data: scopes, pages and quotas](10-scopes-pages-and-quotas.md) | M2 |
 | 11 | [Credentials for machines: API keys](11-api-keys.md) | M2 |
 | 12 | [Rate limits: what to count, by which key, and how](12-rate-limits.md) | M2 |
+| 13 | [Server-sent events vs. WebSockets](13-server-sent-events-vs-websockets.md) | M2 |
+| 14 | [Idempotent jobs: delivered at least once, done once](14-idempotent-jobs.md) | M2 |
 
-Planned: pgvector and hybrid retrieval · SSE vs. WebSockets · idempotent job design ·
-OAuth 2.1 flows for MCP.
+Planned: pgvector and hybrid retrieval · OAuth 2.1 flows for MCP.

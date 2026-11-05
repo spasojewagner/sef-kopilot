@@ -17,6 +17,8 @@ from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
 from sef_api.models import (
     ApiKey,
     Invitation,
+    Job,
+    JobStatus,
     Membership,
     Organization,
     Role,
@@ -390,3 +392,103 @@ async def test_a_new_api_key_has_a_creation_time_and_neither_an_expiry_nor_a_rev
 
     assert created.created_at.tzinfo is not None
     assert (created.expires_at, created.revoked_at) == (None, None)
+
+
+def job(membership: Membership, **columns: Any) -> Job:
+    """A job as the schema sees it: a kind, for a member of an organization."""
+    values: dict[str, Any] = {
+        "organization_id": membership.organization_id,
+        "submitted_by": membership.user_id,
+        "kind": "revalidation",
+    }
+    return Job(**(values | columns))
+
+
+async def test_a_new_job_waits_with_nothing_done_and_nothing_tried(session: AsyncSession) -> None:
+    queued = job(await member(session))
+    session.add(queued)
+    await session.flush()
+
+    assert (queued.status, queued.version, queued.attempts) == ("queued", 0, 0)
+    assert (queued.parameters, queued.progress, queued.result, queued.error) == ({}, {}, None, None)
+    assert queued.created_at.tzinfo is not None
+    assert (queued.started_at, queued.finished_at) == (None, None)
+
+
+async def test_a_member_has_one_unfinished_job_of_a_kind(session: AsyncSession) -> None:
+    membership = await member(session)
+    session.add(job(membership, status="running"))
+    await session.flush()
+    session.add(job(membership))
+
+    with pytest.raises(IntegrityError, match="uq_jobs_unfinished_per_member"):
+        await session.flush()
+
+
+async def test_finished_jobs_and_other_members_do_not_count_against_the_one(
+    session: AsyncSession,
+) -> None:
+    membership = await member(session)
+    colleague = person("ivan@primer.example")
+    session.add(colleague)
+    await session.flush()
+    session.add(
+        Membership(
+            organization_id=membership.organization_id, user_id=colleague.id, role=Role.CLIENT
+        )
+    )
+    session.add_all(
+        [
+            job(membership, status="succeeded", finished_at=func.now()),
+            job(membership, status="failed", finished_at=func.now()),
+            job(membership),
+            job(membership, submitted_by=colleague.id),
+            job(membership, submitted_by=None),
+            job(membership, submitted_by=None),
+        ]
+    )
+
+    await session.flush()
+
+    assert await session.scalar(select(func.count()).select_from(Job)) == 6
+
+
+@pytest.mark.parametrize(
+    ("columns", "constraint"),
+    [
+        ({"kind": "explanation"}, "ck_jobs_kind_known"),
+        ({"status": "cancelled"}, "ck_jobs_status_known"),
+        ({"status": "succeeded"}, "ck_jobs_finished_when_done"),
+        ({"status": "running", "finished_at": func.now()}, "ck_jobs_finished_when_done"),
+        ({"version": -1}, "ck_jobs_counts_not_negative"),
+        ({"attempts": -1}, "ck_jobs_counts_not_negative"),
+    ],
+)
+async def test_a_job_is_what_its_columns_say(
+    session: AsyncSession, columns: dict[str, Any], constraint: str
+) -> None:
+    session.add(job(await member(session), **columns))
+
+    with pytest.raises(IntegrityError, match=constraint):
+        await session.flush()
+
+
+async def test_a_job_goes_with_its_organization_and_forgets_a_deleted_submitter(
+    session: AsyncSession,
+) -> None:
+    membership = await member(session)
+    kept = job(membership)
+    session.add(kept)
+    await session.flush()
+
+    await session.execute(delete(User).where(User.id == membership.user_id))
+    await session.refresh(kept)
+    submitter = kept.submitted_by
+    await session.execute(delete(Organization).where(Organization.id == membership.organization_id))
+
+    assert submitter is None
+    assert await session.scalar(select(func.count()).select_from(Job)) == 0
+
+
+def test_the_statuses_of_a_job() -> None:
+    assert [status.value for status in JobStatus] == ["queued", "running", "succeeded", "failed"]

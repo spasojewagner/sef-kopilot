@@ -36,6 +36,7 @@ from sef_api.members import invitations
 from sef_api.models import (
     ApiKey,
     Invitation,
+    Job,
     Membership,
     Organization,
     RefreshToken,
@@ -45,7 +46,7 @@ from sef_api.models import (
 )
 
 from .conftest import REPOSITORY_ROOT, settings_for
-from .factories import Key, Office, api_key, bearer, office, stored_invoice
+from .factories import Key, Office, api_key, bearer, job, office, stored_invoice
 
 Endpoint = tuple[str, str]
 
@@ -125,8 +126,9 @@ def app() -> FastAPI:
 
 @dataclass(frozen=True)
 class World:
-    """Two organizations. Primer has an open invitation, a stored invoice and its client's API
-    key; Ogled's owner has a key with every permission a key may hold."""
+    """Two organizations. Primer has an open invitation, a stored invoice, its client's API key
+    and a job the client started; Ogled's owner has a key with every permission a key may
+    hold."""
 
     primer: Office
     ogled: Office
@@ -134,6 +136,7 @@ class World:
     invoice: StoredInvoice
     key: Key
     ogled_key: Key
+    job: Job
 
 
 @pytest.fixture
@@ -156,7 +159,8 @@ async def world(session: AsyncSession) -> World:
         Permission.INVOICES_SUBMIT,
     )
     ogled_key = await api_key(session, ogled.organization, ogled.owner)
-    return World(primer, ogled, issued.invitation, invoice, key, ogled_key)
+    started = await job(session, primer.organization, primer.client)
+    return World(primer, ogled, issued.invitation, invoice, key, ogled_key, started)
 
 
 async def role_in_primer(session: AsyncSession, world: World, user_id: Any) -> Role | None:
@@ -252,6 +256,7 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
             RefreshToken,
             StoredInvoice,
             ApiKey,
+            Job,
         )
     }
     assert counts == {
@@ -262,6 +267,7 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
         "refresh_tokens": 0,
         "invoices": 1,
         "api_keys": 2,
+        "jobs": 1,
     }
 
 
@@ -292,6 +298,29 @@ async def _primers_invoice_is_not_found(
     )
 
 
+async def _revalidating_in_ogled(response: Response, session: AsyncSession, w: World) -> None:
+    """A revalidation is started for the caller in the caller's organization; Primer's job is
+    as it was."""
+    assert response.status_code == 202
+    started = (
+        await session.execute(
+            select(Job.organization_id, Job.submitted_by).where(Job.id == response.json()["id"])
+        )
+    ).one()
+    assert tuple(started) == (w.ogled.organization.id, w.ogled.owner.id)
+    primers = (
+        await session.execute(select(Job.status, Job.version).where(Job.id == w.job.id))
+    ).one()
+    assert tuple(primers) == ("queued", 0)
+
+
+async def _primers_job_is_not_found(response: Response, session: AsyncSession, w: World) -> None:
+    assert (response.status_code, response.json()) == (
+        404,
+        {"detail": "no such job in this organization"},
+    )
+
+
 async def _issued_in_ogled(response: Response, session: AsyncSession, w: World) -> None:
     """A key is issued for the caller in the caller's organization; Primer's are as they were."""
     assert response.status_code == 201
@@ -319,6 +348,20 @@ async def _primers_key_still_works(response: Response, session: AsyncSession, w:
 
 
 GUARDED: dict[Endpoint, Guarded] = {
+    ("GET", "/jobs/{job_id}"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/jobs/{w.job.id}",
+        None,
+        _primers_job_is_not_found,
+    ),
+    ("GET", "/jobs/{job_id}/events"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/jobs/{w.job.id}/events",
+        None,
+        _primers_job_is_not_found,
+    ),
     ("GET", "/api-keys"): Guarded(
         Permission.API_KEYS_ISSUE, False, lambda _: "/api-keys", None, _lists_only_ogleds_keys
     ),
@@ -345,6 +388,13 @@ GUARDED: dict[Endpoint, Guarded] = {
     ),
     ("GET", "/invoices"): Guarded(
         Permission.INVOICES_SUBMIT, False, lambda _: "/invoices", None, _lists_no_invoices
+    ),
+    ("POST", "/invoices/revalidations"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda _: "/invoices/revalidations",
+        None,
+        _revalidating_in_ogled,
     ),
     ("GET", "/invoices/{invoice_id}"): Guarded(
         Permission.INVOICES_SUBMIT,

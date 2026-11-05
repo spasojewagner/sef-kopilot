@@ -10,7 +10,7 @@ UV      ?= uv
 PNPM    ?= pnpm
 COMPOSE ?= docker compose --project-directory . -f infra/docker-compose.yml
 
-.PHONY: help setup sync lint format typecheck test test-core test-api test-web api web build-web rulesets rulesets-check fixtures migrate up down logs psql clean
+.PHONY: help setup sync lint format typecheck test test-core test-api test-web api worker web build-web rulesets rulesets-check fixtures migrate up down logs psql clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -44,7 +44,8 @@ test-core: ## Tests for packages/einvoice_core with the coverage gate (>= 90 %)
 
 # Coverage of the API is measured by path: Alembic runs env.py and the revisions as standalone
 # modules, which a package name (--cov=sef_api) does not match. Database tests need
-# SEF_TEST_DATABASE_URL (see .env.example); without it they are skipped.
+# SEF_TEST_DATABASE_URL and the worker tests SEF_TEST_REDIS_URL as well (see .env.example);
+# without them they are skipped.
 test-api: ## Tests for apps/api with the coverage gate (>= 80 %)
 	$(UV) run pytest apps/api --cov=apps/api/src/sef_api --cov-report=term-missing --cov-fail-under=80
 
@@ -53,6 +54,9 @@ test-web: ## Vitest suite for apps/web
 
 api: ## Run the API locally with auto-reload (http://127.0.0.1:8000/docs)
 	$(UV) run uvicorn sef_api.main:create_app --factory --reload
+
+worker: ## Run a worker for the jobs on the Redis queue (with SEF_JOBS=arq and `make up`)
+	$(UV) run python -m sef_api.jobs.worker
 
 migrate: ## Apply the database migrations to DATABASE_URL (default: the database of `make up`)
 	$(UV) run alembic -c apps/api/alembic.ini upgrade head

@@ -77,6 +77,9 @@ system are marked as such.
 - [x] The work one upload causes is bounded: a budget of elements counted before any
       validation (413), a time limit enforced by killing the validator's child process
       (422), and a deadline for the body (408).
+- [x] Work in the background is bounded: a member has one job of each kind under way (a
+      unique index; 409 beyond), a revalidation validates one invoice at a time within the
+      same limits and the storage quota, and a worker cuts an attempt short after an hour.
 
 ### V3 Web frontend security
 
@@ -146,6 +149,11 @@ system are marked as such.
 - [x] A validation's answer reaches only its own request: the validator's turns end whole
       even when a request is cancelled, and every answer names its message (tested by
       cancelling a validation in flight).
+- [x] Jobs are seen within the same scope as invoices: a client reads and follows only the
+      jobs they started, and another's answers 404 before any event stream begins. A job
+      works within the scope of the member who started it, fixed when it starts.
+- [~] An event stream outlives the permission check it began with by at most five minutes,
+      then ends; the client reconnects and is checked again.
 
 ### V9 Self-contained tokens
 
@@ -172,6 +180,9 @@ system are marked as such.
 ### V13 Configuration
 
 - [ ] Configuration from environment variables only; `.env.example` lists names, never values.
+- [x] `REDIS_URL`, which may carry the queue's password, is a secret setting that never
+      appears in a log or a `repr`, and must name `redis://` or `rediss://` (TLS, for a
+      server elsewhere).
 - [ ] Debug mode and interactive docs disabled or protected outside development.
 - [ ] Dependency audits in CI; Dependabot enabled.
 
@@ -179,15 +190,17 @@ system are marked as such.
 
 - [x] No invoice content in logs: a failure logs only the type of its error, and a test sends
       a marked invoice through every outcome of the validation endpoint, checking both the log
-      records and the file descriptors.
+      records and the file descriptors. A job that fails logs only the type of its error too,
+      and records a message written for its member.
 - [ ] No invoice content in traces, metrics or crash reports (with Langfuse and Sentry).
 - [x] The validator writes nothing to the process's standard streams: Saxon's warnings, which
       can quote a document, go to the null device (tested on the file descriptors); where that
       device cannot be opened, a log warning says that they reach the standard error instead.
 - [~] No-store mode: `POST /invoices/validate` keeps the invoice in memory for the length of
       the request, and a test checks that it leaves no row behind; explanations follow.
-- [x] Responses that carry invoice data send `Cache-Control: no-store`: the validation report
-      and every answer about a stored invoice, each checked by a test.
+- [x] Responses that carry invoice data send `Cache-Control: no-store`: the validation report,
+      every answer about a stored invoice, and every job and its event stream, each checked by
+      a test.
 - [x] Responses that carry a credential send `Cache-Control: no-store` as well (RFC 6749): the
       tokens of registration, sign-in, accepting an invitation and refreshing, an invitation's
       code and a new API key, each checked by a test.

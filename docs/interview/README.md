@@ -28,3 +28,4 @@ per branch, to keep them with the code they describe.
 | `feat/api-invoices-store` | [m2-api-invoices-store.md](m2-api-invoices-store.md) |
 | `feat/api-keys` | [m2-api-keys.md](m2-api-keys.md) |
 | `feat/api-rate-limits` | [m2-api-rate-limits.md](m2-api-rate-limits.md) |
+| `feat/api-jobs-sse` | [m2-api-jobs-sse.md](m2-api-jobs-sse.md) |

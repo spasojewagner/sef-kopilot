@@ -6,7 +6,9 @@ An organization is the tenant: every table that holds a tenant's data carries an
 belong to organizations through memberships, each with one role; an invitation lets a person
 join in a role (ADR-0013). A refresh token belongs to a person's session in one organization
 (ADR-0012). A stored invoice belongs to an organization, and remembers who submitted it
-(ADR-0016). An API key belongs to a membership, and acts for that member (ADR-0017).
+(ADR-0016). An API key belongs to a membership, and acts for that member (ADR-0017). A job is
+work done in the background for an organization, such as validating its invoices again
+(ADR-0019).
 """
 
 from __future__ import annotations
@@ -36,8 +38,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sef_api.db import Base
 
 __all__ = [
+    "UNFINISHED",
     "ApiKey",
     "Invitation",
+    "Job",
+    "JobKind",
+    "JobStatus",
     "Membership",
     "Organization",
     "RefreshToken",
@@ -187,10 +193,12 @@ class RefreshToken(Base):
 
 
 class StoredInvoice(Base):
-    """An invoice an organization keeps: the document as it was sent, and the validator's report
-    on it when it was stored.
+    """An invoice an organization keeps: the document as it was sent, and the validator's latest
+    report on it.
 
-    The columns from ``document_type`` on are what the validator read from the document, for
+    The report and the columns from ``document_type`` on are what the validator said and read
+    when it last validated the document (``validated_at``): when it was stored, or when it was
+    validated again (ADR-0019). The columns from ``document_type`` on are what it read, for
     listing it; they are empty when it could not be read as an invoice, and the number, date
     and amount due are there together or not at all. ``size`` and ``report_size`` are the bytes
     of the document and of the report, which the organization's storage quota counts.
@@ -198,7 +206,7 @@ class StoredInvoice(Base):
     """
 
     __tablename__ = "invoices"
-    #: The time of a new invoice, set by the database, comes back with its insert.
+    #: The times of a new invoice, set by the database, come back with its insert.
     __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
     __table_args__ = (
         CheckConstraint("size = octet_length(content)", name="size_of_content"),
@@ -221,6 +229,9 @@ class StoredInvoice(Base):
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
     created_at: Mapped[datetime] = _created_at()
+    #: When the validator last judged the document, which is when it was stored until it is
+    #: validated again.
+    validated_at: Mapped[datetime] = mapped_column(server_default=func.now())
     profile: Mapped[str] = mapped_column(Text)
     valid: Mapped[bool]
     report: Mapped[dict[str, Any]] = mapped_column(JSONB)
@@ -276,3 +287,83 @@ class ApiKey(Base):
     created_at: Mapped[datetime] = _created_at()
     expires_at: Mapped[datetime | None]
     revoked_at: Mapped[datetime | None]
+
+
+class JobKind(StrEnum):
+    """What a job does."""
+
+    REVALIDATION = "revalidation"
+    """Validates an organization's stored invoices again, against the rule sets of today."""
+
+
+class JobStatus(StrEnum):
+    """Where a job is: waiting for a worker, being worked on, or finished one way or the other."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+#: The statuses of a job that has not finished.
+UNFINISHED: tuple[JobStatus, ...] = (JobStatus.QUEUED, JobStatus.RUNNING)
+
+
+class Job(Base):
+    """Work done in the background for an organization: what, for whom, how far it has come,
+    and how it ended.
+
+    The row is the job's truth; a queue only carries the news that it is waiting. ``version``
+    grows with every change, so that a reader can tell what it has seen already. ``attempts``
+    counts the times a worker took the job on; the latest attempt is the one whose writes
+    count, so that a worker that was given up for dead cannot overwrite its successor. A member
+    has at most one unfinished job of each kind.
+    """
+
+    __tablename__ = "jobs"
+    #: The defaults the database sets come back with the insert.
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (
+        CheckConstraint("kind IN ('revalidation')", name="kind_known"),
+        CheckConstraint(
+            "status IN ('queued', 'running', 'succeeded', 'failed')", name="status_known"
+        ),
+        CheckConstraint(
+            "(status IN ('succeeded', 'failed')) = (finished_at IS NOT NULL)",
+            name="finished_when_done",
+        ),
+        CheckConstraint("version >= 0 AND attempts >= 0", name="counts_not_negative"),
+        Index("ix_jobs_organization_id_created_at_id", "organization_id", "created_at", "id"),
+        Index(
+            "uq_jobs_unfinished_per_member",
+            "organization_id",
+            "submitted_by",
+            "kind",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running')"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _id()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    #: The member who started the job; forgotten if their account is deleted.
+    submitted_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    kind: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, server_default=text("'queued'"))
+    #: What the job works on, as the kind defines it.
+    parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'"))
+    #: How far the job has come, as the kind defines it.
+    progress: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'"))
+    #: What the job came to, once it has succeeded.
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    #: Why the job failed: a short message, never the content of an invoice.
+    error: Mapped[str | None] = mapped_column(Text)
+    version: Mapped[int] = mapped_column(server_default=text("0"))
+    attempts: Mapped[int] = mapped_column(server_default=text("0"))
+    created_at: Mapped[datetime] = _created_at()
+    started_at: Mapped[datetime | None]
+    finished_at: Mapped[datetime | None]

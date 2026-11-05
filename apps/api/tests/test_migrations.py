@@ -1,5 +1,5 @@
-"""Migrations: they build exactly the models' schema, every step can be undone, and they render
-as SQL for review."""
+"""Migrations: they build exactly the models' schema, every step can be undone, the data they
+move arrives, and they render as SQL for review."""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ TABLES = {
     "refresh_tokens",
     "invoices",
     "api_keys",
+    "jobs",
 }
 
 
@@ -39,6 +40,20 @@ def tables(database_url: str) -> set[str]:
             await engine.dispose()
 
     return asyncio.run(query())
+
+
+async def run(database_url: str, *statements: str) -> list[object]:
+    """Run ``statements`` in one transaction and commit; what the last one returned."""
+    engine = create_async_engine(database_url, poolclass=NullPool)
+    try:
+        async with engine.begin() as connection:
+            returned: list[object] = []
+            for statement in statements:
+                result = await connection.execute(text(statement))
+                returned = list(result.scalars()) if result.returns_rows else []
+            return returned
+    finally:
+        await engine.dispose()
 
 
 def test_the_migrations_build_exactly_the_schema_of_the_models(empty_database_url: str) -> None:
@@ -71,6 +86,30 @@ def test_each_migration_can_be_undone_one_step_at_a_time(empty_database_url: str
         command.upgrade(config, revision)
 
     command.check(config)
+
+
+def test_an_invoice_stored_before_0007_was_last_validated_when_it_was_stored(
+    empty_database_url: str,
+) -> None:
+    config = alembic_config(empty_database_url)
+    command.upgrade(config, "0006")
+    stored = "2026-10-05 09:30:00+00"
+    asyncio.run(
+        run(
+            empty_database_url,
+            "INSERT INTO organizations (name) VALUES ('Primer')",
+            "INSERT INTO invoices (organization_id, created_at, profile, valid, report,"
+            " report_size, content, size, sha256)"
+            f" SELECT id, '{stored}', 'srb', false, '{{}}', 2, 'x', 1, repeat('0', 64)"
+            " FROM organizations",
+        )
+    )
+
+    command.upgrade(config, "0007")
+
+    assert asyncio.run(
+        run(empty_database_url, "SELECT validated_at = created_at FROM invoices")
+    ) == [True]
 
 
 def test_the_revision_ids_are_sequence_numbers() -> None:

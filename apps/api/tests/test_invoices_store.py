@@ -78,6 +78,7 @@ async def test_an_invoice_is_stored_with_its_report_and_what_the_validator_read(
     assert stored is not None
     assert stored.organization_id == primer.organization.id
     assert body["submitted_at"] == stored.created_at.isoformat().replace("+00:00", "Z")
+    assert body["validated_at"] == body["submitted_at"]
     assert await session.scalar(select(StoredInvoice.content)) == VALID
 
 
