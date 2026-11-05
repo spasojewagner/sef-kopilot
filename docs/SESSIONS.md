@@ -882,3 +882,32 @@ Verification: pre-commit on all files, the workflow's schema included; no code c
 Next: the release `v0.2.0` once the four branches are merged and the latency of a live
 explanation is noted; then deleting finished jobs and the retention of stored invoices, with the
 period the maintainer chooses.
+
+## 2026-11-06 — `chore/release-0.2.0` (2 commits)
+
+Outcome: milestone M2 released as 0.2.0. Every package moves from 0.1.0 to 0.2.0 (`uv.lock`
+updated); the changelog's Unreleased section becomes `[0.2.0] - 2026-11-06`, opened by a summary
+of the milestone, with links comparing the tags; the README roadmap marks M2 done and M3 next,
+and the architecture's status says so. The annotated tag `v0.2.0` and the release notes are
+prepared for the maintainer.
+
+- Decided with the maintainer: the release goes out now, and retention moves to M3. Finished
+  jobs are deleted 30 days after they end; stored invoices are kept until their organization
+  sets a period of its own, none by default. The SEF internal technical instruction moves to M5,
+  beside the SEF demo.
+- The weekly check of the corpus's sources, run by hand on `main`, passed in 46 seconds: the
+  official sites answer GitHub's runners.
+- The first live explanation, by the maintainer with Groq's free tier: `SRB-009` for the
+  synthetic invoice whose PIB has a wrong check digit, in 1.5 s for the whole request, against
+  a budget of 6 s. It cited the PIB rulebook and the specification's BT-31 and named the right
+  check digit (4, not 5). Its fix, though, gave a corrected PIB "for example", which the prompt
+  forbids: a deterministic check of the values an answer names is now in the M3 backlog.
+- Windows PowerShell 5.1 showed the answer garbled: it reads a JSON body without a `charset` as
+  ISO-8859-1, so `č` became `Ä` and the model's „RS“ quotation marks, read as C1 control codes,
+  hid the letters between them. The bytes are right; declaring `charset=utf-8` is in the
+  backlog.
+
+Verification: 2 326 tests green; `einvoice --version` and `GET /health` report 0.2.0.
+
+Next: M3, starting with `feat/repair-patch-engine` (the patch model and the forbidden-field
+guard).

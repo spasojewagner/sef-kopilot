@@ -34,3 +34,4 @@ per branch, to keep them with the code they describe.
 | `feat/rag-explain-citations` | [m2-rag-explain-citations.md](m2-rag-explain-citations.md) |
 | `feat/api-invoices-by-verdict` | [m2-api-invoices-by-verdict.md](m2-api-invoices-by-verdict.md) |
 | `ci/corpus-sources-check` | [m2-ci-corpus-sources-check.md](m2-ci-corpus-sources-check.md) |
+| `chore/release-0.2.0` | [m2-release-0.2.0.md](m2-release-0.2.0.md) |

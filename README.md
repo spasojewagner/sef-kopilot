@@ -95,8 +95,8 @@ Guardrails that are encoded as tests, not as comments:
 | --- | --- | --- |
 | M0 | Monorepo, tooling, CI, documentation skeleton | done |
 | M1 | Validator core: UBL parser, XSD, Schematron runner, SRB-CIUS rule set v1, fixtures, CLI | done — v0.1.0 |
-| M2 | API, persistence, auth, jobs with SSE progress, regulation corpus, explanations with citations | in progress |
-| M3 | Repair loop with approval and audit log, web UI (sr-Latn / en), public demo | planned |
+| M2 | API, persistence, auth, jobs with SSE progress, regulation corpus, explanations with citations | done — v0.2.0 |
+| M3 | Repair loop with approval and audit log, web UI (sr-Latn / en), public demo | next |
 | M4 | MCP server with OAuth 2.1 | planned |
 | M5 | SEF demo round trip, SEF error mapping | planned |
 | M6 | Evaluation harness with CI quality gate, sandbox billing | planned |

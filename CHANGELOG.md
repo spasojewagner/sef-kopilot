@@ -9,6 +9,18 @@ is tagged.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-06
+
+The HTTP API around the validator, and the explanations (milestone M2): FastAPI on PostgreSQL
+with accounts, organizations and roles, short-lived access tokens and rotating refresh tokens,
+invitations, API keys for machine clients and rate limits; invoices validated in a child process
+within limits on bytes, time and elements, or stored with their reports within a quota and
+listed by verdict; jobs that validate stored invoices again, in the API's process or on arq
+workers, followed over server-sent events; the corpus of the official documents the rules come
+from, as dated passages pinned to their sources and checked against them every week; and
+explanations of the rules a report names, in Serbian or English, whose citations can only be
+passages of that corpus.
+
 ### Added
 
 - `.github/workflows/corpus-sources.yml`: every Monday, and by hand, the corpus's official
@@ -269,5 +281,6 @@ whose verdicts the tests pin.
 - Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
   backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
-[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/spasojewagner/sef-kopilot/releases/tag/v0.1.0

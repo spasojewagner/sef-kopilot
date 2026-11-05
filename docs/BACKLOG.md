@@ -53,14 +53,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/api-rate-limits` — rate limits in the API's process (GCRA): sign-in, registration, refresh and accepting invitations per address, wrong passwords per e-mail address, validations per caller and per organization (429 with `Retry-After`; ADR-0018)
 - [x] `feat/api-jobs-sse` — jobs whose row is the truth, with fenced attempts that continue from their progress; inline or on `arq` workers with a sweep, behind `JobRunner`; the first job validates stored invoices again within the quota; progress over SSE, resumable with `Last-Event-ID` (ADR-0019)
 - [x] `feat/rag-corpus-ingest` — the corpus: the law and the rulebook on e-invoicing, the PIB rulebook, the SRB-CIUS specification and the tax categories as Markdown editions made from sources pinned by URL and SHA-256 (`scripts/build_corpus.py`); passages dated by edition, deferral and renumbering, with ids that name their first day; `corpus_passages` with pgvector and trigram indexes, an idempotent ingest that embeds with Jina when configured, and the passages each SRB-CIUS rule cites (ADR-0020)
-- [ ] The SEF internal technical instruction (Interno tehničko uputstvo) in the corpus, once its official text can be pinned like the others
 - [x] `ci/corpus-sources-check` — a scheduled CI job that downloads the corpus's sources each Monday and fails when a digest changed (a new edition to review)
 - [x] `feat/rag-explain-citations` — `POST /invoices/explain`: each rule of a report explained once, in Serbian or English, from the passages that apply on the invoice's day, found by the rule's references, its terms, its place, its codes, then words and meaning fused by rank; a strict JSON schema whose citations can only be those passages' ids, checked again and sent back with the reason, three answers at most; Groq's `openai/gpt-oss-120b` behind `LLMClient`; limits per caller and organization, a time limit, nothing stored (ADR-0021)
-- [ ] An explanation's latency with a live Groq key measured against the budget (< 6 s) and noted in the API's README
+- [x] An explanation's latency with a live Groq key measured against the budget (< 6 s) and noted in the API's README: 1.5 s for an invoice with one rule to explain (6 November 2026)
 - [x] `feat/api-invoices-by-verdict` — stored invoices listed by the verdict of their latest report (`GET /invoices?valid=false`), to find the invoices a revalidation judged invalid; the invalid ones through a partial index built concurrently (migration 0009)
-- [ ] Finished jobs deleted after a period, with the retention of stored invoices (`SECURITY.md`, V14): how long accounting documents are kept is the maintainer's decision, not the code's
 - [x] Learning notes: ~~hybrid retrieval~~ (16), ~~law that changes: dated passages~~ (15), ~~SSE vs. WebSockets~~ (13), ~~idempotent job design~~ (14), ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11), ~~rate limits~~ (12)
-- [ ] Release: `v0.2.0`
+- [x] Release: changelog move, version bump, `v0.2.0` tag prepared
 
 ## M3 — Repair loop + web UI (weeks 5–6) · tag `v0.3.0`
 
@@ -68,6 +66,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] `feat/repair-loop-audit` — approval flow and audit log
 - [ ] `feat/web-bootstrap` — Next.js app shell, shadcn/ui, TanStack Query, `next-intl` (sr-Latn default, en)
 - [ ] `feat/web-upload-report` — upload, report, violation detail with citations
+- [ ] A fix names no value the invoice does not have: the first live answer to SRB-009 gave a corrected PIB "for example", which the prompt forbids. A deterministic check of the numbers an answer names, sent back as feedback, and the model's non-breaking hyphens (`BT‑31`) written as plain ones, so that a search for `BT-31` finds them
+- [ ] JSON answers declare `charset=utf-8`: Windows PowerShell 5.1 reads a JSON body without one as ISO-8859-1 and garbles č, ć, š, ž and the model's quotation marks
+- [ ] Retention (moved from M2; decided 2026-11-06): finished jobs deleted 30 days after they end (`SEF_JOB_RETENTION_DAYS`, 30); stored invoices kept until their organization sets a retention period of its own, none by default (`SECURITY.md`, V14)
 - [ ] Explanations of a stored invoice kept with its report, written once by a job and read with the invoice; the embeddings of what the rules say kept for reuse
 - [ ] `feat/web-diff-approve` — diff view, approval, history
 - [ ] `chore/infra-deploy` — public demo on Render + Neon + Upstash + Cloudflare Pages, "waking up" state for cold starts
@@ -88,6 +89,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [ ] `feat/sef-demo-client` — SEF demo client, encrypted per-tenant key, send + status polling
 - [ ] `feat/sef-error-mapping` — SEF error codes mapped into the explanation pipeline; Peppol profile polish
+- [ ] The SEF internal technical instruction (Interno tehničko uputstvo) in the corpus, once its official text can be pinned like the others (moved from M2)
 - [ ] Confirm against the SEF demo what the published documents leave open: the warning-level SRB rules (SRB-013, SRB-017, SRB-023, SRB-029), the set-asides that rest on the Ministry's examples (ADR-0008), and whether SEF requires a due date or payment terms when an amount is due (EN 16931 BR-CO-25, absent from CEN's UBL Schematron; ADR-0010)
 - [ ] Release: `v0.5.0`
 
