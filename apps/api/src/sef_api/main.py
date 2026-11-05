@@ -19,6 +19,7 @@ from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
 from sef_api.invoices import routes as invoices
 from sef_api.invoices.validator import Admission, ProcessValidator, ThreadValidator, Validator
+from sef_api.jobs import routes as jobs
 from sef_api.members import routes as members
 from sef_api.rate_limits import RateLimiter, limits
 from sef_api.routes import health
@@ -44,6 +45,11 @@ OPENAPI_TAGS = [
     {
         "name": "invoices",
         "description": "Invoices and credit notes: the deterministic validator's report on them.",
+    },
+    {
+        "name": "jobs",
+        "description": "Work done in the background for the caller's organization, such as "
+        "validating its invoices again, and how far it has come.",
     },
     {
         "name": "members",
@@ -104,6 +110,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(invoices.router)
+    app.include_router(jobs.router)
     app.include_router(members.router)
     app.include_router(members.invitations_router)
     app.include_router(api_keys.router)

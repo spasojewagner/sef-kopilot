@@ -1,4 +1,4 @@
-"""People, organizations, memberships, stored invoices and API keys made directly in the
+"""People, organizations, memberships, stored invoices, API keys and jobs made directly in the
 database, with access tokens for the people, for tests about what happens after sign-in."""
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from einvoice_core.pipeline import ValidationReport
 from sef_api.api_keys.service import PREFIX, SHOWN
 from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
 from sef_api.auth.tokens import issue_access_token, new_opaque_token, opaque_token_digest
-from sef_api.models import ApiKey, Membership, Organization, Role, StoredInvoice, User
+from sef_api.models import ApiKey, Job, JobKind, Membership, Organization, Role, StoredInvoice, User
 
 from .conftest import TEST_JWT_SECRET
 
@@ -143,3 +143,19 @@ async def api_key(
     session.add(row)
     await session.flush()
     return Key(row, secret)
+
+
+async def job(
+    session: AsyncSession, organization: Organization, user: User | None, **columns: Any
+) -> Job:
+    """A job of ``organization`` started by ``user``: a revalidation that waits, unless told
+    otherwise."""
+    queued = Job(
+        organization_id=organization.id,
+        submitted_by=user.id if user is not None else None,
+        kind=JobKind.REVALIDATION,
+        **columns,
+    )
+    session.add(queued)
+    await session.flush()
+    return queued
