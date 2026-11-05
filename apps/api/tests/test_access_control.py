@@ -355,6 +355,13 @@ GUARDED: dict[Endpoint, Guarded] = {
         None,
         _primers_job_is_not_found,
     ),
+    ("GET", "/jobs/{job_id}/events"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/jobs/{w.job.id}/events",
+        None,
+        _primers_job_is_not_found,
+    ),
     ("GET", "/api-keys"): Guarded(
         Permission.API_KEYS_ISSUE, False, lambda _: "/api-keys", None, _lists_only_ogleds_keys
     ),

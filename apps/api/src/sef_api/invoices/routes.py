@@ -276,9 +276,10 @@ async def store_invoice(
     description=(
         "Starts a job that validates again, with the rules this server has now, the stored "
         "invoices the caller may see, as `GET /invoices` lists them, and makes each new report "
-        "the invoice's latest. `Location` names the job, which `GET /jobs/{job_id}` reads. A "
-        "member has one revalidation under way at a time. An invoice whose new report would "
-        "take the organization past its quota keeps the report it has; the job counts it."
+        "the invoice's latest. `Location` names the job, which `GET /jobs/{job_id}` reads and "
+        "`GET /jobs/{job_id}/events` follows. A member has one revalidation under way at a "
+        "time. An invoice whose new report would take the organization past its quota keeps "
+        "the report it has; the job counts it."
     ),
     responses={
         status.HTTP_409_CONFLICT: {
