@@ -31,7 +31,10 @@ from sef_api.invoices.validator import (
     ValidatorFailedError,
     ValidatorUnavailableError,
 )
-from sef_api.models import StoredInvoice
+from sef_api.jobs import store as job_store
+from sef_api.jobs.routes import JobOut, job_out
+from sef_api.jobs.runners import JobRunner
+from sef_api.models import JobKind, StoredInvoice
 from sef_api.rate_limits import Counted, Limit, RateLimiter, Rule, too_many
 from sef_api.settings import Settings
 
@@ -97,6 +100,9 @@ class InvoiceOut(BaseModel):
         description="The member who submitted it, while their account exists."
     )
     submitted_at: datetime
+    validated_at: datetime = Field(
+        description="When the validator last judged it: when it was stored, or validated again."
+    )
     profile: ProfileName = Field(description="The profile it was validated under.")
     valid: bool = Field(description="Whether the validator found no fatal violation.")
     size: int = Field(description="Bytes of the document.")
@@ -107,7 +113,7 @@ class InvoiceOut(BaseModel):
 
 
 class StoredInvoiceOut(InvoiceOut):
-    """A stored invoice with the validator's report on it when it was stored."""
+    """A stored invoice with the validator's latest report on it."""
 
     report: ValidationReport
 
@@ -172,6 +178,7 @@ def _invoice(invoice: StoredInvoice) -> InvoiceOut:
         id=invoice.id,
         submitted_by=invoice.submitted_by,
         submitted_at=invoice.created_at,
+        validated_at=invoice.validated_at,
         profile=cast(ProfileName, invoice.profile),
         valid=invoice.valid,
         size=invoice.size,
@@ -262,6 +269,50 @@ async def store_invoice(
     return _stored(invoice)
 
 
+@router.post(
+    "/revalidations",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Validate stored invoices again",
+    description=(
+        "Starts a job that validates again, with the rules this server has now, the stored "
+        "invoices the caller may see, as `GET /invoices` lists them, and makes each new report "
+        "the invoice's latest. `Location` names the job, which `GET /jobs/{job_id}` reads. A "
+        "member has one revalidation under way at a time. An invoice whose new report would "
+        "take the organization past its quota keeps the report it has; the job counts it."
+    ),
+    responses={
+        status.HTTP_409_CONFLICT: {
+            "model": Problem,
+            "description": "A revalidation the caller started is under way; `Location` names it.",
+        }
+    },
+)
+async def revalidate_invoices(
+    request: Request, response: Response, caller: CanSubmit, session: Session
+) -> JobOut:
+    scope = _scope(caller)
+    job = await job_store.start(
+        session,
+        organization_id=caller.organization_id,
+        submitted_by=caller.user_id,
+        kind=JobKind.REVALIDATION,
+        parameters={} if scope.submitted_by is None else {"submitted_by": str(scope.submitted_by)},
+    )
+    if job is None:
+        running = await job_store.under_way(
+            session, caller.organization_id, caller.user_id, JobKind.REVALIDATION
+        )
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "a revalidation you started is under way",
+            None if running is None else {"Location": f"/jobs/{running.id}"},
+        )
+    await cast(JobRunner, request.app.state.jobs).enqueue(job.id)
+    response.headers["Location"] = f"/jobs/{job.id}"
+    response.headers["Cache-Control"] = "no-store"
+    return job_out(job)
+
+
 @router.get(
     "",
     summary="List stored invoices",
@@ -300,7 +351,7 @@ async def list_invoices(
 @router.get(
     "/{invoice_id}",
     summary="Read a stored invoice",
-    description="What the validator read from the invoice and its report when it was stored.",
+    description="What the validator read from the invoice, and its latest report on it.",
     responses=_NOT_FOUND,
 )
 async def get_invoice(

@@ -89,20 +89,22 @@ async def stored_invoice(
     content: bytes = b"<Invoice/>",
     **columns: Any,
 ) -> StoredInvoice:
-    """An invoice ``organization`` stores, with an empty report on it: what reading it shows,
-    not what the validator would say."""
+    """An invoice ``organization`` stores, with an empty report on it unless ``columns`` say
+    otherwise: what reading it shows, not what the validator would say."""
     report = ValidationReport(profile="srb", valid=False, violations=(), layers=())
+    stored = {
+        "profile": "srb",
+        "valid": False,
+        "report": report.model_dump(mode="json"),
+        "report_size": len(report.model_dump_json()),
+    }
     invoice = StoredInvoice(
         organization_id=organization.id,
         submitted_by=None if submitted_by is None else submitted_by.id,
-        profile="srb",
-        valid=False,
-        report=report.model_dump(mode="json"),
-        report_size=len(report.model_dump_json()),
         content=content,
         size=len(content),
         sha256=hashlib.sha256(content).hexdigest(),
-        **columns,
+        **(stored | columns),
     )
     session.add(invoice)
     await session.flush()

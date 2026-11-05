@@ -256,6 +256,7 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
             RefreshToken,
             StoredInvoice,
             ApiKey,
+            Job,
         )
     }
     assert counts == {
@@ -266,6 +267,7 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
         "refresh_tokens": 0,
         "invoices": 1,
         "api_keys": 2,
+        "jobs": 1,
     }
 
 
@@ -294,6 +296,22 @@ async def _primers_invoice_is_not_found(
         404,
         {"detail": "no such invoice in this organization"},
     )
+
+
+async def _revalidating_in_ogled(response: Response, session: AsyncSession, w: World) -> None:
+    """A revalidation is started for the caller in the caller's organization; Primer's job is
+    as it was."""
+    assert response.status_code == 202
+    started = (
+        await session.execute(
+            select(Job.organization_id, Job.submitted_by).where(Job.id == response.json()["id"])
+        )
+    ).one()
+    assert tuple(started) == (w.ogled.organization.id, w.ogled.owner.id)
+    primers = (
+        await session.execute(select(Job.status, Job.version).where(Job.id == w.job.id))
+    ).one()
+    assert tuple(primers) == ("queued", 0)
 
 
 async def _primers_job_is_not_found(response: Response, session: AsyncSession, w: World) -> None:
@@ -363,6 +381,13 @@ GUARDED: dict[Endpoint, Guarded] = {
     ),
     ("GET", "/invoices"): Guarded(
         Permission.INVOICES_SUBMIT, False, lambda _: "/invoices", None, _lists_no_invoices
+    ),
+    ("POST", "/invoices/revalidations"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda _: "/invoices/revalidations",
+        None,
+        _revalidating_in_ogled,
     ),
     ("GET", "/invoices/{invoice_id}"): Guarded(
         Permission.INVOICES_SUBMIT,

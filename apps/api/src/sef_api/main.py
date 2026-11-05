@@ -7,6 +7,7 @@ repository root (or ``make api``); the interactive OpenAPI documentation is serv
 from __future__ import annotations
 
 import logging
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -20,6 +21,10 @@ from sef_api.db import Database
 from sef_api.invoices import routes as invoices
 from sef_api.invoices.validator import Admission, ProcessValidator, ThreadValidator, Validator
 from sef_api.jobs import routes as jobs
+from sef_api.jobs import store as job_store
+from sef_api.jobs.kinds import HANDLERS
+from sef_api.jobs.runners import InlineRunner, JobRunner
+from sef_api.jobs.runs import JobContext, run_job
 from sef_api.members import routes as members
 from sef_api.rate_limits import RateLimiter, limits
 from sef_api.routes import health
@@ -67,12 +72,38 @@ def _validator(settings: Settings) -> Validator:
     )
 
 
+def _runner(app: FastAPI) -> JobRunner:
+    """Jobs run in the application's own event loop, each with the database, the validator and
+    the settings the application has when the job runs."""
+
+    async def run(job_id: uuid.UUID) -> None:
+        context = JobContext(app.state.database, app.state.validator, app.state.settings)
+        await run_job(context, job_id, HANDLERS)
+
+    return InlineRunner(run)
+
+
+async def _resume(app: FastAPI) -> None:
+    """Have the jobs that the process before this one left unfinished run again. Without its
+    database the application still starts, as /ready tells, and they wait for the next start."""
+    try:
+        async with app.state.database.sessions() as session:
+            waiting = await job_store.unfinished(session)
+    except Exception as error:
+        logger.warning("the unfinished jobs were not resumed: %s", type(error).__name__)
+        return
+    runner: JobRunner = app.state.jobs
+    for job_id in waiting:
+        await runner.enqueue(job_id)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the FastAPI application with its settings, its database and every router.
 
     A factory (instead of a module-level singleton) lets tests build a fresh application with
     their own settings, and keeps importing the module free of side effects. The database
-    engine connects on first use and is disposed of when the application shuts down.
+    engine connects on first use and is disposed of when the application shuts down. Jobs left
+    unfinished are run again when it starts; those running when it stops stay unfinished.
     """
     settings = settings if settings is not None else Settings()
     database = Database.connect(settings.database_url.get_secret_value())
@@ -85,7 +116,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await validator.start()
         if validator.problem is not None:
             logger.warning("the validator cannot run: %s", validator.problem)
+        await _resume(application)
         yield
+        await application.state.jobs.stop()
         await validator.stop()
         await database.engine.dispose()
 
@@ -107,6 +140,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.admission = Admission(settings.max_validations_in_flight)
     app.state.limiter = RateLimiter()
     app.state.limits = limits(settings)
+    app.state.jobs = _runner(app)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(invoices.router)

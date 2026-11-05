@@ -193,10 +193,12 @@ class RefreshToken(Base):
 
 
 class StoredInvoice(Base):
-    """An invoice an organization keeps: the document as it was sent, and the validator's report
-    on it when it was stored.
+    """An invoice an organization keeps: the document as it was sent, and the validator's latest
+    report on it.
 
-    The columns from ``document_type`` on are what the validator read from the document, for
+    The report and the columns from ``document_type`` on are what the validator said and read
+    when it last validated the document (``validated_at``): when it was stored, or when it was
+    validated again (ADR-0019). The columns from ``document_type`` on are what it read, for
     listing it; they are empty when it could not be read as an invoice, and the number, date
     and amount due are there together or not at all. ``size`` and ``report_size`` are the bytes
     of the document and of the report, which the organization's storage quota counts.
@@ -204,7 +206,7 @@ class StoredInvoice(Base):
     """
 
     __tablename__ = "invoices"
-    #: The time of a new invoice, set by the database, comes back with its insert.
+    #: The times of a new invoice, set by the database, come back with its insert.
     __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
     __table_args__ = (
         CheckConstraint("size = octet_length(content)", name="size_of_content"),
@@ -227,6 +229,9 @@ class StoredInvoice(Base):
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
     created_at: Mapped[datetime] = _created_at()
+    #: When the validator last judged the document, which is when it was stored until it is
+    #: validated again.
+    validated_at: Mapped[datetime] = mapped_column(server_default=func.now())
     profile: Mapped[str] = mapped_column(Text)
     valid: Mapped[bool]
     report: Mapped[dict[str, Any]] = mapped_column(JSONB)

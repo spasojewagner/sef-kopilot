@@ -1,10 +1,11 @@
 """Stored invoices: an organization keeps the invoices its members submit, each with the
-validator's report on it, within a storage quota (ADR-0016).
+validator's latest report on it, within a storage quota (ADR-0016).
 
 What an organization stores is counted in bytes, its documents and their reports together: a
 small invoice that breaks many rules has a report many times its size. Adding up what is
-stored and storing one more happen under a lock on the organization's stored invoices, so
-that concurrent uploads cannot take it past its quota.
+stored and storing one more, or replacing a report with a larger one (ADR-0019), happen under
+a lock on the organization's stored invoices, so that no two of them can take it past its
+quota.
 
 Every read is within a :class:`Scope`: the organization, and for a member who may not see
 every invoice of it, only the ones they submitted. An invoice outside the scope does not
@@ -20,9 +21,9 @@ import hashlib
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Final
+from typing import Any, Final, Literal
 
-from sqlalchemy import ColumnElement, Select, delete, func, select, tuple_
+from sqlalchemy import ColumnElement, Select, delete, func, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.invoices.validation import InvoiceSummary, ProfileName, Validation
@@ -41,6 +42,7 @@ __all__ = [
     "find",
     "forget",
     "page_of",
+    "replace_report",
     "store",
     "stored_bytes",
 ]
@@ -80,9 +82,22 @@ class Page:
     next: str | None
 
 
+#: The columns an invoice is listed by, from what the validator read.
+_LISTED: Final = (
+    "document_type",
+    "number",
+    "issue_date",
+    "currency",
+    "seller",
+    "buyer",
+    "payable_amount",
+)
+
+
 def _listing(summary: InvoiceSummary | None) -> dict[str, Any]:
+    """The listing columns: what the validator read, or none of it."""
     if summary is None:
-        return {}
+        return dict.fromkeys(_LISTED)
     return {
         "document_type": summary.document_type,
         "number": summary.number,
@@ -135,6 +150,47 @@ async def store(
     session.add(invoice)
     await session.commit()
     return invoice
+
+
+async def replace_report(
+    session: AsyncSession,
+    *,
+    organization_id: uuid.UUID,
+    invoice_id: uuid.UUID,
+    validation: Validation,
+    quota: int,
+) -> Literal["replaced", "kept", "gone"]:
+    """Make ``validation`` the latest report on the organization's invoice, without committing:
+    the caller commits it with whatever else belongs to the change, and the lock on the
+    organization's stored invoices is held until then.
+
+    ``"kept"`` when the new report is larger than the old one and the organization would then
+    store more than ``quota`` bytes: the invoice keeps the report it has. ``"gone"`` when the
+    organization has no such invoice, as when it was deleted meanwhile.
+    """
+    await lock_invoice_storage(session, organization_id)
+    old = await session.scalar(
+        select(StoredInvoice.report_size)
+        .where(StoredInvoice.organization_id == organization_id, StoredInvoice.id == invoice_id)
+        .with_for_update()
+    )
+    if old is None:
+        return "gone"
+    size = len(validation.report.model_dump_json().encode())
+    if size > old and await stored_bytes(session, organization_id) - old + size > quota:
+        return "kept"
+    await session.execute(
+        update(StoredInvoice)
+        .where(StoredInvoice.id == invoice_id)
+        .values(
+            valid=validation.report.valid,
+            report=validation.report.model_dump(mode="json"),
+            report_size=size,
+            validated_at=func.now(),
+            **_listing(validation.summary),
+        )
+    )
+    return "replaced"
 
 
 def cursor_after(invoice: StoredInvoice) -> str:
