@@ -9,6 +9,10 @@ join in a role (ADR-0013). A refresh token belongs to a person's session in one 
 (ADR-0016). An API key belongs to a membership, and acts for that member (ADR-0017). A job is
 work done in the background for an organization, such as validating its invoices again
 (ADR-0019).
+
+The corpus, the official documents an explanation cites, is the same for every organization
+and belongs to none (ADR-0020): its passages are public text, written only by the command that
+ingests the corpus.
 """
 
 from __future__ import annotations
@@ -35,11 +39,14 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from sef_api.db import Base
+from sef_api.db import Base, Vector
+from sef_api.rag.embeddings import DIMENSIONS
 
 __all__ = [
     "UNFINISHED",
     "ApiKey",
+    "CorpusDocument",
+    "CorpusPassage",
     "Invitation",
     "Job",
     "JobKind",
@@ -367,3 +374,81 @@ class Job(Base):
     created_at: Mapped[datetime] = _created_at()
     started_at: Mapped[datetime | None]
     finished_at: Mapped[datetime | None]
+
+
+class CorpusDocument(Base):
+    """An official document of the corpus: a law, a rulebook, a specification or a list."""
+
+    __tablename__ = "corpus_documents"
+    __table_args__ = (
+        CheckConstraint("kind IN ('law', 'rulebook', 'specification', 'list')", name="kind_known"),
+    )
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(Text)
+    publisher: Mapped[str] = mapped_column(Text)
+    language: Mapped[str] = mapped_column(Text)
+    #: Where the document is published.
+    page: Mapped[str] = mapped_column(Text)
+
+
+class CorpusPassage(Base):
+    """A passage of an official document, with the days between which it applies.
+
+    ``id`` names the document, the passage and the day it began to apply
+    (``e-invoicing-law/article-4b/2027-07-01``): an explanation's citations are these ids.
+    ``search_text`` is the passage folded for keyword search, ``text_sha256`` a digest of what
+    it says, and ``embedding`` its vector, made by ``embedding_model``, or neither until the
+    passage is embedded.
+    """
+
+    __tablename__ = "corpus_passages"
+    __table_args__ = (
+        CheckConstraint(
+            "valid_to IS NULL OR valid_to > valid_from", name="valid_to_after_valid_from"
+        ),
+        CheckConstraint(
+            "fully_from IS NULL OR fully_from > valid_from", name="fully_from_after_valid_from"
+        ),
+        CheckConstraint(
+            "(embedding IS NULL) = (embedding_model IS NULL)", name="embedding_with_its_model"
+        ),
+        Index(
+            "uq_corpus_passages_document_key_valid_from",
+            "document",
+            "key",
+            "valid_from",
+            unique=True,
+        ),
+        Index(
+            "ix_corpus_passages_embedding",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index(
+            "ix_corpus_passages_search_text",
+            "search_text",
+            postgresql_using="gin",
+            postgresql_ops={"search_text": "gin_trgm_ops"},
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    document: Mapped[str] = mapped_column(ForeignKey("corpus_documents.key", ondelete="CASCADE"))
+    key: Mapped[str] = mapped_column(Text)
+    label: Mapped[str] = mapped_column(Text)
+    heading: Mapped[str | None] = mapped_column(Text)
+    part: Mapped[str | None] = mapped_column(Text)
+    amended_by: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    valid_from: Mapped[date]
+    valid_to: Mapped[date | None]
+    fully_from: Mapped[date | None]
+    version: Mapped[str] = mapped_column(Text)
+    source_url: Mapped[str] = mapped_column(Text)
+    search_text: Mapped[str] = mapped_column(Text)
+    text_sha256: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(DIMENSIONS))
+    embedding_model: Mapped[str | None] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)
