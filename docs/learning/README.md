@@ -20,5 +20,6 @@ just used. New notes are added in the pull request that introduces the concept.
 | 12 | [Rate limits: what to count, by which key, and how](12-rate-limits.md) | M2 |
 | 13 | [Server-sent events vs. WebSockets](13-server-sent-events-vs-websockets.md) | M2 |
 | 14 | [Idempotent jobs: delivered at least once, done once](14-idempotent-jobs.md) | M2 |
+| 15 | [Law that changes: editions, valid time and ids that stay](15-dated-passages-of-changing-law.md) | M2 |
 
 Planned: pgvector and hybrid retrieval · OAuth 2.1 flows for MCP.

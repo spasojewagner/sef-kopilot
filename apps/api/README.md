@@ -228,6 +228,34 @@ The address is the one the server saw. Behind a reverse proxy, tell uvicorn whic
 trust, so that the address is the client's and not the proxy's:
 `uvicorn sef_api.main:create_app --factory --proxy-headers --forwarded-allow-ips=<proxy address>`.
 
+## The corpus
+
+Explanations cite the official documents the validator's rules come from: the law and the
+rulebook on e-invoicing, the PIB rulebook, the SRB-CIUS specification and the list of tax
+categories, kept as text in [`corpus/`](../../corpus/README.md) (ADR-0020). Load them into the
+database, after `make migrate`:
+
+```bash
+make ingest           # uv run python -m sef_api.rag.ingest [--corpus <directory>]
+```
+
+An ingest can run any number of times: it adds, updates and deletes passages until the
+database holds exactly the corpus, and prints what it did. Each passage has the days it applies
+(`valid_from`, up to but not including `valid_to`) and an id that names the first,
+`e-invoicing-law/article-4b/2027-07-01`; `sef_api.rag.citations` gives the passages each
+SRB-CIUS rule is authored from on a day.
+
+Passages are found by keyword in either script (`search_text`, folded to Latin letters without
+diacritics, with a trigram index) and, once embedded, by meaning (`embedding`, an HNSW index):
+
+| `EMBEDDINGS_PROVIDER` | What an ingest embeds |
+| --- | --- |
+| `none` (default) | nothing; nothing leaves the server |
+| `jina` | with `JINA_API_KEY`: every passage without an embedding of `jina-embeddings-v5-text-small` (1024 numbers), 32 to a request, again when its words change |
+
+The migration that creates the tables needs a role that may create the `vector` and `pg_trgm`
+extensions: the superuser of `make up` locally, Neon's default role in production.
+
 ## Database and migrations
 
 PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
@@ -264,10 +292,12 @@ as well, the database named by `SEF_TEST_REDIS_URL` (`redis://localhost:6379/15`
 src/sef_api/
   main.py        application factory (`create_app`): settings, database, routers
   settings.py    configuration from the environment (pydantic-settings)
-  db.py          declarative base, engine, sessions, the `get_session` dependency
+  db.py          declarative base, engine, sessions, the `get_session` dependency, pgvector's
+                 column type
   models.py      organizations, users, memberships, roles, invitations, refresh tokens,
-                 stored invoices, API keys, jobs
-  locks.py       the advisory locks on an organization's members, invoices and API keys
+                 stored invoices, API keys, jobs, the corpus's documents and passages
+  locks.py       the advisory locks on an organization's members, invoices and API keys,
+                 and the one that makes two ingests of the corpus take turns
   rate_limits.py the rate limiter (GCRA), what it counts and the limits
   api_keys/      issuing, authenticating, listing and revoking API keys, `/api-keys` routes
   auth/          passwords, tokens, the sign-in service, `/auth` routes, `current_principal`
@@ -276,6 +306,8 @@ src/sef_api/
   jobs/          running a job, the inline runner, the Redis queue and its worker, `/jobs`
                  routes with the event stream
   members/       members and invitations, `/members` and `/invitations` routes
+  rag/           the corpus: text in two scripts, editions and dated passages, embeddings,
+                 ingesting (`python -m sef_api.rag.ingest`), the passages each rule cites
   migrations/    Alembic environment and revisions (`versions/`)
   routes/        one router module per resource
 alembic.ini      command-line configuration of the migrations

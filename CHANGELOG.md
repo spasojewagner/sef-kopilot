@@ -11,6 +11,22 @@ is tagged.
 
 ### Added
 
+- `corpus/`: the official documents that explanations cite (ADR-0020): the Law and the
+  Rulebook on Electronic Invoicing, the Rulebook on the Tax Identification Number, the SRB-CIUS
+  specification and the Ministry's list of tax categories, seven editions in all, as Markdown
+  written by `scripts/build_corpus.py` from sources that `corpus/manifest.toml` pins by URL and
+  SHA-256 (`make corpus` downloads and rebuilds, `make corpus-check` compares). Each passage (an
+  article, a section, a table row, a tax category) applies from its edition's day, or the later
+  day the amending act defers it to, until a later edition changes it; its id names that first
+  day, `e-invoicing-law/article-4b/2027-07-01`.
+- `apps/api`: the corpus in PostgreSQL (migration 0008: the `vector` and `pg_trgm` extensions,
+  `corpus_documents` and `corpus_passages`, with an HNSW index on the embeddings and a trigram
+  index on the text folded to Latin letters, so that a search in either script finds the
+  other). `python -m sef_api.rag.ingest` (`make ingest`) makes the tables hold exactly the
+  corpus, any number of times, and embeds what is not embedded yet when
+  `EMBEDDINGS_PROVIDER=jina` (with `JINA_API_KEY`; the default, `none`, embeds nothing).
+  `sef_api.rag.citations` gives the passages each SRB-CIUS rule is authored from on a day; a
+  test resolves every reference of every rule.
 - `apps/api`: jobs (ADR-0019). A job's row in PostgreSQL is the truth: taking a job on counts
   an attempt, and every later write requires the attempt to be the latest, so that a job
   delivered twice does its work once and one cut short continues from its progress. The first
@@ -91,6 +107,7 @@ is tagged.
 
 ### Changed
 
+- `.env.example` sets `EMBEDDINGS_PROVIDER=none`: a copy of it starts the API without a key.
 - A stored invoice's report is its latest, and `validated_at` tells when the validator made it
   (migration 0007 fills it from when the invoice was stored); ADR-0016 is amended.
 - The OpenAPI security scheme is named `access token or API key`: the same bearer header takes

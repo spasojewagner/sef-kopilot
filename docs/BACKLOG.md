@@ -52,11 +52,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/api-keys` — API keys for machine clients (ERPs): 256 random bits shown once and kept as a digest, acting for the member who issued them with chosen invoice permissions within the member's role, revoked by the member or an owner, deleted with the membership; a cross-tenant case with another organization's key for every endpoint; credentials kept out of caches (ADR-0017)
 - [x] `feat/api-rate-limits` — rate limits in the API's process (GCRA): sign-in, registration, refresh and accepting invitations per address, wrong passwords per e-mail address, validations per caller and per organization (429 with `Retry-After`; ADR-0018)
 - [x] `feat/api-jobs-sse` — jobs whose row is the truth, with fenced attempts that continue from their progress; inline or on `arq` workers with a sweep, behind `JobRunner`; the first job validates stored invoices again within the quota; progress over SSE, resumable with `Last-Event-ID` (ADR-0019)
-- [ ] `feat/rag-corpus-ingest` — ingestion of the law, rulebook, technical instruction and SRB-CIUS specification with `valid_from` / `valid_to`
+- [x] `feat/rag-corpus-ingest` — the corpus: the law and the rulebook on e-invoicing, the PIB rulebook, the SRB-CIUS specification and the tax categories as Markdown editions made from sources pinned by URL and SHA-256 (`scripts/build_corpus.py`); passages dated by edition, deferral and renumbering, with ids that name their first day; `corpus_passages` with pgvector and trigram indexes, an idempotent ingest that embeds with Jina when configured, and the passages each SRB-CIUS rule cites (ADR-0020)
+- [ ] The SEF internal technical instruction (Interno tehničko uputstvo) in the corpus, once its official text can be pinned like the others
+- [ ] A scheduled CI job that downloads the corpus's sources and reports a digest that changed (a new edition to review)
 - [ ] `feat/rag-explain-citations` — explanation endpoint; citations must resolve to stored chunks; no-store mode
-- [ ] Langfuse and Sentry wiring; structured JSON logs with security events (sign-in, API key use, and when each key was last used); health and readiness checks
 - [ ] Stored invoices listed by verdict (`GET /invoices?valid=false`), to find the invoices a revalidation judged invalid; finished jobs deleted after a period, with the retention of stored invoices (`SECURITY.md`, V14)
-- [ ] Learning notes: pgvector and hybrid retrieval, ~~SSE vs. WebSockets~~ (13), ~~idempotent job design~~ (14), ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11), ~~rate limits~~ (12)
+- [ ] Learning notes: pgvector and hybrid retrieval, ~~law that changes: dated passages~~ (15), ~~SSE vs. WebSockets~~ (13), ~~idempotent job design~~ (14), ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11), ~~rate limits~~ (12)
 - [ ] Release: `v0.2.0`
 
 ## M3 — Repair loop + web UI (weeks 5–6) · tag `v0.3.0`
@@ -72,6 +73,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## M4 — MCP + OAuth 2.1 (week 7) · tag `v0.4.0`
 
+- [ ] Langfuse and Sentry wiring; structured JSON logs with security events (sign-in, API key use, and when each key was last used) — moved here from M2, after the public demo of M3
+- [ ] A local multilingual embedding model (BGE-M3, 1024 numbers) behind the `Embedder` adapter, for a self-hosted deployment that makes no call to embed
 - [ ] `feat/mcp-server` — MCP server (Streamable HTTP at `/mcp`) with `validate_invoice`, `explain_errors`, `propose_fix`, `revalidate`, `search_rules`, `send_to_sef_demo`
 - [ ] `feat/mcp-oauth21` — OAuth 2.1 with PKCE, RFC 9728, RFC 8414, RFC 8707, RFC 7591; scopes per tool
 - [ ] Demo from Claude and ChatGPT documented with screenshots
