@@ -57,7 +57,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] A scheduled CI job that downloads the corpus's sources and reports a digest that changed (a new edition to review)
 - [x] `feat/rag-explain-citations` — `POST /invoices/explain`: each rule of a report explained once, in Serbian or English, from the passages that apply on the invoice's day, found by the rule's references, its terms, its place, its codes, then words and meaning fused by rank; a strict JSON schema whose citations can only be those passages' ids, checked again and sent back with the reason, three answers at most; Groq's `openai/gpt-oss-120b` behind `LLMClient`; limits per caller and organization, a time limit, nothing stored (ADR-0021)
 - [ ] An explanation's latency with a live Groq key measured against the budget (< 6 s) and noted in the API's README
-- [ ] Stored invoices listed by verdict (`GET /invoices?valid=false`), to find the invoices a revalidation judged invalid; finished jobs deleted after a period, with the retention of stored invoices (`SECURITY.md`, V14)
+- [x] `feat/api-invoices-by-verdict` — stored invoices listed by the verdict of their latest report (`GET /invoices?valid=false`), to find the invoices a revalidation judged invalid; the invalid ones through a partial index built concurrently (migration 0009)
+- [ ] Finished jobs deleted after a period, with the retention of stored invoices (`SECURITY.md`, V14): how long accounting documents are kept is the maintainer's decision, not the code's
 - [x] Learning notes: ~~hybrid retrieval~~ (16), ~~law that changes: dated passages~~ (15), ~~SSE vs. WebSockets~~ (13), ~~idempotent job design~~ (14), ~~Alembic migration safety~~ (06), ~~access and refresh tokens~~ (07), ~~authorization in a multi-tenant API~~ (08), ~~hostile uploads~~ (09), ~~scopes, pages and quotas~~ (10), ~~API keys~~ (11), ~~rate limits~~ (12)
 - [ ] Release: `v0.2.0`
 

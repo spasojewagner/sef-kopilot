@@ -415,7 +415,8 @@ async def revalidate_invoices(
     description=(
         "The organization's stored invoices, the newest first, a page at a time: what the "
         "validator read from each and whether it is valid, without the reports. A member "
-        "without `invoices:manage` sees the invoices they submitted."
+        "without `invoices:manage` sees the invoices they submitted. `valid=false` lists only "
+        "the invoices the validator last found invalid, `valid=true` only the valid ones."
     ),
     responses={
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -426,6 +427,7 @@ async def revalidate_invoices(
 )
 async def list_invoices(
     response: Response,
+    *,
     caller: CanSubmit,
     session: Session,
     limit: Annotated[int, Query(ge=1, le=store.MAX_PAGE, description="Invoices per page.")] = 50,
@@ -433,9 +435,13 @@ async def list_invoices(
         str | None,
         Query(max_length=200, description="The `next` of the page before, to continue it."),
     ] = None,
+    valid: Annotated[
+        bool | None,
+        Query(description="Only the invoices whose latest report is valid, or invalid."),
+    ] = None,
 ) -> InvoicePage:
     try:
-        page = await store.page_of(session, _scope(caller), limit=limit, after=after)
+        page = await store.page_of(session, _scope(caller), limit=limit, after=after, valid=valid)
     except store.InvalidCursorError:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "after is not a cursor this API gave"

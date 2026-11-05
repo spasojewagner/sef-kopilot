@@ -22,5 +22,6 @@ just used. New notes are added in the pull request that introduces the concept.
 | 14 | [Idempotent jobs: delivered at least once, done once](14-idempotent-jobs.md) | M2 |
 | 15 | [Law that changes: editions, valid time and ids that stay](15-dated-passages-of-changing-law.md) | M2 |
 | 16 | [Hybrid retrieval: from the rule outward, then words and meaning fused by rank](16-hybrid-retrieval.md) | M2 |
+| 17 | [Partial indexes: an index of the few rows a query looks for](17-partial-indexes.md) | M2 |
 
 Planned: OAuth 2.1 flows for MCP.

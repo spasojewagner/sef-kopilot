@@ -226,6 +226,15 @@ class StoredInvoice(Base):
             name="listed_together",
         ),
         Index("ix_invoices_organization_id_created_at_id", "organization_id", "created_at", "id"),
+        # The invalid invoices, the few an organization looks for after a revalidation: their
+        # own index, as small as they are few (migration 0009).
+        Index(
+            "ix_invoices_invalid_organization_id_created_at_id",
+            "organization_id",
+            "created_at",
+            "id",
+            postgresql_where=text("NOT valid"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = _id()

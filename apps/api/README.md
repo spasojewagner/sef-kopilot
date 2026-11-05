@@ -126,7 +126,7 @@ curl -s "localhost:8000/invoices?limit=20" -H "Authorization: Bearer $ACCESS_TOK
 
 | Endpoint | Answer |
 | --- | --- |
-| `GET /invoices?limit=&after=` | the newest invoices first, up to 100 a page (50 by default), without their reports; `next` is the `after` of the next page |
+| `GET /invoices?limit=&after=&valid=` | the newest invoices first, up to 100 a page (50 by default), without their reports; `next` is the `after` of the next page; `valid=false` lists only those whose latest report is invalid, `valid=true` only the valid ones |
 | `GET /invoices/{id}` | one invoice with its report |
 | `GET /invoices/{id}/content` | the document byte for byte, as an attachment |
 | `DELETE /invoices/{id}` | 204; the document and its report are gone |
@@ -136,7 +136,8 @@ submitted, and anything else is not found (404). An organization stores at most
 `SEF_MAX_STORED_BYTES` (100 MiB) of documents and reports together; `POST /invoices` answers 507
 beyond it, and deleting makes room. Every answer is marked `Cache-Control: no-store`. An
 invoice's report is its latest, and `validated_at` says when the validator made it: when the
-invoice was stored, or validated again.
+invoice was stored, or validated again. After a revalidation, `GET /invoices?valid=false`
+lists the invoices it found invalid.
 
 ## Jobs
 

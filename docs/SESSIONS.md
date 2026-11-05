@@ -816,3 +816,44 @@ against the scratch database with a stand-in model answered in 100 to 170 ms.
 
 Next: `feat/api-invoices-by-verdict` (stored invoices listed by verdict, finished jobs deleted
 after a period), then the scheduled check of the corpus's sources and the release `v0.2.0`.
+
+## 2026-11-05 — `feat/api-invoices-by-verdict` (2 commits)
+
+Outcome: `GET /invoices?valid=false` lists the stored invoices whose latest report is invalid,
+and `valid=true` the valid ones, a page at a time: after a revalidation, the invoices it found
+invalid. The invalid ones are read through an index of their own.
+
+- `store.page_of` and the route take `valid`; the cursor continues a filtered list as it
+  continues the whole one, and a client still sees only what they submitted.
+- Migration 0009: `(organization_id, created_at, id) WHERE NOT valid`, built and dropped
+  `CONCURRENTLY` inside Alembic's `autocommit_block`, after dropping what a failed build left.
+- Learning note 17 (partial indexes), interview notes. Deleting finished jobs and the retention
+  of stored invoices are split off in the backlog: how long accounting documents are kept is
+  the maintainer's decision.
+
+Findings:
+
+- SQLAlchemy writes a comparison with Python's `False` as the constant `valid = false`, which
+  the planner simplifies to `NOT valid`, so the partial index serves the listing in a custom
+  plan and in the generic plan of a prepared statement alike. `EXPLAIN` of a statement with
+  parameters plans with their values, so a bound parameter would pass a test of the plan; the
+  test checks the statement's text as well.
+- `alembic check` compares an index's name and columns with the model's, not its predicate: a
+  model that said `WHERE valid` passed it. A test compares the model's predicate with the
+  database's.
+- The upgrade's drop of what a failed attempt left also hid a downgrade that kept the index: a
+  test now undoes 0009 and looks for it.
+- One run in seven of the whole suite had a failure the others did not repeat. The likeliest
+  cause was the test of the plan, which then rested on the table's statistics to choose
+  between the listing's two indexes. It rests on nothing now: it turns sequential scans off
+  and drops the other index inside its own transaction, so that the plan reads the partial
+  index exactly when the planner may.
+
+Verification: 2 326 tests green with PostgreSQL and Redis (API 707, coverage 100 %); without
+them 1 899 pass and 427 are skipped. Every commit was checked on its own, and the guards by
+seeding the faults that break them: 12 seeded, 10 caught at first, the other two by the tests
+added for them.
+
+Next: `ci/corpus-sources-check`, a scheduled job that downloads the corpus's sources and
+reports a digest that changed; then the release `v0.2.0`, once the latency of a live
+explanation is noted.

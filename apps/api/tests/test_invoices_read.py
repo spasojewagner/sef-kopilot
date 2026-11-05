@@ -10,8 +10,10 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.invoices import store
 from sef_api.invoices.store import cursor_after
 
 from .factories import Office, office, stored_invoice
@@ -83,6 +85,82 @@ async def test_invoices_stored_at_the_same_moment_are_each_listed_once(
         after = {"after": page["next"]}
 
     assert sorted(seen) == sorted(stored)
+
+
+async def test_invoices_are_listed_by_the_verdict_of_their_latest_report(
+    api: AsyncClient, primer: Office, session: AsyncSession
+) -> None:
+    """The invalid ones, a page at a time: what a revalidation left to fix."""
+    stored = [
+        await stored_invoice(
+            session, primer.organization, primer.client, created_at=at(n), valid=verdict
+        )
+        for n, verdict in enumerate([True, False, True, False, False])
+    ]
+    newest_first = list(reversed(stored))
+
+    first = await listed(api, primer.as_owner(), valid="false", limit=2)
+    second = await listed(api, primer.as_owner(), valid="false", limit=2, after=first["next"])
+    valid = await listed(api, primer.as_owner(), valid="true")
+    every = await listed(api, primer.as_owner())
+
+    assert ids(first) + ids(second) == [str(each.id) for each in newest_first if not each.valid]
+    assert second["next"] is None
+    assert [invoice["valid"] for invoice in first["invoices"] + second["invoices"]] == [False] * 3
+    assert ids(valid) == [str(each.id) for each in newest_first if each.valid]
+    assert ids(every) == [str(each.id) for each in newest_first]
+
+
+async def test_a_client_lists_by_verdict_only_the_invoices_they_submitted(
+    api: AsyncClient, primer: Office, session: AsyncSession
+) -> None:
+    own = await stored_invoice(session, primer.organization, primer.client, created_at=at(1))
+    await stored_invoice(session, primer.organization, primer.accountant, created_at=at(2))
+    await stored_invoice(session, primer.organization, primer.client, created_at=at(3), valid=True)
+
+    assert ids(await listed(api, primer.as_client(), valid="false")) == [str(own.id)]
+
+
+async def test_the_invalid_invoices_are_read_through_an_index_of_their_own(
+    primer: Office, session: AsyncSession
+) -> None:
+    """The planner may use a partial index only for a query whose predicate implies the
+    index's, ``NOT valid``. The listing's statement says ``valid = false`` in its text, not as
+    a parameter, so that a generic plan of the prepared statement may use it too. With the
+    other index of the listing dropped (inside the test's transaction, which is rolled back)
+    and sequential scans off, the plan reads the partial index exactly when it may."""
+    for minute in range(40):
+        await stored_invoice(
+            session, primer.organization, None, created_at=at(minute), valid=minute % 10 != 0
+        )
+    connection = await session.connection()
+    await connection.exec_driver_sql("DROP INDEX ix_invoices_organization_id_created_at_id")
+    statements: list[tuple[str, Any]] = []
+
+    def capture(*arguments: Any) -> None:
+        _, _, statement, parameters, *_ = arguments
+        statements.append((statement, parameters))
+
+    event.listen(connection.sync_connection, "before_cursor_execute", capture)
+    try:
+        page = await store.page_of(
+            session, store.Scope(primer.organization.id), limit=10, valid=False
+        )
+    finally:
+        event.remove(connection.sync_connection, "before_cursor_execute", capture)
+    ((statement, parameters),) = statements
+    await connection.exec_driver_sql("SET LOCAL enable_seqscan = off")
+    plan = await connection.exec_driver_sql(f"EXPLAIN {statement}", parameters)
+
+    assert len(page.invoices) == 4
+    assert "invoices.valid = false" in statement
+    assert "ix_invoices_invalid_organization_id_created_at_id" in "\n".join(plan.scalars())
+
+
+async def test_a_verdict_is_true_or_false(api: AsyncClient, primer: Office) -> None:
+    response = await api.get("/invoices", params={"valid": "maybe"}, headers=primer.as_owner())
+
+    assert response.status_code == 422
 
 
 async def test_a_list_says_what_the_validator_read_without_the_reports(
