@@ -2,5 +2,6 @@
 passage by passage, each with the days it applies (ADR-0020).
 
 - :mod:`sef_api.rag.text`: Serbian in two scripts, and text folded for search;
-- :mod:`sef_api.rag.corpus`: the corpus's files, and its passages over time.
+- :mod:`sef_api.rag.corpus`: the corpus's files, and its passages over time;
+- :mod:`sef_api.rag.citations`: the passages each rule is authored from.
 """
