@@ -119,6 +119,11 @@ is tagged.
 
 ### Fixed
 
+- `corpus/`: `make corpus` downloads the Legal Information System's texts. The manifest pinned
+  them as the system's web application receives them, and the system starts a text downloaded
+  from anywhere else with a line that names it ("Преузето са …"), so every download failed its
+  digest. The five digests are now of the text a download receives; the converter leaves the
+  line out, and the corpus files are unchanged.
 - `apps/api`: every answer that carries a credential sends `Cache-Control: no-store`, as
   RFC 6749 requires: the tokens of registration, sign-in, accepting an invitation and
   refreshing, and an invitation's code. Only the invoice endpoints sent it before.

@@ -10,6 +10,11 @@
 #
 # Titles, publishers and versions are written as the validator's sources write them
 # (einvoice_core.srb.sources); the text of the documents is kept as they print it, in Cyrillic.
+#
+# The Legal Information System serves a text downloaded from outside its web application with
+# a first line that names it ("Преузето са https://pravno-informacioni-sistem.rs"); its digests
+# here are of that download, and the converter leaves the line out, as the system's other
+# additions.
 
 [[documents]]
 key = "e-invoicing-law"
@@ -27,7 +32,7 @@ valid_from = 2026-04-01
 version = "Službeni glasnik RS, br. 44/2021, 129/2021, 138/2022, 92/2023, 94/2024 i 109/2025"
 source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=c3885819-99c2-4536-8318-55f36a90a913&regactid=439347&doctype=reg&applyStyles=false"
 source_file = "zakon-o-elektronskom-fakturisanju-109-2025.html"
-sha256 = "47bba47f16f60af4051c56ba076fcb5016cc3a1d34a4759da8e7e8a2d97dac0d"
+sha256 = "f0892f038943fd2204996bd1fcdf3bbba0dbe4c732bfe5d0b0a8bb4ebaa3a2aa"
 fetched_at = 2026-11-05
 
 # As amended by 80/2026, which applies from 1 January 2027, except its provisions on the
@@ -42,7 +47,7 @@ valid_from = 2027-01-01
 version = "Službeni glasnik RS, br. 44/2021, 129/2021, 138/2022, 92/2023, 94/2024, 109/2025 i 80/2026"
 source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=9f3123dc-7360-4f27-acf6-5edf780fe4ca&regactid=440546&doctype=reg&applyStyles=false"
 source_file = "zakon-o-elektronskom-fakturisanju-80-2026.html"
-sha256 = "8a4f913e125643c99cc1bb9c1a0df9c5f82c0a9aa4f4500d6dec9de61e664591"
+sha256 = "75c7be9a4967335012cca7f1e815428ebc8d8a4f7bb9b85fa5a69559b813fa3e"
 fetched_at = 2026-11-05
 renumbered = { "Article 4b" = "Article 4v" }
 
@@ -71,7 +76,7 @@ valid_from = 2026-04-01
 version = "Službeni glasnik RS, br. 47/2023, 116/2023, 65/2024, 73/2024, 101/2024, 107/2024, 56/2025, 85/2025 i 30/2026"
 source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=1b1631b5-9085-48e6-a027-4b93d66f313f&regactid=439909&doctype=reg&applyStyles=false"
 source_file = "pravilnik-o-elektronskom-fakturisanju-30-2026.html"
-sha256 = "820c6be21ff6e911a2e5c4e3ab6870fcee32947edac1dc308f680727e6ed1c8f"
+sha256 = "2ce59dbf8e96917869d294bc81793b9bda53b94aa440061baf97cd5c293e5c90"
 fetched_at = 2026-11-05
 
 # As amended by 71/2026, in force from 1 August 2026, except its provisions on the
@@ -85,7 +90,7 @@ valid_from = 2026-08-01
 version = "Službeni glasnik RS, br. 47/2023, 116/2023, 65/2024, 73/2024, 101/2024, 107/2024, 56/2025, 85/2025, 30/2026 i 71/2026"
 source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=9cadfc0c-d8c1-4c57-b608-02c76986a835&regactid=440443&doctype=reg&applyStyles=false"
 source_file = "pravilnik-o-elektronskom-fakturisanju-71-2026.html"
-sha256 = "87a6c86edd290cfa4199a979eb497e9dbad6b2358c8398d491d1990287f42ace"
+sha256 = "f99c76c39a600afd5a20acf18e655556cfee69aeec5405ea9500c6d6fbf23e27"
 fetched_at = 2026-11-05
 renumbered = { "Article 29" = "Article 30", "Article 30" = "Article 29a" }
 
@@ -115,7 +120,7 @@ valid_from = 2018-10-01
 version = "Službeni glasnik RS, br. 57/2003, 68/2003, 32/2009, 48/2010 i 44/2018"
 source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=DDFBC287-03D2-4C66-8436-844E14C8A6EF&regactid=427155&doctype=reg&applyStyles=false"
 source_file = "pravilnik-o-poreskom-identifikacionom-broju-44-2018.html"
-sha256 = "4c963c7bf3de4195835f51b45357d576866a888bc2d133d1a06ab075741358af"
+sha256 = "d33c5bd548dedafc032fc73c68053b71b0323f5b8fad88c0dee77ae0dae49fc8"
 fetched_at = 2026-11-05
 
 [[documents]]

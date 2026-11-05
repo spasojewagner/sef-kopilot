@@ -41,10 +41,14 @@ needs_sources = pytest.mark.skipif(
 
 # --- consolidated texts of the Legal Information System ------------------------------------------
 
-#: A consolidated text as the system serves one, with each thing the reader must leave out.
+#: A consolidated text as the system serves one to a download, with each thing the reader must
+#: leave out: from the line naming the system to its notes and the marks of deleted items.
 CONSOLIDATED = textwrap.dedent(
     """\
     ﻿<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="utf-8" /></head><body>
+    <p style="top: 0px; left:0px; z-index:99;color:#000000;">Преузето са <a
+      href="https://pravno-informacioni-sistem.rs"
+      target="_blank">https://pravno-informacioni-sistem.rs</a></p>
     <p class="redakcijskipreciscentekst">Редакцијски пречишћен текст</p>
     <p class="odluka-zakon">ЗAКOН</p>
     <p class="auto-style1">"Службени гласник РС", бр. 44 од 29. априла 2021, 80 од 2026.</p>

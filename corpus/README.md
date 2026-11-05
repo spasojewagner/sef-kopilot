@@ -24,10 +24,10 @@ documents, and every reference a rule makes resolves to one of their passages.
 - `raw/` (ignored by Git): the downloaded sources.
 
 The text is as the documents print it, in Cyrillic; what their publishers added (the Legal
-Information System's editorial notes, the marks of deleted items, signatures, forms) is left
-out. Laws, regulations and official materials of state bodies are not copyright works under
-Article 6 of the Law on Copyright and Related Rights; the publishers' own editorial work is
-not reproduced.
+Information System's editorial notes, the marks of deleted items and the line it starts a
+download with, signatures, forms) is left out. Laws, regulations and official materials of
+state bodies are not copyright works under Article 6 of the Law on Copyright and Related
+Rights; the publishers' own editorial work is not reproduced.
 
 ## Rebuilding and checking
 
