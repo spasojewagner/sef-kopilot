@@ -1,6 +1,7 @@
 """The locks that order concurrent work on one organization: one on its members and sessions
-(ADR-0013), one on its stored invoices (ADR-0016) and one on its API keys (ADR-0017). All are
-transaction-level PostgreSQL advisory locks keyed by the organization's id.
+(ADR-0013), one on its stored invoices (ADR-0016) and one on its API keys (ADR-0017), and the
+lock that makes two ingests of the corpus take turns (ADR-0020). All are transaction-level
+PostgreSQL advisory locks; those of an organization are keyed by its id.
 
 The lock on the members:
 
@@ -20,7 +21,8 @@ The lock on the stored invoices is taken to store one: adding up what the organi
 and storing one more cannot interleave with another upload, so the quota holds exactly. The
 lock on the API keys is taken to issue one, so that a member cannot exceed the number of keys
 they may have. Both use PostgreSQL's other key space, two 32-bit keys, the first telling them
-apart; it never meets the key space of the members' lock. No path takes two of these locks.
+apart; it never meets the key space of the members' lock. The corpus's lock is in that space
+too, with a first key of its own and a second key of 0. No path takes two of these locks.
 """
 
 from __future__ import annotations
@@ -31,12 +33,20 @@ from typing import Final
 from sqlalchemy import BigInteger, Integer, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-__all__ = ["advisory_key", "lock_api_keys", "lock_invoice_storage", "lock_organization"]
+__all__ = [
+    "advisory_key",
+    "lock_api_keys",
+    "lock_corpus",
+    "lock_invoice_storage",
+    "lock_organization",
+]
 
 #: The first of the two keys of the lock on an organization's stored invoices: "SEF" and 1.
 _STORAGE: Final = 0x53454601
 #: The first of the two keys of the lock on an organization's API keys: "SEF" and 2.
 _API_KEYS: Final = 0x53454602
+#: The first of the two keys of the lock on the corpus: "SEF" and 3.
+_CORPUS: Final = 0x53454603
 
 
 def advisory_key(organization_id: uuid.UUID) -> int:
@@ -63,6 +73,13 @@ async def lock_invoice_storage(session: AsyncSession, organization_id: uuid.UUID
 async def lock_api_keys(session: AsyncSession, organization_id: uuid.UUID) -> None:
     """Hold the lock on the organization's API keys until the transaction ends."""
     await _lock_in_two_keys(session, _API_KEYS, organization_id)
+
+
+async def lock_corpus(session: AsyncSession) -> None:
+    """Hold the lock on the corpus until the transaction ends: two ingests take turns."""
+    await session.execute(
+        select(func.pg_advisory_xact_lock(literal(_CORPUS, Integer), literal(0, Integer)))
+    )
 
 
 async def _lock_in_two_keys(session: AsyncSession, what: int, organization_id: uuid.UUID) -> None:
