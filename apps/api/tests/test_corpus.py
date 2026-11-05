@@ -1,8 +1,9 @@
-"""The corpus: Serbian text in two scripts, the edition files, the passages over time and the
-manifest."""
+"""The corpus: Serbian text in two scripts, the edition files, the passages over time, the
+manifest, and the corpus of the repository itself."""
 
 from __future__ import annotations
 
+import itertools
 import textwrap
 from dataclasses import replace
 from datetime import date
@@ -34,6 +35,9 @@ from sef_api.rag.text import (
     latin_identifier,
     transliterate,
 )
+
+REPOSITORY_CORPUS = Path(__file__).resolve().parents[3] / "corpus"
+
 
 # --- text in two scripts ------------------------------------------------------------------------
 
@@ -521,3 +525,56 @@ def test_an_edition_file_that_is_missing_or_has_another_title_is_refused(tmp_pat
 def test_a_missing_manifest_is_refused(tmp_path: Path) -> None:
     with pytest.raises(CorpusError, match=r"manifest\.toml"):
         load_manifest(tmp_path)
+
+
+# --- the corpus of the repository ---------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def corpus() -> Corpus:
+    return load_corpus(REPOSITORY_CORPUS)
+
+
+def test_the_repository_holds_the_five_documents_of_the_corpus(corpus: Corpus) -> None:
+    assert [document.key for document in corpus.documents] == [
+        "e-invoicing-law",
+        "e-invoicing-rulebook",
+        "pib-rulebook",
+        "srb-cius",
+        "tax-categories",
+    ]
+    assert all(passage.text and passage.label for passage in corpus.passages)
+
+
+def test_no_two_passages_of_a_key_apply_on_the_same_day(corpus: Corpus) -> None:
+    ids = [passage.id for passage in corpus.passages]
+    assert len(set(ids)) == len(ids)
+    by_key: dict[tuple[str, str], list[DatedPassage]] = {}
+    for passage in corpus.passages:
+        by_key.setdefault((passage.document, passage.key), []).append(passage)
+    for passages in by_key.values():
+        ordered = sorted(passages, key=lambda passage: passage.valid_from)
+        for earlier, later in itertools.pairwise(ordered):
+            assert earlier.valid_to is not None
+            assert earlier.valid_to <= later.valid_from
+
+
+def test_the_laws_changes_of_2027_apply_when_its_amending_act_says(corpus: Corpus) -> None:
+    def on(day: date, key: str) -> DatedPassage | None:
+        return corpus.passage("e-invoicing-law", key, day)
+
+    november, march, august = date(2026, 11, 5), date(2027, 3, 1), date(2027, 8, 1)
+    farmers = "пољопривредника"
+    imports = on(november, "Article 4b")
+    assert imports is not None
+    assert farmers not in imports.text
+    assert on(march, "Article 4b") is None  # the farmers' recording is not applied yet
+    recording = on(august, "Article 4b")
+    assert recording is not None
+    assert farmers in recording.text
+    lists = on(march, "Article 4v")
+    assert lists is not None
+    assert lists.fully_from == date(2027, 7, 1)
+    definitions = on(march, "Article 2")
+    assert definitions is not None
+    assert definitions.valid_to == date(2027, 7, 1)

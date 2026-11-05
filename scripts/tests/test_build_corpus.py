@@ -32,6 +32,13 @@ from build_corpus import (
 )
 from sef_api.rag.corpus import Edition, Passage, load_corpus, load_manifest
 
+REPOSITORY_CORPUS = build_corpus.CORPUS
+needs_sources = pytest.mark.skipif(
+    not (REPOSITORY_CORPUS / "raw").is_dir(),
+    reason="the corpus's sources are not downloaded (make corpus)",
+)
+
+
 # --- consolidated texts of the Legal Information System ------------------------------------------
 
 #: A consolidated text as the system serves one, with each thing the reader must leave out.
@@ -297,6 +304,20 @@ def test_a_section_keeps_its_paragraphs_and_bullets() -> None:
     )
 
 
+@needs_sources
+def test_the_specification_is_read_into_its_sections_and_its_two_tables() -> None:
+    corpus = load_corpus(REPOSITORY_CORPUS)
+    rows = {p.key: p for p in corpus.passages if p.document == "srb-cius"}
+
+    assert [key for key in rows if "Table" not in key] == ["1.1", "1.2", "1.3", "1.4"]
+    assert sum("Table 1," in key for key in rows) == 196
+    assert sum("Table 2," in key for key in rows) == 34
+    assert "Кардиналност: 0..0 (у основном моделу фактуре: 0..1)" in rows["1.3, Table 1, BT-7"].text
+    assert "Наводи се „9948“" in rows["1.3, Table 1, BT-34"].text
+    assert rows["1.3, Table 1, BT-65"].heading == "Tax representative address line 2 — ред 2 адресе"
+    assert rows["1.3, Table 1, BG-31"].heading.startswith("ITEM INFORMATION")  # type: ignore[union-attr]
+
+
 # --- the list of tax categories ------------------------------------------------------------------
 
 
@@ -475,3 +496,8 @@ def test_the_command_reports_a_manifest_it_cannot_read(
 ) -> None:
     assert main(["--corpus", str(tmp_path), "--check"]) == 1
     assert "manifest.toml" in capsys.readouterr().err
+
+
+@needs_sources
+def test_the_repositorys_corpus_is_what_its_sources_make() -> None:
+    assert build(REPOSITORY_CORPUS, REPOSITORY_CORPUS / "raw", check=True, download=False) == []
