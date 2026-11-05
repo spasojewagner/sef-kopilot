@@ -27,6 +27,11 @@ fixtures/invoices/official/**/*.xml -text
 # Generated fixtures: collapsed in GitHub diffs; review the catalogue in scripts/make_fixtures.py.
 fixtures/invoices/synthetic/mutations/*.xml linguist-generated=true
 
+# The corpus's editions, written by scripts/build_corpus.py from the sources corpus/manifest.toml
+# pins: collapsed in GitHub diffs; review the manifest and the converter (an edition's diff is
+# the regulation's).
+corpus/*/*.md linguist-generated=true
+
 # Generated lock files: collapsed in GitHub diffs, never hand-edited.
 uv.lock linguist-generated=true
 pnpm-lock.yaml linguist-generated=true

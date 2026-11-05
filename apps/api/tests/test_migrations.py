@@ -24,6 +24,8 @@ TABLES = {
     "invoices",
     "api_keys",
     "jobs",
+    "corpus_documents",
+    "corpus_passages",
 }
 
 
@@ -136,6 +138,18 @@ def test_the_migrations_render_as_sql_for_review() -> None:
         "refresh_tokens",
         "invitations",
         "invoices",
+        "corpus_documents",
+        "corpus_passages",
     ):
         assert f"CREATE TABLE {table}" in sql
     assert "ON DELETE CASCADE" in sql
+    assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
+
+
+def test_the_corpus_is_searched_through_indexes_of_its_own_kinds(database_url: str) -> None:
+    definitions = asyncio.run(
+        run(database_url, "SELECT indexdef FROM pg_indexes WHERE tablename = 'corpus_passages'")
+    )
+
+    assert any("USING hnsw (embedding vector_cosine_ops)" in str(d) for d in definitions)
+    assert any("USING gin (search_text gin_trgm_ops)" in str(d) for d in definitions)

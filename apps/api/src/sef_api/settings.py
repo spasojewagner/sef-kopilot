@@ -155,6 +155,19 @@ class Settings(BaseSettings):
         validation_alias="REDIS_URL",
         description="The Redis server of the job queue: required with `SEF_JOBS=arq`.",
     )
+    embeddings_provider: Literal["none", "jina"] = Field(
+        default="none",
+        validation_alias="EMBEDDINGS_PROVIDER",
+        description=(
+            "Who embeds the corpus when it is ingested. `none`: nobody, and passages are found "
+            "by keyword; `jina`: Jina's embeddings API, with `JINA_API_KEY`."
+        ),
+    )
+    jina_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="JINA_API_KEY",
+        description="The key to Jina's embeddings API: required with `EMBEDDINGS_PROVIDER=jina`.",
+    )
 
     @property
     def access_token_lifetime(self) -> timedelta:
@@ -182,6 +195,12 @@ class Settings(BaseSettings):
             return self
         if urlsplit(self.redis_url.get_secret_value()).scheme not in {"redis", "rediss"}:
             raise ValueError("REDIS_URL must use the redis:// or rediss:// scheme")
+        return self
+
+    @model_validator(mode="after")
+    def _check_embeddings(self) -> Self:
+        if self.embeddings_provider == "jina" and self.jina_api_key is None:
+            raise ValueError("JINA_API_KEY must be set when EMBEDDINGS_PROVIDER is jina")
         return self
 
     @model_validator(mode="after")

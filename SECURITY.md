@@ -46,7 +46,9 @@ The project is pre-alpha. Only the `main` branch and the latest tagged release r
 6. Dependencies are audited in CI (`pip-audit`, `pnpm audit`); secrets are scanned with
    `gitleaks` in pre-commit and CI.
 7. Everything that talks to the outside world is explicit and configurable; a self-hosted
-   deployment makes no external calls except the LLM provider the operator chooses.
+   deployment makes no external calls except the LLM provider the operator chooses. Embedding
+   the corpus is off by default (`EMBEDDINGS_PROVIDER=none`), and what an embedder is sent is
+   official public text, never an organization's data.
 
 ## OWASP ASVS 5.0 — Level 1 checklist
 
@@ -183,6 +185,11 @@ system are marked as such.
 - [x] `REDIS_URL`, which may carry the queue's password, is a secret setting that never
       appears in a log or a `repr`, and must name `redis://` or `rediss://` (TLS, for a
       server elsewhere).
+- [x] `JINA_API_KEY` is a secret setting too; `EMBEDDINGS_PROVIDER=jina` without it refuses to
+      start, and an embedder's error names the status it got, never the texts it was sent.
+- [x] The corpus's sources are pinned by SHA-256 in `corpus/manifest.toml`: the converter
+      refuses a download whose digest differs, and loading the corpus refuses an edition file
+      that is not exactly what the converter writes (ADR-0020).
 - [ ] Debug mode and interactive docs disabled or protected outside development.
 - [ ] Dependency audits in CI; Dependabot enabled.
 
@@ -206,6 +213,8 @@ system are marked as such.
       code and a new API key, each checked by a test.
 - [~] Deletion: `DELETE /invoices/{id}` removes the invoice, its document and its report. A
       retention policy, deleting stored invoices after a period, is still to come.
+- [x] The corpus holds public text only and belongs to no organization: its tables have no
+      `organization_id` by design, and only the ingest command writes them (ADR-0020).
 
 ### V15 Secure coding and architecture
 

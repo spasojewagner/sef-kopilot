@@ -7,12 +7,15 @@ import subprocess
 import sys
 from typing import Annotated
 
+import pytest
 from fastapi import Depends
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import Text, literal, select, text
+from sqlalchemy import cast as sql_cast
+from sqlalchemy.exc import StatementError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sef_api.db import get_session
+from sef_api.db import Vector, get_session
 from sef_api.main import create_app
 
 from .conftest import REPOSITORY_ROOT, settings_for
@@ -45,3 +48,19 @@ def test_the_alembic_ini_runs_the_migrations_from_the_command_line() -> None:
 
     assert "CREATE TABLE memberships" in result.stdout
     assert "Running upgrade  -> 0001" in result.stderr
+
+
+async def test_a_vector_goes_in_and_comes_back_as_pgvector_keeps_it(session: AsyncSession) -> None:
+    stored = await session.scalar(select(sql_cast(literal([0.25, -1.5, 3.0], Vector(3)), Text)))
+    returned = await session.scalar(select(literal([0.25, -1.5, 3.0], Vector(3))))
+
+    assert stored == "[0.25,-1.5,3]"
+    assert returned == [0.25, -1.5, 3.0]
+    assert Vector(3).python_type is list
+
+
+async def test_a_vector_of_another_size_is_refused_before_it_is_sent(
+    session: AsyncSession,
+) -> None:
+    with pytest.raises(StatementError, match="a vector of 2 numbers, not 3"):
+        await session.scalar(select(literal([1.0, 2.0], Vector(3))))

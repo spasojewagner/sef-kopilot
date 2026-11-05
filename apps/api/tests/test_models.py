@@ -16,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
 from sef_api.models import (
     ApiKey,
+    CorpusDocument,
+    CorpusPassage,
     Invitation,
     Job,
     JobStatus,
@@ -25,6 +27,7 @@ from sef_api.models import (
     StoredInvoice,
     User,
 )
+from sef_api.rag.embeddings import DIMENSIONS
 
 
 def person(email: str) -> User:
@@ -492,3 +495,84 @@ async def test_a_job_goes_with_its_organization_and_forgets_a_deleted_submitter(
 
 def test_the_statuses_of_a_job() -> None:
     assert [status.value for status in JobStatus] == ["queued", "running", "succeeded", "failed"]
+
+
+# --- the corpus ---------------------------------------------------------------------------------
+
+
+def document(**columns: Any) -> CorpusDocument:
+    """The document ``law``, as the ingest stores one."""
+    values: dict[str, Any] = {
+        "key": "law",
+        "title": "Zakon",
+        "kind": "law",
+        "publisher": "Narodna skupština",
+        "language": "sr-Cyrl",
+        "page": "https://example.org/law",
+    }
+    return CorpusDocument(**(values | columns))
+
+
+def passage(**columns: Any) -> CorpusPassage:
+    """Article 1 of ``law`` from 1 April 2026, as the ingest stores a passage."""
+    values: dict[str, Any] = {
+        "id": "law/article-1/2026-04-01",
+        "document": "law",
+        "key": "Article 1",
+        "label": "Члан 1.",
+        "amended_by": [],
+        "valid_from": date(2026, 4, 1),
+        "version": "1/2026",
+        "source_url": "https://example.org/law.html",
+        "search_text": "clan 1. tekst",
+        "text_sha256": "0" * 64,
+        "text": "Текст",
+    }
+    return CorpusPassage(**(values | columns))
+
+
+async def test_a_corpus_document_is_of_a_known_kind(session: AsyncSession) -> None:
+    session.add(document(kind="opinion"))
+
+    with pytest.raises(IntegrityError, match="ck_corpus_documents_kind_known"):
+        await session.flush()
+
+
+@pytest.mark.parametrize(
+    ("columns", "constraint"),
+    [
+        ({"valid_to": date(2026, 4, 1)}, "ck_corpus_passages_valid_to_after_valid_from"),
+        ({"fully_from": date(2026, 3, 1)}, "ck_corpus_passages_fully_from_after_valid_from"),
+        ({"embedding": [0.0] * DIMENSIONS}, "ck_corpus_passages_embedding_with_its_model"),
+        ({"embedding_model": "jina/model/1024"}, "ck_corpus_passages_embedding_with_its_model"),
+        ({"document": "rulebook"}, "fk_corpus_passages_document_corpus_documents"),
+    ],
+)
+async def test_a_corpus_passage_is_what_its_columns_say(
+    session: AsyncSession, columns: dict[str, Any], constraint: str
+) -> None:
+    session.add(document())
+    await session.flush()
+    session.add(passage(**columns))
+
+    with pytest.raises(IntegrityError, match=constraint):
+        await session.flush()
+
+
+async def test_a_passage_begins_once_a_day_and_goes_with_its_document(
+    session: AsyncSession,
+) -> None:
+    session.add(document())
+    await session.flush()
+    session.add(passage(embedding=[0.5] * DIMENSIONS, embedding_model="jina/model/1024"))
+    await session.flush()
+
+    await session.execute(delete(CorpusDocument).where(CorpusDocument.key == "law"))
+    assert await session.scalar(select(func.count()).select_from(CorpusPassage)) == 0
+
+    session.expunge_all()
+    session.add(document())
+    await session.flush()
+    session.add_all([passage(), passage(id="law/article-1/again")])
+    with pytest.raises(IntegrityError, match="uq_corpus_passages_document_key_valid_from"):
+        await session.flush()

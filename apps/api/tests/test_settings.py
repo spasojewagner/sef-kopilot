@@ -35,6 +35,8 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE",
         "SEF_JOBS",
         "REDIS_URL",
+        "EMBEDDINGS_PROVIDER",
+        "JINA_API_KEY",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)

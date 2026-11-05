@@ -124,12 +124,12 @@ sef-kopilot/
   apps/web/                Next.js application
   packages/einvoice_core/  pure-Python validation engine (parser, XSD, Schematron, SRB-CIUS rules, patches, CLI)
   third_party/             fetched rule sets and their licenses (never modified, never committed)
-  corpus/                  regulation texts from official sources + ingestion manifests
+  corpus/                  official regulation texts as dated passages, made from pinned sources
   fixtures/invoices/       official example invoices and synthetic ones (never real company data)
   evals/                   golden sets, evaluation runner, thresholds, latest report
   infra/                   Dockerfiles, docker-compose, deployment manifests
   docs/                    BRIEF, ARCHITECTURE, ADRs, learning notes, interview notes, API docs
-  scripts/                 maintenance scripts (rule-set fetcher, fixture generator)
+  scripts/                 maintenance scripts (rule-set fetcher, fixture generator, corpus converter)
 ```
 
 ## Getting started
@@ -145,6 +145,7 @@ make setup        # uv sync --all-packages · pnpm install --frozen-lockfile · 
 make rulesets     # fetch the pinned EN 16931 and Peppol BIS rule sets into third_party/
 make up           # PostgreSQL 16 + pgvector and Redis in Docker (needs a running Docker daemon)
 make migrate      # apply the database migrations (Alembic) to the database of `make up`
+make ingest       # load the regulation corpus (corpus/) into that database
 make test         # core, api and web test suites with their coverage gates
 make lint         # ruff, Prettier, ESLint — no changes
 make typecheck    # mypy --strict and tsc --noEmit

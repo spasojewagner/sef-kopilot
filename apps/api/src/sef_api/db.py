@@ -1,4 +1,5 @@
-"""The PostgreSQL database: the declarative base, the engine, sessions and their dependency.
+"""The PostgreSQL database: the declarative base, the engine, sessions and their dependency,
+and pgvector's column type.
 
 The engine is created with the application and connects lazily, on the first query; the
 application's lifespan disposes of it on shutdown. Each request that needs the database gets
@@ -9,13 +10,15 @@ explicitly where the service decides the unit of work is complete.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Final, cast
 
 from fastapi import Depends, Request
-from sqlalchemy import DateTime, MetaData, text
+from sqlalchemy import DateTime, Dialect, MetaData, Text, text
+from sqlalchemy import cast as sql_cast
+from sqlalchemy.dialects.postgresql import base as postgresql_types
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -24,6 +27,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
+from sqlalchemy.sql.elements import BindParameter, ColumnElement
+from sqlalchemy.types import UserDefinedType
 
 #: Constraint names are deterministic, so migrations can refer to them on every database.
 NAMING_CONVENTION: Final = {
@@ -43,6 +48,59 @@ class Base(DeclarativeBase):
 
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
     type_annotation_map = {datetime: DateTime(timezone=True)}  # noqa: RUF012
+
+
+class Vector(UserDefinedType[list[float]]):
+    """pgvector's ``vector(n)``: a list of ``n`` floats.
+
+    Values travel in pgvector's text form, ``[0.1,0.2]``, cast on the server, so asyncpg needs
+    no codec of its own for the type.
+    """
+
+    cache_ok = True
+
+    def __init__(self, dimensions: int) -> None:
+        self.dimensions = dimensions
+
+    def get_col_spec(self, **kwargs: object) -> str:
+        del kwargs
+        return f"vector({self.dimensions})"
+
+    def bind_processor(self, dialect: Dialect) -> Callable[[list[float] | None], str | None]:
+        del dialect
+
+        def process(value: list[float] | None) -> str | None:
+            if value is None:
+                return None
+            if len(value) != self.dimensions:
+                raise ValueError(f"a vector of {len(value)} numbers, not {self.dimensions}")
+            return "[" + ",".join(repr(float(number)) for number in value) + "]"
+
+        return process
+
+    def bind_expression(self, bindvalue: BindParameter[list[float]]) -> ColumnElement[list[float]]:
+        return sql_cast(sql_cast(bindvalue, Text), self)
+
+    def result_processor(
+        self, dialect: Dialect, coltype: object
+    ) -> Callable[[str | None], list[float] | None]:
+        del dialect, coltype
+
+        def process(value: str | None) -> list[float] | None:
+            if value is None:
+                return None
+            return [float(number) for number in value.strip("[]").split(",") if number]
+
+        return process
+
+    @property
+    def python_type(self) -> type[list[float]]:
+        return list
+
+
+# The PostgreSQL dialect reflects a column of an unknown type as NullType, with a warning; it
+# knows ``vector(n)`` from here on, so that Alembic compares the corpus's table with its model.
+postgresql_types.ischema_names["vector"] = Vector
 
 
 @dataclass(frozen=True)

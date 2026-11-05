@@ -1,0 +1,155 @@
+# The official documents of the corpus and their editions (ADR-0020).
+#
+# Written by hand and reviewed like code. Each edition names its source by URL and by the
+# SHA-256 digest of what that URL returned on `fetched_at`; `scripts/build_corpus.py` downloads
+# the sources into corpus/raw/ (ignored by Git), checks the digests and writes each edition's
+# Markdown file, which is never edited by hand. `valid_from` is the day the edition applies
+# from; `deferred` lists its passages that apply later, as its amending act's final provisions
+# say (with `partly`, the passage applies from the edition's day and some of its provisions
+# later); `renumbered` maps passages of the edition before it to the numbers this one gives them.
+#
+# Titles, publishers and versions are written as the validator's sources write them
+# (einvoice_core.srb.sources); the text of the documents is kept as they print it, in Cyrillic.
+
+[[documents]]
+key = "e-invoicing-law"
+title = "Zakon o elektronskom fakturisanju"
+kind = "law"
+publisher = "Narodna skupština Republike Srbije"
+language = "sr-Cyrl"
+page = "https://pravno-informacioni-sistem.rs/eli/rep/sgrs/skupstina/zakon/2021/44/3/reg"
+source_format = "pis-html"
+
+# As amended by 109/2025, which applies to tax periods that begin after 31 March 2026.
+[[documents.editions]]
+file = "e-invoicing-law/2026-04-01.md"
+valid_from = 2026-04-01
+version = "Službeni glasnik RS, br. 44/2021, 129/2021, 138/2022, 92/2023, 94/2024 i 109/2025"
+source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=c3885819-99c2-4536-8318-55f36a90a913&regactid=439347&doctype=reg&applyStyles=false"
+source_file = "zakon-o-elektronskom-fakturisanju-109-2025.html"
+sha256 = "47bba47f16f60af4051c56ba076fcb5016cc3a1d34a4759da8e7e8a2d97dac0d"
+fetched_at = 2026-11-05
+
+# As amended by 80/2026, which applies from 1 January 2027, except its provisions on the
+# electronic recording of purchases from farmers and on the list of customs declarations for
+# exports, which apply from 1 July 2027 (its Article 7). Article 4b, on the list for imports,
+# becomes Article 4v and adds the list for exports; the new Article 4b is the farmers'
+# recording. Article 2 changes only for those two subjects; Article 18 also corrects a
+# reference to Article 5, at once.
+[[documents.editions]]
+file = "e-invoicing-law/2027-01-01.md"
+valid_from = 2027-01-01
+version = "Službeni glasnik RS, br. 44/2021, 129/2021, 138/2022, 92/2023, 94/2024, 109/2025 i 80/2026"
+source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=9f3123dc-7360-4f27-acf6-5edf780fe4ca&regactid=440546&doctype=reg&applyStyles=false"
+source_file = "zakon-o-elektronskom-fakturisanju-80-2026.html"
+sha256 = "8a4f913e125643c99cc1bb9c1a0df9c5f82c0a9aa4f4500d6dec9de61e664591"
+fetched_at = 2026-11-05
+renumbered = { "Article 4b" = "Article 4v" }
+
+[[documents.editions.deferred]]
+passages = ["Article 2", "Article 4b"]
+valid_from = 2027-07-01
+
+[[documents.editions.deferred]]
+passages = ["Article 4v", "Article 18"]
+valid_from = 2027-07-01
+partly = true
+
+[[documents]]
+key = "e-invoicing-rulebook"
+title = "Pravilnik o elektronskom fakturisanju"
+kind = "rulebook"
+publisher = "Ministarstvo finansija Republike Srbije"
+language = "sr-Cyrl"
+page = "https://pravno-informacioni-sistem.rs/eli/rep/sgrs/ministarstva/pravilnik/2023/47/1/reg"
+source_format = "pis-html"
+
+# As amended by 30/2026, which applies to tax periods that begin after 31 March 2026.
+[[documents.editions]]
+file = "e-invoicing-rulebook/2026-04-01.md"
+valid_from = 2026-04-01
+version = "Službeni glasnik RS, br. 47/2023, 116/2023, 65/2024, 73/2024, 101/2024, 107/2024, 56/2025, 85/2025 i 30/2026"
+source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=1b1631b5-9085-48e6-a027-4b93d66f313f&regactid=439909&doctype=reg&applyStyles=false"
+source_file = "pravilnik-o-elektronskom-fakturisanju-30-2026.html"
+sha256 = "820c6be21ff6e911a2e5c4e3ab6870fcee32947edac1dc308f680727e6ed1c8f"
+fetched_at = 2026-11-05
+
+# As amended by 71/2026, in force from 1 August 2026, except its provisions on the
+# preliminary VAT return, which apply to tax periods that begin after 31 December 2026 (its
+# Article 10). Article 29, on the interruption of the system, becomes Article 30; Article 30,
+# on the authorities' access, becomes Article 29a and adds the return's delivery to the tax
+# authority; the new Articles 28đ and 29 are the return. Article 28g mixes the two.
+[[documents.editions]]
+file = "e-invoicing-rulebook/2026-08-01.md"
+valid_from = 2026-08-01
+version = "Službeni glasnik RS, br. 47/2023, 116/2023, 65/2024, 73/2024, 101/2024, 107/2024, 56/2025, 85/2025, 30/2026 i 71/2026"
+source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=9cadfc0c-d8c1-4c57-b608-02c76986a835&regactid=440443&doctype=reg&applyStyles=false"
+source_file = "pravilnik-o-elektronskom-fakturisanju-71-2026.html"
+sha256 = "87a6c86edd290cfa4199a979eb497e9dbad6b2358c8398d491d1990287f42ace"
+fetched_at = 2026-11-05
+renumbered = { "Article 29" = "Article 30", "Article 30" = "Article 29a" }
+
+[[documents.editions.deferred]]
+passages = ["Article 28đ", "Article 29"]
+valid_from = 2027-01-01
+
+[[documents.editions.deferred]]
+passages = ["Article 28g", "Article 29a"]
+valid_from = 2027-01-01
+partly = true
+
+[[documents]]
+key = "pib-rulebook"
+title = "Pravilnik o poreskom identifikacionom broju"
+kind = "rulebook"
+publisher = "Ministarstvo finansija Republike Srbije"
+language = "sr-Cyrl"
+page = "https://pravno-informacioni-sistem.rs/eli/rep/sgrs/ministarstva/pravilnik/2003/57/1/reg"
+source_format = "pis-html"
+
+# Its last change, by 44/2018 (the Law amending the Law on Companies), applies from 1 October
+# 2018.
+[[documents.editions]]
+file = "pib-rulebook/2018-10-01.md"
+valid_from = 2018-10-01
+version = "Službeni glasnik RS, br. 57/2003, 68/2003, 32/2009, 48/2010 i 44/2018"
+source_url = "https://reg.pravno-informacioni-sistem.rs/api/viewdoc?uuid=DDFBC287-03D2-4C66-8436-844E14C8A6EF&regactid=427155&doctype=reg&applyStyles=false"
+source_file = "pravilnik-o-poreskom-identifikacionom-broju-44-2018.html"
+sha256 = "4c963c7bf3de4195835f51b45357d576866a888bc2d133d1a06ab075741358af"
+fetched_at = 2026-11-05
+
+[[documents]]
+key = "srb-cius"
+title = "Specifikacija prilagođene primene standarda EN 16931-1 za elektronske fakture u unutrašnjem prometu u Republici Srbiji"
+kind = "specification"
+publisher = "Ministarstvo finansija Republike Srbije"
+language = "sr-Cyrl"
+page = "https://www.efaktura.gov.rs/tekst/en/5370/updated-specification-for-the-adapted-implementation-of-the-en-16931-1-standard-for-electronic-invoices-in-domestic-trade-in-the-republic-of-serbia.php"
+source_format = "srb-cius-pdf"
+
+[[documents.editions]]
+file = "srb-cius/2025-06-06.md"
+valid_from = 2025-06-06
+version = "06.06.2025"
+source_url = "https://www.efaktura.gov.rs/extfile/en/5384/spec-srbdt-ext-en16931-2024-08-22.1%20-%20Copy%20(1).pdf"
+source_file = "srb-cius-2025-06-06.pdf"
+sha256 = "235835269c5487562b8e93da3fef2de0e344fae13b307dab3f5dfe25e0e9b02f"
+fetched_at = 2026-11-05
+
+[[documents]]
+key = "tax-categories"
+title = "Poreske kategorije i šifre od 1. septembra 2024."
+kind = "list"
+publisher = "Ministarstvo finansija Republike Srbije"
+language = "sr-Cyrl"
+page = "https://efaktura.gov.rs/tekst/1382/poreske-kategorije-za-elektronske-fakture.php"
+source_format = "tax-categories-pdf"
+
+[[documents.editions]]
+file = "tax-categories/2024-09-01.md"
+valid_from = 2024-09-01
+version = "01.09.2024"
+source_url = "https://www.efaktura.gov.rs/view_file.php?file_id=678&cache=sr"
+source_file = "poreske-kategorije-i-sifre-2024-09-01.pdf"
+sha256 = "28a513422618708ea650fa29bcf76c9065ded72d0495c0cd262c9b3117f86033"
+fetched_at = 2026-11-05

@@ -666,3 +666,66 @@ checked by seeding the faults that break them: 51 seeded, 50 caught, and the one
 second tenant filter behind the first.
 
 Next: `feat/rag-corpus-ingest`.
+
+## 2026-11-05 — `feat/rag-corpus-ingest` (8 commits)
+
+Outcome: the corpus that explanations will cite: the five official documents the SRB-CIUS
+rules are authored from, as passages that know the days they apply, loaded into PostgreSQL
+with a trigram index and, when configured, embeddings.
+
+- `corpus/`: the Law and the Rulebook on Electronic Invoicing in two editions each, the PIB
+  rulebook, the SRB-CIUS specification (its sections and the rows of its two tables) and the
+  Ministry's tax categories: seven editions, 385 dated passages. `manifest.toml` pins each
+  source by URL and SHA-256 and records the day each edition applies from, the passages its
+  amending act defers and the articles it renumbers.
+- `scripts/build_corpus.py` (`make corpus`, `make corpus-check`): the Legal Information
+  System's consolidated texts and the Ministry's two PDFs as Markdown editions, without what
+  the publishers added; a source whose digest changed is refused.
+- `sef_api.rag.corpus`: editions compared key by key give each passage a half-open interval
+  of days and an id that names its first; a file the converter would not write is refused.
+- `sef_api.rag.citations`: every reference of the 29 rules resolves on any day.
+- `corpus_documents` and `corpus_passages` (migration 0008), without `organization_id`:
+  `search_text` folded to Latin letters without diacritics under a trigram index, and
+  `embedding vector(1024)` under an HNSW index.
+- `python -m sef_api.rag.ingest` (`make ingest`): the tables made to hold exactly the corpus;
+  with `EMBEDDINGS_PROVIDER=jina`, what has no embedding of the model is embedded, 32 to a
+  request and a transaction, so an interrupted ingest resumes.
+- ADR-0020, learning note 15, interview notes. The Langfuse and Sentry wiring moves to M4.
+
+Findings:
+
+- The 2027 amendment moves the import list from Article 4b to 4v on 1 January and gives 4b to
+  the recording of purchases from farmers from 1 July, so between the two days no Article 4b
+  applies. Without the renumbering in the manifest, the import list would have been cited as
+  the farmers' article.
+- The Legal Information System writes Latin letters inside Cyrillic words ("Члaн" with a Latin
+  "a"), and the specification Cyrillic ones inside identifiers ("BТ-121"): a search would have
+  missed them, and a rule's reference would not have resolved.
+- The specification prints `BT-64` for `BT-65` and `BT-31` for the group `BG-31`. The two are
+  corrected, each with its reason; typing errors in the text are kept as printed.
+- An embedding is stored only while the passage's digest is the one embedded. Without that, a
+  passage changed by another ingest while this one embedded it would have kept the vector of
+  its old words.
+- pdfplumber brings in cryptography, which narrows PyJWT's types: a test that signed with no
+  key now signs with an empty one.
+- Seeding faults found nine that no test caught: a changed label, heading or part of an
+  otherwise unchanged passage, the wait `Retry-After` names and its bound, the 32 texts to a
+  request, a key without `EMBEDDINGS_PROVIDER=jina`, a document's changed columns, a passage
+  two references name, and the lock itself. Two ingests of one corpus also wait for each other
+  on its documents' rows, so the test of two at once passed without the lock; a test now holds
+  the lock and sees the ingest wait. Each has a test, and the tables' checks, key and cascade
+  have tests of their own.
+- This environment cannot reach the official sites, and CI does not download them. The
+  sources were downloaded in a browser and their digests checked, and the converter's downloads
+  were tested against a stand-in for the network; `make corpus` against the live sites is the
+  maintainer's to run.
+
+Verification: 2 241 tests green with PostgreSQL, Redis and the downloaded sources (API 622,
+coverage 100 %); without them 1 853 pass and 388 are skipped. The corpus ingested twice into
+an empty database: 385 passages added, then 385 unchanged; "sifra vrste fakture" finds BT-3
+first through the trigram index. Every commit was checked on its own, and the guards were
+checked by seeding the faults that break them: 88 seeded, 87 caught. The one left gives the
+corpus's lock the first key of the invoice storage's, which would only make an ingest wait for
+an upload; the two corrected identifiers are checked only with the sources downloaded.
+
+Next: `feat/rag-explain-citations`.

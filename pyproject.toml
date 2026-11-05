@@ -23,6 +23,8 @@ dev = [
   "httpx>=0.28",
   "pre-commit>=4.7",
   "types-lxml>=2026.2.16",
+  # Reads the official PDFs of the corpus (scripts/build_corpus.py); the API does not need it.
+  "pdfplumber>=0.11.10",
 ]
 
 # ---------------------------------------------------------------------------
@@ -62,6 +64,12 @@ ignore = [
 # are normal in tests.
 "**/tests/**" = ["PLR2004", "ARG001", "PLR0917"]
 "scripts/**" = ["T201"]                 # command-line scripts print by design
+# Serbian is written in Cyrillic, whose letters ruff takes for their Latin look-alikes; the code
+# that reads and writes the corpus of Serbian regulations holds them on purpose.
+"apps/api/src/sef_api/rag/**" = ["RUF001", "RUF002", "RUF003"]
+"apps/api/tests/test_corpus*.py" = ["RUF001", "RUF002", "RUF003"]
+"scripts/build_corpus.py" = ["RUF001", "RUF002", "RUF003"]
+"scripts/tests/test_build_corpus.py" = ["RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["einvoice_core", "sef_api"]
