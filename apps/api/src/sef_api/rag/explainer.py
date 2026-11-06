@@ -23,12 +23,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from einvoice_core.pipeline import ValidationReport
@@ -87,7 +88,8 @@ Answer with one JSON object:
 - "explanation": what the rule requires and why the invoice does not meet it, in at most three \
 sentences, for an accountant;
 - "fix": what to change in the invoice so that it meets the rule, in at most two sentences; \
-never invent an amount, a tax rate, a date or an identifier: say which one to check instead;
+never invent an amount, a tax rate, a date or an identifier, not even as an example, and do not \
+compute one: say which one to check instead;
 - "citations": the ids of the passages that support the explanation, most relevant first, one \
 to three of the ids given.
 
@@ -149,6 +151,21 @@ class ExplanationError(Exception):
     """No explanation could be written; the message says why, for the caller to read."""
 
 
+#: The model writes identifiers with non-breaking hyphens (``BT\u201131``) and numbers with
+#: non-breaking spaces; plain ones match what the specification writes and what a search for
+#: ``BT-31`` finds.
+_PLAIN = str.maketrans({"\u2010": "-", "\u2011": "-", "\u00a0": " ", "\u202f": " "})
+
+#: A number of this many digits or more is an identifier rather than a quantity.
+_IDENTIFIER_DIGITS: Final = 5
+#: A date, written as ISO 8601 or as Serbian writes it (5. 10. 2026).
+_DATE = re.compile(
+    r"(?<!\d)(?:(\d{4})-(\d{1,2})-(\d{1,2})|(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4}))(?!\d)"
+)
+#: A number, with its decimals or groups and a percent sign, if any.
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)*(?:\s?%)?")
+
+
 class _Draft(BaseModel):
     """The model's answer, as the schema asks for it."""
 
@@ -157,6 +174,11 @@ class _Draft(BaseModel):
     explanation: str = Field(min_length=1, max_length=1200)
     fix: str = Field(min_length=1, max_length=800)
     citations: list[str] = Field(min_length=1, max_length=MAX_CITATIONS)
+
+    @field_validator("explanation", "fix", mode="before")
+    @classmethod
+    def _plain(cls, text: object) -> object:
+        return text.translate(_PLAIN) if isinstance(text, str) else text
 
 
 class _UnusableError(Exception):
@@ -227,8 +249,36 @@ def _question(violation: Violation, passages: Sequence[tuple[Found, str]], day: 
     return "\n".join(lines)
 
 
-def _checked(answer: str, given: dict[str, Found]) -> _Draft:
-    """The answer, if it can be used: the schema's, and citing passages it was given."""
+def _values(text: str, *, every: bool) -> dict[str, str]:
+    """The dates and numbers ``text`` names, each written one way whatever way ``text`` wrote it
+    (a date as ISO 8601, a number as its digits), with how ``text`` wrote it. Without ``every``,
+    only the numbers that are values: with decimals or groups (an amount), with a percent sign (a
+    rate), or of five digits or more (a PIB, a registration number, an account)."""
+    found: dict[str, str] = {}
+
+    def dated(match: re.Match[str]) -> str:
+        year, month, day = match.group(1, 2, 3) if match[1] else match.group(6, 5, 4)
+        found.setdefault(f"{year}-{int(month):02}-{int(day):02}", match[0])
+        return " "
+
+    for number in _NUMBER.finditer(_DATE.sub(dated, text)):
+        digits = re.sub(r"\D", "", number[0])
+        if every or not number[0].isdigit() or len(digits) >= _IDENTIFIER_DIGITS:
+            found.setdefault(digits, number[0])
+    return found
+
+
+def _invented(draft: _Draft, question: str) -> list[str]:
+    """The values the explanation and the fix name that the question does not: made up, or
+    computed, which is the validator's work and not the model's."""
+    asked = _values(question, every=True)
+    named = _values(f"{draft.explanation}\n{draft.fix}", every=False)
+    return [written for value, written in named.items() if value not in asked]
+
+
+def _checked(answer: str, given: dict[str, Found], question: str) -> _Draft:
+    """The answer, if it can be used: the schema's, citing passages it was given, and naming no
+    value that the question does not contain."""
     try:
         draft = _Draft.model_validate_json(answer)
     except ValidationError as error:
@@ -241,6 +291,11 @@ def _checked(answer: str, given: dict[str, Found]) -> _Draft:
         raise _UnusableError(f"these citations are not ids of the passages given: {unknown}")
     if len(set(draft.citations)) != len(draft.citations):
         raise _UnusableError("a passage is cited more than once")
+    if invented := _invented(draft, question):
+        raise _UnusableError(
+            f"it names {', '.join(invented)}, which neither the violation nor the passages "
+            "contain: say which value to check instead of writing one"
+        )
     return draft
 
 
@@ -281,9 +336,10 @@ class Explainer:
             raise ExplanationError("no passage of the corpus concerns this rule")
         readable = _readable(passages)
         given = {passage.id: passage for passage, _ in readable}
+        question = _question(violation, readable, day)
         messages = [
             Message("system", SYSTEM.format(language=_LANGUAGES[language])),
-            Message("user", _question(violation, readable, day)),
+            Message("user", question),
         ]
         schema = schema_for(list(given))
         for attempt in range(1, self._attempts + 1):
@@ -292,7 +348,7 @@ class Explainer:
             except LLMError as error:
                 raise ExplanationError(f"the model gave no answer ({error})") from None
             try:
-                draft = _checked(answer, given)
+                draft = _checked(answer, given, question)
             except _UnusableError as error:
                 messages += [
                     Message("assistant", answer),

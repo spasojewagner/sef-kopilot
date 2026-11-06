@@ -932,3 +932,28 @@ Verification: API 710 tests, coverage 100 %.
 
 Next: a deterministic check of the values an explanation names, the other finding of the live
 test; then `feat/repair-patch-engine`.
+
+## 2026-11-06 — `fix/rag-explanations-invent-no-values` (1 commit)
+
+Outcome: an explanation names no date, amount, rate or identifier that its question does not
+contain (ADR-0022, amending 0021). An answer that does goes back to the model with the values it
+named, within the three answers allowed; the prompt says "not even as an example, and do not
+compute one"; the model's non-breaking hyphens and spaces become plain ones.
+
+Findings:
+
+- The first live answer to `SRB-009`, which the maintainer asked for before the release, gave
+  a corrected PIB "for example" in its fix, although the prompt forbade inventing an
+  identifier: the one rule of the model that only words held.
+- Comparing values as written would refuse the model's Serbian notation: the message says
+  `1200.00` and the model `1.200,00`, the question `2026-10-05` and the model `5. 10. 2026`.
+  Dates are compared as ISO 8601 and numbers as their digits; short plain numbers (a check
+  digit, the 7064 of ISO 7064) are not values at all.
+- Seeding faults: seven seeded (no check, every number a value, dates or numbers compared as
+  written, hyphens kept, ten digits for an identifier, the prompt's new sentence); six caught at
+  first, the seventh by a test of the prompt added for it.
+
+Verification: 2 334 tests green with PostgreSQL and Redis (API 715, coverage 100 %); without
+them 1 907 pass and 427 are skipped.
+
+Next: `feat/repair-patch-engine`, the patch model and the forbidden-field guard, with its ADR.

@@ -237,8 +237,8 @@ system are marked as such.
 - [~] Deterministic validator as the single source of truth; LLM output treated as untrusted:
       the explainer is asked about violations layer 1 reported in the same request, never
       about violations a client sends; its answer is parsed against a schema, its citations
-      checked, and the response built from stored passages, not from what the model wrote
-      about them. The violation and the passages are sent as data the model is told not to
+      checked, its values held to those of its question (ADR-0022), and the response built
+      from stored passages, not from what the model wrote about them. The violation and the passages are sent as data the model is told not to
       follow. Repairs (M3) follow.
 - [ ] Static typing (`mypy --strict`), linting and tests gate every change.
 

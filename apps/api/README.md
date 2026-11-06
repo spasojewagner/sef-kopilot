@@ -316,7 +316,8 @@ and those beyond `SEF_MAX_EXPLANATIONS` (5) are named in `unexplained`. A rule t
 explained (no passage concerns it, the model gave no usable answer in three, or the time ran
 out) has `text` and `fix` null and a `problem` that says why; the others stand. Every citation
 is a stored passage: the model may cite only the ids retrieval gave it, and its answer is
-checked before it is used.
+checked before it is used. An answer may name only the dates, amounts, rates and identifiers
+its question contains: the model invents none and computes none (ADR-0022).
 
 | `LLM_PROVIDER` | What explains |
 | --- | --- |
