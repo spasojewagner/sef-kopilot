@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import secrets
 from datetime import timedelta
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
@@ -35,6 +35,22 @@ DEFAULT_MAX_INVOICE_ELEMENTS = 20_000
 #: What an organization may store by default, its invoices and their reports together: some
 #: hundreds of large invoices, or thousands of ordinary ones, on a free database of 512 MB.
 DEFAULT_MAX_STORED_BYTES = 100 * 1024 * 1024
+
+
+def _is_origin(text: str, schemes: set[str]) -> bool:
+    """Whether ``text`` is an origin as a browser sends it: a scheme of ``schemes``, a host and a
+    port if any, in lower case, with nothing after them."""
+    parts = urlsplit(text)
+    try:
+        parts.port  # noqa: B018 - a port that is no number raises
+    except ValueError:
+        return False
+    return (
+        parts.scheme in schemes
+        and bool(parts.hostname)
+        and parts.username is None
+        and text == f"{parts.scheme}://{parts.netloc}".lower()
+    )
 
 
 class Settings(BaseSettings):
@@ -239,6 +255,23 @@ class Settings(BaseSettings):
         "callers of one organization may make a minute; 429 beyond.",
     )
 
+    web_origins: Annotated[tuple[str, ...], NoDecode] = Field(
+        default=(),
+        validation_alias="SEF_WEB_ORIGINS",
+        description=(
+            "The origins of the web application, separated by commas, whose pages may call the "
+            "API from a browser (CORS), such as `https://sef-kopilot.pages.dev`. None by "
+            "default: no page of another origin may call it."
+        ),
+    )
+
+    @field_validator("web_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            return tuple(part.strip() for part in value.split(",") if part.strip())
+        return value
+
     @property
     def access_token_lifetime(self) -> timedelta:
         return timedelta(minutes=self.access_token_minutes)
@@ -277,6 +310,17 @@ class Settings(BaseSettings):
     def _check_llm(self) -> Self:
         if self.llm_provider == "groq" and self.groq_api_key is None:
             raise ValueError("GROQ_API_KEY must be set when LLM_PROVIDER is groq")
+        return self
+
+    @model_validator(mode="after")
+    def _check_web_origins(self) -> Self:
+        schemes = {"https"} if self.environment == "production" else {"http", "https"}
+        for origin in self.web_origins:
+            if not _is_origin(origin, schemes):
+                raise ValueError(
+                    f"SEF_WEB_ORIGINS holds {origin!r}, which is no origin: a scheme "
+                    f"({' or '.join(sorted(schemes))}), a host and a port if any, nothing more"
+                )
         return self
 
     @model_validator(mode="after")

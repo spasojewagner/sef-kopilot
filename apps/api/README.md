@@ -30,6 +30,12 @@ Every JSON answer is `application/json; charset=utf-8`. JSON needs no charset, b
 PowerShell 5.1 reads a body without one as ISO-8859-1, which garbles the Serbian letters of a
 message or an explanation.
 
+The web application's pages call the API from the browser. `SEF_WEB_ORIGINS` names the origins
+whose pages may (CORS), separated by commas: `http://localhost:3000` in `.env.example`, and only
+`https://` origins in production. With none, no page of another origin may call it. A page may
+send `Authorization`, `Content-Type` and `Last-Event-ID`, and read `Location` and `Retry-After`;
+it sends its token in a header, so no credentials are allowed.
+
 ## Accounts and tokens
 
 `/auth` signs people up and in (ADR-0012). Registration creates an account, its organization and

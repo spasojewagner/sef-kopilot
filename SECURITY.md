@@ -118,7 +118,11 @@ system are marked as such.
 
 ### V4 API and web service
 
-- [ ] CORS restricted to the configured web origin.
+- [x] CORS restricted to the configured web origins (`SEF_WEB_ORIGINS`, none by default and
+      `https://` only in production): their pages may send the token, the body's type and where
+      an event stream stopped, and read `Location` and `Retry-After`, an error's included; no
+      credentials, since a token travels in a header, never in a cookie. Tested with the
+      application's own origin, another one, and none configured.
 - [x] Every endpoint is public by name or requires a permission; a test over the application's
       routes enforces it, and OpenAPI documents the bearer scheme (an access token or an API
       key).

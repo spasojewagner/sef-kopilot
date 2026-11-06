@@ -45,6 +45,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "SEF_REPAIR_SECONDS",
         "SEF_EXPLANATIONS_PER_MINUTE",
         "SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE",
+        "SEF_WEB_ORIGINS",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)
@@ -237,3 +238,52 @@ def test_the_redis_url_names_redis(monkeypatch: pytest.MonkeyPatch, url: str) ->
 
     with pytest.raises(ValidationError, match="REDIS_URL must use the redis:// or rediss://"):
         Settings()
+
+
+def test_no_page_of_another_origin_may_call_the_api_by_default() -> None:
+    assert Settings().web_origins == ()
+
+
+def test_the_web_origins_are_separated_by_commas(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SEF_WEB_ORIGINS", "http://localhost:3000, https://sef-kopilot.pages.dev,")
+
+    assert Settings().web_origins == ("http://localhost:3000", "https://sef-kopilot.pages.dev")
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "*",
+        "localhost:3000",
+        "http://localhost:3000/",
+        "https://sef-kopilot.pages.dev/app",
+        "https://sef-kopilot.pages.dev?from=mail",
+        "https://ana@sef-kopilot.pages.dev",
+        "https://sef-kopilot.pages.dev:port",
+        "HTTPS://SEF-KOPILOT.PAGES.DEV",
+        "ftp://sef-kopilot.pages.dev",
+    ],
+)
+def test_a_web_origin_is_a_scheme_a_host_and_a_port(
+    monkeypatch: pytest.MonkeyPatch, origin: str
+) -> None:
+    monkeypatch.setenv("SEF_WEB_ORIGINS", origin)
+
+    with pytest.raises(ValidationError, match="which is no origin"):
+        Settings()
+
+
+def test_in_production_a_web_origin_is_https(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SEF_ENVIRONMENT", "production")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://api:secret@db.example:5432/sef")
+    monkeypatch.setenv("SEF_JWT_SECRET", "k" * 48)
+    monkeypatch.setenv("SEF_WEB_ORIGINS", "https://sef-kopilot.pages.dev,http://localhost:3000")
+
+    with pytest.raises(
+        ValidationError,
+        match=r"'http://localhost:3000', which is no origin: a "
+        r"scheme \(https\)",
+    ):
+        Settings()
+    monkeypatch.setenv("SEF_WEB_ORIGINS", "https://sef-kopilot.pages.dev")
+    assert Settings().web_origins == ("https://sef-kopilot.pages.dev",)
