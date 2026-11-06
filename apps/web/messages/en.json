@@ -9,12 +9,14 @@
   },
   "account": {
     "signIn": "Sign in",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "invoices": "Invoices"
   },
   "home": {
     "status": "pre-alpha",
     "title": "SEF Kopilot",
     "tagline": "Deterministic validation, plain-language explanations and reviewable repairs of electronic invoices for SEF, EN 16931 and Peppol.",
+    "check": "Check an invoice",
     "source": "Source code on GitHub"
   },
   "footer": {
@@ -68,6 +70,45 @@
     "description": "Invoices are kept for your organization, so you see them once you sign in.",
     "signIn": "Sign in",
     "register": "Register"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "uploadTitle": "A new invoice",
+    "uploadDescription": "The validator checks the invoice under the profile you choose, and keeps it with its report for your organization.",
+    "listTitle": "Checked invoices",
+    "loading": "Loading the invoices…",
+    "notLoaded": "The invoices did not load. Try again a little later.",
+    "none": "No invoices yet. Send the first one above.",
+    "number": "Number",
+    "parties": "Seller → buyer",
+    "issued": "Issue date",
+    "amount": "Amount due",
+    "verdict": "Verdict",
+    "submitted": "Sent",
+    "unreadable": "Unreadable document",
+    "more": "Show more"
+  },
+  "upload": {
+    "file": "Invoice (UBL 2.1 XML)",
+    "fileHint": "An invoice or a credit note in XML, as you send it to SEF.",
+    "missing": "Choose an invoice in XML.",
+    "profile": "Profile",
+    "submit": "Check and keep",
+    "pending": "Checking…"
+  },
+  "uploadErrors": {
+    "signedOut": "The session has expired. Sign in again.",
+    "forbidden": "You may not send invoices.",
+    "tooSlow": "The invoice was not received in time. Try again.",
+    "tooLarge": "The invoice is too large: it has more bytes or elements than this server accepts.",
+    "notXml": "Send the invoice as XML (UBL 2.1).",
+    "notValidated": "The validator could not check the invoice in time, or could not apply the rules to it.",
+    "tooMany": "Too many checks. Try again in {seconds} s.",
+    "validatorBusy": "The validator is busy. Try again in {seconds} s.",
+    "validatorAway": "The validator is not available right now. Try again a little later.",
+    "storageFull": "The organization has filled its space for invoices. Delete some, then try again.",
+    "unreachable": "The API is not answering. Try again a little later.",
+    "failed": "The invoice was not kept. Try again."
   },
   "verdict": {
     "valid": "Valid",

@@ -9,12 +9,14 @@
   },
   "account": {
     "signIn": "Prijava",
-    "signOut": "Odjava"
+    "signOut": "Odjava",
+    "invoices": "Fakture"
   },
   "home": {
     "status": "pre-alpha",
     "title": "SEF Kopilot",
     "tagline": "Deterministička validacija, objašnjenja na običnom jeziku i pregledne ispravke elektronskih faktura za SEF, EN 16931 i Peppol.",
+    "check": "Proverite fakturu",
     "source": "Izvorni kod na GitHubu"
   },
   "footer": {
@@ -68,6 +70,45 @@
     "description": "Fakture se čuvaju za vašu organizaciju, pa ih vidite kad se prijavite.",
     "signIn": "Prijava",
     "register": "Registracija"
+  },
+  "invoices": {
+    "title": "Fakture",
+    "uploadTitle": "Nova faktura",
+    "uploadDescription": "Validator proverava fakturu prema izabranom profilu i čuva je sa izveštajem za vašu organizaciju.",
+    "listTitle": "Proverene fakture",
+    "loading": "Učitavanje faktura…",
+    "notLoaded": "Fakture nisu učitane. Pokušajte ponovo malo kasnije.",
+    "none": "Još nema faktura. Pošaljite prvu iznad.",
+    "number": "Broj",
+    "parties": "Prodavac → kupac",
+    "issued": "Datum izdavanja",
+    "amount": "Za plaćanje",
+    "verdict": "Nalaz",
+    "submitted": "Poslata",
+    "unreadable": "Nečitljiv dokument",
+    "more": "Prikaži još"
+  },
+  "upload": {
+    "file": "Faktura (UBL 2.1 XML)",
+    "fileHint": "Faktura ili knjižno odobrenje u XML-u, kako ga šaljete SEF-u.",
+    "missing": "Izaberite fakturu u XML-u.",
+    "profile": "Profil",
+    "submit": "Proveri i sačuvaj",
+    "pending": "Provera…"
+  },
+  "uploadErrors": {
+    "signedOut": "Sesija je istekla. Prijavite se ponovo.",
+    "forbidden": "Nemate dozvolu da šaljete fakture.",
+    "tooSlow": "Faktura nije primljena na vreme. Pokušajte ponovo.",
+    "tooLarge": "Faktura je prevelika: ima više bajtova ili elemenata nego što ovaj server prima.",
+    "notXml": "Pošaljite fakturu kao XML (UBL 2.1).",
+    "notValidated": "Validator nije stigao da proveri fakturu na vreme, ili na nju nije mogao da primeni pravila.",
+    "tooMany": "Previše provera. Pokušajte ponovo za {seconds} s.",
+    "validatorBusy": "Validator je zauzet. Pokušajte ponovo za {seconds} s.",
+    "validatorAway": "Validator trenutno nije dostupan. Pokušajte ponovo malo kasnije.",
+    "storageFull": "Organizacija je popunila prostor za fakture. Obrišite neke, pa pokušajte ponovo.",
+    "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
+    "failed": "Faktura nije sačuvana. Pokušajte ponovo."
   },
   "verdict": {
     "valid": "Ispravna",

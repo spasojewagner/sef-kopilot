@@ -11,8 +11,11 @@ import type { components } from "@/lib/api-schema";
 /** Where the API answers when the build names no other address: `uvicorn`'s default. */
 const LOCAL_API_URL = "http://127.0.0.1:8000";
 
-/** How long a request may take, its answer read, before it is abandoned. */
+/** How long a request may take, its answer read, before it is abandoned, unless it says. */
 export const REQUEST_TIMEOUT_MS = 10_000;
+
+/** A request, and how long it may take when that is not {@link REQUEST_TIMEOUT_MS}. */
+export type ApiRequest = RequestInit & { timeoutMs?: number };
 
 /** The address of `path` on the API, as the build was given it in `NEXT_PUBLIC_API_URL`. */
 export function apiUrl(path: string): string {
@@ -95,20 +98,20 @@ async function bodyOf(response: Response): Promise<unknown> {
  * The API's JSON answer to a request for `path`, or nothing for a 204.
  *
  * Throws an {@link ApiError} when the API answers with an error, and the browser's own error
- * when it cannot reach the API, may not read its answer, or gives up after
- * {@link REQUEST_TIMEOUT_MS}. `signal` cancels the request sooner.
+ * when it cannot reach the API, may not read its answer, or gives up after `timeoutMs`
+ * ({@link REQUEST_TIMEOUT_MS} unless it says). `signal` cancels the request sooner.
  */
 export async function request<T>(
   path: string,
-  { signal, headers, ...init }: RequestInit = {},
+  { signal, headers, timeoutMs = REQUEST_TIMEOUT_MS, ...init }: ApiRequest = {},
 ): Promise<T> {
   // A controller of its own rather than AbortSignal.any, which Safari has only since 17.4.
   const controller = new AbortController();
   const cancel = () => controller.abort(signal?.reason);
   const timer = setTimeout(() => {
-    const reason = `no answer in ${REQUEST_TIMEOUT_MS} ms`;
+    const reason = `no answer in ${timeoutMs} ms`;
     controller.abort(new DOMException(reason, "TimeoutError"));
-  }, REQUEST_TIMEOUT_MS);
+  }, timeoutMs);
   if (signal?.aborted) {
     cancel();
   } else {

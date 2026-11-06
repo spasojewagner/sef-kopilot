@@ -67,12 +67,14 @@ visitor's language (`authErrors` in the messages); the API's own reasons are for
 
 ## Invoices
 
-A signed-in visitor reads a stored invoice's report at `/sr-Latn/invoices/{id}`. The report
-shows what the validator read from the invoice, every rule it fails with the places it fails
-it, the errors first, and what each layer of the validator found. The rules' messages are
-their sources' own, in English, and are marked so. Amounts keep every decimal the invoice
-states. The report's page is the same for every invoice and is built once; the id is read when
-the page is asked for, and the report is fetched in the browser.
+A signed-in visitor sends an invoice at `/sr-Latn/invoices`, under a profile (SEF, EN 16931 or
+Peppol), and lands on its report at `/sr-Latn/invoices/{id}`; the same page lists the
+organization's invoices, the newest first, with their verdicts. The report shows what the
+validator read from the invoice, every rule it fails with the places it fails it, the errors
+first, and what each layer of the validator found. The rules' messages are their sources'
+own, in English, and are marked so. Amounts keep every decimal the invoice states. The report's
+page is the same for every invoice and is built once; the id is read when the page is asked
+for, and the report is fetched in the browser.
 
 ## Components and styles
 
@@ -103,12 +105,12 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 components.json    shadcn/ui's settings: style, stylesheet, aliases
 messages/          the interface's texts, one file per language
 src/app/[locale]/  routes (App Router) under the language: the root layout, the home page,
-                   `sign-in`, `register`, `invoices/[id]`, the 404;
+                   `sign-in`, `register`, `invoices` and `invoices/[id]`, the 404;
                    `page.test.tsx` next to `page.tsx`
 src/app/globals.css  Tailwind, shadcn/ui's theme tokens, dark mode
 src/components/    components shared by the pages: the header and its account, the footer, the
                    language switcher, the API's status, the cache of the API's answers, the
-                   sign-in and registration forms, the report
+                   sign-in and registration forms, the upload, the list and the report
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types

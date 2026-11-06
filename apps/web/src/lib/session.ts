@@ -7,7 +7,7 @@
  * issued last, so the browser's tabs take turns (the Web Locks API): two tabs spending one
  * token would look to the API like a stolen copy, and it would end the session.
  */
-import { ApiError, request, type Schemas } from "@/lib/api";
+import { ApiError, request, type ApiRequest, type Schemas } from "@/lib/api";
 
 export type Role = Schemas["Role"];
 
@@ -260,7 +260,7 @@ export function accessToken(): Promise<string | null> {
  */
 export async function authorized<T>(
   path: string,
-  init: RequestInit = {},
+  init: ApiRequest = {},
 ): Promise<T> {
   const send = (token: string) => {
     const headers = new Headers(init.headers);

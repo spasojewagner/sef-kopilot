@@ -1,7 +1,7 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import { getHealth } from "@/lib/api";
-import { getInvoice } from "@/lib/invoices";
+import { getInvoice, listInvoices } from "@/lib/invoices";
 import { authorized, type Identity } from "@/lib/session";
 
 /**
@@ -30,6 +30,15 @@ export const healthQuery = queryOptions({
 export const meQuery = queryOptions({
   queryKey: ["visitor", "me"],
   queryFn: ({ signal }) => authorized<Identity>("/auth/me", { signal }),
+});
+
+/** The organization's invoices, the newest first, a page at a time. */
+export const invoicesQuery = infiniteQueryOptions({
+  queryKey: ["invoices", "list"],
+  queryFn: ({ pageParam, signal }) =>
+    listInvoices({ after: pageParam, signal }),
+  initialPageParam: null as string | null,
+  getNextPageParam: (page) => page.next,
 });
 
 /** A stored invoice with the validator's latest report on it. */

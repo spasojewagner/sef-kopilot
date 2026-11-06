@@ -39,6 +39,7 @@ export interface Asked {
   search: string;
   headers: Headers;
   body: BodyInit | null | undefined;
+  signal: AbortSignal | null | undefined;
 }
 
 /**
@@ -59,6 +60,7 @@ export function stubApi(
         search: url.search,
         headers: new Headers(init.headers),
         body: init.body,
+        signal: init.signal,
       };
       if (request.path === "/auth/refresh") {
         return json(200, {
