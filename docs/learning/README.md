@@ -32,5 +32,6 @@ just used. New notes are added in the pull request that introduces the concept.
 | 24 | [One contract, two languages: the API's OpenAPI document and the web application's types](24-one-contract-two-languages.md) | M3 |
 | 25 | [A static shell with a hole: a page whose address the build cannot know](25-a-static-shell-with-a-hole.md) | M3 |
 | 26 | [A read that costs: POST, asked for on purpose, kept once paid for](26-a-read-that-costs.md) | M3 |
+| 27 | [Reading a unified diff, and what its numbers count](27-reading-a-unified-diff.md) | M3 |
 
 Planned: OAuth 2.1 flows for MCP.

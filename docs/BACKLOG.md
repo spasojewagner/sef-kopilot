@@ -75,7 +75,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `fix/api-json-charset` — JSON answers declare `charset=utf-8`: Windows PowerShell 5.1 reads a JSON body without one as ISO-8859-1 and garbles č, ć, š, ž and the model's quotation marks
 - [ ] Retention (moved from M2; decided 2026-11-06): finished jobs deleted 30 days after they end (`SEF_JOB_RETENTION_DAYS`, 30); stored invoices kept until their organization sets a retention period of its own, none by default (`SECURITY.md`, V14)
 - [ ] Explanations of a stored invoice kept with its report, written once by a job and read through `POST /invoices/{invoice_id}/explanations` (ADR-0029); the embeddings of what the rules say kept for reuse
-- [ ] `feat/web-diff-approve` — diff view, approval, history
+- [x] `feat/web-repairs` — the repairs of a stored invoice, listed on its report, and each repair's page: who proposed it and who decided, what became of each patch, the API's diff without its numbers, and the report on the copy it leaves (ADR-0030). Split from `feat/web-diff-approve`, to keep the pull request reviewable
+- [ ] `feat/web-repair-suggestion` — ask the language model for a repair from the report's page, and open the repair it writes; say why there is none: a valid invoice, no patch it could keep, too many waiting, no model, no answer in time
+- [ ] `feat/web-diff-approve` — approve or reject a repair on its page, in person; the invoice, its report and its repairs read again; say why the API refuses: an API key, a repair decided already, an invoice changed since, the storage quota
 - [ ] `chore/infra-deploy` — public demo on Render + Neon + Upstash + Cloudflare Pages, "waking up" state for cold starts; the web application as a static export or on a Node.js server, which the report's page needs for its id (ADR-0026, ADR-0028)
 - [ ] Playwright smoke test for the golden path (upload → report → fix → approve)
 - [ ] Release: `v0.3.0`

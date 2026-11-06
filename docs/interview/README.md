@@ -46,3 +46,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-sign-in` | [m3-web-sign-in.md](m3-web-sign-in.md) |
 | `feat/web-upload-report` | [m3-web-upload-report.md](m3-web-upload-report.md) |
 | `feat/web-explanations` | [m3-web-explanations.md](m3-web-explanations.md) |
+| `feat/web-repairs` | [m3-web-repairs.md](m3-web-repairs.md) |

@@ -87,6 +87,13 @@ from `POST /invoices/{id}/explanations`, which the language model answers on the
 nothing is asked of it until the visitor asks, and explanations once written are kept until
 the page is reloaded. A server without a language model says so.
 
+Below the rules, the report lists the invoice's repairs, the latest first: who proposed each,
+where it stands, whether the copy it leaves is valid, and what became of its patches. Each one
+opens at `/sr-Latn/invoices/{id}/repairs/{repairId}`, with who decided on it, each patch and its
+reason, the difference it makes to the invoice and the validator's report on the copy. The
+difference is the API's, as it keeps it, and shows no line numbers: they would count the lines
+of the invoice indented anew, not those of the file sent (ADR-0030).
+
 ## Components and styles
 
 The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:
@@ -116,21 +123,23 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 components.json    shadcn/ui's settings: style, stylesheet, aliases
 messages/          the interface's texts, one file per language
 src/app/[locale]/  routes (App Router) under the language: the root layout, the home page,
-                   `sign-in`, `register`, `invoices` and `invoices/[id]`, the 404;
+                   `sign-in`, `register`, `invoices`, `invoices/[id]` and its
+                   `repairs/[repairId]`, the 404;
                    `page.test.tsx` next to `page.tsx`
 src/app/globals.css  Tailwind, shadcn/ui's theme tokens, dark mode
 src/components/    components shared by the pages: the header and its account, the footer, the
                    language switcher, the API's status, the cache of the API's answers, the
-                   sign-in and registration forms, the upload, the list and the report
+                   sign-in and registration forms, the upload, the list, the report, the
+                   repairs and the diff
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types
 src/hooks/         hooks shared by the components: the session
 src/lib/           the API client and its generated types, the session, the questions the pages
-                   ask; `cn()`
+                   ask, the reader of a repair's diff; `cn()`
 src/proxy.ts       sends a path without a language to the visitor's
 src/test/          what the tests share: rendering in a language, with a cache of its own; an
-                   API that answers as the test says; invoices to answer with
+                   API that answers as the test says; invoices and repairs to answer with
 vitest.config.mts  Vitest with React plugin, jsdom and tsconfig path aliases
 vitest.setup.ts    jest-dom matchers, automatic cleanup, no request to the network
 ```

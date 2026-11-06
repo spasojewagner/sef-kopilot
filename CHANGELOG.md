@@ -87,6 +87,13 @@ is tagged.
   official sources. The page says first what the language model is sent, names the rules left
   for a later request, and says why there are none: too many requests, no model on the server,
   no answer in time.
+- `apps/web`: the repairs of a stored invoice (ADR-0030). The report's page lists them, the
+  latest first: who proposed each, where it stands, whether the copy it leaves is valid, and
+  how many of its patches applied, wait for a person or could not apply. Each repair has its own
+  page, with who decided on it, what became of each patch and why, the difference it makes to
+  the invoice, as the API keeps it, and the validator's report on the copy. A removed or added
+  line is marked for screen readers, not only by colour, and the diff shows no line numbers:
+  they count the lines of the invoice indented anew, not of the file sent.
 
 ### Changed
 
