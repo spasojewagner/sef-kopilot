@@ -101,7 +101,8 @@ system are marked as such.
       a few at a time (503 with `Retry-After` beyond), and counted per caller and per
       organization (429 with `Retry-After`) before the body is read; a request for
       explanations is counted as a validation and against limits of its own, per caller and
-      per organization, in the same step.
+      per organization, in the same step. The explanations of a stored invoice, which is not
+      validated again, count against the latter alone (ADR-0029).
 - [x] The work one request for explanations causes is bounded: five rules at most, passages
       cut to 6 000 characters, three answers a rule, and 30 seconds in all.
 - [x] The work one upload causes is bounded: a budget of elements counted before any

@@ -77,6 +77,16 @@ is tagged.
   what each layer of the validator did. The list shows the newest invoices first, twenty at a
   time. An amount keeps every digit the invoice states, and an invoice's day is the same day in
   every time zone.
+- `POST /invoices/{invoice_id}/explanations`: the explanations of a stored invoice's latest
+  report, as `POST /invoices/explain` writes them for a document in the body, in Serbian or
+  English. The invoice is not validated again; the request counts as one to the language model,
+  per caller and per organization, and as no validation (ADR-0029).
+- `apps/web`: the rules' explanations on an invoice's report, when the visitor asks for them,
+  in the page's language (ADR-0029). Each rule's card says what the rule requires, why the
+  invoice fails it and what to change, with the passages it cites, dated and linked to their
+  official sources. The page says first what the language model is sent, names the rules left
+  for a later request, and says why there are none: too many requests, no model on the server,
+  no answer in time.
 
 ### Changed
 

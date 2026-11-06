@@ -1248,3 +1248,45 @@ the last.
 
 Next: `feat/web-explanations`, stacked on this branch: each violation's explanation, in Serbian
 or English, with its dated citations, on the report's page.
+
+## 2026-11-06 — `feat/web-explanations` (5 commits, stacked on `feat/web-upload-report`)
+
+Outcome: on an invoice's report, the visitor may ask for the rules to be explained, in the page's
+language; each rule's card then shows the explanation, what to change, and the passages cited,
+dated and linked to their sources (ADR-0029). The API gains
+`POST /invoices/{invoice_id}/explanations`, which explains the stored report without validating
+the invoice again and counts as one request to the language model.
+
+Findings:
+
+- The page has a stored invoice's id and report, not its document; reusing
+  `POST /invoices/explain` would have carried the document through the browser and back and
+  validated it again, possibly into another report than the one on the page. A route of its
+  own explains the stored report with the same `explain_report()`. Counting took a refactor,
+  in a commit of its own, so that a request can ask the model without being a validation.
+- The tests' cache treated every answer as stale where the pages keep one fresh for a minute,
+  so a test that a page did not ask again passed only because it looked before the page had
+  asked. The cache has the pages' defaults now, and such tests wait a moment.
+- A Serbian date ends with a period of its own (`5. 11. 2026.`); a message that put one after it
+  wrote two. The message now names the day mid-sentence.
+- The check in a browser served the API with a stand-in for the language model, from a script of
+  its own. The validator's processes import the main module again, so a script that starts the API
+  with the process validator serves only under `if __name__ == "__main__"`; without it, each
+  process tried to serve too.
+- Seeding faults: forty-four, thirteen in the API (the route, what it counts, the refactor of
+  counting) and thirty-one in the web application (the request, the query's key and its policy,
+  the panel, the citations). Eight were missed at first, and tests now catch them: the most rules
+  one request explains and the time the model is given (whose test checks the embedder too), a key
+  for each language under the invoice's, the query never asking again by itself, and a heading in
+  Cyrillic. All are caught now.
+- In a browser against the API, with a stand-in for the language model: nothing asked before the
+  button, SRB-009 explained with Article 2 of the PIB rulebook and BT-31 of SRB-CIUS, once in
+  Serbian and once in English, the same explanations after going to the list and back without a
+  new request, and a server without a model saying so.
+
+Verification: each of the five commits on its own: ruff, mypy and the Python suites (2 702 tests
+at the refactor, 2 713 from the route on), and the web application's lint, types, tests (117 up to
+the explanations, 136 with them) and production build.
+
+Next: `feat/web-diff-approve`, stacked on this branch: a repair's proposals as a diff of the
+invoice, approved or rejected one by one, and the report of the repaired copy.
