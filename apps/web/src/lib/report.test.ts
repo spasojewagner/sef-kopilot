@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Violation } from "@/lib/invoices";
 import { storedInvoice } from "@/test/invoices";
 
-import { byRule } from "./report";
+import { byRule, isXml } from "./report";
 
 function violation(
   rule_id: string,
@@ -74,5 +74,22 @@ describe("A report's violations by rule", () => {
 
   it("are none for a report without violations", () => {
     expect(byRule({ ...storedInvoice().report, violations: [] })).toEqual([]);
+  });
+});
+
+describe("A document that patches apply to", () => {
+  it("is XML: the report's XML layer ran and found nothing", () => {
+    const report = storedInvoice().report;
+    const xml = (ran: boolean, violations: number) => ({
+      ...report,
+      layers: report.layers.map((layer) =>
+        layer.layer === "xml" ? { ...layer, ran, violations } : layer,
+      ),
+    });
+
+    expect(isXml(report)).toBe(true);
+    expect(isXml(xml(true, 1))).toBe(false);
+    expect(isXml(xml(false, 0))).toBe(false);
+    expect(isXml({ ...report, layers: [] })).toBe(false);
   });
 });

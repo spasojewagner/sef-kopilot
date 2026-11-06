@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 
 import { RepairStatusBadge, useProposer } from "@/components/repair-parts";
+import { RepairSuggestion } from "@/components/repair-suggestion";
 import {
   Table,
   TableBody,
@@ -19,9 +20,16 @@ import { repairsQuery } from "@/lib/queries";
 
 /**
  * The repairs proposed for the stored invoice ``invoiceId``, the latest first: who proposed
- * each, where it stands, and what the validator says of the invoice it would leave.
+ * each, where it stands, and what the validator says of the invoice it would leave. With
+ * ``offer``, for an invoice whose errors patches could fix, the language model's suggestion.
  */
-export function RepairHistory({ invoiceId }: { invoiceId: string }) {
+export function RepairHistory({
+  invoiceId,
+  offer = false,
+}: {
+  invoiceId: string;
+  offer?: boolean;
+}) {
   const t = useTranslations("repairs");
   const locale = useLocale();
   const proposer = useProposer();
@@ -82,6 +90,7 @@ export function RepairHistory({ invoiceId }: { invoiceId: string }) {
       <h2 id="repairs" className="text-lg font-semibold tracking-tight">
         {t("title")}
       </h2>
+      {offer && <RepairSuggestion invoiceId={invoiceId} />}
       {content}
     </section>
   );

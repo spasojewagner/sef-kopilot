@@ -201,6 +201,29 @@
     },
     "withModel": "{who}, with the language model {model}"
   },
+  "suggestion": {
+    "intro": "A language model can propose changes that fix this invoice's errors. The validator checks them on a copy, and the invoice does not change until someone approves the repair.",
+    "privacy": "The model is sent the violations, whose messages may quote values of the invoice, and the invoice's fields around them; nothing else of it.",
+    "ask": "Suggest a repair",
+    "writing": "The language model is proposing changes and the validator is checking them. This may take up to half a minute…",
+    "written": "The repair has been proposed.",
+    "open": "View the repair",
+    "again": "Try again",
+    "errors": {
+      "nothingToRepair": "The invoice has no errors, so there is nothing to repair.",
+      "tooManyWaiting": "Too many repairs of this invoice await a decision. Approve or reject one of them, then ask for another.",
+      "invoiceChanged": "The invoice changed while the model was working. Try again.",
+      "noPatch": "The model proposed no change that a repair can keep. Try again, or correct the invoice yourself.",
+      "modelFailed": "The language model gave no answer that could be used. Try again.",
+      "tooSlow": "The repair did not arrive in time. Try again.",
+      "tooMany": "Too many requests. Try again in {seconds} s.",
+      "unavailable": "Repairs are not available on this server: no language model is set up, or the validator is not running.",
+      "busy": "The validator is busy. Try again in {seconds} s.",
+      "notFound": "This invoice no longer exists.",
+      "unreachable": "The API does not answer. Try again a little later.",
+      "failed": "No repair was proposed. Try again a little later."
+    }
+  },
   "repair": {
     "title": "Repair",
     "loading": "Loading the repair…",

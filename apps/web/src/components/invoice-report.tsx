@@ -18,7 +18,7 @@ import { ApiError } from "@/lib/api";
 import { formatAmount, formatDay, formatMoment } from "@/lib/format";
 import type { StoredInvoice } from "@/lib/invoices";
 import { invoiceQuery } from "@/lib/queries";
-import { byRule } from "@/lib/report";
+import { byRule, isXml } from "@/lib/report";
 
 /** The validator's report on the stored invoice ``id``. */
 export function InvoiceReport({ id }: { id: string }) {
@@ -134,7 +134,11 @@ function Loaded({ invoice }: { invoice: StoredInvoice }) {
         )}
       </section>
 
-      <RepairHistory invoiceId={invoice.id} />
+      <RepairHistory
+        invoiceId={invoice.id}
+        // A valid invoice has nothing to repair, and patches apply only to XML.
+        offer={!report.valid && isXml(report)}
+      />
       <ReportLayers report={report} />
       <BackToTheList />
     </article>

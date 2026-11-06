@@ -1,5 +1,5 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { invoiceQuery } from "@/lib/queries";
 import { aMoment, json, keepSession, stubApi } from "@/test/api";
@@ -7,6 +7,19 @@ import { storedInvoice, stubReportApi } from "@/test/invoices";
 import { renderIn, testQueryClient } from "@/test/render";
 
 import { InvoiceReport } from "./invoice-report";
+
+// The report offers the model's repair, which opens the repair's page when it is written.
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
 
 const ID = "0b3f6a2e-1c4d-4e5f-8a9b-0c1d2e3f4a5b";
 
@@ -31,6 +44,42 @@ describe("Invoice report", () => {
       `/invoices/${ID}`,
       `/invoices/${ID}/repairs`,
     ]);
+  });
+
+  it("offers the model's repair only of an invalid invoice that patches apply to", async () => {
+    keepSession();
+    const invalid = storedInvoice();
+    const valid = {
+      ...invalid,
+      report: { ...invalid.report, valid: true, violations: [] },
+    };
+    const notXml = {
+      ...invalid,
+      report: {
+        ...invalid.report,
+        layers: invalid.report.layers.map((layer) =>
+          layer.layer === "xml" ? { ...layer, violations: 1 } : layer,
+        ),
+      },
+    };
+
+    for (const [stored, offered] of [
+      [invalid, true],
+      [valid, false],
+      [notXml, false],
+    ] as const) {
+      stubReportApi({ stored });
+      const { unmount } = renderIn("sr-Latn", <InvoiceReport id={ID} />);
+      const repairs = await screen.findByRole("heading", {
+        level: 2,
+        name: "Popravke",
+      });
+      const section = within(repairs.closest("section") as HTMLElement);
+      expect(
+        section.queryByRole("button", { name: "Predloži popravku" }) !== null,
+      ).toBe(offered);
+      unmount();
+    }
   });
 
   it("lists each rule with every place it fails, the errors first", async () => {

@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { explanationsQuery, invoiceQuery } from "@/lib/queries";
 import { aMoment, type Asked, json, keepSession } from "@/test/api";
@@ -8,6 +8,19 @@ import { explained, storedInvoice, stubReportApi } from "@/test/invoices";
 import { renderIn, testQueryClient } from "@/test/render";
 
 import { InvoiceReport } from "./invoice-report";
+
+// The report offers the model's repair, which opens the repair's page when it is written.
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
 
 const ID = "0b3f6a2e-1c4d-4e5f-8a9b-0c1d2e3f4a5b";
 

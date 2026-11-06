@@ -201,6 +201,29 @@
     },
     "withModel": "{who}, uz jezički model {model}"
   },
+  "suggestion": {
+    "intro": "Jezički model može da predloži izmene koje ispravljaju greške ove fakture. Validator ih proverava na kopiji, a faktura se ne menja dok neko ne odobri popravku.",
+    "privacy": "Modelu se šalju prekršaji, čije poruke mogu navesti vrednosti iz fakture, i polja fakture oko njih; ništa drugo iz nje.",
+    "ask": "Predloži popravku",
+    "writing": "Jezički model predlaže izmene, a validator ih proverava. Može potrajati do pola minuta…",
+    "written": "Popravka je predložena.",
+    "open": "Pogledaj popravku",
+    "again": "Pokušaj ponovo",
+    "errors": {
+      "nothingToRepair": "Faktura nema grešaka, pa nema šta da se popravi.",
+      "tooManyWaiting": "Previše popravki ove fakture čeka odluku. Odobrite ili odbijte neku od njih, pa tražite novu.",
+      "invoiceChanged": "Faktura se promenila dok je model radio. Pokušajte ponovo.",
+      "noPatch": "Model nije predložio nijednu izmenu koju popravka može da zadrži. Pokušajte ponovo, ili ispravite fakturu sami.",
+      "modelFailed": "Jezički model nije dao upotrebljiv odgovor. Pokušajte ponovo.",
+      "tooSlow": "Popravka nije stigla na vreme. Pokušajte ponovo.",
+      "tooMany": "Previše zahteva. Pokušajte ponovo za {seconds} s.",
+      "unavailable": "Popravke na ovom serveru nisu dostupne: nije podešen jezički model, ili validator ne radi.",
+      "busy": "Validator je zauzet. Pokušajte ponovo za {seconds} s.",
+      "notFound": "Ova faktura više ne postoji.",
+      "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
+      "failed": "Popravka nije predložena. Pokušajte ponovo malo kasnije."
+    }
+  },
   "repair": {
     "title": "Popravka",
     "loading": "Učitavanje popravke…",
