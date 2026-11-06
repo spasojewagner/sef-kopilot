@@ -37,9 +37,10 @@ from sef_api.invoices.validator import (
 from sef_api.jobs import store as job_store
 from sef_api.jobs.routes import JobOut, job_out
 from sef_api.jobs.runners import JobRunner
+from sef_api.llm import Language
 from sef_api.models import JobKind, StoredInvoice
 from sef_api.rag.embeddings import Embedder
-from sef_api.rag.explainer import Explainer, Explanation, Language, explain_report
+from sef_api.rag.explainer import Explainer, Explanation, explain_report
 from sef_api.rate_limits import Counted, Limit, RateLimiter, Rule, too_many
 from sef_api.settings import Settings
 

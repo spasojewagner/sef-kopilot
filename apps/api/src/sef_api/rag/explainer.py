@@ -23,21 +23,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Final, Literal
+from typing import Any, Final
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from einvoice_core.pipeline import ValidationReport
 from einvoice_core.violations import Severity, Violation
-from sef_api.llm import LLMClient, LLMError, Message
+from sef_api.llm import LANGUAGES, Language, LLMClient, LLMError, Message
 from sef_api.rag.embeddings import Embedder, EmbeddingError
 from sef_api.rag.retrieval import Found, Retriever, meaning_text
 from sef_api.rag.text import transliterate
+from sef_api.values import invented, plain
 
 __all__ = [
     "ATTEMPTS",
@@ -46,15 +46,12 @@ __all__ = [
     "Explainer",
     "Explanation",
     "ExplanationError",
-    "Language",
     "Written",
     "explain_report",
     "schema_for",
 ]
 
 logger = logging.getLogger(__name__)
-
-Language = Literal["sr", "en"]
 
 #: Answers the model may give for one explanation: the first, and two after being told what
 #: was wrong with the one before.
@@ -71,11 +68,6 @@ MAX_CITATIONS: Final = 3
 #: The share of a request's time that embedding what its rules say may take: an embedder that
 #: is late leaves the words to find the passages, and the rest of the time to the model.
 EMBEDDING_SHARE: Final = 0.2
-
-_LANGUAGES: Final[dict[Language, str]] = {
-    "sr": "Serbian, in the Latin script (latinica)",
-    "en": "English",
-}
 
 SYSTEM: Final = """\
 You explain one violation that a deterministic validator found in an electronic invoice (UBL \
@@ -151,21 +143,6 @@ class ExplanationError(Exception):
     """No explanation could be written; the message says why, for the caller to read."""
 
 
-#: The model writes identifiers with non-breaking hyphens (``BT\u201131``) and numbers with
-#: non-breaking spaces; plain ones match what the specification writes and what a search for
-#: ``BT-31`` finds.
-_PLAIN = str.maketrans({"\u2010": "-", "\u2011": "-", "\u00a0": " ", "\u202f": " "})
-
-#: A number of this many digits or more is an identifier rather than a quantity.
-_IDENTIFIER_DIGITS: Final = 5
-#: A date, written as ISO 8601 or as Serbian writes it (5. 10. 2026).
-_DATE = re.compile(
-    r"(?<!\d)(?:(\d{4})-(\d{1,2})-(\d{1,2})|(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4}))(?!\d)"
-)
-#: A number, with its decimals or groups and a percent sign, if any.
-_NUMBER = re.compile(r"\d+(?:[.,]\d+)*(?:\s?%)?")
-
-
 class _Draft(BaseModel):
     """The model's answer, as the schema asks for it."""
 
@@ -178,7 +155,7 @@ class _Draft(BaseModel):
     @field_validator("explanation", "fix", mode="before")
     @classmethod
     def _plain(cls, text: object) -> object:
-        return text.translate(_PLAIN) if isinstance(text, str) else text
+        return plain(text) if isinstance(text, str) else text
 
 
 class _UnusableError(Exception):
@@ -249,33 +226,6 @@ def _question(violation: Violation, passages: Sequence[tuple[Found, str]], day: 
     return "\n".join(lines)
 
 
-def _values(text: str, *, every: bool) -> dict[str, str]:
-    """The dates and numbers ``text`` names, each written one way whatever way ``text`` wrote it
-    (a date as ISO 8601, a number as its digits), with how ``text`` wrote it. Without ``every``,
-    only the numbers that are values: with decimals or groups (an amount), with a percent sign (a
-    rate), or of five digits or more (a PIB, a registration number, an account)."""
-    found: dict[str, str] = {}
-
-    def dated(match: re.Match[str]) -> str:
-        year, month, day = match.group(1, 2, 3) if match[1] else match.group(6, 5, 4)
-        found.setdefault(f"{year}-{int(month):02}-{int(day):02}", match[0])
-        return " "
-
-    for number in _NUMBER.finditer(_DATE.sub(dated, text)):
-        digits = re.sub(r"\D", "", number[0])
-        if every or not number[0].isdigit() or len(digits) >= _IDENTIFIER_DIGITS:
-            found.setdefault(digits, number[0])
-    return found
-
-
-def _invented(draft: _Draft, question: str) -> list[str]:
-    """The values the explanation and the fix name that the question does not: made up, or
-    computed, which is the validator's work and not the model's."""
-    asked = _values(question, every=True)
-    named = _values(f"{draft.explanation}\n{draft.fix}", every=False)
-    return [written for value, written in named.items() if value not in asked]
-
-
 def _checked(answer: str, given: dict[str, Found], question: str) -> _Draft:
     """The answer, if it can be used: the schema's, citing passages it was given, and naming no
     value that the question does not contain."""
@@ -291,9 +241,9 @@ def _checked(answer: str, given: dict[str, Found], question: str) -> _Draft:
         raise _UnusableError(f"these citations are not ids of the passages given: {unknown}")
     if len(set(draft.citations)) != len(draft.citations):
         raise _UnusableError("a passage is cited more than once")
-    if invented := _invented(draft, question):
+    if made_up := invented(f"{draft.explanation}\n{draft.fix}", question):
         raise _UnusableError(
-            f"it names {', '.join(invented)}, which neither the violation nor the passages "
+            f"it names {', '.join(made_up)}, which neither the violation nor the passages "
             "contain: say which value to check instead of writing one"
         )
     return draft
@@ -338,7 +288,7 @@ class Explainer:
         given = {passage.id: passage for passage, _ in readable}
         question = _question(violation, readable, day)
         messages = [
-            Message("system", SYSTEM.format(language=_LANGUAGES[language])),
+            Message("system", SYSTEM.format(language=LANGUAGES[language])),
             Message("user", question),
         ]
         schema = schema_for(list(given))

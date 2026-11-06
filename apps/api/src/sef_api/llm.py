@@ -27,7 +27,15 @@ if TYPE_CHECKING:
 
     from sef_api.settings import Settings
 
-__all__ = ["GroqClient", "LLMClient", "LLMError", "Message", "llm_for"]
+__all__ = ["LANGUAGES", "GroqClient", "LLMClient", "LLMError", "Language", "Message", "llm_for"]
+
+#: The languages a model writes in for people: Serbian in the Latin script, or English.
+Language = Literal["sr", "en"]
+#: Each language as a prompt names it.
+LANGUAGES: Final[dict[Language, str]] = {
+    "sr": "Serbian, in the Latin script (latinica)",
+    "en": "English",
+}
 
 
 class LLMError(Exception):
