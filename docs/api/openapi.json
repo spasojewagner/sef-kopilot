@@ -1126,6 +1126,101 @@
         }
       }
     },
+    "/invoices/{invoice_id}/explanations": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Explain a stored invoice's violations",
+        "description": "Explains each rule the stored invoice's latest report names, as `POST /invoices/explain` does for a document in the request body: what the rule requires, why the invoice fails it and what to change, citing the passages of the official documents that apply on the invoice's issue date. The invoice is not validated again: the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the answer. Nothing is stored. The language model is sent each rule's first violation, whose message may quote the invoice, and the passages; nothing else of the invoice. Counted as a request to the language model, not as a validation.",
+        "operationId": "explain_stored_invoice_invoices__invoice_id__explanations_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "sr",
+                "en"
+              ],
+              "type": "string",
+              "description": "The language of the explanations: `sr` (Serbian, Latin script) or `en`.",
+              "default": "sr",
+              "title": "Language"
+            },
+            "description": "The language of the explanations: `sr` (Serbian, Latin script) or `en`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Explained"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests to the language model by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No language model is configured on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/invoices/{invoice_id}/repairs": {
       "post": {
         "tags": [

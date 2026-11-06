@@ -494,6 +494,74 @@ async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Se
     )
 
 
+@router.post(
+    "/{invoice_id}/explanations",
+    summary="Explain a stored invoice's violations",
+    description=(
+        "Explains each rule the stored invoice's latest report names, as `POST "
+        "/invoices/explain` does for a document in the request body: what the rule requires, "
+        "why the invoice fails it and what to change, citing the passages of the official "
+        "documents that apply on the invoice's issue date. The invoice is not validated again: "
+        "the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the "
+        "answer. Nothing is stored. The language model is sent each rule's first violation, "
+        "whose message may quote the invoice, and the passages; nothing else of the invoice. "
+        "Counted as a request to the language model, not as a validation."
+    ),
+    responses=_NOT_FOUND
+    | {
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "model": Problem,
+            "description": "Too many requests to the language model by the caller, or in their "
+            "organization; try again after `Retry-After` seconds.",
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": Problem,
+            "description": "No language model is configured on this server.",
+        },
+    },
+)
+async def explain_stored_invoice(
+    invoice_id: uuid.UUID,
+    request: Request,
+    response: Response,
+    *,
+    caller: CanSubmit,
+    session: Session,
+    language: Explaining = "sr",
+) -> Explained:
+    explainer = cast(Explainer | None, request.app.state.explainer)
+    if explainer is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "no language model is configured on this server"
+        )
+    count(request, caller, MODEL_REQUEST)
+    invoice = await store.find(session, scope_of(caller), invoice_id)
+    if invoice is None:
+        raise _not_found()
+    stored = _stored(invoice)
+    day = stored.summary.issue_date if stored.summary is not None else datetime.now(UTC).date()
+    settings = cast(Settings, request.app.state.settings)
+    explanations, unexplained = await explain_report(
+        session,
+        stored.report,
+        day=day,
+        language=language,
+        explainer=explainer,
+        embedder=cast(Embedder | None, request.app.state.embedder),
+        max_rules=settings.max_explanations,
+        seconds=settings.explanation_seconds,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return Explained(
+        report=stored.report,
+        day=day,
+        language=language,
+        model=explainer.model,
+        explanations=explanations,
+        unexplained=unexplained,
+    )
+
+
 @router.delete(
     "/{invoice_id}",
     status_code=status.HTTP_204_NO_CONTENT,

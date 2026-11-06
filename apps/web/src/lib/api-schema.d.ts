@@ -292,6 +292,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invoices/{invoice_id}/explanations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explain a stored invoice's violations
+         * @description Explains each rule the stored invoice's latest report names, as `POST /invoices/explain` does for a document in the request body: what the rule requires, why the invoice fails it and what to change, citing the passages of the official documents that apply on the invoice's issue date. The invoice is not validated again: the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the answer. Nothing is stored. The language model is sent each rule's first violation, whose message may quote the invoice, and the passages; nothing else of the invoice. Counted as a request to the language model, not as a validation.
+         */
+        post: operations["explain_stored_invoice_invoices__invoice_id__explanations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invoices/{invoice_id}/repairs": {
         parameters: {
             query?: never;
@@ -2389,6 +2409,67 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    explain_stored_invoice_invoices__invoice_id__explanations_post: {
+        parameters: {
+            query?: {
+                /** @description The language of the explanations: `sr` (Serbian, Latin script) or `en`. */
+                language?: "sr" | "en";
+            };
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Explained"];
+                };
+            };
+            /** @description No such invoice among those the caller may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many requests to the language model by the caller, or in their organization; try again after `Retry-After` seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No language model is configured on this server. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };
