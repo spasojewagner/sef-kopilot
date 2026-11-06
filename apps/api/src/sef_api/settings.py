@@ -82,6 +82,14 @@ class Settings(BaseSettings):
         validation_alias="SEF_MAX_INVOICE_BYTES",
         description="The largest invoice the API accepts, in bytes; larger ones answer 413.",
     )
+    max_body_bytes: int = Field(
+        default=1024 * 1024,
+        ge=64 * 1024,
+        le=16 * 1024 * 1024,
+        validation_alias="SEF_MAX_BODY_BYTES",
+        description="The longest request body other than an invoice, in bytes: the JSON of a "
+        "request, say a list of patches; longer ones answer 413.",
+    )
     max_invoice_elements: int = Field(
         default=DEFAULT_MAX_INVOICE_ELEMENTS,
         ge=100,

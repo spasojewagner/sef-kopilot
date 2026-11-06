@@ -27,6 +27,8 @@ TABLES = {
     "jobs",
     "corpus_documents",
     "corpus_passages",
+    "repairs",
+    "audit_events",
 }
 
 

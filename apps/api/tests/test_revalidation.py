@@ -25,7 +25,7 @@ from einvoice_core.pipeline import validate as validate_with_the_core
 from sef_api.auth.permissions import Permission
 from sef_api.db import Database
 from sef_api.invoices import revalidation, store
-from sef_api.invoices.validation import Validation, outcome
+from sef_api.invoices.validation import Patched, Validation, outcome
 from sef_api.invoices.validator import (
     TooManyElementsError,
     ValidationRefusedError,
@@ -70,6 +70,9 @@ class Judging:
             await self.release.wait()
         report = ValidationReport(profile=profile, valid=self.valid, violations=(), layers=())
         return Validation(report=report, summary=None)
+
+    async def patch(self, _content: bytes, _profile: str, _patches: object) -> Patched:
+        raise AssertionError("not patched in these tests")
 
     async def stop(self) -> None:
         pass

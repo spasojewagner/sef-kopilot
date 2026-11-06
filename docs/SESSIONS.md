@@ -1019,3 +1019,33 @@ small invoice takes 11 ms warm, validation included.
 
 Next: `feat/repair-loop-audit`: the model proposes patches for a report's violations, the
 person approves them, and every step goes to the audit log.
+
+## 2026-11-06 — `feat/repair-proposals` (5 commits)
+
+Outcome: repairs of stored invoices (ADR-0024). `POST /invoices/{id}/repairs` takes patches from
+a member or an API key, applies them to a copy of the invoice in the validator's child process,
+and keeps the repair with what it did: outcomes, the diff, the report, the digests of the
+document before and after. Each proposal is committed with an event in a new audit log that
+holds no invoice content (migration 0010). Every request body other than an invoice is now
+bounded (`SEF_MAX_BODY_BYTES`). The backlog's `feat/repair-loop-audit` is split in three: this
+branch, `feat/repair-approval` and `feat/repair-model-loop`.
+
+Findings:
+
+- FastAPI reads a JSON body whole before validating it, so any JSON endpoint, the sign-in
+  included, would hold a body of any length in memory; the new middleware reads at most 1 MiB
+  and answers 413, whether or not the length was declared.
+- Two requests made in one test transaction get the same `now()`, so listing repairs "latest
+  first" was ordered by their random ids; the test moves the first repair back a minute, as a
+  request of a minute earlier would have stored it.
+- Seeding faults: thirteen seeded (values in the audit log, a proposal without its event, a
+  stale proposal kept, no limit on waiting repairs, the order, the scope, the count, a repair
+  found through another invoice, an unreadable invoice as a server error, the child ignoring
+  patches, three in the body limit). Twelve were caught at first. The thirteenth, a declared
+  length over the limit no longer refused before reading, was caught by a test added for it.
+
+Verification: each of the five commits on its own green with PostgreSQL and Redis, 2 545
+tests at the first and 2 581 at the last; the new modules of the API at 100 % coverage.
+
+Next: `feat/repair-approval`, a person's decision on a repair, and the invoice replaced by the
+document they approved.

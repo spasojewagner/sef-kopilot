@@ -22,6 +22,20 @@ is tagged.
   the verdict; exit 0 only when every patch applied and the invoice is valid, and never a write
   over the invoice itself. The file of patches may be UTF-8 or UTF-16, as Windows PowerShell 5.1
   writes it.
+- `apps/api`: repairs of stored invoices (ADR-0024). `POST /invoices/{id}/repairs` applies a
+  list of patches to a copy of the invoice in the validator's child process, within the limits
+  of a validation, and keeps the repair: each patch's outcome, the difference and the report on
+  the patched invoice; the invoice does not change until a person decides. `GET
+  /invoices/{id}/repairs` lists them, the latest first, and `GET .../repairs/{repair_id}` shows
+  one. Each proposal is committed with an event in a new audit log, which records who, with
+  which key, the digests and each patch's place and outcome, and no invoice content
+  (migration 0010).
+
+### Security
+
+- `apps/api`: every request body other than an invoice is read at most to `SEF_MAX_BODY_BYTES`
+  (1 MiB) before the application parses it, and answered 413 beyond, whether or not its length
+  was declared. FastAPI read a JSON body whole, however long, before validating it.
 
 ### Fixed
 

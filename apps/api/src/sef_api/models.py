@@ -8,7 +8,8 @@ join in a role (ADR-0013). A refresh token belongs to a person's session in one 
 (ADR-0012). A stored invoice belongs to an organization, and remembers who submitted it
 (ADR-0016). An API key belongs to a membership, and acts for that member (ADR-0017). A job is
 work done in the background for an organization, such as validating its invoices again
-(ADR-0019).
+(ADR-0019). A repair is patches proposed for a stored invoice, kept with what they did to it until
+a person decides, and the audit log records who proposed and decided what (ADR-0024).
 
 The corpus, the official documents an explanation cites, is the same for every organization
 and belongs to none (ADR-0020): its passages are public text, written only by the command that
@@ -45,6 +46,8 @@ from sef_api.rag.embeddings import DIMENSIONS
 __all__ = [
     "UNFINISHED",
     "ApiKey",
+    "AuditAction",
+    "AuditEvent",
     "CorpusDocument",
     "CorpusPassage",
     "Invitation",
@@ -54,6 +57,8 @@ __all__ = [
     "Membership",
     "Organization",
     "RefreshToken",
+    "Repair",
+    "RepairStatus",
     "Role",
     "StoredInvoice",
     "User",
@@ -383,6 +388,120 @@ class Job(Base):
     created_at: Mapped[datetime] = _created_at()
     started_at: Mapped[datetime | None]
     finished_at: Mapped[datetime | None]
+
+
+class RepairStatus(StrEnum):
+    """Where a repair is: waiting for a person, or decided."""
+
+    PROPOSED = "proposed"
+    """Its patches were applied to a copy of the invoice; the invoice is as it was."""
+    APPROVED = "approved"
+    """A person approved it, and the invoice became the document its patches left."""
+    REJECTED = "rejected"
+    """A person rejected it; the invoice is as it was."""
+    SUPERSEDED = "superseded"
+    """The invoice changed before anyone decided, so its patches no longer apply to the
+    document they were proposed for."""
+
+
+class Repair(Base):
+    """Patches proposed for one stored invoice, with what they did to a copy of it, until a
+    person decides (ADR-0024).
+
+    The patches were applied to the document whose digest is ``based_on``; each patch is in
+    ``outcomes``, with what became of it. ``changed``, ``valid``, ``report`` and ``diff`` are
+    what they did, and ``patched_sha256`` is the digest of the document they left. The invoice
+    does not change until a person approves the repair. A repair belongs to its invoice and is
+    deleted with it; the audit log keeps that it was proposed and decided.
+    """
+
+    __tablename__ = "repairs"
+    #: The defaults the database sets come back with the insert.
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('proposed', 'approved', 'rejected', 'superseded')", name="status_known"
+        ),
+        CheckConstraint(
+            "(status = 'proposed') = (decided_at IS NULL)", name="decided_unless_proposed"
+        ),
+        CheckConstraint(
+            "based_on ~ '^[0-9a-f]{64}$' AND patched_sha256 ~ '^[0-9a-f]{64}$'",
+            name="digests_hex",
+        ),
+        Index("ix_repairs_invoice_id_created_at_id", "invoice_id", "created_at", "id"),
+    )
+
+    id: Mapped[uuid.UUID] = _id()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    invoice_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("invoices.id", ondelete="CASCADE"))
+    #: The member who proposed it, in person or through an API key; forgotten if their account
+    #: is deleted.
+    proposed_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    #: The API key it was proposed with; None when the member proposed it in person, or once
+    #: the key is deleted.
+    key_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("api_keys.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = _created_at()
+    status: Mapped[str] = mapped_column(Text, server_default=text("'proposed'"))
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    decided_at: Mapped[datetime | None]
+    based_on: Mapped[str] = mapped_column(Text)
+    patched_sha256: Mapped[str] = mapped_column(Text)
+    outcomes: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    changed: Mapped[bool]
+    valid: Mapped[bool]
+    report: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    diff: Mapped[str] = mapped_column(Text)
+
+
+class AuditAction(StrEnum):
+    """What an audit event records."""
+
+    REPAIR_PROPOSED = "repair.proposed"
+    REPAIR_APPROVED = "repair.approved"
+    REPAIR_REJECTED = "repair.rejected"
+
+
+class AuditEvent(Base):
+    """Something done in an organization that it must be able to account for: what, when, by
+    which member and with which key, to which invoice and repair (ADR-0024).
+
+    Events are only ever added. They name the member, the key, the invoice and the repair by
+    id, without a foreign key, so that an event outlives what it names; and they hold no
+    invoice content: digests, counts, and the places patches name with what became of them,
+    never a value or a reason. They are deleted with the organization.
+    """
+
+    __tablename__ = "audit_events"
+    #: The time of a new event, set by the database, comes back with its insert.
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('repair.proposed', 'repair.approved', 'repair.rejected')",
+            name="action_known",
+        ),
+        Index("ix_audit_events_organization_id_at_id", "organization_id", "at", "id"),
+    )
+
+    id: Mapped[uuid.UUID] = _id()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    at: Mapped[datetime] = _created_at()
+    actor: Mapped[uuid.UUID]
+    key_id: Mapped[uuid.UUID | None]
+    action: Mapped[str] = mapped_column(Text)
+    invoice_id: Mapped[uuid.UUID | None]
+    repair_id: Mapped[uuid.UUID | None]
+    detail: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'"))
 
 
 class CorpusDocument(Base):

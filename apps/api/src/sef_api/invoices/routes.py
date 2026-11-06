@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from typing import Annotated, Any, cast
 
@@ -25,6 +26,7 @@ from sef_api.invoices.validation import InvoiceSummary, ProfileName, Validation
 from sef_api.invoices.validator import (
     Admission,
     TooManyElementsError,
+    UnreadableInvoiceError,
     ValidationRefusedError,
     ValidationTimeoutError,
     Validator,
@@ -167,7 +169,7 @@ _DOWNLOAD: dict[int | str, dict[str, Any]] = {
 }
 
 
-def _scope(caller: Principal) -> store.Scope:
+def scope_of(caller: Principal) -> store.Scope:
     """The invoices ``caller`` may see: every one of the organization's with
     ``invoices:manage``, otherwise the ones they submitted."""
     if caller.may(Permission.INVOICES_MANAGE):
@@ -386,7 +388,7 @@ async def store_invoice(
 async def revalidate_invoices(
     request: Request, response: Response, caller: CanSubmit, session: Session
 ) -> JobOut:
-    scope = _scope(caller)
+    scope = scope_of(caller)
     job = await job_store.start(
         session,
         organization_id=caller.organization_id,
@@ -441,7 +443,7 @@ async def list_invoices(
     ] = None,
 ) -> InvoicePage:
     try:
-        page = await store.page_of(session, _scope(caller), limit=limit, after=after, valid=valid)
+        page = await store.page_of(session, scope_of(caller), limit=limit, after=after, valid=valid)
     except store.InvalidCursorError:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "after is not a cursor this API gave"
@@ -459,7 +461,7 @@ async def list_invoices(
 async def get_invoice(
     invoice_id: uuid.UUID, response: Response, caller: CanSubmit, session: Session
 ) -> StoredInvoiceOut:
-    invoice = await store.find(session, _scope(caller), invoice_id)
+    invoice = await store.find(session, scope_of(caller), invoice_id)
     if invoice is None:
         raise _not_found()
     response.headers["Cache-Control"] = "no-store"
@@ -477,7 +479,7 @@ async def get_invoice(
     responses=_DOWNLOAD | _NOT_FOUND,
 )
 async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Session) -> Response:
-    content = await store.content_of(session, _scope(caller), invoice_id)
+    content = await store.content_of(session, scope_of(caller), invoice_id)
     if content is None:
         raise _not_found()
     return Response(
@@ -502,11 +504,11 @@ async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Se
     responses=_NOT_FOUND,
 )
 async def delete_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Session) -> None:
-    if not await store.forget(session, _scope(caller), invoice_id):
+    if not await store.forget(session, scope_of(caller), invoice_id):
         raise _not_found()
 
 
-def _count(request: Request, caller: Principal, *, explaining: bool) -> None:
+def count_validation(request: Request, caller: Principal, *, explaining: bool = False) -> None:
     """Count a validation, and a request for explanations if it is one, against the caller's
     limits and their organization's, all at once; 429 beyond any. A caller is a member signed
     in, whatever the device, or one API key."""
@@ -545,23 +547,40 @@ async def _validated(
     """The invoice in the request body and the validator's report on it with what it read, or
     the HTTP error that says why there is none."""
     # Counted before the body is read, so that nothing is read for a client held back.
-    _count(request, caller, explaining=explaining)
+    count_validation(request, caller, explaining=explaining)
     # The permission check was this request's only database work. Ending its transaction gives
     # the pooled connection back before the body is read and validated, so that neither a slow
     # upload nor a validation waiting for its turn keeps it from other requests.
     await session.commit()
     settings = cast(Settings, request.app.state.settings)
-    validator = cast(Validator, request.app.state.validator)
-    admission = cast(Admission, request.app.state.admission)
-    busy = {"Retry-After": str(RETRY_AFTER_SECONDS)}
-    if admission.full:  # turned away before the body is read, not after
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "the validator is busy", busy)
+    refuse_when_busy(request)  # turned away before the body is read, not after
     content = await read_invoice(
         request, limit=settings.max_invoice_bytes, seconds=settings.upload_seconds
     )
+    with judged(request) as validator:
+        return content, await validator.validate(content, profile)
+
+
+def refuse_when_busy(request: Request) -> None:
+    """503 with ``Retry-After`` when as many validations as allowed are waiting or running."""
+    if cast(Admission, request.app.state.admission).full:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "the validator is busy",
+            {"Retry-After": str(RETRY_AFTER_SECONDS)},
+        )
+
+
+@contextmanager
+def judged(request: Request) -> Iterator[Validator]:
+    """The validator, admitted for one document; what goes wrong with it becomes the HTTP error
+    that says why it cannot judge the document."""
+    validator = cast(Validator, request.app.state.validator)
+    admission = cast(Admission, request.app.state.admission)
+    busy = {"Retry-After": str(RETRY_AFTER_SECONDS)}
     try:
         with admission.admit():
-            return content, await validator.validate(content, profile)
+            yield validator
     except ValidatorBusyError:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "the validator is busy", busy
@@ -572,7 +591,7 @@ async def _validated(
         ) from None
     except TooManyElementsError as error:
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, str(error)) from None
-    except (ValidationTimeoutError, ValidationRefusedError) as error:
+    except (ValidationTimeoutError, ValidationRefusedError, UnreadableInvoiceError) as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
     except Exception as error:
         # A message may quote the document, which must never reach a log: the type only. The

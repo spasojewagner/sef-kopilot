@@ -1,9 +1,11 @@
 """One validation, as the validator's process runs it: the work and its outcome as data.
 
 :func:`outcome` is what a validator runs for each document, in its child process or in a
-thread (:mod:`sef_api.invoices.validator`). It never raises: what is wrong with the document
-is the report, and what goes wrong with the validation is a kind of outcome that carries no
-document content, so that it can cross a process boundary and be logged.
+thread (:mod:`sef_api.invoices.validator`); :func:`patched_outcome` applies patches to a
+document first and validates what they leave (ADR-0023, ADR-0024). Neither raises: what is
+wrong with the document is the report, and what goes wrong with the validation is a kind of
+outcome that carries no document content, so that it can cross a process boundary and be
+logged.
 
 Before the validation proper, the elements of the document are counted, without building it,
 by a parser as hardened as the validator's own. The cost of validating grows with elements,
@@ -17,30 +19,38 @@ stored invoice: its number, date, parties and amount due, when it could be read 
 from __future__ import annotations
 
 import io
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 from typing import Final, Literal
 
 from lxml import etree
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from einvoice_core import schematron, xsd
 from einvoice_core.model import DocumentType
+from einvoice_core.patches import Outcome as PatchOutcome
+from einvoice_core.patches import Patch
 from einvoice_core.pipeline import PROFILES, ValidationReport, validate
+from einvoice_core.repair import repair
 from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
+from einvoice_core.schema_order import schema_order
 from einvoice_core.schematron import SchematronError
 from einvoice_core.ubl import build_invoice
 from einvoice_core.xml import ParseError, load_document
 
 __all__ = [
+    "PATCHES",
     "SUMMARY_TEXT_LIMIT",
     "InvoiceSummary",
     "Kind",
     "Outcome",
+    "Patched",
     "ProfileName",
     "Validation",
     "count_elements",
     "outcome",
+    "patched_outcome",
     "rule_sets_missing",
     "summarize",
     "warm_up",
@@ -50,11 +60,18 @@ __all__ = [
 ProfileName = Literal["srb", "en16931", "peppol"]
 
 #: ``report``: the validator's report and the summary, a :class:`Validation` as JSON.
+#: ``patched``: what patches did to the document, a :class:`Patched` as JSON.
 #: ``too-many-elements``: the document has more elements than the budget allows.
+#: ``unreadable``: the document is not well-formed XML, so no patch applies to it.
 #: ``unavailable``: the rule sets are missing or broken. ``refused``: the rule sets could not
 #: be applied to this document. ``failed``: anything else, by the type of the exception only.
-Kind = Literal["report", "too-many-elements", "unavailable", "refused", "failed"]
+Kind = Literal[
+    "report", "patched", "too-many-elements", "unreadable", "unavailable", "refused", "failed"
+]
 Outcome = tuple[Kind, str]
+
+#: A list of patches as JSON, which is how they reach the validator's process.
+PATCHES: Final = TypeAdapter(list[Patch])
 
 #: The characters a summary keeps of each text: a list of invoices stays small whatever a
 #: document holds.
@@ -88,6 +105,19 @@ class Validation(BaseModel):
     )
 
 
+class Patched(BaseModel):
+    """What patches did to a document: the outcome of each, whether the document changed, the
+    document they left with the validator's report on it, and the difference."""
+
+    model_config = ConfigDict(frozen=True)
+
+    outcomes: tuple[PatchOutcome, ...]
+    changed: bool
+    document: str = Field(description="The patched document, UTF-8 XML.")
+    diff: str
+    validation: Validation
+
+
 def _packages() -> list[str]:
     """Every fetched package the profiles need: the UBL schemas, the Schematron rule sets and
     the compiler for the rule sets published only as Schematron sources."""
@@ -119,6 +149,7 @@ def warm_up() -> str | None:
         xsd.default_validator()
         for name in sorted({name for profile in PROFILES.values() for name in profile.rule_sets}):
             schematron.default_validator(name)
+        schema_order()  # where an element a patch adds goes
     except Exception as error:
         return f"the validator's rule sets cannot be loaded ({type(error).__name__})"
     return None
@@ -199,3 +230,33 @@ def outcome(content: bytes, profile: ProfileName, *, max_elements: int) -> Outco
     except Exception as error:
         return "failed", type(error).__name__
     return "report", Validation(report=report, summary=summary).model_dump_json()
+
+
+def patched_outcome(
+    content: bytes, profile: ProfileName, patches: Sequence[Patch], *, max_elements: int
+) -> Outcome:
+    """Apply ``patches`` to ``content``, if it has at most ``max_elements`` elements, and
+    validate what they leave under ``profile``."""
+    if count_elements(content, limit=max_elements) > max_elements:
+        return "too-many-elements", f"the invoice has more than {max_elements} elements"
+    try:
+        try:
+            repaired = repair(content, patches, profile)
+        except ParseError:
+            return "unreadable", "the invoice is not well-formed XML, so no patch applies to it"
+        tree = load_document(repaired.document)
+        summary = summarize(tree) if _schema_valid(repaired.report) else None
+    except RulesetNotFoundError:
+        return "unavailable", "the validator's rule sets are not installed"
+    except SchematronError:
+        return "refused", "the rule sets could not be applied to this invoice"
+    except Exception as error:
+        return "failed", type(error).__name__
+    patched = Patched(
+        outcomes=repaired.outcomes,
+        changed=repaired.changed,
+        document=repaired.document.decode(),
+        diff=repaired.diff,
+        validation=Validation(report=repaired.report, summary=summary),
+    )
+    return "patched", patched.model_dump_json()

@@ -40,6 +40,7 @@ from sef_api.models import (
     Membership,
     Organization,
     RefreshToken,
+    Repair,
     Role,
     StoredInvoice,
     User,
@@ -300,6 +301,13 @@ async def _lists_no_invoices(response: Response, session: AsyncSession, w: World
     assert response.json() == {"invoices": [], "next": None}
 
 
+async def _primers_invoice_takes_no_repair(
+    response: Response, session: AsyncSession, w: World
+) -> None:
+    await _primers_invoice_is_not_found(response, session, w)
+    assert await session.scalar(select(func.count()).select_from(Repair)) == 0
+
+
 async def _primers_invoice_is_not_found(
     response: Response, session: AsyncSession, w: World
 ) -> None:
@@ -425,6 +433,27 @@ GUARDED: dict[Endpoint, Guarded] = {
         Permission.INVOICES_SUBMIT,
         False,
         lambda w: f"/invoices/{w.invoice.id}/content",
+        None,
+        _primers_invoice_is_not_found,
+    ),
+    ("POST", "/invoices/{invoice_id}/repairs"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/repairs",
+        {"patches": [{"xpath": "/ubl:Invoice/cbc:Note", "op": "remove", "reason": "why"}]},
+        _primers_invoice_takes_no_repair,
+    ),
+    ("GET", "/invoices/{invoice_id}/repairs"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/repairs",
+        None,
+        _primers_invoice_is_not_found,
+    ),
+    ("GET", "/invoices/{invoice_id}/repairs/{repair_id}"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/repairs/{w.invoice.id}",
         None,
         _primers_invoice_is_not_found,
     ),

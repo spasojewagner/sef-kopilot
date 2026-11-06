@@ -77,7 +77,10 @@ system are marked as such.
 
 ### V2 Validation and business logic
 
-- [ ] All request bodies are validated with Pydantic models (strict types, bounded sizes).
+- [x] All request bodies are validated with Pydantic models (strict types, bounded sizes): an
+      invoice is read in chunks within `SEF_MAX_INVOICE_BYTES`, and every other body is read
+      by a middleware up to `SEF_MAX_BODY_BYTES` (1 MiB) before FastAPI parses it (413
+      beyond, whether or not its length was declared).
 - [x] Business guardrails (forbidden patch fields, arithmetic rules in code, citation
       resolution) are enforced server-side and covered by tests: the arithmetic rules are
       computed in Python, and an explanation cites only passages retrieval read from the
@@ -254,6 +257,10 @@ system are marked as such.
 
 - [ ] Structured JSON logs with request ids; security-relevant events (login, key use,
       approval, send-to-SEF) are logged without payloads.
+- [~] An audit log in the database records what an organization must account for, committed
+      with the change itself: who proposed a repair, with which key, to which invoice, the
+      digests before and after and each patch's place and outcome, never a value or a reason
+      (ADR-0024). The decisions on repairs come next.
 - [ ] Errors are handled centrally; unexpected exceptions are reported to Sentry without
       invoice content.
 

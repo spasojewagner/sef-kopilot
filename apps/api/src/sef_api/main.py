@@ -19,6 +19,7 @@ from sef_api import __version__
 from sef_api.api_keys import routes as api_keys
 from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
+from sef_api.bodies import LimitBodies
 from sef_api.charset import DeclareUTF8
 from sef_api.db import Database
 from sef_api.invoices import routes as invoices
@@ -34,6 +35,7 @@ from sef_api.members import routes as members
 from sef_api.rag.embeddings import Embedder, embedder_for
 from sef_api.rag.explainer import Explainer
 from sef_api.rate_limits import RateLimiter, limits
+from sef_api.repairs import routes as repairs
 from sef_api.routes import health
 from sef_api.settings import Settings
 
@@ -58,6 +60,11 @@ OPENAPI_TAGS = [
         "name": "invoices",
         "description": "Invoices and credit notes: the deterministic validator's report on them, "
         "and explanations of its rules that cite the official documents.",
+    },
+    {
+        "name": "repairs",
+        "description": "Repairs of stored invoices: patches applied to a copy of an invoice, "
+        "kept with what they did to it until a person decides.",
     },
     {
         "name": "jobs",
@@ -150,7 +157,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         },
         lifespan=lifespan,
     )
-    app.add_middleware(DeclareUTF8)
+    app.add_middleware(LimitBodies, limit=settings.max_body_bytes)
+    app.add_middleware(DeclareUTF8)  # outermost: it declares the charset of a 413 too
     app.state.settings = settings
     app.state.database = database
     app.state.tokens = TokenSettings.from_settings(settings)
@@ -164,6 +172,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(invoices.router)
+    app.include_router(repairs.router)
     app.include_router(jobs.router)
     app.include_router(members.router)
     app.include_router(members.invitations_router)
