@@ -166,6 +166,7 @@ curl -si localhost:8000/invoices/$INVOICE/repairs -H "Authorization: Bearer $ACC
 | `GET /invoices/{id}/repairs` | the invoice's repairs, the latest first (100 at most), without their reports and differences |
 | `GET /invoices/{id}/repairs/{repair_id}` | one repair: each patch's outcome, the difference, the report |
 | `POST /invoices/{id}/repairs/{repair_id}/approval` | 200 with the repair, `approved`: the invoice is now the patched document with its report; 403 with an API key; 409 when the repair waits for no decision, changes nothing, or the invoice or what its patches leave is not what it was when they were proposed; 507 beyond the storage quota |
+| `POST /invoices/{id}/repairs/suggestion` | 201 with the repair the language model proposes (below); 409 when the invoice is valid, ten of its repairs wait, or it changed meanwhile; 422 when the model proposed no patch to keep; 502 when it gave no answer to use; 503 without a model; 504 when no round was done in time |
 | `POST /invoices/{id}/repairs/{repair_id}/rejection` | 200 with the repair, `rejected`; the invoice stays as it is; 403 with an API key |
 
 Only a person decides: a member signed in with an access token, never an API key, since a key
@@ -179,6 +180,38 @@ Proposing counts as a validation against the rate limits. Each proposal, approva
 before and after, the verdict, each patch's place, operation and outcome, and the repairs an
 approval superseded; never a value or a reason, which may quote the invoice. An event outlives the invoice and the repair it names,
 and goes with the organization.
+
+### Repairs the language model proposes
+
+`POST /invoices/{id}/repairs/suggestion` has the language model write the patches (ADR-0025),
+and keeps what it proposes as a repair of the caller's, in person or with an API key, decided
+on like any other. `?language=` sets the language of the patches' reasons, `sr` (the default)
+or `en`. The repair's `model` names the model that wrote them.
+
+```bash
+curl -si -X POST "localhost:8000/invoices/$INVOICE/repairs/suggestion?language=sr" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+The model is sent the invoice's first ten fatal violations and the invoice's fields around them,
+sixty at most: every basic component that holds text, and every attribute, of the aggregate a
+violation is in, by canonical path and with its value, saying which fields a person decides.
+Nothing else of the invoice is sent, and nothing in the extensions. Before anything is applied,
+every answer is checked. It must hold at most twenty patches, each one the patch engine takes,
+at a canonical path, writing no amount, rate, date or identifier the model was not given
+(ADR-0022). An answer that fails goes back to the model with what is wrong, up to three a round.
+The validator's child process applies the patches, after those kept from an earlier round, and
+validates what they leave. While fatal violations remain, the model is told what became of each
+patch and asked once more: two rounds at most, within `SEF_REPAIR_SECONDS` (20).
+
+A patch that failed is not kept, since it changed nothing. One that a person decides is kept,
+for the person to see, and changes nothing either. A round that leaves more fatal violations
+than there were is not kept. A suggestion counts as a validation and as a request to the
+language model, and the audit event of the proposal adds the model and the rounds.
+
+Without the model's answers, a suggestion for a synthetic invoice takes about 40 ms through the
+child process, with one round or two (the median of eight, measured on 6 November 2026); the
+rest of the budget of 20 s is the model's.
 
 ## Jobs
 
@@ -258,10 +291,10 @@ what was counted (ADR-0018):
 | `POST /auth/refresh` and `/auth/logout` | address | 60 a minute, together |
 | `POST /auth/accept-invitation` | address | 10 a minute |
 | wrong passwords, at sign-in and when accepting an invitation | e-mail address | 10 in 15 minutes |
-| `POST /invoices/validate`, `/invoices/explain` and `POST /invoices` | caller: a member, or one API key | `SEF_VALIDATIONS_PER_MINUTE` (60) |
-| `POST /invoices/validate`, `/invoices/explain` and `POST /invoices` | organization | `SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE` (300) |
-| `POST /invoices/explain`, beside the validations | caller | `SEF_EXPLANATIONS_PER_MINUTE` (10) |
-| `POST /invoices/explain`, beside the validations | organization | `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE` (30) |
+| `POST /invoices/validate`, `/invoices/explain`, `POST /invoices`, and a repair's proposal, suggestion and approval | caller: a member, or one API key | `SEF_VALIDATIONS_PER_MINUTE` (60) |
+| the same | organization | `SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE` (300) |
+| requests to the language model, `/invoices/explain` and `/repairs/suggestion`, beside the validations | caller | `SEF_EXPLANATIONS_PER_MINUTE` (10) |
+| the same | organization | `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE` (30) |
 
 A limit allows its count at once, then one request every period divided by the count. Wrong
 passwords are counted before the next password is checked, also for addresses no account has,
@@ -360,9 +393,9 @@ is a stored passage: the model may cite only the ids retrieval gave it, and its 
 checked before it is used. An answer may name only the dates, amounts, rates and identifiers
 its question contains: the model invents none and computes none (ADR-0022).
 
-| `LLM_PROVIDER` | What explains |
+| `LLM_PROVIDER` | What explains, and proposes repairs |
 | --- | --- |
-| `none` (default) | nothing: `/invoices/explain` answers 503, and nothing leaves the server |
+| `none` (default) | nothing: `/invoices/explain` and `/repairs/suggestion` answer 503, and nothing leaves the server |
 | `groq` | with `GROQ_API_KEY`: Groq's `openai/gpt-oss-120b`, or the model `SEF_LLM_MODEL` names |
 
 The model is sent the rule's first violation (its rule, place and message, which may quote a
@@ -376,7 +409,7 @@ The answers are those of a validation, and:
 | Answer | When | Setting (default) |
 | --- | --- | --- |
 | 503 | no model is configured; answered before the body is read | `LLM_PROVIDER` |
-| 429 + `Retry-After` | the caller, or their organization, has asked for as many explanations this minute as allowed | `SEF_EXPLANATIONS_PER_MINUTE` (10), `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE` (30) |
+| 429 + `Retry-After` | the caller, or their organization, has made as many requests to the language model this minute as allowed, for explanations or a repair | `SEF_EXPLANATIONS_PER_MINUTE` (10), `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE` (30) |
 
 Without the model's answers, a request for a synthetic invoice takes 100 to 170 ms. With Groq's
 free tier and `openai/gpt-oss-120b`, the whole request for an invoice with one rule to explain
@@ -430,10 +463,12 @@ src/sef_api/
   auth/          passwords, tokens, the sign-in service, `/auth` routes, `current_principal`
   invoices/      upload limits, the validator and its child process (validating and patching),
                  stored invoices and validating them again, `/invoices` routes
-  repairs/       repairs of stored invoices: proposals and their outcomes,
-                 `/invoices/{id}/repairs` routes
+  repairs/       repairs of stored invoices: proposals and their outcomes, the repairer
+                 that has the language model propose patches, `/invoices/{id}/repairs` routes
   audit.py       the audit log's events: who did what, without the invoice's content
   bodies.py      the limit on every request body other than an invoice
+  llm.py         the language model behind an adapter (Groq), and the languages it writes in
+  values.py      the dates and numbers a model's answer names, and those it made up
   jobs/          running a job, the inline runner, the Redis queue and its worker, `/jobs`
                  routes with the event stream
   members/       members and invitations, `/members` and `/invitations` routes

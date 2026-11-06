@@ -88,6 +88,17 @@ async def test_the_conversation_is_sent_with_the_schema_the_answer_must_keep() -
     }
 
 
+async def test_a_question_may_let_the_model_write_more() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(lambda _body: completion("{}"), requests)
+
+    await client.answer(CONVERSATION, name="reply", schema=SCHEMA, max_tokens=2048)
+    await client.answer(CONVERSATION, name="reply", schema=SCHEMA)
+
+    sent = [json.loads(request.content)["max_completion_tokens"] for request in requests]
+    assert sent == [2048, GroqClient.MAX_TOKENS]
+
+
 async def test_a_model_that_does_not_reason_is_not_asked_how_hard_to() -> None:
     requests: list[httpx.Request] = []
     client = answering(lambda _body: completion("{}"), requests, model="qwen/qwen3.8-27b")
@@ -223,15 +234,17 @@ def test_the_settings_choose_the_model() -> None:
         settings_for(LLM_PROVIDER="openai")
 
 
-def test_the_limits_of_explaining_come_from_the_settings() -> None:
+def test_the_limits_of_asking_the_model_come_from_the_settings() -> None:
     settings = settings_for(
         SEF_MAX_EXPLANATIONS="3",
         SEF_EXPLANATION_SECONDS="12.5",
+        SEF_REPAIR_SECONDS="7.5",
         SEF_EXPLANATIONS_PER_MINUTE="4",
         SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE="8",
     )
 
     assert (settings.max_explanations, settings.explanation_seconds) == (3, 12.5)
+    assert (settings.repair_seconds, settings_for().repair_seconds) == (7.5, 20.0)
     assert (settings.explanations_per_minute, settings.organization_explanations_per_minute) == (
         4,
         8,
@@ -240,3 +253,5 @@ def test_the_limits_of_explaining_come_from_the_settings() -> None:
         settings_for(SEF_MAX_EXPLANATIONS="0")
     with pytest.raises(ValidationError):
         settings_for(SEF_EXPLANATION_SECONDS="0")
+    with pytest.raises(ValidationError):
+        settings_for(SEF_REPAIR_SECONDS="0")

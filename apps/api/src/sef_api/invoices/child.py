@@ -7,11 +7,12 @@ a document makes this process say may reach a log. The API learns what happened 
 outcome it sends back (:mod:`sef_api.invoices.validation`) and from its exit code.
 
 Messages on the connection: the child first sends ``("ready", "")`` or
-``("unavailable", why)``; then, for each ``(number, profile, content, max_elements, patches)``
-it receives, the number and an :data:`~sef_api.invoices.validation.Outcome`:
+``("unavailable", why)``; then, for each ``(number, profile, content, max_elements, patches,
+fields)`` it receives, the number and an :data:`~sef_api.invoices.validation.Outcome`:
 ``(number, kind, detail)``. ``patches`` is None to validate the document, or a list of patches
-as JSON to apply first. The number lets the API check that an answer is to the message it has
-just sent. The child stops when the connection closes.
+as JSON to apply first; ``fields`` asks, with patches, for the fields around the violations
+that remain. The number lets the API check that an answer is to the message it has just sent.
+The child stops when the connection closes.
 """
 
 from __future__ import annotations
@@ -40,7 +41,7 @@ def serve(connection: Connection) -> None:
         return
     while True:
         try:
-            number, profile, content, max_elements, patches = connection.recv()
+            number, profile, content, max_elements, patches, fields = connection.recv()
         except EOFError:
             return
         answer: Outcome
@@ -48,5 +49,7 @@ def serve(connection: Connection) -> None:
             answer = outcome(content, profile, max_elements=max_elements)
         else:
             listed = PATCHES.validate_json(patches)
-            answer = patched_outcome(content, profile, listed, max_elements=max_elements)
+            answer = patched_outcome(
+                content, profile, listed, max_elements=max_elements, fields=fields
+            )
         connection.send((number, *answer))

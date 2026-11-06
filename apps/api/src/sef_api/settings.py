@@ -180,8 +180,8 @@ class Settings(BaseSettings):
         default="none",
         validation_alias="LLM_PROVIDER",
         description=(
-            "The language model that writes explanations. `none`: no model, and explanations "
-            "answer 503; `groq`: Groq's API, with `GROQ_API_KEY`."
+            "The language model that writes explanations and proposes repairs. `none`: no "
+            "model, and both answer 503; `groq`: Groq's API, with `GROQ_API_KEY`."
         ),
     )
     groq_api_key: SecretStr | None = Field(
@@ -214,20 +214,29 @@ class Settings(BaseSettings):
         description="Seconds the explanations of one request may take; a rule not explained "
         "by then says so.",
     )
+    repair_seconds: float = Field(
+        default=20.0,
+        gt=0,
+        le=300,
+        validation_alias="SEF_REPAIR_SECONDS",
+        description="Seconds the language model's rounds of patches for one repair may take; "
+        "a round not done by then is not kept.",
+    )
     explanations_per_minute: int = Field(
         default=10,
         ge=1,
         le=100_000,
         validation_alias="SEF_EXPLANATIONS_PER_MINUTE",
-        description="Requests for explanations one caller may make a minute; 429 beyond.",
+        description="Requests to the language model, for explanations or a repair, one caller "
+        "may make a minute; 429 beyond.",
     )
     organization_explanations_per_minute: int = Field(
         default=30,
         ge=1,
         le=1_000_000,
         validation_alias="SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE",
-        description="Requests for explanations all the callers of one organization may make a "
-        "minute; 429 beyond.",
+        description="Requests to the language model, for explanations or a repair, all the "
+        "callers of one organization may make a minute; 429 beyond.",
     )
 
     @property

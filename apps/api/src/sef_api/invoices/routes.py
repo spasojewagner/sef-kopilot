@@ -37,9 +37,10 @@ from sef_api.invoices.validator import (
 from sef_api.jobs import store as job_store
 from sef_api.jobs.routes import JobOut, job_out
 from sef_api.jobs.runners import JobRunner
+from sef_api.llm import Language
 from sef_api.models import JobKind, StoredInvoice
 from sef_api.rag.embeddings import Embedder
-from sef_api.rag.explainer import Explainer, Explanation, Language, explain_report
+from sef_api.rag.explainer import Explainer, Explanation, explain_report
 from sef_api.rate_limits import Counted, Limit, RateLimiter, Rule, too_many
 from sef_api.settings import Settings
 
@@ -250,8 +251,8 @@ async def validate(
 _EXPLANATION_RESPONSES: dict[int | str, dict[str, Any]] = _VALIDATION_RESPONSES | {
     status.HTTP_429_TOO_MANY_REQUESTS: {
         "model": Problem,
-        "description": "Too many validations or requests for explanations by the caller, or in "
-        "their organization; try again after `Retry-After` seconds.",
+        "description": "Too many validations or requests to the language model by the caller, "
+        "or in their organization; try again after `Retry-After` seconds.",
     },
     status.HTTP_503_SERVICE_UNAVAILABLE: {
         "model": Problem,
@@ -292,7 +293,7 @@ async def explain(
             status.HTTP_503_SERVICE_UNAVAILABLE, "no language model is configured on this server"
         )
     settings = cast(Settings, request.app.state.settings)
-    _, validation = await _validated(request, session, caller, profile, explaining=True)
+    _, validation = await _validated(request, session, caller, profile, asks_model=True)
     summary = validation.summary
     day = summary.issue_date if summary is not None else datetime.now(UTC).date()
     explanations, unexplained = await explain_report(
@@ -508,10 +509,10 @@ async def delete_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Sess
         raise _not_found()
 
 
-def count_validation(request: Request, caller: Principal, *, explaining: bool = False) -> None:
-    """Count a validation, and a request for explanations if it is one, against the caller's
-    limits and their organization's, all at once; 429 beyond any. A caller is a member signed
-    in, whatever the device, or one API key."""
+def count_validation(request: Request, caller: Principal, *, asks_model: bool = False) -> None:
+    """Count a validation, and a request to the language model if it asks the model, against
+    the caller's limits and their organization's, all at once; 429 beyond any. A caller is a
+    member signed in, whatever the device, or one API key."""
     limiter = cast(RateLimiter, request.app.state.limiter)
     limits = cast(Mapping[Counted, Limit], request.app.state.limits)
     who = (
@@ -521,8 +522,8 @@ def count_validation(request: Request, caller: Principal, *, explaining: bool = 
     )
     organization = str(caller.organization_id)
     counted = [(Counted.VALIDATION, Counted.ORGANIZATION_VALIDATION)]
-    if explaining:
-        counted.append((Counted.EXPLANATION, Counted.ORGANIZATION_EXPLANATION))
+    if asks_model:
+        counted.append((Counted.MODEL_REQUEST, Counted.ORGANIZATION_MODEL_REQUEST))
     rules = [
         rule
         for each, together in counted
@@ -542,12 +543,12 @@ async def _validated(
     caller: Principal,
     profile: ProfileName,
     *,
-    explaining: bool = False,
+    asks_model: bool = False,
 ) -> tuple[bytes, Validation]:
     """The invoice in the request body and the validator's report on it with what it read, or
     the HTTP error that says why there is none."""
     # Counted before the body is read, so that nothing is read for a client held back.
-    count_validation(request, caller, explaining=explaining)
+    count_validation(request, caller, asks_model=asks_model)
     # The permission check was this request's only database work. Ending its transaction gives
     # the pooled connection back before the body is read and validated, so that neither a slow
     # upload nor a validation waiting for its turn keeps it from other requests.

@@ -19,6 +19,7 @@ from einvoice_core.patches import Patch
 from einvoice_core.pipeline import PROFILES, validate
 from einvoice_core.rulesets import ENV_VAR, RulesetNotFoundError
 from einvoice_core.schematron import SchematronError
+from einvoice_core.violations import Severity, Violation
 from sef_api.invoices import validation
 from sef_api.invoices.validation import InvoiceSummary, Patched, Validation
 
@@ -304,6 +305,53 @@ def test_a_patch_a_person_decides_leaves_the_document_and_its_report() -> None:
     patched = Patched.model_validate_json(detail)
     assert (kind, patched.changed, patched.diff) == ("patched", False, "")
     assert patched.outcomes[0].status == "needs-decision"
+
+
+def test_a_repairer_is_given_the_fields_around_the_violations_that_remain() -> None:
+    """Without patches, the invoice as it is and the fields around its fatal violations; once
+    they are fixed, none; and nobody else is sent the fields."""
+    kind, detail = validation.patched_outcome(MISTAKE, "srb", [], max_elements=BUDGET, fields=True)
+    as_it_is = Patched.model_validate_json(detail)
+    fixed = Patched.model_validate_json(
+        validation.patched_outcome(MISTAKE, "srb", [TYPE_CODE], max_elements=BUDGET, fields=True)[1]
+    )
+    plain = Patched.model_validate_json(
+        validation.patched_outcome(MISTAKE, "srb", [], max_elements=BUDGET)[1]
+    )
+
+    assert (kind, as_it_is.outcomes, as_it_is.changed) == ("patched", (), False)
+    assert [violation.rule_id for violation in as_it_is.validation.report.violations] == ["SRB-001"]
+    assert [field.path for field in as_it_is.fields] == [
+        f"/ubl:Invoice/cbc:{name}"
+        for name in (
+            "CustomizationID",
+            "ProfileID",
+            "ID",
+            "IssueDate",
+            "DueDate",
+            "InvoiceTypeCode",
+            "Note",
+            "DocumentCurrencyCode",
+            "BuyerReference",
+        )
+    ]
+    assert as_it_is.fields[5].value == "393"
+    assert (fixed.validation.report.valid, fixed.fields) == (True, ())
+    assert plain.fields == ()
+
+
+def test_a_repairer_is_shown_the_first_fatal_violations() -> None:
+    report = validate(CREDIT_NOTE, "srb")
+    fatal = Violation(
+        rule_id="BR-01", severity=Severity.FATAL, message="m", xpath=None, layer="schematron"
+    )
+    warning = fatal.model_copy(update={"rule_id": "BR-02", "severity": Severity.WARNING})
+    listed = report.model_copy(
+        update={"violations": (warning, *[fatal] * (validation.MAX_TO_REPAIR + 1), warning)}
+    )
+
+    assert validation.violations_to_repair(listed) == [fatal] * validation.MAX_TO_REPAIR
+    assert validation.violations_to_repair(report.model_copy(update={"violations": ()})) == []
 
 
 def test_a_document_that_is_not_xml_takes_no_patch() -> None:

@@ -412,7 +412,8 @@ class Repair(Base):
     ``outcomes``, with what became of it. ``changed``, ``valid``, ``report`` and ``diff`` are
     what they did, and ``patched_sha256`` is the digest of the document they left. The invoice
     does not change until a person approves the repair. A repair belongs to its invoice and is
-    deleted with it; the audit log keeps that it was proposed and decided.
+    deleted with it; the audit log keeps that it was proposed and decided. ``model`` names the
+    language model that wrote the patches, when one did (ADR-0025).
     """
 
     __tablename__ = "repairs"
@@ -460,6 +461,9 @@ class Repair(Base):
     valid: Mapped[bool]
     report: Mapped[dict[str, Any]] = mapped_column(JSONB)
     diff: Mapped[str] = mapped_column(Text)
+    #: The language model that wrote the patches, which ``proposed_by`` asked it for; None for
+    #: the patches a member or a machine client wrote.
+    model: Mapped[str | None] = mapped_column(Text)
 
 
 class AuditAction(StrEnum):

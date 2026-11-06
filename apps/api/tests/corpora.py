@@ -78,12 +78,19 @@ class ScriptedModel:
         self.answers = list(answers)
         self.asked: list[list[Message]] = []
         self.schemas: list[tuple[str, Mapping[str, Any]]] = []
+        self.most: list[int | None] = []
 
     async def answer(
-        self, messages: Sequence[Message], *, name: str, schema: Mapping[str, Any]
+        self,
+        messages: Sequence[Message],
+        *,
+        name: str,
+        schema: Mapping[str, Any],
+        max_tokens: int | None = None,
     ) -> str:
         self.asked.append(list(messages))
         self.schemas.append((name, schema))
+        self.most.append(max_tokens)
         if not self.answers:
             raise LLMError("the test gave no more answers")
         answer = self.answers.pop(0)
@@ -105,7 +112,12 @@ class QuotingModel:
         self.asked: list[tuple[str, list[Message]]] = []
 
     async def answer(
-        self, messages: Sequence[Message], *, name: str, schema: Mapping[str, Any]
+        self,
+        messages: Sequence[Message],
+        *,
+        name: str,
+        schema: Mapping[str, Any],
+        max_tokens: int | None = None,  # noqa: ARG002
     ) -> str:
         self.asked.append((name, list(messages)))
         given: list[str] = schema["properties"]["citations"]["items"]["enum"]

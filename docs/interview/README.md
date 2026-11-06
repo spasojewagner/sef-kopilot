@@ -41,3 +41,4 @@ per branch, to keep them with the code they describe.
 | `feat/repair-patch-engine` | [m3-repair-patch-engine.md](m3-repair-patch-engine.md) |
 | `feat/repair-proposals` | [m3-repair-proposals.md](m3-repair-proposals.md) |
 | `feat/repair-approval` | [m3-repair-approval.md](m3-repair-approval.md) |
+| `feat/repair-model-loop` | [m3-repair-model-loop.md](m3-repair-model-loop.md) |

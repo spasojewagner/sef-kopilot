@@ -36,6 +36,7 @@ from sef_api.rag.embeddings import Embedder, embedder_for
 from sef_api.rag.explainer import Explainer
 from sef_api.rate_limits import RateLimiter, limits
 from sef_api.repairs import routes as repairs
+from sef_api.repairs.repairer import Repairer
 from sef_api.routes import health
 from sef_api.settings import Settings
 
@@ -63,8 +64,9 @@ OPENAPI_TAGS = [
     },
     {
         "name": "repairs",
-        "description": "Repairs of stored invoices: patches applied to a copy of an invoice, "
-        "kept with what they did to it until a person decides.",
+        "description": "Repairs of stored invoices: patches, written by the caller or by the "
+        "language model, applied to a copy of an invoice and kept with what they did to it until "
+        "a person decides.",
     },
     {
         "name": "jobs",
@@ -93,10 +95,13 @@ def _runner(app: FastAPI, settings: Settings) -> JobRunner:
     return InlineRunner(run)
 
 
-def _explainer(settings: Settings) -> Explainer | None:
-    """The explainer with the language model the settings name, or None without one."""
+def _model_users(settings: Settings) -> tuple[Explainer | None, Repairer | None]:
+    """The explainer and the repairer, sharing the language model the settings name, or
+    neither without one. The explainer closes the model when the application stops."""
     llm = llm_for(settings)
-    return Explainer(llm) if llm is not None else None
+    if llm is None:
+        return None, None
+    return Explainer(llm), Repairer(llm)
 
 
 async def _resume(app: FastAPI) -> None:
@@ -167,7 +172,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.limiter = RateLimiter()
     app.state.limits = limits(settings)
     app.state.jobs = _runner(app, settings)
-    app.state.explainer = _explainer(settings)
+    app.state.explainer, app.state.repairer = _model_users(settings)
     app.state.embedder = embedder_for(settings)
     app.include_router(health.router)
     app.include_router(auth.router)

@@ -372,7 +372,7 @@ async def test_the_passages_are_read_and_committed_before_the_model_is_asked(
     seen: list[bool] = []
 
     class Watching(QuotingModel):
-        async def answer(self, messages: Any, *, name: str, schema: Any) -> str:
+        async def answer(self, messages: Any, *, name: str, schema: Any, **_: Any) -> str:
             seen.append(stored.in_transaction())
             return await super().answer(messages, name=name, schema=schema)
 
@@ -385,7 +385,7 @@ async def test_rules_not_explained_in_the_time_allowed_say_so(stored: AsyncSessi
     class Late(QuotingModel):
         """Answers the first question at once, and the second too late."""
 
-        async def answer(self, messages: Any, *, name: str, schema: Any) -> str:
+        async def answer(self, messages: Any, *, name: str, schema: Any, **_: Any) -> str:
             if self.asked:
                 await asyncio.sleep(10)
             return await super().answer(messages, name=name, schema=schema)

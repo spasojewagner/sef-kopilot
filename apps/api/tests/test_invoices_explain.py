@@ -21,6 +21,7 @@ from sef_api.main import create_app
 from sef_api.models import CorpusPassage, StoredInvoice
 from sef_api.rag.embeddings import JinaEmbedder
 from sef_api.rag.explainer import Explainer
+from sef_api.repairs.repairer import Repairer
 
 from .conftest import settings_for
 from .corpora import QuotingModel, ScriptedModel, repository_corpus, store_corpus
@@ -143,7 +144,7 @@ async def test_the_explanations_take_the_time_and_the_embedder_of_the_applicatio
     embedder = FakeEmbedder()
 
     class Late(QuotingModel):
-        async def answer(self, messages: Any, *, name: str, schema: Any) -> str:
+        async def answer(self, messages: Any, *, name: str, schema: Any, **_: Any) -> str:
             await asyncio.sleep(10)
             return await super().answer(messages, name=name, schema=schema)
 
@@ -196,7 +197,7 @@ async def test_requests_for_explanations_are_counted_and_count_as_validations(
     assert explained.status_code == 200
     assert (held.status_code, held.json(), held.headers["Retry-After"]) == (
         429,
-        {"detail": "too many requests for explanations; try again in 60 s"},
+        {"detail": "too many requests to the language model; try again in 60 s"},
         "60",
     )
     assert (validated.status_code, no_more.status_code) == (200, 429)
@@ -213,7 +214,10 @@ async def test_the_callers_of_an_organization_share_its_count_of_explanations(
 
     assert (held.status_code, held.json()) == (
         429,
-        {"detail": "too many requests for explanations in this organization; try again in 60 s"},
+        {
+            "detail": "too many requests to the language model in this organization; "
+            "try again in 60 s"
+        },
     )
 
 
@@ -271,8 +275,11 @@ async def test_the_application_explains_with_the_model_the_settings_name() -> No
 
     assert isinstance(app.state.explainer, Explainer)
     assert app.state.explainer.model == f"groq/{GroqClient.MODEL}"
+    assert isinstance(app.state.repairer, Repairer)  # with the same model, closed once
+    assert app.state.repairer.model == f"groq/{GroqClient.MODEL}"
     assert isinstance(app.state.embedder, JinaEmbedder)
-    assert create_app(settings_for()).state.explainer is None
+    without = create_app(settings_for())
+    assert (without.state.explainer, without.state.repairer) == (None, None)
 
 
 async def test_shutting_down_closes_the_model_and_the_embedder() -> None:

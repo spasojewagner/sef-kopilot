@@ -36,6 +36,20 @@ is tagged.
   only if they leave the document they left then; the invoice becomes it within the storage
   quota, and the other repairs that waited for it are superseded. Both decisions go to the
   audit log.
+- `apps/api`: the language model proposes repairs (ADR-0025).
+  `POST /invoices/{id}/repairs/suggestion` sends it the stored invoice's fatal violations and
+  the invoice's fields around them, by canonical path (`einvoice_core.fields`). Every answer is
+  checked before anything is applied: a strict schema, the patch engine's own model and path
+  grammar, and no value the model was not given. The validator's process applies the patches
+  and tells the model what became of each, for two rounds within `SEF_REPAIR_SECONDS` (20).
+  What is left is kept as a repair of the caller's, decided on like any other; the repair
+  names its model (migration 0011), and the audit event adds the model and the rounds.
+
+### Changed
+
+- `apps/api`: the limit on explanations counts every request to the language model, for
+  explanations or a repair, and a 429 says "too many requests to the language model"; its
+  settings keep their names.
 
 ### Security
 

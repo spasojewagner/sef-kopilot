@@ -32,7 +32,16 @@ from lxml import etree
 
 from einvoice_core.xml import CAC, CBC, CN, UBL
 
-__all__ = ["AMOUNT", "COMPANY_IDENTIFIER", "DATE", "NUMBER", "TAX_IDENTIFIER", "VAT", "protection"]
+__all__ = [
+    "AMOUNT",
+    "COMPANY_IDENTIFIER",
+    "DATE",
+    "NUMBER",
+    "TAX_IDENTIFIER",
+    "VAT",
+    "decided",
+    "protection",
+]
 
 AMOUNT: Final = "an amount, or what one is computed from"
 VAT: Final = "a VAT category, rate or total"
@@ -92,6 +101,14 @@ def _named(tags: Sequence[str], attribute: str | None) -> tuple[str, str] | None
     if attribute == "currencyID":
         return AMOUNT, f"@{attribute}"
     return None
+
+
+def decided(tags: Sequence[str], attribute: str | None = None) -> str | None:
+    """The kind of field a person decides the place is, whose elements from the root are
+    ``tags`` (in Clark notation), with ``attribute`` if the place is one: :data:`AMOUNT`,
+    :data:`VAT` and the others, or ``None`` when a patch may change it."""
+    named = _named(tags, attribute)
+    return None if named is None else named[0]
 
 
 def protection(

@@ -315,11 +315,16 @@ class Holding:
         return await self.real.validate(content, profile)
 
     async def patch(
-        self, content: bytes, profile: ProfileName, patches: Sequence[Patch]
+        self,
+        content: bytes,
+        profile: ProfileName,
+        patches: Sequence[Patch],
+        *,
+        fields: bool = False,
     ) -> Patched:
         self.entered.set()
         await self.release.wait()
-        return await self.real.patch(content, profile, patches)
+        return await self.real.patch(content, profile, patches, fields=fields)
 
     async def stop(self) -> None:
         await self.real.stop()
