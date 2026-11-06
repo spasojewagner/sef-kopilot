@@ -4,26 +4,28 @@ log without the invoice's content (ADR-0024)."""
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from einvoice_core.patches import Patch
 from sef_api.auth.dependencies import Principal
 from sef_api.auth.permissions import Permission
 from sef_api.db import get_session
-from sef_api.invoices.validation import Patched, patched_outcome
+from sef_api.invoices.validation import Patched, ProfileName, Validation, patched_outcome
+from sef_api.invoices.validator import ThreadValidator, Validator
 from sef_api.main import create_app
-from sef_api.models import AuditEvent, Repair, Role, StoredInvoice
+from sef_api.models import ApiKey, AuditEvent, Membership, Repair, Role, StoredInvoice
 from sef_api.repairs import store
 
 from .conftest import REPOSITORY_ROOT, settings_for
@@ -295,9 +297,40 @@ async def test_a_repair_of_another_invoice_is_not_found_through_this_one(
     assert (found.status_code, found.json()) == (404, {"detail": "no such repair of this invoice"})
 
 
+class Holding:
+    """The test's validator, which holds each patch until it is let go."""
+
+    problem = None
+
+    def __init__(self) -> None:
+        self.real = ThreadValidator(max_elements=20_000)
+        self.entered = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def start(self) -> None:
+        pass
+
+    async def validate(self, content: bytes, profile: ProfileName) -> Validation:
+        return await self.real.validate(content, profile)
+
+    async def patch(
+        self, content: bytes, profile: ProfileName, patches: Sequence[Patch]
+    ) -> Patched:
+        self.entered.set()
+        await self.release.wait()
+        return await self.real.patch(content, profile, patches)
+
+    async def stop(self) -> None:
+        await self.real.stop()
+
+
 @asynccontextmanager
-async def serving(session: AsyncSession, **variables: str) -> AsyncIterator[AsyncClient]:
+async def serving(
+    session: AsyncSession, validator: Validator | None = None, **variables: str
+) -> AsyncIterator[AsyncClient]:
     app = create_app(settings_for(**variables))
+    if validator is not None:
+        app.state.validator = validator
 
     async def the_test_session() -> AsyncIterator[AsyncSession]:
         yield session
@@ -388,3 +421,47 @@ async def test_what_happened_while_the_patches_were_applied_is_answered(
     )
 
     assert (answer.status_code, answer.json()) == (status, {"detail": detail})
+
+
+async def test_a_member_removed_while_the_patches_are_applied_keeps_no_repair(
+    session: AsyncSession, primer: Office
+) -> None:
+    """Applying the patches outlasts the permission check's transaction, so the membership is
+    checked again where the repair is kept."""
+    invoice = await kept(session, primer)
+    holding = Holding()
+
+    async with serving(session, holding) as api:
+        proposing = asyncio.create_task(
+            api.post(path(invoice), json={"patches": [TYPE_CODE]}, headers=primer.as_client())
+        )
+        await asyncio.wait_for(holding.entered.wait(), 5)
+        await session.execute(delete(Membership).where(Membership.user_id == primer.client.id))
+        holding.release.set()
+        response = await proposing
+
+    assert response.status_code == 401
+    assert await session.scalar(select(Repair.id)) is None
+    assert await events(session) == []
+
+
+async def test_a_key_revoked_while_the_patches_are_applied_keeps_no_repair(
+    session: AsyncSession, primer: Office
+) -> None:
+    invoice = await kept(session, primer)
+    key = await api_key(session, primer.organization, primer.client, Permission.INVOICES_SUBMIT)
+    holding = Holding()
+
+    async with serving(session, holding) as api:
+        proposing = asyncio.create_task(
+            api.post(path(invoice), json={"patches": [TYPE_CODE]}, headers=key.header())
+        )
+        await asyncio.wait_for(holding.entered.wait(), 5)
+        await session.execute(
+            update(ApiKey).where(ApiKey.id == key.row.id).values(revoked_at=func.now())
+        )
+        holding.release.set()
+        response = await proposing
+
+    assert response.status_code == 401
+    assert await session.scalar(select(Repair.id)) is None

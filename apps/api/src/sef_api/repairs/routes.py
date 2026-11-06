@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from einvoice_core.patches import MAX_PATCHES, Outcome, Patch
 from einvoice_core.pipeline import ValidationReport
-from sef_api.auth.dependencies import Principal, require
+from sef_api.auth.dependencies import Principal, check_again, require
 from sef_api.auth.permissions import Permission
 from sef_api.auth.routes import Problem
 from sef_api.db import get_session
@@ -199,6 +199,9 @@ async def propose_repair(
     refuse_when_busy(request)
     with judged(request) as validator:
         patched = await validator.patch(content, profile, proposal.patches)
+    # Applying the patches outlasts the transaction in which the permission was checked: a
+    # member removed meanwhile, or a key revoked, keeps no repair.
+    await check_again(session, caller, Permission.INVOICES_SUBMIT)
     try:
         repair = await store.propose(
             session, caller, invoice_id=invoice_id, based_on=based_on, patched=patched
