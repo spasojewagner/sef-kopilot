@@ -175,5 +175,58 @@
       "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
       "failed": "Objašnjenja nisu napisana. Pokušajte ponovo malo kasnije."
     }
+  },
+  "repairs": {
+    "states": {
+      "proposed": "Čeka odluku",
+      "approved": "Odobrena",
+      "rejected": "Odbijena",
+      "superseded": "Zastarela"
+    },
+    "who": {
+      "you": "vi",
+      "member": "drugi član",
+      "former": "bivši član",
+      "key": "API ključ"
+    },
+    "withModel": "{who}, uz jezički model {model}"
+  },
+  "repair": {
+    "title": "Popravka",
+    "loading": "Učitavanje popravke…",
+    "notFound": "Ova popravka ne postoji, ili faktura nije vaša.",
+    "notLoaded": "Popravka nije učitana. Pokušajte ponovo malo kasnije.",
+    "back": "Nazad na izveštaj",
+    "heading": "Popravka od {when}",
+    "proposedBy": "Predložio",
+    "decidedBy": {
+      "approved": "Odobrio",
+      "rejected": "Odbio"
+    },
+    "decision": "{who}, {when}",
+    "superseded": "Zastarela",
+    "supersededAt": "{when}, kad je odobrena druga popravka",
+    "unchanged": "Ove izmene ne menjaju fakturu.",
+    "patches": "Izmene",
+    "ops": {
+      "replace": "zameni",
+      "add": "dodaj",
+      "remove": "ukloni"
+    },
+    "outcomes": {
+      "applied": "Primenjena",
+      "needs-decision": "Čeka odluku čoveka",
+      "failed": "Nije primenjena"
+    },
+    "needsDecision": "Izmena iznosa, PDV-a, poreskog ili matičnog broja, datuma ili broja dokumenta ne primenjuje se sama: o njoj odlučuje čovek.",
+    "change": "{before} → {after}",
+    "nothing": "ništa",
+    "proposedValue": "Predložena vrednost: {value}",
+    "reason": "Razlog",
+    "diff": "Razlika u fakturi",
+    "gap": "Ovde su izostavljeni redovi koji se ne menjaju.",
+    "added": "dodato",
+    "removed": "uklonjeno",
+    "reportAfter": "Izveštaj posle izmena"
   }
 }

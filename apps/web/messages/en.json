@@ -175,5 +175,58 @@
       "unreachable": "The API does not answer. Try again a little later.",
       "failed": "The explanations were not written. Try again a little later."
     }
+  },
+  "repairs": {
+    "states": {
+      "proposed": "Awaiting a decision",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "superseded": "Superseded"
+    },
+    "who": {
+      "you": "you",
+      "member": "another member",
+      "former": "a former member",
+      "key": "an API key"
+    },
+    "withModel": "{who}, with the language model {model}"
+  },
+  "repair": {
+    "title": "Repair",
+    "loading": "Loading the repair…",
+    "notFound": "This repair does not exist, or the invoice is not yours.",
+    "notLoaded": "The repair did not load. Try again a little later.",
+    "back": "Back to the report",
+    "heading": "Repair of {when}",
+    "proposedBy": "Proposed by",
+    "decidedBy": {
+      "approved": "Approved by",
+      "rejected": "Rejected by"
+    },
+    "decision": "{who}, {when}",
+    "superseded": "Superseded",
+    "supersededAt": "{when}, when another repair was approved",
+    "unchanged": "These changes do not change the invoice.",
+    "patches": "Changes",
+    "ops": {
+      "replace": "replace",
+      "add": "add",
+      "remove": "remove"
+    },
+    "outcomes": {
+      "applied": "Applied",
+      "needs-decision": "Awaiting a person's decision",
+      "failed": "Not applied"
+    },
+    "needsDecision": "A change to an amount, VAT, a tax or company identifier, a date or the document's number is never applied by itself: a person decides on it.",
+    "change": "{before} → {after}",
+    "nothing": "nothing",
+    "proposedValue": "Proposed value: {value}",
+    "reason": "Reason",
+    "diff": "Difference in the invoice",
+    "gap": "Lines that do not change are left out here.",
+    "added": "added",
+    "removed": "removed",
+    "reportAfter": "Report after the changes"
   }
 }
