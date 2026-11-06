@@ -7,6 +7,10 @@
     "home": "SEF Kopilot",
     "language": "Jezik"
   },
+  "account": {
+    "signIn": "Prijava",
+    "signOut": "Odjava"
+  },
   "home": {
     "status": "pre-alpha",
     "title": "SEF Kopilot",
@@ -24,5 +28,39 @@
   "notFound": {
     "title": "Ova stranica ne postoji",
     "home": "Na početnu stranu"
+  },
+  "signIn": {
+    "title": "Prijava",
+    "description": "Prijavite se adresom e-pošte i lozinkom svog naloga.",
+    "email": "Adresa e-pošte",
+    "password": "Lozinka",
+    "submit": "Prijavi se",
+    "pending": "Prijavljivanje…",
+    "chooseOrganization": "Član ste više organizacija. U koju se prijavljujete?",
+    "noAccount": "Nemate nalog?",
+    "register": "Registrujte se",
+    "signedIn": "Prijavljeni ste kao {email}.",
+    "home": "Na početnu stranu"
+  },
+  "register": {
+    "title": "Registracija",
+    "description": "Nalog dobija i svoju organizaciju, čiji ste vlasnik.",
+    "email": "Adresa e-pošte",
+    "password": "Lozinka",
+    "passwordHint": "Od {min} do {max} znakova.",
+    "organization": "Naziv organizacije",
+    "submit": "Napravi nalog",
+    "pending": "Pravljenje naloga…",
+    "haveAccount": "Već imate nalog?",
+    "signIn": "Prijavite se"
+  },
+  "authErrors": {
+    "wrongCredentials": "Adresa ili lozinka nije tačna.",
+    "notAMember": "Niste član te organizacije.",
+    "emailTaken": "Za ovu adresu već postoji nalog.",
+    "invalid": "Proverite unete podatke.",
+    "tooMany": "Previše pokušaja. Pokušajte ponovo za {seconds} s.",
+    "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
+    "failed": "Nije uspelo. Pokušajte ponovo."
   }
 }

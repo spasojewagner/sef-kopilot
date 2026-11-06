@@ -1162,3 +1162,39 @@ at the last) and production build.
 
 Next: `feat/web-upload-report`, stacked on this branch: upload, the report, a violation's
 detail with its citations.
+
+## 2026-11-06 — `feat/web-sign-in` (3 commits, stacked on `feat/web-bootstrap`)
+
+Outcome: a visitor registers, signs in and signs out (ADR-0027). Registration creates the
+account with its organization; a member of several organizations chooses one at sign-in; an
+error is said in the visitor's language, with the seconds to wait after too many attempts. The
+access token stays in the tab's memory, and the refresh token with whose it is in local
+storage, so that a reload or another tab stays signed in. The tabs take turns to refresh with
+the Web Locks API, because the API's strict rotation ends a session whose spent token comes
+back. The header shows who is signed in, as `GET /auth/me` confirms it, and signing out, here or
+in another tab, forgets the visitor's cached answers.
+
+Findings:
+
+- Every endpoint of invoices needs a token, so `feat/web-upload-report` was split: sign-in first,
+  and the upload and the report next, on top of it.
+- With strict rotation, two tabs that refresh at the same moment would end the session. Each
+  refresh runs under a lock and reads the token only once it holds it; requests of one tab share
+  one refresh. Against the real API, two tabs reloaded at the same moment refreshed one after
+  the other, and the session survived.
+- A tab learns from the `storage` event that another signed out or that another visitor signed
+  in. Which visitor a tab's access token belongs to has to be kept with it: comparing the
+  session the tab last rendered missed a sign-in that had not been rendered yet.
+- Next.js puts a route announcer with `role="alert"` on every page, so a browser test that looks
+  for the form's error by its role finds the announcer first.
+- Seeding faults: twenty-nine seeded in the session, the keys of the cache, the forgetting, the
+  header, the forms and the messages of errors; all twenty-nine caught.
+- End to end against the API: registration, the session kept across a reload and two tabs,
+  sign-out in one tab reaching the other, a wrong password refused in Serbian, an address already
+  taken in English. Local storage held no access token.
+
+Verification: each of the three commits on its own, the web application's lint, types, tests (62
+at the first, 80 at the last) and production build; the Python suites (2 698 tests) at the last.
+
+Next: `feat/web-upload-report`, stacked on this branch: upload an invoice, read its report, and a
+violation's detail with its explanation and citations.

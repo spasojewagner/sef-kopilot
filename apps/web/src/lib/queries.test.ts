@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
-import { healthQuery } from "./queries";
+import { healthQuery, isAboutTheApi, meQuery } from "./queries";
 
 describe("The question of the API's health", () => {
   it("is asked of /health and kept under its key", async () => {
@@ -45,5 +45,12 @@ describe("The question of the API's health", () => {
     await asked;
 
     expect(fetch.mock.calls[0][1]?.signal?.aborted).toBe(true);
+  });
+});
+
+describe("The keys of the answers", () => {
+  it("say which answers are the same for every visitor, and which are a visitor's", () => {
+    expect(isAboutTheApi(healthQuery.queryKey)).toBe(true);
+    expect(isAboutTheApi(meQuery.queryKey)).toBe(false);
   });
 });

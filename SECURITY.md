@@ -114,9 +114,10 @@ system are marked as such.
 
 - [ ] Content Security Policy, `X-Content-Type-Options`, `Referrer-Policy` and
       `Permissions-Policy` headers set by the web app and the API.
-- [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`. The web application sets none so
-      far: the language is in the path (`localeCookie: false`), and where a signed-in visitor's
-      tokens are kept is decided with the first page that signs in (ADR-0026).
+- [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`. The web application sets none:
+      the language is in the path (`localeCookie: false`), and the tokens are kept as ADR-0027
+      says. A Content-Security-Policy, which bounds what a script injected into the page could
+      do with the refresh token in local storage, comes with the hosting (`chore/infra-deploy`).
 
 ### V4 API and web service
 
@@ -162,6 +163,10 @@ system are marked as such.
 - [x] Logout invalidates refresh tokens.
 - [x] The tokens of one session are locked in one order, so a sign-out or a replay during a
       refresh also revokes the token it issued.
+- [x] In the browser (ADR-0027) the access token stays in the tab's memory and is never stored;
+      the refresh token is in local storage, and the tabs refresh one at a time (Web Locks), so
+      that rotation never ends a session by mistake. Signing out forgets the session at once,
+      then revokes it, and the visitor's cached answers are forgotten with it.
 
 ### V8 Authorization
 

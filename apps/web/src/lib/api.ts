@@ -19,17 +19,40 @@ export function apiUrl(path: string): string {
   return `${base.replace(/\/+$/, "")}${path}`;
 }
 
-/** The API answered, but with an error: its status and the reason it gave. */
+/**
+ * The API answered, but with an error: its status, the reason it gave, the whole body for an
+ * error that says more (the organizations to choose from, say), and for a 429 the seconds to
+ * wait before trying again.
+ */
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;
+  readonly body: unknown;
+  readonly retryAfter: number | null;
 
-  constructor(status: number, detail: string) {
+  constructor(
+    status: number,
+    detail: string,
+    {
+      body = null,
+      retryAfter = null,
+    }: { body?: unknown; retryAfter?: number | null } = {},
+  ) {
     super(`The API answered ${status}: ${detail}`);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
+    this.body = body;
+    this.retryAfter = retryAfter;
   }
+}
+
+/** The seconds of a `Retry-After` header, which the API gives as a whole number. */
+function secondsOf(header: string | null): number | null {
+  if (header === null || !/^\d+$/.test(header.trim())) {
+    return null;
+  }
+  return Number(header.trim());
 }
 
 /**
@@ -67,7 +90,7 @@ async function bodyOf(response: Response): Promise<unknown> {
 }
 
 /**
- * The API's JSON answer to a request for `path`.
+ * The API's JSON answer to a request for `path`, or nothing for a 204.
  *
  * Throws an {@link ApiError} when the API answers with an error, and the browser's own error
  * when it cannot reach the API, may not read its answer, or gives up after
@@ -100,11 +123,16 @@ export async function request<T>(
       signal: controller.signal,
     });
     if (!response.ok) {
-      const reason = reasonOf(await bodyOf(response));
+      const body = await bodyOf(response);
       throw new ApiError(
         response.status,
-        reason ?? (response.statusText || `HTTP ${response.status}`),
+        reasonOf(body) ?? (response.statusText || `HTTP ${response.status}`),
+        { body, retryAfter: secondsOf(response.headers.get("Retry-After")) },
       );
+    }
+    if (response.status === 204) {
+      // No content: a sign-out, a deletion.
+      return undefined as T;
     }
     return (await response.json()) as T;
   } finally {

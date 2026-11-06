@@ -132,6 +132,39 @@ describe("A request to the API", () => {
     });
   });
 
+  it("keeps an error's body, and the seconds Retry-After asks to wait", async () => {
+    stubFetch(
+      () =>
+        new Response(JSON.stringify({ detail: "too many requests" }), {
+          status: 429,
+          headers: { "Content-Type": "application/json", "Retry-After": "42" },
+        }),
+    );
+    await expect(request("/auth/login")).rejects.toMatchObject({
+      status: 429,
+      body: { detail: "too many requests" },
+      retryAfter: 42,
+    });
+
+    stubFetch(
+      () =>
+        new Response(null, {
+          status: 503,
+          headers: { "Retry-After": "Fri, 06 Nov 2026 18:00:00 GMT" },
+        }),
+    );
+    await expect(request("/health")).rejects.toMatchObject({
+      body: null,
+      retryAfter: null,
+    });
+  });
+
+  it("reads no body from an answer that has none", async () => {
+    stubFetch(() => new Response(null, { status: 204 }));
+
+    await expect(request("/auth/logout")).resolves.toBeUndefined();
+  });
+
   it("lets the browser's error through when the API cannot be reached", async () => {
     stubFetch(() => Promise.reject(new TypeError("Failed to fetch")));
 
