@@ -78,3 +78,11 @@ export function stubApi(
   );
   return asked;
 }
+
+/**
+ * The moment a page takes to send a request it is about to send: a test that a page asks
+ * nothing waits for it before it looks.
+ */
+export function aMoment(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}

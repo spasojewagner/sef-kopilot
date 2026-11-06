@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { invoiceQuery } from "@/lib/queries";
-import { json, keepSession, stubApi } from "@/test/api";
+import { aMoment, json, keepSession, stubApi } from "@/test/api";
 import { storedInvoice } from "@/test/invoices";
 import { renderIn, testQueryClient } from "@/test/render";
 
@@ -186,13 +186,14 @@ describe("Invoice report", () => {
     expect(container.querySelector("img")).toBeNull();
   });
 
-  it("shows the report the upload brought without asking again", () => {
+  it("shows the report the upload brought without asking again", async () => {
     keepSession();
     const asked = stubApi(() => json(500, {}));
     const client = testQueryClient();
     client.setQueryData(invoiceQuery(ID).queryKey, storedInvoice());
 
     renderIn("sr-Latn", <InvoiceReport id={ID} />, client);
+    await aMoment();
 
     expect(
       screen.getByRole("heading", { level: 1, name: "F-2026-0042" }),
