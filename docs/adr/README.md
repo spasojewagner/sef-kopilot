@@ -31,5 +31,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0023](0023-patches-and-the-fields-a-person-decides.md) | Patches: canonical places, the schema's order, and the fields a person decides | accepted | 2026-11-06 |
 | [0024](0024-repairs-of-stored-invoices-and-the-audit-log.md) | Repairs of stored invoices: proposed by anyone, decided by a person, and audited | accepted | 2026-11-06 |
 | [0025](0025-repairs-the-model-proposes.md) | Repairs the model proposes: the fields around the violations, checked patches, two rounds | accepted | 2026-11-06 |
+| [0026](0026-the-web-application-shell.md) | The web application: the language in the path, shadcn/ui in the repository, the browser calling the API | accepted | 2026-11-06 |
 
 Planned (recorded when the work lands): OAuth 2.1 for MCP (M4), evaluation thresholds (M6).

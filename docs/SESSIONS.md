@@ -1114,3 +1114,51 @@ tests at the first and 2 681 at the last; the fields, the repairer and the repai
 
 Next: `feat/web-bootstrap`, the Next.js application's shell: shadcn/ui, TanStack Query and
 `next-intl` with Serbian (Latin) first.
+
+## 2026-11-06 — `feat/web-bootstrap` (6 commits)
+
+Outcome: the web application has its shell (ADR-0026). Every page is in Serbian (Latin) and in
+English, with the language as the first segment of its path, and is rendered once per language
+when the application is built; a path without a language goes to the one the browser asks for,
+or to Serbian, and no cookie is set. A header leads home and to the page in the other language,
+and a footer carries the notice that the project is not a certified validator and whether the
+API answers, with its version. The components are shadcn/ui's (style `new-york`, on Radix), in
+the repository; dark mode follows the operating system; the pages ask the API through TanStack
+Query. The API answers CORS for the web application's origins (`SEF_WEB_ORIGINS`).
+
+Findings:
+
+- pnpm 12 ignores `ignoredBuiltDependencies`, and an install that meets an install script
+  nobody ruled on fails. The rules moved to `allowBuilds`, with none allowed to run.
+- With `next/root-params` (Next.js 16.3 and later) the root layout reads the language itself,
+  and `next-intl` needs no `setRequestLocale`. Under Cache Components a catch-all route that
+  renders the localized 404 needs `instant = false`, and `next dev` writes an `AGENTS.md` of
+  its own into the application unless `agentRules` is `false`.
+- `Intl` writes dates in Cyrillic for `sr` alone; the tag is `sr-Latn`.
+- The shadcn CLI could not reach its registry from the build environment. The button and the
+  badge were copied from the registry's source at the tag `shadcn@4.23.0`, as its manual
+  installation describes, and `components.json` validates against the CLI's own schema. Since
+  4.x the registry imports `cn` from the `cn` package, and `shadcn/tailwind.css` comes with the
+  CLI, which is therefore a development dependency.
+- The CLI adds a class-based `dark` variant to a stylesheet that declares none, so the media
+  query is declared explicitly.
+- Safari has `AbortSignal.any` only since 17.4; the client's timeout uses a controller of its
+  own.
+- An unexpected failure (500) leaves the API without CORS headers, because Starlette answers it
+  outside every middleware: a page sees a network error. Recorded in the backlog.
+- Once, a production build kept the previous stylesheet after the dependencies changed; a build
+  from an empty `.next` was right, and the sequence did not happen again.
+- Seeding faults: thirty-eight seeded, twenty-seven in the web application (the client, the
+  retries, the status, the messages, the navigation, the home page) and eleven in the API's
+  CORS and its origins. Thirty-six were caught at first. The other two, a query that does not
+  pass its signal on and the tests' stub of `fetch`, were caught by tests added for them.
+- End to end, with a browser against a running API: the footer gives the version; with the API
+  stopped it says "API ne odgovara" after one more try, and the same when the page's origin is
+  not allowed.
+
+Verification: each of the six commits on its own, the Python suites with PostgreSQL and Redis
+(2 698 tests from the first) and the web application's lint, types, tests (2 at the first, 37
+at the last) and production build.
+
+Next: `feat/web-upload-report`, stacked on this branch: upload, the report, a violation's
+detail with its citations.

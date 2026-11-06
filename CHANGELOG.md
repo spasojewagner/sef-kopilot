@@ -44,12 +44,28 @@ is tagged.
   and tells the model what became of each, for two rounds within `SEF_REPAIR_SECONDS` (20).
   What is left is kept as a repair of the caller's, decided on like any other; the repair
   names its model (migration 0011), and the audit event adds the model and the rounds.
+- `apps/api`: the pages of the web application's origins may call the API from a browser
+  (CORS, `SEF_WEB_ORIGINS`: none by default, `https://` only in production). They may send a
+  token, a JSON body and where an event stream stopped, and read `Location` and `Retry-After`,
+  an error's included; no credentials are allowed.
+- `apps/web`: the application's shell (ADR-0026). Every page is in Serbian (Latin) and English,
+  with the language first in its path (`/sr-Latn/…`, `/en/…`) and rendered once per language at
+  build time; a path without a language goes to the one the browser asks for, or to Serbian,
+  and no cookie is set. A header leads home and to the page in the other language; a footer
+  says that the project is not a certified validator, and whether the API answers, with its
+  version. The components are shadcn/ui's (style `new-york`, on Radix), in the repository, and
+  dark mode follows the operating system. The pages ask the API through TanStack Query, with a
+  client that gives up after 10 s and names the API's reason for an error.
 
 ### Changed
 
 - `apps/api`: the limit on explanations counts every request to the language model, for
   explanations or a repair, and a 429 says "too many requests to the language model"; its
   settings keep their names.
+- `pnpm-workspace.yaml` rules on every install script of a dependency in `allowBuilds`, which
+  pnpm 11 and later read instead of `ignoredBuiltDependencies`; none runs.
+- `NEXT_PUBLIC_API_URL` moves from the root `.env.example` to `apps/web/.env.example`, because
+  Next.js reads a web application's variables from its own directory.
 
 ### Security
 

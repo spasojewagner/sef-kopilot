@@ -26,5 +26,7 @@ just used. New notes are added in the pull request that introduces the concept.
 | 18 | [Patches at canonical paths: where a change goes, and why order matters](18-patches-at-canonical-paths.md) | M3 |
 | 19 | [Audit logs: who did what, without what it said](19-audit-logs-without-content.md) | M3 |
 | 20 | [A loop around an untrusted model: copy, check, apply, tell](20-a-loop-around-an-untrusted-model.md) | M3 |
+| 21 | [CORS: which pages may read the API's answers](21-cors.md) | M3 |
+| 22 | [Server and client components: what runs where](22-server-and-client-components.md) | M3 |
 
 Planned: OAuth 2.1 flows for MCP.

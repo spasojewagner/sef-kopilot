@@ -42,3 +42,4 @@ per branch, to keep them with the code they describe.
 | `feat/repair-proposals` | [m3-repair-proposals.md](m3-repair-proposals.md) |
 | `feat/repair-approval` | [m3-repair-approval.md](m3-repair-approval.md) |
 | `feat/repair-model-loop` | [m3-repair-model-loop.md](m3-repair-model-loop.md) |
+| `feat/web-bootstrap` | [m3-web-bootstrap.md](m3-web-bootstrap.md) |

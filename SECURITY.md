@@ -114,7 +114,9 @@ system are marked as such.
 
 - [ ] Content Security Policy, `X-Content-Type-Options`, `Referrer-Policy` and
       `Permissions-Policy` headers set by the web app and the API.
-- [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`.
+- [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`. The web application sets none so
+      far: the language is in the path (`localeCookie: false`), and where a signed-in visitor's
+      tokens are kept is decided with the first page that signs in (ADR-0026).
 
 ### V4 API and web service
 
