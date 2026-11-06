@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Final, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, Field
@@ -509,10 +509,21 @@ async def delete_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Sess
         raise _not_found()
 
 
+#: A kind of request, as the caller's limit and their organization's count it.
+Kind = tuple[Counted, Counted]
+VALIDATION: Final[Kind] = (Counted.VALIDATION, Counted.ORGANIZATION_VALIDATION)
+MODEL_REQUEST: Final[Kind] = (Counted.MODEL_REQUEST, Counted.ORGANIZATION_MODEL_REQUEST)
+
+
 def count_validation(request: Request, caller: Principal, *, asks_model: bool = False) -> None:
-    """Count a validation, and a request to the language model if it asks the model, against
-    the caller's limits and their organization's, all at once; 429 beyond any. A caller is a
-    member signed in, whatever the device, or one API key."""
+    """Count a validation, and a request to the language model if it asks the model."""
+    count(request, caller, VALIDATION, *((MODEL_REQUEST,) if asks_model else ()))
+
+
+def count(request: Request, caller: Principal, *kinds: Kind) -> None:
+    """Count a request of each kind against the caller's limit of that kind and their
+    organization's, all at once; 429 beyond any. A caller is a member signed in, whatever the
+    device, or one API key."""
     limiter = cast(RateLimiter, request.app.state.limiter)
     limits = cast(Mapping[Counted, Limit], request.app.state.limits)
     who = (
@@ -521,12 +532,9 @@ def count_validation(request: Request, caller: Principal, *, asks_model: bool = 
         else f"member {caller.organization_id} {caller.user_id}"
     )
     organization = str(caller.organization_id)
-    counted = [(Counted.VALIDATION, Counted.ORGANIZATION_VALIDATION)]
-    if asks_model:
-        counted.append((Counted.MODEL_REQUEST, Counted.ORGANIZATION_MODEL_REQUEST))
     rules = [
         rule
-        for each, together in counted
+        for each, together in kinds
         for rule in (
             Rule(each, who, limits[each]),
             Rule(together, organization, limits[together]),
