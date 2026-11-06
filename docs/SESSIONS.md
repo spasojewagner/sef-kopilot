@@ -1076,3 +1076,41 @@ tests at the first and 2 602 at the last; the repairs' routes and store at 100 %
 
 Next: `feat/repair-model-loop`, the model proposing patches for a report's violations through
 the same repairs.
+
+## 2026-11-06 — `feat/repair-model-loop` (8 commits)
+
+Outcome: the brief's layer 3 is whole (ADR-0025). `POST /invoices/{id}/repairs/suggestion` has
+the language model propose patches for a stored invoice's fatal violations. The model is sent
+the violations and the invoice's fields around them, by canonical path (`einvoice_core.fields`),
+and nothing else of the invoice. Every answer is checked before anything is applied: a strict
+schema, the patch engine's own model and path grammar, and no value the model was not given.
+The validator's process applies the patches and tells the model what became of each, for two
+rounds within 20 s. What is left is kept as a repair of the caller's, which a person decides on
+like any other; the repair names its model, and the audit event adds the model and the rounds.
+
+Findings:
+
+- The API never parses an invoice it holds, so the fields come from the validator's process: a
+  request to apply patches may ask for the fields around the violations that remain.
+- Held to the question alone, the check of values would refuse a reason that names the standards
+  (EN 16931 has five digits, UBL 2.1 a decimal). The model's prompt is part of what it was sent.
+- A repair needs more tokens than an explanation, about a hundred a patch, so a question may now
+  let the model write 2 048 instead of 1 024.
+- A patch that fails changes nothing, so it can be dropped from a repair without changing its
+  document, difference or report. Each round applies every patch kept so far to the invoice as
+  stored, so that approval can apply the repair again to the document it was proposed for.
+- A round that the validator's process could not apply, because it was busy, would have thrown
+  away the repair an earlier round kept, after the model's work; it now leaves that repair.
+- Seeding faults: thirty-seven seeded across the fields, the child's message, the repairer and
+  the route. Thirty-six were caught at first. The thirty-seventh, a walk into elements of
+  another namespace inside an aggregate, was caught by a test added for it.
+- Without the model's answers, a suggestion for a synthetic invoice takes about 40 ms through
+  the child process, with one round or two (median of eight); the rest of the 20 s is the
+  model's. The live timing with Groq is the maintainer's to take (the PR's How to test).
+
+Verification: each of the eight commits on its own green with PostgreSQL and Redis, 2 602
+tests at the first and 2 681 at the last; the fields, the repairer and the repairs' store at
+100 % coverage.
+
+Next: `feat/web-bootstrap`, the Next.js application's shell: shadcn/ui, TanStack Query and
+`next-intl` with Serbian (Latin) first.

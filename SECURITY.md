@@ -42,7 +42,9 @@ The project is pre-alpha. Only the `main` branch and the latest tagged release r
    re-validated by layer 1. An explanation may cite only the passages retrieval found, and is
    checked before it is used. A patch is applied by code at a path read by a grammar, never
    evaluated; one that touches an amount, VAT, a tax or company identifier, a date or the
-   document's number is refused as needing a person's decision.
+   document's number is refused as needing a person's decision. A patch the model writes is
+   checked before it is applied, names no value the model was not given, and waits for a
+   person's approval like any other.
 5. Multi-tenancy is enforced in the service layer on every query (`organization_id`) and
    covered by tests.
 6. Dependencies are audited in CI (`pip-audit`, `pnpm audit`); secrets are scanned with
@@ -51,9 +53,12 @@ The project is pre-alpha. Only the `main` branch and the latest tagged release r
    deployment makes no external calls except the LLM provider the operator chooses. Embedding
    the corpus is off by default (`EMBEDDINGS_PROVIDER=none`), and what an embedder is sent is
    public text: the official documents and what the rules of a report say, never an
-   organization's data. Explaining is off by default too (`LLM_PROVIDER=none`); the model is
-   sent the first violation of each rule a report names, whose message may quote a value of
-   the invoice, and public passages, and nothing else of the invoice.
+   organization's data. Explaining and the model's repairs are off by default too
+   (`LLM_PROVIDER=none`). To explain, the model is sent the first violation of each rule a
+   report names, whose message may quote a value of the invoice, and public passages. To
+   propose a repair, it is sent the first ten fatal violations and the invoice's fields
+   around them, by canonical path and value: the aggregates the violations are in, never the
+   whole invoice, never the extensions (ADR-0025).
 
 ## OWASP ASVS 5.0 — Level 1 checklist
 
@@ -231,7 +236,8 @@ system are marked as such.
 - [x] No-store mode: `POST /invoices/validate` and `POST /invoices/explain` keep the invoice
       in memory for the length of the request, and tests check that they leave no row behind.
       Explaining logs the rules, the model and the number of answers, never a message (tested
-      with a message that quotes the invoice).
+      with a message that quotes the invoice); so does a repair the model proposes, which logs
+      the number of patches, rounds and answers, never a field, a value or a reason (tested).
 - [x] Responses that carry invoice data send `Cache-Control: no-store`: the validation report,
       the explanations, every answer about a stored invoice, and every job and its event
       stream, each checked by a test.
@@ -250,7 +256,9 @@ system are marked as such.
       about violations a client sends; its answer is parsed against a schema, its citations
       checked, its values held to those of its question (ADR-0022), and the response built
       from stored passages, not from what the model wrote about them. The violation and the passages are sent as data the model is told not to
-      follow. Repairs (M3) follow.
+      follow. The repairer's patches are parsed against a schema and the patch engine's own
+      model and path grammar, their values held to what the model was sent, and applied by the
+      validator's process to a copy that layer 1 judges; a person approves them (ADR-0025).
 - [ ] Static typing (`mypy --strict`), linting and tests gate every change.
 
 ### V16 Security logging and error handling
@@ -260,8 +268,8 @@ system are marked as such.
 - [x] An audit log in the database records what an organization must account for, committed
       with the change itself: who proposed, approved or rejected a repair, with which key, to
       which invoice, the digests before and after and each patch's place and outcome, never a
-      value or a reason (ADR-0024). Only a person signed in decides on a repair; an API key is
-      refused (403).
+      value or a reason (ADR-0024), and the model that wrote the patches, when one did
+      (ADR-0025). Only a person signed in decides on a repair; an API key is refused (403).
 - [ ] Errors are handled centrally; unexpected exceptions are reported to Sentry without
       invoice content.
 

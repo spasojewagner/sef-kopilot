@@ -65,7 +65,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/repair-patch-engine` — patch model, forbidden-field guard, apply → revalidate → diff
 - [x] `feat/repair-proposals` — repairs of stored invoices proposed as patches by a member or an API key, applied to a copy in the validator's child process and kept with what they did; the audit log; every request body other than an invoice bounded (split from `feat/repair-loop-audit`)
 - [x] `feat/repair-approval` — a person approves or rejects a repair, never an API key; approval applies the patches again to the document they were proposed for and replaces the invoice within the quota; the other proposals are superseded; both decisions in the audit log
-- [ ] `feat/repair-model-loop` — the model proposes patches for a report's violations, checked as explanations are (no value of its own), within the 20 s budget, through the same proposals and approval
+- [x] `feat/repair-model-loop` — the model proposes patches for a report's violations, checked as explanations are (no value of its own), within the 20 s budget, through the same proposals and approval
 - [ ] `feat/web-bootstrap` — Next.js app shell, shadcn/ui, TanStack Query, `next-intl` (sr-Latn default, en)
 - [ ] `feat/web-upload-report` — upload, report, violation detail with citations
 - [x] `fix/rag-explanations-invent-no-values` — a fix names no value the invoice does not have: the first live answer to SRB-009 gave a corrected PIB "for example", which the prompt forbids. A deterministic check of the numbers an answer names, sent back as feedback, and the model's non-breaking hyphens (`BT‑31`) written as plain ones, so that a search for `BT-31` finds them
