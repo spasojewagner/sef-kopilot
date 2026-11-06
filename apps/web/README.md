@@ -74,7 +74,11 @@ validator read from the invoice, every rule it fails with the places it fails it
 first, and what each layer of the validator found. The rules' messages are their sources'
 own, in English, and are marked so. Amounts keep every decimal the invoice states. The report's
 page is the same for every invoice and is built once; the id is read when the page is asked
-for, and the report is fetched in the browser.
+for, and the report is fetched in the browser (ADR-0028).
+
+What these pages show comes from an uploaded document: the parties' names, the number, and the
+rules' messages, which quote the document's values. It is rendered as text, which React
+escapes; the lint rule `react/no-danger` keeps anyone from setting HTML from it.
 
 ## Components and styles
 

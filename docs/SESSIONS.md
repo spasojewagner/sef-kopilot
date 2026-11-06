@@ -1198,3 +1198,53 @@ at the first, 80 at the last) and production build; the Python suites (2 698 tes
 
 Next: `feat/web-upload-report`, stacked on this branch: upload an invoice, read its report, and a
 violation's detail with its explanation and citations.
+
+## 2026-11-06 — `feat/web-upload-report` (4 commits, stacked on `feat/web-sign-in`)
+
+Outcome: a signed-in visitor sends an invoice, reads the validator's report on it, and finds it
+again in the organization's list (ADR-0028). The invoices' page sends the XML under the profile
+chosen and opens the report. The report shows what the validator read, the verdict, every rule
+the invoice fails, the errors first, with each place, and what each layer did; the list shows
+the newest invoices first, twenty at a time. The web application takes the API's answers from
+the API's own OpenAPI document, which the repository now keeps and tests hold to the API's code,
+and the types are generated from it.
+
+Findings:
+
+- The OpenAPI document depended on the machine: the export read the environment and `.env`, and
+  `LLM_PROVIDER=groq` without a key stopped it. It builds the API with settings of its own now,
+  and a test changes the environment and expects the same document.
+- A page whose address the build cannot know, in an application built ahead: with
+  `cacheComponents`, the build refused to read the id outside `<Suspense>`, and refused the
+  header's language switcher, which reads the path, on that page. The id is awaited inside a
+  boundary and streamed into a prerendered shell; the browser fetches the report.
+- Chromium writes `14.400 RSD` where Node writes `14.400,00 RSD`: their data give the dinar 0
+  and 2 decimals. Amounts are formatted from the API's decimal string, with every decimal it
+  has and at least two, and never pass through a floating-point number.
+- A file input marked `required` left the form's data empty under jsdom, and browsers check it
+  differently; the form reads the input's files and says itself when none was chosen.
+- The two generated files, 7 500 lines, are marked `linguist-generated`, so that the pull
+  request's diff is the hand-written one; the document can still be expanded to review the
+  contract.
+- Seeding faults: forty-seven seeded in the web application (amounts and dates, the rules, the
+  requests, the upload, the list, the report, who sees the invoices, the generated types) and six
+  in the export. Twenty-nine of the web application's were caught at first; the other eighteen
+  found gaps, which tests now close: a day and a moment written from west of Greenwich (Belgrade
+  and CI's UTC both hid the wrong zone), a minute for an upload, the list asked for again, an
+  empty file, one upload at a time, the keys of a visitor's invoices, an id kept to one segment of
+  the path, a rule's errors apart from its warnings, an address that is no invoice's, what the
+  report could not place, left out or did not run, and nothing shown before the session is known.
+  All fifty-three are caught now.
+- What the pages show comes from an uploaded document, the rules' messages included, which quote
+  it. It is rendered as text; a lint rule (`react/no-danger`) now forbids setting HTML from
+  data, and a test renders a seller whose name is markup.
+- End to end against the API: a valid synthetic invoice ("Nema grešaka, nema upozorenja"), a
+  mutation that fails `SRB-001`, the report after a reload and in English, the list with its
+  amounts, and a text file kept as an unreadable document.
+
+Verification: each of the four commits on its own, the web application's lint, types, tests (81 at
+the first, 117 at the last) and production build; the Python suites (2 702 tests) at the first and
+the last.
+
+Next: `feat/web-explanations`, stacked on this branch: each violation's explanation, in Serbian
+or English, with its dated citations, on the report's page.

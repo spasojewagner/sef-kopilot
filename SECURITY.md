@@ -68,7 +68,11 @@ system are marked as such.
 
 ### V1 Encoding and sanitization
 
-- [ ] Output encoding is applied by the templating / UI layer; API responses are JSON only.
+- [x] Output encoding is applied by the UI layer: the web application renders an invoice's
+      values, and the rules' messages that quote them, as text, which React escapes; a lint
+      rule forbids setting HTML from data (`react/no-danger`), and a test renders a document
+      whose values are markup (ADR-0028). API responses are JSON, but for a stored document,
+      served back as an attachment with `nosniff` (V5).
 - [~] XPath and XSLT inputs that originate from users (rule ids, paths) are validated against an
       allow-list, never interpolated into expressions: a patch's path is read by a grammar of
       child steps and walked one step at a time, never evaluated as XPath (ADR-0023; tested

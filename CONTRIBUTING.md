@@ -119,8 +119,10 @@ The pull request title is the branch's main commit subject, in Conventional Comm
 - `ruff`, `mypy --strict` (core), `eslint`, `tsc --noEmit` and `pre-commit run --all-files` are
   clean.
 - No secrets, no real data, no invoice content in logs.
-- Public API documented (OpenAPI descriptions and examples). Database migrations are reversible
-  and `alembic downgrade -1` is exercised in CI.
+- Public API documented (OpenAPI descriptions and examples). After a change to the API's routes
+  or answers, `make openapi` writes `docs/api/openapi.json` and the web application's types from
+  it; the tests fail until it has run. Database migrations are reversible and
+  `alembic downgrade -1` is exercised in CI.
 - `CHANGELOG.md` updated under `[Unreleased]`; an ADR added in `docs/adr/` for every
   architectural decision (MADR format).
 - Performance budget measured and noted where relevant: validate a typical invoice < 500 ms

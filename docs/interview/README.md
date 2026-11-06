@@ -44,3 +44,4 @@ per branch, to keep them with the code they describe.
 | `feat/repair-model-loop` | [m3-repair-model-loop.md](m3-repair-model-loop.md) |
 | `feat/web-bootstrap` | [m3-web-bootstrap.md](m3-web-bootstrap.md) |
 | `feat/web-sign-in` | [m3-web-sign-in.md](m3-web-sign-in.md) |
+| `feat/web-upload-report` | [m3-web-upload-report.md](m3-web-upload-report.md) |
