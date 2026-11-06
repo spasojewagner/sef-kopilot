@@ -257,7 +257,8 @@ async def test_so_many_repairs_wait_for_a_decision_at_most(
 
     assert [answer.status_code for answer in answers] == [201, 201, 409]
     assert answers[2].json() == {
-        "detail": "2 repairs of this invoice wait for a decision: decide on them first"
+        "detail": "2 repairs of this invoice wait for a decision: decide on them first",
+        "reason": "too-many-waiting",
     }
 
 
@@ -390,19 +391,26 @@ async def test_a_repair_is_kept_only_for_the_document_its_patches_were_applied_t
 
 
 @pytest.mark.parametrize(
-    ("happened", "status", "detail"),
+    ("happened", "status", "body"),
     [
         (
             store.TooManyWaitingError(),
             409,
-            "10 repairs of this invoice wait for a decision: decide on them first",
+            {
+                "detail": "10 repairs of this invoice wait for a decision: decide on them first",
+                "reason": "too-many-waiting",
+            },
         ),
         (
             store.InvoiceChangedError(),
             409,
-            "the invoice changed while the patches were applied to it: propose them again",
+            {
+                "detail": "the invoice changed while the patches were applied to it: "
+                "propose them again",
+                "reason": "invoice-changed",
+            },
         ),
-        (None, 404, "no such invoice in this organization"),
+        (None, 404, {"detail": "no such invoice in this organization"}),
     ],
 )
 async def test_what_happened_while_the_patches_were_applied_is_answered(
@@ -412,7 +420,7 @@ async def test_what_happened_while_the_patches_were_applied_is_answered(
     monkeypatch: pytest.MonkeyPatch,
     happened: Exception | None,
     status: int,
-    detail: str,
+    body: dict[str, str],
 ) -> None:
     invoice = await kept(session, primer)
 
@@ -426,7 +434,7 @@ async def test_what_happened_while_the_patches_were_applied_is_answered(
         path(invoice), json={"patches": [TYPE_CODE]}, headers=primer.as_client()
     )
 
-    assert (answer.status_code, answer.json()) == (status, {"detail": detail})
+    assert (answer.status_code, answer.json()) == (status, body)
 
 
 async def test_a_member_removed_while_the_patches_are_applied_keeps_no_repair(
@@ -561,7 +569,7 @@ async def test_approving_one_repair_supersedes_the_others_that_waited(
     assert approved.status_code == 200
     assert (too_late.status_code, too_late.json()) == (
         409,
-        {"detail": "the repair is superseded: it waits for no decision"},
+        {"detail": "the repair is superseded: it waits for no decision", "reason": "decided"},
     )
     other = await session.get(Repair, uuid.UUID(second))
     assert other is not None
@@ -584,7 +592,7 @@ async def test_a_repair_is_decided_once(
     for answer in (again, rejected):
         assert (answer.status_code, answer.json()) == (
             409,
-            {"detail": "the repair is approved: it waits for no decision"},
+            {"detail": "the repair is approved: it waits for no decision", "reason": "decided"},
         )
 
 
@@ -598,7 +606,10 @@ async def test_a_repair_that_changes_nothing_is_not_approved(
 
     assert (refused.status_code, refused.json()) == (
         409,
-        {"detail": "the repair changes nothing: there is nothing to approve"},
+        {
+            "detail": "the repair changes nothing: there is nothing to approve",
+            "reason": "changes-nothing",
+        },
     )
 
 
@@ -637,7 +648,10 @@ async def test_a_repair_is_approved_only_onto_the_document_it_was_proposed_for(
 
     assert (refused.status_code, refused.json()) == (
         409,
-        {"detail": "the invoice changed since the repair was proposed: propose it again"},
+        {
+            "detail": "the invoice changed since the repair was proposed: propose it again",
+            "reason": "invoice-changed",
+        },
     )
 
 
@@ -656,7 +670,8 @@ async def test_patches_that_now_leave_another_document_are_not_approved(
         409,
         {
             "detail": "the patches no longer leave the document they left when they were "
-            "proposed: propose them again"
+            "proposed: propose them again",
+            "reason": "outcome-changed",
         },
     )
     await session.refresh(invoice)
@@ -724,19 +739,22 @@ async def test_a_member_removed_while_the_patches_are_applied_again_approves_not
 
 
 @pytest.mark.parametrize(
-    ("happened", "status", "detail"),
+    ("happened", "status", "body"),
     [
         (
             store.DecidedError("superseded"),
             409,
-            "the repair is superseded: it waits for no decision",
+            {"detail": "the repair is superseded: it waits for no decision", "reason": "decided"},
         ),
         (
             store.InvoiceChangedError(),
             409,
-            "the invoice changed since the repair was proposed: propose it again",
+            {
+                "detail": "the invoice changed since the repair was proposed: propose it again",
+                "reason": "invoice-changed",
+            },
         ),
-        (None, 404, "no such repair of this invoice"),
+        (None, 404, {"detail": "no such repair of this invoice"}),
     ],
 )
 async def test_what_happened_while_the_patches_were_applied_again_is_answered(
@@ -746,7 +764,7 @@ async def test_what_happened_while_the_patches_were_applied_again_is_answered(
     monkeypatch: pytest.MonkeyPatch,
     happened: Exception | None,
     status: int,
-    detail: str,
+    body: dict[str, str],
 ) -> None:
     invoice = await kept(session, primer)
     repair_id = await proposed(api, invoice, primer.as_client(), TYPE_CODE)
@@ -759,7 +777,7 @@ async def test_what_happened_while_the_patches_were_applied_again_is_answered(
 
     answer = await api.post(path(invoice, repair_id, "approval"), headers=primer.as_client())
 
-    assert (answer.status_code, answer.json()) == (status, {"detail": detail})
+    assert (answer.status_code, answer.json()) == (status, body)
 
 
 async def test_an_approval_applies_only_to_its_organizations_invoice_as_it_was_proposed(
@@ -799,3 +817,37 @@ async def test_an_approval_applies_only_to_its_organizations_invoice_as_it_was_p
     assert (
         await store.reject(session, caller, invoice_id=invoice.id, repair_id=uuid.uuid4()) is None
     )
+
+
+async def test_openapi_says_why_a_request_about_repairs_is_refused(client: AsyncClient) -> None:
+    """Every 409 of the repairs names its reason, which a client tells apart from the others
+    without reading the English detail."""
+    document = (await client.get("/openapi.json")).json()
+    conflicts = {
+        f"{method.upper()} {route}": operation["responses"]["409"]["content"]["application/json"]
+        for route, operations in document["paths"].items()
+        if route.startswith("/invoices/{invoice_id}/repairs")
+        for method, operation in operations.items()
+        if "409" in operation["responses"]
+    }
+
+    refused = [
+        "POST /invoices/{invoice_id}/repairs",
+        "POST /invoices/{invoice_id}/repairs/suggestion",
+        "POST /invoices/{invoice_id}/repairs/{repair_id}/approval",
+        "POST /invoices/{invoice_id}/repairs/{repair_id}/rejection",
+    ]
+    assert conflicts == {
+        operation: {"schema": {"$ref": "#/components/schemas/RepairConflict"}}
+        for operation in refused
+    }
+    conflict = document["components"]["schemas"]["RepairConflict"]
+    assert conflict["required"] == ["detail", "reason"]
+    assert conflict["properties"]["reason"]["enum"] == [
+        "nothing-to-repair",
+        "too-many-waiting",
+        "invoice-changed",
+        "decided",
+        "changes-nothing",
+        "outcome-changed",
+    ]

@@ -200,6 +200,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(invoices.router)
     app.include_router(repairs.router)
+    app.add_exception_handler(repairs.ConflictError, repairs.answer_conflict)
     app.include_router(jobs.router)
     app.include_router(members.router)
     app.include_router(members.invitations_router)

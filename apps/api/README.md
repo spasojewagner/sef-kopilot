@@ -173,7 +173,17 @@ curl -si localhost:8000/invoices/$INVOICE/repairs -H "Authorization: Bearer $ACC
 | `GET /invoices/{id}/repairs/{repair_id}` | one repair: each patch's outcome, the difference, the report |
 | `POST /invoices/{id}/repairs/{repair_id}/approval` | 200 with the repair, `approved`: the invoice is now the patched document with its report; 403 with an API key; 409 when the repair waits for no decision, changes nothing, or the invoice or what its patches leave is not what it was when they were proposed; 507 beyond the storage quota |
 | `POST /invoices/{id}/repairs/suggestion` | 201 with the repair the language model proposes (below); 409 when the invoice is valid, ten of its repairs wait, or it changed meanwhile; 422 when the model proposed no patch to keep; 502 when it gave no answer to use; 503 without a model; 504 when no round was done in time |
-| `POST /invoices/{id}/repairs/{repair_id}/rejection` | 200 with the repair, `rejected`; the invoice stays as it is; 403 with an API key |
+| `POST /invoices/{id}/repairs/{repair_id}/rejection` | 200 with the repair, `rejected`; the invoice stays as it is; 403 with an API key; 409 when the repair waits for no decision |
+
+Every 409 of these endpoints names its `reason` beside the `detail`, so that a client tells them
+apart without reading the English: `nothing-to-repair` (the invoice is valid),
+`too-many-waiting`, `invoice-changed` (it is not the document the repair was proposed for, or it
+changed while the patches were applied), `decided` (the repair waits for no decision),
+`changes-nothing` and `outcome-changed` (the patches no longer leave the document they left).
+
+```json
+{"detail": "10 repairs of this invoice wait for a decision: decide on them first", "reason": "too-many-waiting"}
+```
 
 Only a person decides: a member signed in with an access token, never an API key, since a key
 can leak from the ERP it serves. Approval applies the patches again, counted as a validation,

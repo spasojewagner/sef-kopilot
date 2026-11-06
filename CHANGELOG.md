@@ -104,6 +104,10 @@ is tagged.
   pnpm 11 and later read instead of `ignoredBuiltDependencies`; none runs.
 - `NEXT_PUBLIC_API_URL` moves from the root `.env.example` to `apps/web/.env.example`, because
   Next.js reads a web application's variables from its own directory.
+- `apps/api`: every 409 of the repairs names its `reason` beside the `detail`
+  (`RepairConflict`): `nothing-to-repair`, `too-many-waiting`, `invoice-changed`, `decided`,
+  `changes-nothing`, `outcome-changed`, so that a client tells them apart without reading the
+  English.
 
 ### Security
 
