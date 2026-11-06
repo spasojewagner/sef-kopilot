@@ -983,3 +983,39 @@ seeded into the production schedule (no sweep at startup, second 30, minutes 0 a
 caught by the test that pins it.
 
 Next: `feat/repair-patch-engine`, the patch model and the forbidden-field guard, with its ADR.
+
+## 2026-11-06 — `feat/repair-patch-engine` (7 commits)
+
+Outcome: the deterministic half of layer 3 (ADR-0023). A patch `{xpath, op, value, reason}`
+names its place with the canonical path a violation reports, read by a grammar and walked step
+by step; it replaces a value, adds a basic component with the aggregates on its way where the
+UBL 2.1 schema orders it (the order read from the fetched schemas, 671 elements), or removes an
+element or an attribute, and leaves no element empty. The guard refuses a patch that touches
+an amount, VAT, a tax or company identifier, a date or the document's number, as needing a
+person's decision. `repair()` validates the patched invoice under the same profile and diffs
+copies indented alike; `einvoice patch` runs it from the command line.
+
+Findings:
+
+- Adding an empty aggregate for the next patch to fill left `<cac:Delivery/>` behind when that
+  patch was refused: harmless to the `srb` profile, refused by Peppol (`PEPPOL-EN16931-R008`).
+  An `add` now names a basic component and brings the aggregates on its way; a removal takes
+  the aggregates it empties.
+- lxml invents a prefix (`ns0`) for an element whose namespace the document does not declare;
+  such an element now declares `cac` or `cbc` itself.
+- Pydantic refuses a lone surrogate before the patch's own check of the characters XML allows,
+  which still catches control characters, U+FFFE and U+FFFF that lxml would raise on.
+- `changed` is whether the document differs, not whether a patch applied: writing the value
+  that is there already applies and changes nothing.
+- A file of patches saved by Notepad (UTF-8 with a byte order mark) or redirected by Windows
+  PowerShell 5.1 (UTF-16) was "Invalid JSON" at its first character; `einvoice patch` reads
+  both.
+- Seeding faults: twenty seeded across the grammar, the schema's order, the guard, the
+  operations, the repair and the command; twenty caught.
+
+Verification: each of the seven commits on its own green with PostgreSQL and Redis, 2 377
+tests at the first and 2 532 at the last (the core's 1 728 at 100 % coverage). A repair of a
+small invoice takes 11 ms warm, validation included.
+
+Next: `feat/repair-loop-audit`: the model proposes patches for a report's violations, the
+person approves them, and every step goes to the audit log.

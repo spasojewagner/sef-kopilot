@@ -62,7 +62,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## M3 — Repair loop + web UI (weeks 5–6) · tag `v0.3.0`
 
-- [ ] `feat/repair-patch-engine` — patch model, forbidden-field guard, apply → revalidate → diff
+- [x] `feat/repair-patch-engine` — patch model, forbidden-field guard, apply → revalidate → diff
 - [ ] `feat/repair-loop-audit` — approval flow and audit log
 - [ ] `feat/web-bootstrap` — Next.js app shell, shadcn/ui, TanStack Query, `next-intl` (sr-Latn default, en)
 - [ ] `feat/web-upload-report` — upload, report, violation detail with citations

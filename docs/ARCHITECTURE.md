@@ -5,7 +5,7 @@ where each concern lives in the repository. It is kept current in the pull reque
 changes the architecture; decisions and their trade-offs are recorded separately in
 [`adr/`](adr/README.md). The product and engineering charter is [`BRIEF.md`](BRIEF.md).
 
-Status: milestones M0 to M2 done (`v0.2.0`), M3 next. Sections marked *planned* describe the
+Status: milestones M0 to M2 done (`v0.2.0`), M3 in progress. Sections marked *planned* describe the
 target shape and are filled in as the milestones land.
 
 ## System context
@@ -57,9 +57,12 @@ the system without a green validator.
    day. The model answers a JSON schema whose citations can only be those passages' ids; the
    answer is checked again and sent back with the reason when it fails, three answers at most,
    and the response is built from the stored passages.
-4. Repair — the model proposes patches; the forbidden-field guard rejects anything touching
-   amounts, VAT, tax identifiers or dates of supply; code applies the rest; layer 1 re-validates;
-   the user sees a diff and approves; every step is written to the audit log.
+4. Repair — the model proposes patches `{xpath, op, value, reason}`, each at the canonical path
+   of a violation (ADR-0023). The guard refuses any that touches an amount, VAT, a tax or company
+   identifier, a date or the document's number, as needing a person's decision; code applies
+   the rest where the UBL schema orders them; layer 1 validates the result under the same
+   profile; the user sees a diff and approves; every step is written to the audit log. The
+   patch engine is in the core (`einvoice patch`); the model's loop and the audit log are next.
 5. Send — the approved invoice goes to the SEF demo environment; status is polled; SEF error
    codes feed back into the same explanation pipeline.
 
@@ -67,7 +70,7 @@ the system without a green validator.
 
 | Path | Responsibility | Status |
 | --- | --- | --- |
-| `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 (`v0.1.0`): semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation, EN 16931 and Peppol BIS Schematron, SRB-CIUS rule set v1 (29 rules, ADR-0006), BR-CO arithmetic in Python (ADR-0007), validation pipeline with profiles (ADR-0008), `einvoice` CLI (ADR-0009), hostile documents: linear addressing, bounded numbers and reports, values read whole (ADR-0014) |
+| `packages/einvoice_core` | parser, XSD, Schematron runner, SRB-CIUS rules, arithmetic, patch engine, CLI | M1 (`v0.1.0`): semantic model, hardened XML loading, UBL 2.1 parser, violation model, UBL 2.1 XSD validation, EN 16931 and Peppol BIS Schematron, SRB-CIUS rule set v1 (29 rules, ADR-0006), BR-CO arithmetic in Python (ADR-0007), validation pipeline with profiles (ADR-0008), `einvoice` CLI (ADR-0009), hostile documents: linear addressing, bounded numbers and reports, values read whole (ADR-0014). M3: the patch engine, with places named by canonical paths, the schema's order, the guard of the fields a person decides, and a repair that validates again and shows a diff, also as `einvoice patch` (ADR-0023) |
 | `apps/api` | HTTP API, auth and multi-tenancy, jobs, retrieval, explainer, repairer, SEF client, MCP server | M2 in progress: settings, PostgreSQL with Alembic migrations, the tenancy schema (ADR-0011), accounts, sign-in and tokens (ADR-0012), permissions, members and invitations (ADR-0013), invoice validation in a child process (ADR-0015), stored invoices with their reports, seen by organization and submitter, within a quota, listed by verdict (ADR-0016), API keys that act for a member within their role (ADR-0017), rate limits per address, account, caller and organization (ADR-0018), jobs with fenced attempts that continue from their progress, inline or on arq workers, followed over SSE, and the first of them, validating stored invoices again (ADR-0019); the corpus in PostgreSQL with pgvector and trigram indexes, its idempotent ingest with optional embeddings, and the passages each rule cites (ADR-0020); explanations of a report's rules in Serbian or English, from passages found by rule, term, place, code, words and meaning, through a language model behind `LLMClient` (Groq by default) whose citations are held to those passages (ADR-0021); `/health`, `/ready` (database and validator) |
 | `apps/web` | upload, report, explanations, diff and approval UI (sr-Latn / en) | M0 skeleton |
 | `third_party/` | fetched UBL 2.1 schemas, EN 16931 and Peppol BIS artefacts, the ISO Schematron compiler, with their terms; compiled-stylesheet cache | M1 (UBL 2.1 and ISO Schematron added) |

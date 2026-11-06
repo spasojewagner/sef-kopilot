@@ -23,8 +23,14 @@ einvoice_core/
                 violations, and the published rules a profile sets aside, with reasons
   arithmetic.py EN 16931 calculation rules BR-CO-10 to BR-CO-17 in Python, CEN's semantics,
                 with the expected and the found amount in each violation
-  patches/      planned: patch model, forbidden-field guard, apply + re-validate + diff
-  cli.py        `einvoice validate` and `einvoice rules`: text or JSON, exit status 0 / 1 / 2
+  places.py     the canonical paths a patch names, read by a grammar and walked step by step
+  schema_order.py
+                where UBL 2.1 puts each element among its siblings, read from the fetched schemas
+  guard.py      what no patch may change: amounts, VAT, tax and company identifiers, dates
+  patches.py    patches {xpath, op, value, reason}: replace, add in the schema's order, remove
+  repair.py     patches applied, the invoice validated again, and a diff of what changed
+  cli.py        `einvoice validate`, `einvoice patch` and `einvoice rules`: text or JSON, exit
+                status 0 / 1 / 2
 ```
 
 ## Usage
@@ -37,6 +43,8 @@ einvoice validate a.xml b.xml --format json     # the full reports
 einvoice validate invoices/                     # every .xml file under the directory
 einvoice validate invoice.xml --show-set-aside  # with the EN 16931 rules the profile sets aside
 einvoice rules --profile srb                    # rule sets, SRB-CIUS rules, set-asides
+einvoice patch invoice.xml fixes.json           # apply patches, validate again, show the diff
+einvoice patch invoice.xml fixes.json --output fixed.xml   # and write the patched invoice
 ```
 
 One call validates a document under a profile and returns the whole verdict (ADR-0008):
@@ -89,6 +97,46 @@ for violation in validate_schematron(tree, ["en16931"]):
     print(violation.rule_id, violation.severity, violation.xpath, violation.message)
     # BR-CO-15 fatal /ubl:Invoice [BR-CO-15]-Invoice total amount with VAT (BT-112) = ...
 ```
+
+## Patches
+
+A repair is a list of patches that code applies and the validator judges (ADR-0023). A patch
+names its place with the canonical path a violation reports, and says what to do there:
+
+```json
+[
+  {"xpath": "/ubl:Invoice/cbc:InvoiceTypeCode", "op": "replace", "value": "380",
+   "reason": "SEF takes the invoice type codes 380, 381, 383 and 386 only"},
+  {"xpath": "/ubl:Invoice/cac:AccountingCustomerParty/cac:Party/cac:PostalAddress/cbc:CityName",
+   "op": "add", "value": "Beograd", "reason": "the buyer's address names no city"}
+]
+```
+
+`replace` changes the text of an element that holds no elements, or an attribute; `add` puts a
+basic component, with the aggregates on its way that are missing, where the UBL schema orders
+it, or adds an attribute; `remove` takes out an element with all it holds, or an attribute. A
+patch that touches an amount, VAT, a tax or company identifier, a date or the document's number
+is not applied: it needs a person's decision. A patch that cannot apply fails, with the reason,
+and changes nothing.
+
+```python
+from pathlib import Path
+
+from einvoice_core.patches import Patch
+from einvoice_core.repair import repair
+
+fix = Patch(xpath="/ubl:Invoice/cbc:InvoiceTypeCode", op="replace", value="380", reason="...")
+repaired = repair(Path("invoice.xml").read_bytes(), [fix], "srb")
+[outcome.status for outcome in repaired.outcomes]  # ['applied']; or 'needs-decision', 'failed'
+repaired.report.valid  # the validator's verdict on the patched invoice
+print(repaired.diff)  # --- before / +++ after, the changed lines and two around them
+repaired.document  # the patched invoice, UTF-8
+```
+
+`einvoice patch` prints each outcome, the diff and the verdict, and exits with 0 only when every
+patch applied and the invoice is valid; `--output` writes the patched invoice, never over the
+invoice itself. The file of patches may be UTF-8, with or without a byte order mark, or UTF-16,
+which Windows PowerShell 5.1 writes with `>`.
 
 ## Calculation rules
 
