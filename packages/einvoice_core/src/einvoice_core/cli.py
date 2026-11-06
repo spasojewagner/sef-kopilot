@@ -1,15 +1,19 @@
-"""``einvoice``: validate e-invoices from the command line (ADR-0009).
+"""``einvoice``: validate and patch e-invoices from the command line (ADR-0009, ADR-0023).
 
     einvoice validate PATH [PATH ...] [--profile srb|en16931|peppol] [--format text|json]
+    einvoice patch INVOICE PATCHES [--output PATH] [--profile ...] [--format text|json]
     einvoice rules [--profile srb|en16931|peppol] [--format text|json]
     einvoice --version
 
 A PATH is a file, a directory (the ``.xml`` files under it) or a pattern such as ``*.xml``,
 expanded here when the shell has not done it (cmd and PowerShell pass patterns on as typed).
+PATCHES is a JSON file with a list of patches, ``{"xpath", "op", "value", "reason"}`` each, in
+UTF-8 or UTF-16 (which Windows PowerShell 5.1 writes with ``>``).
 
 Exit status: 0 when every document is valid (warnings allowed), 1 when at least one is not,
 2 for a usage error, a path that names no document or cannot be opened, or rule sets that have
-not been fetched.
+not been fetched. ``patch`` exits with 0 only when every patch applied and the invoice they
+leave is valid: 1 means something is left for a person.
 
 Messages may quote values from the documents; they go to standard output only, never to a log.
 """
@@ -17,6 +21,7 @@ Messages may quote values from the documents; they go to standard output only, n
 from __future__ import annotations
 
 import argparse
+import codecs
 import glob
 import json
 import os
@@ -26,8 +31,11 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final, TextIO
 
+from pydantic import TypeAdapter, ValidationError
+
 from einvoice_core import __version__
 from einvoice_core.arithmetic import RULE_IDS as CALCULATION_RULES
+from einvoice_core.patches import MAX_PATCHES, Outcome, Patch
 from einvoice_core.pipeline import (
     DEFAULT_MAX_VIOLATIONS,
     PROFILES,
@@ -35,9 +43,11 @@ from einvoice_core.pipeline import (
     ValidationReport,
     validate,
 )
+from einvoice_core.repair import Repaired, repair
 from einvoice_core.rulesets import ENV_VAR, RulesetNotFoundError
 from einvoice_core.srb import RULES
 from einvoice_core.violations import Severity
+from einvoice_core.xml import ParseError
 
 __all__ = ["EXIT_ERROR", "EXIT_INVALID", "EXIT_VALID", "main"]
 
@@ -47,10 +57,18 @@ EXIT_ERROR: Final = 2
 
 
 _PATTERN = re.compile(r"[*?[]")
+_PATCHES: Final = TypeAdapter(list[Patch])
+#: A file of patches is read whole; the most patches one repair takes, each with the longest
+#: value and reason, are some 160 KB.
+_MAX_PATCHES_BYTES: Final = 1024 * 1024
 
 
 class _NoDocumentsError(Exception):
     """A command-line path that names no document."""
+
+
+class _UsageError(Exception):
+    """An argument the command cannot work with, said in a line."""
 
 
 def _positive(text: str) -> int:
@@ -96,6 +114,31 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="list the published rules the profile does not apply, with the reason",
     )
+
+    patch_command = commands.add_parser(
+        "patch",
+        help="apply patches to an invoice and validate it again",
+        description=(
+            "Apply the patches in a JSON file to an invoice, validate what they leave and show "
+            "the difference; exit 0 if every patch applied and the invoice is valid, 1 if not."
+        ),
+    )
+    patch_command.add_argument(
+        "invoice", type=Path, metavar="INVOICE", help="the invoice or credit note to patch"
+    )
+    patch_command.add_argument(
+        "patches",
+        type=Path,
+        metavar="PATCHES",
+        help='a JSON list of patches, each {"xpath": ..., "op": ..., "value": ..., "reason": ...}',
+    )
+    patch_command.add_argument(
+        "--output",
+        type=Path,
+        metavar="PATH",
+        help="write the patched document to PATH (never over INVOICE)",
+    )
+    _profile_and_format(patch_command)
 
     rules_command = commands.add_parser(
         "rules",
@@ -231,6 +274,139 @@ def _validate(arguments: argparse.Namespace, out: TextIO, err: TextIO) -> int:
     return EXIT_VALID if all(report.valid for _, report in results) else EXIT_INVALID
 
 
+# --- patch -------------------------------------------------------------------------------------
+
+
+def _decoded(data: bytes) -> str:
+    """The text of a file of patches: UTF-8, with or without the byte order mark Notepad
+    writes, or UTF-16 with the one Windows PowerShell 5.1 writes with ``>``."""
+    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return data.decode("utf-16")
+    return data.decode("utf-8-sig")
+
+
+def _read_patches(path: Path) -> list[Patch]:
+    try:
+        with path.open("rb") as handle:
+            data = handle.read(_MAX_PATCHES_BYTES + 1)
+    except OSError as error:
+        raise _UsageError(f"cannot read {path}: {error.strerror or error}") from error
+    if len(data) > _MAX_PATCHES_BYTES:
+        raise _UsageError(f"{path} is larger than {_MAX_PATCHES_BYTES} bytes")
+    try:
+        text = _decoded(data)
+    except UnicodeDecodeError as error:
+        raise _UsageError(f"{path} is neither UTF-8 nor UTF-16 text") from error
+    try:
+        patches = _PATCHES.validate_json(text)
+    except ValidationError as error:
+        first = error.errors()[0]
+        index, *field = first["loc"] or ("",)
+        where = f"patch {int(index) + 1}" if isinstance(index, int) else ""
+        where += "".join(f", {part}" for part in field)
+        more = f" (and {error.error_count() - 1} more)" if error.error_count() > 1 else ""
+        message = first["msg"].removeprefix("Value error, ")
+        raise _UsageError(
+            f"{path} is not a list of patches: {where + ': ' if where else ''}{message}{more}"
+        ) from error
+    if len(patches) > MAX_PATCHES:
+        raise _UsageError(f"{path} has {len(patches)} patches; at most {MAX_PATCHES} apply at once")
+    return patches
+
+
+def _same_file(one: Path, other: Path) -> bool:
+    try:
+        return one.samefile(other)
+    except OSError:  # one of them does not exist (yet)
+        return one.resolve() == other.resolve()
+
+
+_STATUS: Final = {"applied": "applied", "needs-decision": "needs decision", "failed": "failed"}
+
+
+def _counts(outcomes: Sequence[Outcome]) -> str:
+    total = len(outcomes)
+    counted = {status: sum(o.status == status for o in outcomes) for status in _STATUS}
+    parts = []
+    if counted["applied"]:
+        parts.append(f"{counted['applied']} applied")
+    if counted["needs-decision"]:
+        need = "needs" if counted["needs-decision"] == 1 else "need"
+        parts.append(f"{counted['needs-decision']} {need} a decision")
+    if counted["failed"]:
+        parts.append(f"{counted['failed']} failed")
+    return f"{total} patch{'es' if total != 1 else ''}" + (f": {', '.join(parts)}" if parts else "")
+
+
+def _quoted(value: str | None) -> str:
+    return "(none)" if value is None else json.dumps(value, ensure_ascii=False)
+
+
+def _text_patched(name: str, repaired: Repaired) -> list[str]:
+    lines = [f"{name}: {_counts(repaired.outcomes)}"]
+    for outcome in repaired.outcomes:
+        patch = outcome.patch
+        lines.append(f"  {_STATUS[outcome.status]:<15} {patch.op} {patch.xpath}")
+        if outcome.status == "applied":
+            lines.append(f"{'':18}{_quoted(outcome.before)} -> {_quoted(outcome.after)}")
+        else:
+            lines.append(f"{'':18}{outcome.problem}")
+        lines.append(f"{'':18}why: {patch.reason}")
+    if repaired.diff:
+        lines += repaired.diff.splitlines()
+    return lines + _text_report(f"{name} as patched", repaired.report, show_set_aside=False)
+
+
+def _patch(arguments: argparse.Namespace, out: TextIO, err: TextIO) -> int:
+    invoice: Path = arguments.invoice
+    output: Path | None = arguments.output
+    try:
+        if output is not None and _same_file(output, invoice):
+            raise _UsageError(
+                "--output names the invoice itself: write the patched invoice elsewhere"
+            )
+        patches = _read_patches(arguments.patches)
+        repaired = repair(str(invoice), patches, arguments.profile)
+    except _UsageError as error:
+        err.write(f"einvoice: {error}\n")
+        return EXIT_ERROR
+    except RulesetNotFoundError as error:
+        err.write(
+            f"einvoice: {error}\nFetch the rule sets with `make rulesets` (or `uv run python "
+            f"scripts/fetch_rulesets.py`), or point {ENV_VAR} at a directory that has them.\n"
+        )
+        return EXIT_ERROR
+    except ParseError as error:
+        err.write(f"einvoice: {invoice} cannot be patched: {error}\n")
+        return EXIT_ERROR
+    except OSError as error:
+        err.write(f"einvoice: cannot read {invoice}: {error.strerror or error}\n")
+        return EXIT_ERROR
+    if output is not None:
+        try:
+            output.write_bytes(repaired.document)
+        except OSError as error:
+            err.write(f"einvoice: cannot write {output}: {error.strerror or error}\n")
+            return EXIT_ERROR
+    if arguments.format == "json":
+        data = {
+            "file": str(invoice),
+            "outcomes": [outcome.model_dump(mode="json") for outcome in repaired.outcomes],
+            "changed": repaired.changed,
+            "diff": repaired.diff,
+            "report": repaired.report.model_dump(mode="json"),
+            "output": None if output is None else str(output),
+        }
+        out.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    else:
+        lines = _text_patched(str(invoice), repaired)
+        if output is not None:
+            lines.append(f"written to {output}")
+        out.write("\n".join(lines) + "\n")
+    done = all(outcome.status == "applied" for outcome in repaired.outcomes)
+    return EXIT_VALID if done and repaired.report.valid else EXIT_INVALID
+
+
 # --- rules -------------------------------------------------------------------------------------
 
 
@@ -309,6 +485,8 @@ def main(
     err = err if err is not None else sys.stderr
     if arguments.command == "validate":
         return _validate(arguments, out, err)
+    if arguments.command == "patch":
+        return _patch(arguments, out, err)
     return _rules(arguments, out)
 
 
