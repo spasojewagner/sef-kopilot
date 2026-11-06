@@ -29,6 +29,7 @@ einvoice_core/
   guard.py      what no patch may change: amounts, VAT, tax and company identifiers, dates
   patches.py    patches {xpath, op, value, reason}: replace, add in the schema's order, remove
   repair.py     patches applied, the invoice validated again, and a diff of what changed
+  fields.py     the fields around a place, by canonical path: what a repairer is shown
   cli.py        `einvoice validate`, `einvoice patch` and `einvoice rules`: text or JSON, exit
                 status 0 / 1 / 2
 ```
@@ -137,6 +138,19 @@ repaired.document  # the patched invoice, UTF-8
 patch applied and the invoice is valid; `--output` writes the patched invoice, never over the
 invoice itself. The file of patches may be UTF-8, with or without a byte order mark, or UTF-16,
 which Windows PowerShell 5.1 writes with `>`.
+
+A repairer is shown the invoice's fields around the places of its violations (ADR-0025): every
+basic component that holds text, and every attribute, of the aggregate a place is in, by
+canonical path and with its value, cut at 200 characters, and, for a field that a person decides,
+what kind of field it is. A patch names a field by its path, and an element to add by one more
+step. The extensions are not fields.
+
+```python
+from einvoice_core.fields import fields_around
+
+for field in fields_around(tree, [violation.xpath for violation in report.violations], limit=60):
+    print(field.path, field.value, field.decided)  # …/cbc:EndpointID 100000024 a tax identifier
+```
 
 ## Calculation rules
 

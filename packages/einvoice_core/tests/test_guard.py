@@ -13,6 +13,7 @@ from einvoice_core.guard import (
     NUMBER,
     TAX_IDENTIFIER,
     VAT,
+    decided,
     protection,
 )
 from einvoice_core.places import place_of
@@ -26,6 +27,11 @@ LINE = "/ubl:Invoice/cac:InvoiceLine[2]"
 def refusal(path: str, holds: Iterable[str] = ()) -> str | None:
     place = place_of(path)
     return protection([place.root, *(step.tag for step in place.steps)], place.attribute, holds)
+
+
+def kind(path: str) -> str | None:
+    place = place_of(path)
+    return decided([place.root, *(step.tag for step in place.steps)], place.attribute)
 
 
 @pytest.mark.parametrize(
@@ -93,6 +99,7 @@ def test_a_patch_that_touches_what_a_person_decides_is_refused(
     path: str, what: str, where: str
 ) -> None:
     assert refusal(path) == f"it touches {what} ({where}): a person decides it"
+    assert kind(path) == what
 
 
 @pytest.mark.parametrize(
@@ -115,6 +122,7 @@ def test_a_patch_that_touches_what_a_person_decides_is_refused(
 )
 def test_a_patch_may_change_how_an_invoice_says_the_rest(path: str) -> None:
     assert refusal(path) is None
+    assert kind(path) is None
 
 
 def test_the_first_protected_element_on_the_way_is_named() -> None:
@@ -141,3 +149,10 @@ def test_what_a_place_is_inside_of_comes_before_what_it_holds() -> None:
     assert refusal("/ubl:Invoice/cac:TaxTotal/cac:TaxSubtotal", holds=holds) == (
         f"it touches {VAT} (cac:TaxTotal): a person decides it"
     )
+
+
+def test_the_kind_of_a_place_is_that_of_the_place_not_of_what_it_holds() -> None:
+    """What a repairer is shown of a field: a line holds amounts, but is not one."""
+    assert kind(LINE) is None
+    assert kind(f"{LINE}/cbc:InvoicedQuantity") == AMOUNT
+    assert kind(f"{SELLER}/cac:PartyLegalEntity") == COMPANY_IDENTIFIER
