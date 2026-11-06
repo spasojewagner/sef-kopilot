@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "title": "SEF Kopilot",
+    "description": "Deterministic validation, explanations and reviewable repairs of electronic invoices (SEF, EN 16931, Peppol)."
+  },
+  "header": {
+    "language": "Language"
+  },
+  "home": {
+    "status": "pre-alpha",
+    "title": "SEF Kopilot",
+    "tagline": "Deterministic validation, plain-language explanations and reviewable repairs of electronic invoices for SEF, EN 16931 and Peppol.",
+    "source": "Source code on GitHub"
+  },
+  "footer": {
+    "notice": "An independent open-source project. It is not a certified validator, and it is not affiliated with the Serbian Ministry of Finance or the SEF platform."
+  },
+  "notFound": {
+    "title": "This page does not exist",
+    "home": "Back to the home page"
+  }
+}

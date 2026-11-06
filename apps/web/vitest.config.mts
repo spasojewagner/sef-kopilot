@@ -12,5 +12,12 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     css: false,
+    server: {
+      deps: {
+        // next-intl imports `next/navigation` without the extension Node's ESM loader asks
+        // for; transformed by Vite, the import is resolved as the application resolves it.
+        inline: ["next-intl"],
+      },
+    },
   },
 });

@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "title": "SEF Kopilot",
+    "description": "Deterministička validacija, objašnjenja i pregledne ispravke elektronskih faktura (SEF, EN 16931, Peppol)."
+  },
+  "header": {
+    "language": "Jezik"
+  },
+  "home": {
+    "status": "pre-alpha",
+    "title": "SEF Kopilot",
+    "tagline": "Deterministička validacija, objašnjenja na običnom jeziku i pregledne ispravke elektronskih faktura za SEF, EN 16931 i Peppol.",
+    "source": "Izvorni kod na GitHubu"
+  },
+  "footer": {
+    "notice": "Nezavisan projekat otvorenog koda. Nije sertifikovani validator i nije povezan sa Ministarstvom finansija ni sa SEF platformom."
+  },
+  "notFound": {
+    "title": "Ova stranica ne postoji",
+    "home": "Na početnu stranu"
+  }
+}

@@ -7,7 +7,10 @@ minimumReleaseAge: 1440
 
 # Every install script of a dependency is ruled on here: pnpm 11 and later fail an install that
 # meets one that is not, and `allowBuilds` replaced the earlier lists. None runs: sharp and
-# unrs-resolver ship prebuilt binaries for each platform.
+# unrs-resolver ship prebuilt binaries for each platform, and SWC and the file watcher come with
+# next-intl's message extractor, which the web application does not use.
 allowBuilds:
+  "@parcel/watcher": false
+  "@swc/core": false
   sharp: false
   unrs-resolver: false

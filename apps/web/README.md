@@ -2,7 +2,7 @@
 
 Next.js (App Router) front end of SEF Kopilot: upload an invoice, read the validation report
 and the explanations with citations, review proposed patches as a diff, approve, and follow the
-send-to-SEF status. The UI is Serbian (Latin) first and English second (`next-intl`, from M3).
+send-to-SEF status. The UI is Serbian (Latin) first and English second.
 
 ## Run locally
 
@@ -14,6 +14,20 @@ pnpm --filter @sef-kopilot/web dev
 ```
 
 Then open <http://localhost:3000>.
+
+## Languages
+
+Every page is in Serbian in the Latin script and in English, with the language as the first
+segment of its path: `/sr-Latn/…` and `/en/…` (`next-intl`, ADR-0026). A path without one is sent
+to the language the browser asks for, or to Serbian (`src/proxy.ts`), and the language
+switcher links to the same page in the other language. The locale is a BCP 47 tag because
+`sr` alone means Cyrillic to the browser's date and number formats.
+
+The texts are in `messages/sr-Latn.json` and `messages/en.json`, under the same keys; a test
+fails when a key, or an argument such as `{version}`, is in one file and not the other, and the
+compiler refuses a key that the Serbian file does not have. A page reads them with
+`useTranslations("home")`, and a test renders it with `renderIn(locale, …)` from
+`src/test/intl.tsx`.
 
 ## Checks
 
@@ -29,7 +43,14 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 ## Layout
 
 ```text
-src/app/           routes (App Router); `page.test.tsx` next to `page.tsx`
+messages/          the interface's texts, one file per language
+src/app/[locale]/  routes (App Router) under the language: the root layout, the pages, the 404;
+                   `page.test.tsx` next to `page.tsx`
+src/components/    components shared by the pages: the language switcher
+src/i18n/          the languages and the routing, the request's messages, navigation that keeps
+                   the language, the messages' types
+src/proxy.ts       sends a path without a language to the visitor's
+src/test/          what the tests share: rendering in a language
 vitest.config.mts  Vitest with React plugin, jsdom and tsconfig path aliases
 vitest.setup.ts    jest-dom matchers and automatic cleanup
 ```
