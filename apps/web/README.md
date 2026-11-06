@@ -43,6 +43,11 @@ fresh (a minute) and when a failed request is tried again (once, unless the API 
 In the tests no request leaves the machine: `vitest.setup.ts` makes each one fail as if the
 API could not be reached, unless the test answers it with `vi.stubGlobal("fetch", …)`.
 
+The answers' types come from the API's own OpenAPI document, `docs/api/openapi.json`:
+`src/lib/api-schema.d.ts` is generated from it (`pnpm api:types`, or `make openapi` from the
+root to write both), and a test fails when it is out of date. A type is named as the API names
+the schema: `Schemas["StoredInvoiceOut"]`.
+
 ## The visitor's session
 
 `src/lib/session.ts` keeps a signed-in visitor's session (ADR-0027). The access token stays in
@@ -98,7 +103,8 @@ src/components/ui/ shadcn/ui components, with their origin and license in a READ
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types
 src/hooks/         hooks shared by the components: the session
-src/lib/           the API client, the session, the questions the pages ask; `cn()`
+src/lib/           the API client and its generated types, the session, the questions the pages
+                   ask; `cn()`
 src/proxy.ts       sends a path without a language to the visitor's
 src/test/          what the tests share: rendering in a language, with a cache of its own
 vitest.config.mts  Vitest with React plugin, jsdom and tsconfig path aliases

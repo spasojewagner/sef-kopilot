@@ -10,7 +10,7 @@ UV      ?= uv
 PNPM    ?= pnpm
 COMPOSE ?= docker compose --project-directory . -f infra/docker-compose.yml
 
-.PHONY: help setup sync lint format typecheck test test-core test-api test-web api worker web build-web rulesets rulesets-check fixtures corpus corpus-check ingest migrate up down logs psql clean
+.PHONY: help setup sync lint format typecheck test test-core test-api test-web api worker web build-web rulesets rulesets-check fixtures openapi corpus corpus-check ingest migrate up down logs psql clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -75,6 +75,10 @@ rulesets-check: ## Verify that third_party/ holds the pinned rule-set versions (
 
 fixtures: ## Regenerate the mutation fixtures and the verdicts on the fixture corpus (needs rulesets)
 	$(UV) run python scripts/make_fixtures.py
+
+openapi: ## Write docs/api/openapi.json from the API, then the web application's types from it
+	$(UV) run python scripts/export_openapi.py
+	$(PNPM) --filter @sef-kopilot/web api:types
 
 corpus: ## Download the corpus's official sources that are missing, then rewrite corpus/ from them
 	$(UV) run python scripts/build_corpus.py --fetch

@@ -5,8 +5,11 @@ import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 
 beforeEach(() => {
-  // No test sees what another kept in the browser's storage: a signed-in session, say.
-  localStorage.clear();
+  // No test sees what another kept in the browser's storage: a signed-in session, say. A test
+  // that runs in Node rather than in a browser has none.
+  if (typeof window !== "undefined") {
+    window.localStorage.clear();
+  }
   // No test reaches the network: a request that a test does not answer itself fails, as if
   // the API could not be reached. Vitest puts the real fetch back after each test.
   vi.stubGlobal(

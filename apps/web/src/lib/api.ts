@@ -1,3 +1,5 @@
+import type { components } from "@/lib/api-schema";
+
 /**
  * The browser's way to the API: the address it answers at, one request function, and the
  * error it throws when the API answers with an error.
@@ -141,12 +143,11 @@ export async function request<T>(
   }
 }
 
-/** `GET /health`: the API's process is up, and which version it runs (`HealthResponse`). */
-export interface Health {
-  status: "ok";
-  service: string;
-  version: string;
-}
+/** The answers the API describes in its OpenAPI document, by their names there. */
+export type Schemas = components["schemas"];
+
+/** `GET /health`: the API's process is up, and which version it runs. */
+export type Health = Schemas["HealthResponse"];
 
 export function getHealth(signal?: AbortSignal): Promise<Health> {
   return request<Health>("/health", { signal });

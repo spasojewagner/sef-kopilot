@@ -97,7 +97,9 @@ repos:
 
       - id: eslint
         name: eslint (apps/web)
-        entry: python scripts/hooks/run_in_dir.py apps/web pnpm exec eslint --max-warnings=0 --
+        # A staged file the configuration ignores, such as the generated API types, is skipped
+        # rather than reported as a warning.
+        entry: python scripts/hooks/run_in_dir.py apps/web pnpm exec eslint --max-warnings=0 --no-warn-ignored --
         language: python
         files: ^apps/web/.*\.(ts|tsx|js|mjs|cjs)$
 

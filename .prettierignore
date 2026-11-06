@@ -13,3 +13,7 @@ next-env.d.ts
 
 # Markdown is hand-written documentation; Prettier's opinions about tables and lists are not applied.
 *.md
+
+# Generated: written by scripts/export_openapi.py and openapi-typescript, checked by tests.
+docs/api/openapi.json
+apps/web/src/lib/api-schema.d.ts

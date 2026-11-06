@@ -35,3 +35,9 @@ corpus/*/*.md linguist-generated=true
 # Generated lock files: collapsed in GitHub diffs, never hand-edited.
 uv.lock linguist-generated=true
 pnpm-lock.yaml linguist-generated=true
+
+# The API's OpenAPI document and the web application's types from it, written by `make openapi`
+# and checked by tests: collapsed in GitHub diffs. Expand the document to review a change to the
+# API's contract.
+docs/api/openapi.json linguist-generated=true
+apps/web/src/lib/api-schema.d.ts linguist-generated=true
