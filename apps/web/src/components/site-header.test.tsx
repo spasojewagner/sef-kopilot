@@ -8,6 +8,7 @@ import { SiteHeader } from "./site-header";
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => "/sr-Latn/invoices",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }));
 
 describe("Site header", () => {
@@ -18,6 +19,14 @@ describe("Site header", () => {
     expect(
       within(banner).getByRole("link", { name: "SEF Kopilot" }),
     ).toHaveAttribute("href", "/en");
+  });
+
+  it("offers to sign in", () => {
+    renderIn("sr-Latn", <SiteHeader />);
+
+    expect(
+      within(screen.getByRole("banner")).getByRole("link", { name: "Prijava" }),
+    ).toHaveAttribute("href", "/sr-Latn/sign-in");
   });
 
   it("offers the page in the other language", () => {

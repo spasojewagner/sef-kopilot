@@ -16,7 +16,11 @@ export function generateStaticParams() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("metadata");
-  return { title: t("title"), description: t("description") };
+  return {
+    // A page that names itself is "Prijava · SEF Kopilot".
+    title: { default: t("title"), template: `%s · ${t("title")}` },
+    description: t("description"),
+  };
 }
 
 export default async function LocaleLayout({

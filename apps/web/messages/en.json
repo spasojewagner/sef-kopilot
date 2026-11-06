@@ -7,6 +7,10 @@
     "home": "SEF Kopilot",
     "language": "Language"
   },
+  "account": {
+    "signIn": "Sign in",
+    "signOut": "Sign out"
+  },
   "home": {
     "status": "pre-alpha",
     "title": "SEF Kopilot",
@@ -24,5 +28,39 @@
   "notFound": {
     "title": "This page does not exist",
     "home": "Back to the home page"
+  },
+  "signIn": {
+    "title": "Sign in",
+    "description": "Sign in with your account's e-mail address and password.",
+    "email": "E-mail address",
+    "password": "Password",
+    "submit": "Sign in",
+    "pending": "Signing in…",
+    "chooseOrganization": "You are a member of several organizations. Which one are you signing in to?",
+    "noAccount": "No account yet?",
+    "register": "Register",
+    "signedIn": "You are signed in as {email}.",
+    "home": "Back to the home page"
+  },
+  "register": {
+    "title": "Register",
+    "description": "The account comes with an organization of its own, which you own.",
+    "email": "E-mail address",
+    "password": "Password",
+    "passwordHint": "{min} to {max} characters.",
+    "organization": "Organization name",
+    "submit": "Create the account",
+    "pending": "Creating the account…",
+    "haveAccount": "Have an account?",
+    "signIn": "Sign in"
+  },
+  "authErrors": {
+    "wrongCredentials": "The address or the password is wrong.",
+    "notAMember": "You are not a member of that organization.",
+    "emailTaken": "An account with this address exists already.",
+    "invalid": "Check what you entered.",
+    "tooMany": "Too many attempts. Try again in {seconds} s.",
+    "unreachable": "The API is not answering. Try again a little later.",
+    "failed": "That did not work. Try again."
   }
 }

@@ -55,6 +55,11 @@ session as it changes, in this tab or in another. When a visitor signs out, or a
 in, the visitor's cached answers are forgotten: a query key that starts with `api` holds what
 the API says about itself, and every other key a visitor's data.
 
+A visitor registers at `/sr-Latn/register`, which creates the account and its organization, or
+signs in at `/sr-Latn/sign-in`; a member of several organizations chooses one there. The
+header shows who is signed in, as the API confirms it, and signs out. An error is said in the
+visitor's language (`authErrors` in the messages); the API's own reasons are for developers.
+
 ## Components and styles
 
 The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:
@@ -83,11 +88,12 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 .env.example       the web application's settings: the API's address
 components.json    shadcn/ui's settings: style, stylesheet, aliases
 messages/          the interface's texts, one file per language
-src/app/[locale]/  routes (App Router) under the language: the root layout, the pages, the 404;
-                   `page.test.tsx` next to `page.tsx`
+src/app/[locale]/  routes (App Router) under the language: the root layout, the home page,
+                   `sign-in` and `register`, the 404; `page.test.tsx` next to `page.tsx`
 src/app/globals.css  Tailwind, shadcn/ui's theme tokens, dark mode
-src/components/    components shared by the pages: the header, the footer, the language switcher,
-                   the API's status, the cache of the API's answers
+src/components/    components shared by the pages: the header and its account, the footer, the
+                   language switcher, the API's status, the cache of the API's answers, the
+                   sign-in and registration forms
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types

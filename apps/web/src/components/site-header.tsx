@@ -1,9 +1,10 @@
 import { useTranslations } from "next-intl";
 
+import { Account } from "@/components/account";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Link } from "@/i18n/navigation";
 
-/** The top of every page: the way to the home page, and the interface's languages. */
+/** The top of every page: the way to the home page, the interface's languages, the account. */
 export function SiteHeader() {
   const t = useTranslations("header");
   return (
@@ -12,7 +13,10 @@ export function SiteHeader() {
         <Link href="/" className="font-semibold tracking-tight">
           {t("home")}
         </Link>
-        <LanguageSwitcher />
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <Account />
+        </div>
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { getHealth } from "@/lib/api";
+import { authorized, type Identity } from "@/lib/session";
 
 /**
  * The questions the pages ask the API, each with the key its answers are kept under. A page
@@ -19,4 +20,13 @@ export function isAboutTheApi(key: readonly unknown[]): boolean {
 export const healthQuery = queryOptions({
   queryKey: ["api", "health"],
   queryFn: ({ signal }) => getHealth(signal),
+});
+
+/**
+ * Who the signed-in visitor is, as the API says now (`GET /auth/me`); asking also proves that
+ * the session is alive, and ends it here when it is not.
+ */
+export const meQuery = queryOptions({
+  queryKey: ["visitor", "me"],
+  queryFn: ({ signal }) => authorized<Identity>("/auth/me", { signal }),
 });
