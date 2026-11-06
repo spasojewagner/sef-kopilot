@@ -37,3 +37,4 @@ per branch, to keep them with the code they describe.
 | `chore/release-0.2.0` | [m2-release-0.2.0.md](m2-release-0.2.0.md) |
 | `fix/api-json-charset` | [m3-api-json-charset.md](m3-api-json-charset.md) |
 | `fix/rag-explanations-invent-no-values` | [m3-rag-explanations-invent-no-values.md](m3-rag-explanations-invent-no-values.md) |
+| `test/api-worker-sweep-race` | [m3-api-worker-sweep-race.md](m3-api-worker-sweep-race.md) |

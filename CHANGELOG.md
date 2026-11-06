@@ -19,6 +19,10 @@ is tagged.
 - `apps/api`: every JSON answer says `charset=utf-8`. Windows PowerShell 5.1 read a JSON body
   without one as ISO-8859-1, so `č` came out as `Ä` and the quotation marks of an explanation
   as control codes that hid the letters between them.
+- `apps/api` tests: the worker test of an attempt cut short no longer fails when its first
+  worker runs into a new minute, a few CI runs in a hundred. That worker waited for the sweep
+  at second 0 and the job the test leaves unfinished ran too early; the tests' workers now
+  sweep at startup only, and a test pins the production schedule.
 
 ## [0.2.0] - 2026-11-06
 

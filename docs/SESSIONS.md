@@ -957,3 +957,29 @@ Verification: 2 334 tests green with PostgreSQL and Redis (API 715, coverage 100
 them 1 907 pass and 427 are skipped.
 
 Next: `feat/repair-patch-engine`, the patch model and the forbidden-field guard, with its ADR.
+
+## 2026-11-06 — `test/api-worker-sweep-race` (1 commit)
+
+Outcome: the worker test of an attempt cut short no longer depends on the minute it runs in.
+The tests' workers keep the sweep at startup and move the sweep at second 0 of every minute
+half an hour away, everything else of the production schedule kept; a test pins that schedule
+as `worker.options` gives it.
+
+Findings:
+
+- The maintainer's CI for `fix/api-json-charset` failed in
+  `test_an_attempt_cut_short_is_swept_back_and_the_next_one_continues`: the job had succeeded
+  after the first worker, where the test expects it still running.
+- arq queues a cron job whose next run is less than a second away, deferred until then, and a
+  burst worker runs until its queue is empty, deferred jobs included. A first worker alive in
+  the last second before a minute waited for that minute's sweep, which put the job cut short
+  back on the queue, and the second attempt ran in the first worker.
+- Reproduced at will: started three seconds before a full minute, the test failed twice out of
+  twice. With the fix it passed at the same moment, its first worker ending before the minute
+  instead of waiting for it.
+
+Verification: 2 334 tests green with PostgreSQL and Redis, the commit on its own. Three faults
+seeded into the production schedule (no sweep at startup, second 30, minutes 0 and 30), three
+caught by the test that pins it.
+
+Next: `feat/repair-patch-engine`, the patch model and the forbidden-field guard, with its ADR.
