@@ -88,6 +88,17 @@ async def test_the_conversation_is_sent_with_the_schema_the_answer_must_keep() -
     }
 
 
+async def test_a_question_may_let_the_model_write_more() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(lambda _body: completion("{}"), requests)
+
+    await client.answer(CONVERSATION, name="reply", schema=SCHEMA, max_tokens=2048)
+    await client.answer(CONVERSATION, name="reply", schema=SCHEMA)
+
+    sent = [json.loads(request.content)["max_completion_tokens"] for request in requests]
+    assert sent == [2048, GroqClient.MAX_TOKENS]
+
+
 async def test_a_model_that_does_not_reason_is_not_asked_how_hard_to() -> None:
     requests: list[httpx.Request] = []
     client = answering(lambda _body: completion("{}"), requests, model="qwen/qwen3.8-27b")

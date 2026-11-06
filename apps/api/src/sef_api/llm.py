@@ -1,4 +1,5 @@
-"""Language models: what writes the explanations, behind an adapter (ADR-0021).
+"""Language models: what writes the explanations and proposes repairs, behind an adapter
+(ADR-0021, ADR-0025).
 
 An :class:`LLMClient` answers a conversation with JSON text that a JSON schema describes. The
 provider is the one the settings name:
@@ -9,8 +10,9 @@ provider is the one the settings name:
   answer to the schema while it is written.
 
 The model is never trusted. Whoever asks it parses and checks the answer: the explainer checks
-every citation against the passages it gave. What is sent may quote an invoice, so an error
-says what went wrong, never what the conversation was.
+every citation against the passages it gave, the repairer every patch before code applies it.
+What is sent may quote an invoice, so an error says what went wrong, never what the
+conversation was.
 """
 
 from __future__ import annotations
@@ -59,10 +61,16 @@ class LLMClient(Protocol):
         ...
 
     async def answer(
-        self, messages: Sequence[Message], *, name: str, schema: Mapping[str, Any]
+        self,
+        messages: Sequence[Message],
+        *,
+        name: str,
+        schema: Mapping[str, Any],
+        max_tokens: int | None = None,
     ) -> str:
         """The model's answer to ``messages``: JSON text meant to be what ``schema`` (named
-        ``name``) describes, unparsed and unchecked."""
+        ``name``) describes, unparsed and unchecked, of at most ``max_tokens`` tokens with the
+        model's reasoning, or of as many as the client allows."""
         ...
 
     async def aclose(self) -> None: ...
@@ -82,7 +90,8 @@ class GroqClient:
     ATTEMPTS: Final = 3
     TIMEOUT_SECONDS: Final = 30.0
     MAX_WAIT_SECONDS: Final = 10.0
-    #: Tokens the model may write, its reasoning included: an explanation needs a few hundred.
+    #: Tokens the model may write, its reasoning included, unless a question asks for more: an
+    #: explanation needs a few hundred.
     MAX_TOKENS: Final = 1024
 
     def __init__(
@@ -103,7 +112,12 @@ class GroqClient:
         return f"groq/{self._model}"
 
     async def answer(
-        self, messages: Sequence[Message], *, name: str, schema: Mapping[str, Any]
+        self,
+        messages: Sequence[Message],
+        *,
+        name: str,
+        schema: Mapping[str, Any],
+        max_tokens: int | None = None,
     ) -> str:
         body: dict[str, Any] = {
             "model": self._model,
@@ -111,7 +125,7 @@ class GroqClient:
                 {"role": message.role, "content": message.content} for message in messages
             ],
             "temperature": 0,
-            "max_completion_tokens": self.MAX_TOKENS,
+            "max_completion_tokens": max_tokens or self.MAX_TOKENS,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": name, "strict": True, "schema": dict(schema)},

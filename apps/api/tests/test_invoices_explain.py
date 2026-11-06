@@ -143,7 +143,7 @@ async def test_the_explanations_take_the_time_and_the_embedder_of_the_applicatio
     embedder = FakeEmbedder()
 
     class Late(QuotingModel):
-        async def answer(self, messages: Any, *, name: str, schema: Any) -> str:
+        async def answer(self, messages: Any, *, name: str, schema: Any, **_: Any) -> str:
             await asyncio.sleep(10)
             return await super().answer(messages, name=name, schema=schema)
 
