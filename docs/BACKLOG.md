@@ -67,6 +67,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/repair-approval` — a person approves or rejects a repair, never an API key; approval applies the patches again to the document they were proposed for and replaces the invoice within the quota; the other proposals are superseded; both decisions in the audit log
 - [x] `feat/repair-model-loop` — the model proposes patches for a report's violations, checked as explanations are (no value of its own), within the 20 s budget, through the same proposals and approval
 - [x] `feat/web-bootstrap` — Next.js app shell, shadcn/ui, TanStack Query, `next-intl` (sr-Latn default, en); the API's CORS for the web application's origins
+- [x] `feat/web-sign-in` — register, sign in (choosing the organization) and sign out; the tokens in the browser (ADR-0027). Split from `feat/web-upload-report`, because every endpoint of invoices needs a token
 - [ ] `feat/web-upload-report` — upload, report, violation detail with citations
 - [ ] An unexpected failure (500) the web application can read: Starlette answers it outside every middleware, so it has no CORS headers and a page sees only a network error (found in `feat/web-bootstrap`)
 - [x] `fix/rag-explanations-invent-no-values` — a fix names no value the invoice does not have: the first live answer to SRB-009 gave a corrected PIB "for example", which the prompt forbids. A deterministic check of the numbers an answer names, sent back as feedback, and the model's non-breaking hyphens (`BT‑31`) written as plain ones, so that a search for `BT-31` finds them

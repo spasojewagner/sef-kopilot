@@ -56,6 +56,13 @@ is tagged.
   version. The components are shadcn/ui's (style `new-york`, on Radix), in the repository, and
   dark mode follows the operating system. The pages ask the API through TanStack Query, with a
   client that gives up after 10 s and names the API's reason for an error.
+- `apps/web`: registration, sign-in and sign-out (ADR-0027). A member of several organizations
+  chooses one when signing in, and an error is said in the visitor's language, with the seconds
+  to wait after too many attempts. The access token stays in the tab's memory, and the refresh
+  token with whose it is in local storage, so that a reload or another tab stays signed in; the
+  tabs take turns to refresh, so that the API's strict rotation never signs a person out. The
+  header shows who is signed in, as `GET /auth/me` confirms it. Signing out, here or in another
+  tab, forgets the visitor's cached answers.
 
 ### Changed
 

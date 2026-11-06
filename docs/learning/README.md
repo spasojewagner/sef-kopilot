@@ -28,5 +28,6 @@ just used. New notes are added in the pull request that introduces the concept.
 | 20 | [A loop around an untrusted model: copy, check, apply, tell](20-a-loop-around-an-untrusted-model.md) | M3 |
 | 21 | [CORS: which pages may read the API's answers](21-cors.md) | M3 |
 | 22 | [Server and client components: what runs where](22-server-and-client-components.md) | M3 |
+| 23 | [Tokens in a browser: where to keep them, and what can reach them there](23-tokens-in-a-browser.md) | M3 |
 
 Planned: OAuth 2.1 flows for MCP.
