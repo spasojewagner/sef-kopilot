@@ -495,4 +495,7 @@ async def test_a_job_the_caller_may_not_see_cannot_be_followed(
         404,
         {"detail": "no such job in this organization"},
     )
-    assert (garbled.status_code, garbled.headers["content-type"]) == (422, "application/json")
+    assert (garbled.status_code, garbled.headers["content-type"]) == (
+        422,
+        "application/json; charset=utf-8",
+    )
