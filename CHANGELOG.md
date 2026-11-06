@@ -30,6 +30,12 @@ is tagged.
   one. Each proposal is committed with an event in a new audit log, which records who, with
   which key, the digests and each patch's place and outcome, and no invoice content
   (migration 0010).
+- `apps/api`: a person approves or rejects a repair
+  (`POST /invoices/{id}/repairs/{repair_id}/approval` and `.../rejection`); an API key is
+  refused. Approval applies the patches again, only to the document they were proposed for and
+  only if they leave the document they left then; the invoice becomes it within the storage
+  quota, and the other repairs that waited for it are superseded. Both decisions go to the
+  audit log.
 
 ### Security
 
@@ -39,6 +45,9 @@ is tagged.
 
 ### Fixed
 
+- `apps/api`: a repair is kept only if its proposer still holds the permission once the
+  patches are applied, as an invoice is stored; a member removed meanwhile, or a key revoked,
+  left a repair behind.
 - `apps/api`: an explanation names no date, amount, rate or identifier that neither the
   violation nor the passages contain (ADR-0022). The first live answer to `SRB-009` gave a
   corrected PIB "for example", which the prompt forbade; such an answer now goes back to the

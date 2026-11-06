@@ -4,8 +4,13 @@ A repair is proposed for an invoice as it was when its patches were applied to i
 ``based_on`` is that document's digest. At most :data:`MAX_WAITING` repairs of one invoice
 wait for a decision. Proposing locks the invoice's row, so that the count holds when requests
 arrive together, and so that the invoice cannot change between the check that it is the
-document the patches were applied to and the insert. Each proposal is committed with its audit
-event.
+document the patches were applied to and the insert.
+
+A person decides. Approving locks the organization's stored invoices, then the repair, and
+replaces the invoice's document with the one the patches leave, if the invoice is still the
+document they were proposed for and they still leave the document they left then; the other
+repairs that waited for the invoice are superseded, since their patches were proposed for the
+document it no longer is. Every proposal and decision is committed with its audit event.
 """
 
 from __future__ import annotations
@@ -14,21 +19,28 @@ import hashlib
 import uuid
 from typing import Any, Final
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api import audit
 from sef_api.auth.dependencies import Principal
+from sef_api.invoices import store as invoice_store
+from sef_api.invoices.store import StorageFullError
 from sef_api.invoices.validation import Patched
+from sef_api.locks import lock_invoice_storage
 from sef_api.models import AuditAction, Repair, RepairStatus, StoredInvoice
 
 __all__ = [
     "MAX_LISTED",
     "MAX_WAITING",
+    "DecidedError",
     "InvoiceChangedError",
+    "PatchesChangedError",
     "TooManyWaitingError",
+    "approve",
     "find",
     "propose",
+    "reject",
     "repairs_of",
     "waiting",
 ]
@@ -45,6 +57,18 @@ class TooManyWaitingError(Exception):
 
 class InvoiceChangedError(Exception):
     """The invoice is no longer the document the patches were applied to."""
+
+
+class PatchesChangedError(Exception):
+    """The patches no longer leave the document they left when they were proposed."""
+
+
+class DecidedError(Exception):
+    """The repair waits for no decision: it was approved, rejected or superseded."""
+
+    def __init__(self, status: str) -> None:
+        super().__init__(f"the repair is {status}")
+        self.status = status
 
 
 async def waiting(session: AsyncSession, invoice_id: uuid.UUID) -> int:
@@ -137,3 +161,118 @@ async def find(session: AsyncSession, invoice_id: uuid.UUID, repair_id: uuid.UUI
     return await session.scalar(
         select(Repair).where(Repair.invoice_id == invoice_id, Repair.id == repair_id)
     )
+
+
+async def _waiting_one(
+    session: AsyncSession, invoice_id: uuid.UUID, repair_id: uuid.UUID
+) -> Repair | None:
+    """The repair, locked; :class:`DecidedError` when it waits for no decision."""
+    repair = await session.scalar(
+        select(Repair)
+        .where(Repair.invoice_id == invoice_id, Repair.id == repair_id)
+        .with_for_update()
+    )
+    if repair is not None and repair.status != RepairStatus.PROPOSED:
+        raise DecidedError(repair.status)
+    return repair
+
+
+async def _decide(
+    session: AsyncSession, repair: Repair, status: RepairStatus, decided_by: uuid.UUID
+) -> None:
+    await session.execute(
+        update(Repair)
+        .where(Repair.id == repair.id)
+        .values(status=status, decided_by=decided_by, decided_at=func.now())
+    )
+
+
+async def approve(
+    session: AsyncSession,
+    caller: Principal,
+    *,
+    invoice_id: uuid.UUID,
+    repair_id: uuid.UUID,
+    patched: Patched,
+    quota: int,
+) -> Repair | None:
+    """Approve the repair: the invoice becomes the document ``patched``, its patches applied
+    again, holds; the other repairs of the invoice are superseded; commit. None when the repair
+    or the invoice is gone. :class:`DecidedError` when the repair waits for no decision,
+    :class:`PatchesChangedError` when ``patched`` is not the document the patches left when
+    they were proposed, :class:`InvoiceChangedError` when the invoice has another document now,
+    and :class:`~sef_api.invoices.store.StorageFullError` when the organization would then
+    store more than ``quota`` bytes."""
+    # The lock on the organization's stored invoices comes first, as wherever their bytes
+    # change, then the rows: two approvals take turns, and neither holds a repair the other
+    # supersedes while it waits for the lock.
+    await lock_invoice_storage(session, caller.organization_id)
+    repair = await _waiting_one(session, invoice_id, repair_id)
+    if repair is None:
+        return None
+    document = patched.document.encode()
+    patched_sha256 = hashlib.sha256(document).hexdigest()
+    if patched_sha256 != repair.patched_sha256:
+        raise PatchesChangedError
+    outcome = await invoice_store.replace_document(
+        session,
+        organization_id=caller.organization_id,
+        invoice_id=invoice_id,
+        based_on=repair.based_on,
+        content=document,
+        validation=patched.validation,
+        quota=quota,
+    )
+    if outcome == "gone":
+        return None
+    if outcome == "changed":
+        raise InvoiceChangedError
+    if outcome == "full":
+        raise StorageFullError
+    await _decide(session, repair, RepairStatus.APPROVED, caller.user_id)
+    superseded = list(
+        await session.scalars(
+            update(Repair)
+            .where(Repair.invoice_id == invoice_id, Repair.status == RepairStatus.PROPOSED)
+            .values(status=RepairStatus.SUPERSEDED, decided_at=func.now())
+            .returning(Repair.id)
+        )
+    )
+    audit.record(
+        session,
+        caller,
+        AuditAction.REPAIR_APPROVED,
+        invoice_id=invoice_id,
+        repair_id=repair.id,
+        detail={
+            "based_on": repair.based_on,
+            "patched_sha256": patched_sha256,
+            "valid": patched.validation.report.valid,
+            "superseded": sorted(str(other) for other in superseded),
+        },
+    )
+    await session.commit()
+    await session.refresh(repair)
+    return repair
+
+
+async def reject(
+    session: AsyncSession, caller: Principal, *, invoice_id: uuid.UUID, repair_id: uuid.UUID
+) -> Repair | None:
+    """Reject the repair, and commit: the invoice stays as it is. None when the repair is gone;
+    :class:`DecidedError` when it waits for no decision."""
+    repair = await _waiting_one(session, invoice_id, repair_id)
+    if repair is None:
+        return None
+    await _decide(session, repair, RepairStatus.REJECTED, caller.user_id)
+    audit.record(
+        session,
+        caller,
+        AuditAction.REPAIR_REJECTED,
+        invoice_id=invoice_id,
+        repair_id=repair.id,
+        detail={"based_on": repair.based_on},
+    )
+    await session.commit()
+    await session.refresh(repair)
+    return repair

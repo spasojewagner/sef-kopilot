@@ -257,10 +257,11 @@ system are marked as such.
 
 - [ ] Structured JSON logs with request ids; security-relevant events (login, key use,
       approval, send-to-SEF) are logged without payloads.
-- [~] An audit log in the database records what an organization must account for, committed
-      with the change itself: who proposed a repair, with which key, to which invoice, the
-      digests before and after and each patch's place and outcome, never a value or a reason
-      (ADR-0024). The decisions on repairs come next.
+- [x] An audit log in the database records what an organization must account for, committed
+      with the change itself: who proposed, approved or rejected a repair, with which key, to
+      which invoice, the digests before and after and each patch's place and outcome, never a
+      value or a reason (ADR-0024). Only a person signed in decides on a repair; an API key is
+      refused (403).
 - [ ] Errors are handled centrally; unexpected exceptions are reported to Sentry without
       invoice content.
 
