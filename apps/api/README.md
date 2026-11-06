@@ -332,8 +332,9 @@ The answers are those of a validation, and:
 | 503 | no model is configured; answered before the body is read | `LLM_PROVIDER` |
 | 429 + `Retry-After` | the caller, or their organization, has asked for as many explanations this minute as allowed | `SEF_EXPLANATIONS_PER_MINUTE` (10), `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE` (30) |
 
-Without the model's answers, a request for a synthetic invoice takes 100 to 170 ms; with them,
-the budget is under 6 s an explanation.
+Without the model's answers, a request for a synthetic invoice takes 100 to 170 ms. With Groq's
+free tier and `openai/gpt-oss-120b`, the whole request for an invoice with one rule to explain
+took 1.5 s (measured on 6 November 2026), within the budget of 6 s an explanation.
 
 ## Database and migrations
 
