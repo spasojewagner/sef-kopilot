@@ -40,8 +40,9 @@ The project is pre-alpha. Only the `main` branch and the latest tagged release r
    uploads, no network access during parsing.
 4. Model output is data, not instructions: structured, schema-validated, applied by code, and
    re-validated by layer 1. An explanation may cite only the passages retrieval found, and is
-   checked before it is used. Patches that touch amounts, VAT, tax identifiers or dates of
-   supply are rejected automatically.
+   checked before it is used. A patch is applied by code at a path read by a grammar, never
+   evaluated; one that touches an amount, VAT, a tax or company identifier, a date or the
+   document's number is refused as needing a person's decision.
 5. Multi-tenancy is enforced in the service layer on every query (`organization_id`) and
    covered by tests.
 6. Dependencies are audited in CI (`pip-audit`, `pnpm audit`); secrets are scanned with
@@ -63,8 +64,10 @@ system are marked as such.
 ### V1 Encoding and sanitization
 
 - [ ] Output encoding is applied by the templating / UI layer; API responses are JSON only.
-- [ ] XPath and XSLT inputs that originate from users (rule ids, paths) are validated against an
-      allow-list, never interpolated into expressions.
+- [~] XPath and XSLT inputs that originate from users (rule ids, paths) are validated against an
+      allow-list, never interpolated into expressions: a patch's path is read by a grammar of
+      child steps and walked one step at a time, never evaluated as XPath (ADR-0023; tested
+      with functions, axes, wildcards, predicates and unions).
 - [x] XML parsers reject external entities and DTDs: a document that declares a DOCTYPE is
       refused, and while it is parsed no entity is expanded, no DTD read and no socket opened
       (tested on the parser itself).
@@ -75,11 +78,13 @@ system are marked as such.
 ### V2 Validation and business logic
 
 - [ ] All request bodies are validated with Pydantic models (strict types, bounded sizes).
-- [~] Business guardrails (forbidden patch fields, arithmetic rules in code, citation
+- [x] Business guardrails (forbidden patch fields, arithmetic rules in code, citation
       resolution) are enforced server-side and covered by tests: the arithmetic rules are
       computed in Python, and an explanation cites only passages retrieval read from the
       database, enforced by its answer's schema and checked again (tests send answers that
-      cite other ids); the patch guard comes with the repairer (M3).
+      cite other ids). The patch guard checks what a patch touches (its place, what it is
+      inside of, what it would remove) before anything changes, in the core every caller goes
+      through (tested on the mutations whose fixes would change a PIB, an amount or a date).
 - [x] Rate limiting on upload, validation and explanation endpoints: validations are admitted
       a few at a time (503 with `Retry-After` beyond), and counted per caller and per
       organization (429 with `Retry-After`) before the body is read; a request for
@@ -93,6 +98,9 @@ system are marked as such.
 - [x] Work in the background is bounded: a member has one job of each kind under way (a
       unique index; 409 beyond), a revalidation validates one invoice at a time within the
       same limits and the storage quota, and a worker cuts an attempt short after an hour.
+- [x] The work one repair causes is bounded: 100 patches, a path of 1 000 characters whose
+      positions have six digits at most, a value of 1 000 characters; a path costs as many
+      steps as it has, and `einvoice patch` reads 1 MiB of patches at most.
 
 ### V3 Web frontend security
 

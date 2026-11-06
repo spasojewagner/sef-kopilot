@@ -9,6 +9,20 @@ is tagged.
 
 ## [Unreleased]
 
+### Added
+
+- `einvoice_core`: the patch engine (ADR-0023). A patch `{xpath, op, value, reason}` names its
+  place with the canonical path a violation reports, read by a grammar and walked step by step,
+  and replaces a value, adds a basic component (with the aggregates on its way) where the UBL
+  2.1 schema orders it, or removes an element or an attribute, leaving no element empty. A
+  patch that touches an amount, VAT, a tax or company identifier, a date or the document's
+  number is not applied: it needs a person's decision. `repair()` applies a list of patches,
+  validates the invoice again under the same profile and shows a diff of what changed.
+- `einvoice patch INVOICE PATCHES [--output PATH]`: the outcome of each patch, the diff and
+  the verdict; exit 0 only when every patch applied and the invoice is valid, and never a write
+  over the invoice itself. The file of patches may be UTF-8 or UTF-16, as Windows PowerShell 5.1
+  writes it.
+
 ### Fixed
 
 - `apps/api`: an explanation names no date, amount, rate or identifier that neither the

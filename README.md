@@ -96,7 +96,7 @@ Guardrails that are encoded as tests, not as comments:
 | M0 | Monorepo, tooling, CI, documentation skeleton | done |
 | M1 | Validator core: UBL parser, XSD, Schematron runner, SRB-CIUS rule set v1, fixtures, CLI | done — v0.1.0 |
 | M2 | API, persistence, auth, jobs with SSE progress, regulation corpus, explanations with citations | done — v0.2.0 |
-| M3 | Repair loop with approval and audit log, web UI (sr-Latn / en), public demo | next |
+| M3 | Repair loop with approval and audit log, web UI (sr-Latn / en), public demo | in progress |
 | M4 | MCP server with OAuth 2.1 | planned |
 | M5 | SEF demo round trip, SEF error mapping | planned |
 | M6 | Evaluation harness with CI quality gate, sandbox billing | planned |
@@ -161,6 +161,14 @@ uv run einvoice validate fixtures/invoices/synthetic/srb-minimal-invoice.xml   #
 uv run einvoice validate invoice.xml --profile en16931 --format json
 uv run einvoice validate invoices/                     # every .xml file under a directory
 uv run einvoice rules --profile srb   # what the SEF profile checks and sets aside
+```
+
+Repair one with patches from a JSON file, validated again and shown as a diff (exit status 0
+only when every patch applied and the invoice is valid; `packages/einvoice_core/README.md`
+shows the patches):
+
+```bash
+uv run einvoice patch invoice.xml fixes.json --output fixed.xml
 ```
 
 Copy `.env.example` to `.env` to override the local defaults. Nothing up to M1 needs a secret;
