@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MESSAGES } from "@/test/intl";
+import { MESSAGES } from "@/test/render";
 
 import { routing } from "./routing";
 

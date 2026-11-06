@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { renderIn } from "@/test/intl";
+import { renderIn } from "@/test/render";
 
 import { SiteFooter } from "./site-footer";
 

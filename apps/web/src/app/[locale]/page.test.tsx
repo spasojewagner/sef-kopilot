@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { renderIn } from "@/test/intl";
+import { renderIn } from "@/test/render";
 
 import HomePage from "./page";
 

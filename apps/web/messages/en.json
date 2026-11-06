@@ -14,7 +14,12 @@
     "source": "Source code on GitHub"
   },
   "footer": {
-    "notice": "An independent open-source project. It is not a certified validator, and it is not affiliated with the Serbian Ministry of Finance or the SEF platform."
+    "notice": "An independent open-source project. It is not a certified validator, and it is not affiliated with the Serbian Ministry of Finance or the SEF platform.",
+    "api": {
+      "checking": "Checking the API…",
+      "available": "API is up, version {version}",
+      "unavailable": "API is not answering"
+    }
   },
   "notFound": {
     "title": "This page does not exist",

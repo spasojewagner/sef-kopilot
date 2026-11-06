@@ -14,7 +14,12 @@
     "source": "Izvorni kod na GitHubu"
   },
   "footer": {
-    "notice": "Nezavisan projekat otvorenog koda. Nije sertifikovani validator i nije povezan sa Ministarstvom finansija ni sa SEF platformom."
+    "notice": "Nezavisan projekat otvorenog koda. Nije sertifikovani validator i nije povezan sa Ministarstvom finansija ni sa SEF platformom.",
+    "api": {
+      "checking": "Proveravam API…",
+      "available": "API radi, verzija {version}",
+      "unavailable": "API ne odgovara"
+    }
   },
   "notFound": {
     "title": "Ova stranica ne postoji",

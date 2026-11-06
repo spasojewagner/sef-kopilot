@@ -12,6 +12,9 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     css: false,
+    // What a test stubs with vi.stubGlobal or vi.stubEnv is put back after it.
+    unstubGlobals: true,
+    unstubEnvs: true,
     server: {
       deps: {
         // next-intl imports `next/navigation` without the extension Node's ESM loader asks

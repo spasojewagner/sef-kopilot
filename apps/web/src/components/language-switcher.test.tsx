@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { renderIn } from "@/test/intl";
+import { renderIn } from "@/test/render";
 
 import { LanguageSwitcher } from "./language-switcher";
 

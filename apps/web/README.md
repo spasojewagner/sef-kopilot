@@ -13,7 +13,9 @@ pnpm install
 pnpm --filter @sef-kopilot/web dev
 ```
 
-Then open <http://localhost:3000>.
+Then open <http://localhost:3000>. The footer says whether the API answers: start it too
+(`make api`), with `http://localhost:3000` among its `SEF_WEB_ORIGINS`, as in the root
+`.env.example`.
 
 ## Languages
 
@@ -27,7 +29,19 @@ The texts are in `messages/sr-Latn.json` and `messages/en.json`, under the same 
 fails when a key, or an argument such as `{version}`, is in one file and not the other, and the
 compiler refuses a key that the Serbian file does not have. A page reads them with
 `useTranslations("home")`, and a test renders it with `renderIn(locale, …)` from
-`src/test/intl.tsx`.
+`src/test/render.tsx`.
+
+## The API
+
+The pages call the API from the browser, at `NEXT_PUBLIC_API_URL` (see `.env.example`;
+`http://127.0.0.1:8000` when it is not set), and the API allows it for the origins in its
+`SEF_WEB_ORIGINS` (ADR-0026). `src/lib/api.ts` sends a request, gives up after ten seconds,
+and turns an error into an `ApiError` with the API's status and reason. `src/lib/queries.ts`
+holds the questions the pages ask, such as `healthQuery`, each with the key TanStack Query
+keeps its answer under; `src/components/query-provider.tsx` sets how long an answer stays
+fresh (a minute) and when a failed request is tried again (once, unless the API refused it).
+In the tests no request leaves the machine: `vitest.setup.ts` makes each one fail as if the
+API could not be reached, unless the test answers it with `vi.stubGlobal("fetch", …)`.
 
 ## Components and styles
 
@@ -54,18 +68,20 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 ## Layout
 
 ```text
+.env.example       the web application's settings: the API's address
 components.json    shadcn/ui's settings: style, stylesheet, aliases
 messages/          the interface's texts, one file per language
 src/app/[locale]/  routes (App Router) under the language: the root layout, the pages, the 404;
                    `page.test.tsx` next to `page.tsx`
 src/app/globals.css  Tailwind, shadcn/ui's theme tokens, dark mode
-src/components/    components shared by the pages: the header, the footer, the language switcher
+src/components/    components shared by the pages: the header, the footer, the language switcher,
+                   the API's status, the cache of the API's answers
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types
-src/lib/           helpers shared by the components: `cn()`
+src/lib/           the API client and the questions the pages ask it; `cn()`
 src/proxy.ts       sends a path without a language to the visitor's
-src/test/          what the tests share: rendering in a language
+src/test/          what the tests share: rendering in a language, with a cache of its own
 vitest.config.mts  Vitest with React plugin, jsdom and tsconfig path aliases
-vitest.setup.ts    jest-dom matchers and automatic cleanup
+vitest.setup.ts    jest-dom matchers, automatic cleanup, no request to the network
 ```
