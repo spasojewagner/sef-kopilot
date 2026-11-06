@@ -235,6 +235,10 @@ The address is the one the server saw. Behind a reverse proxy, tell uvicorn whic
 trust, so that the address is the client's and not the proxy's:
 `uvicorn sef_api.main:create_app --factory --proxy-headers --forwarded-allow-ips=<proxy address>`.
 
+Every request body other than an invoice, the JSON of a request, is read at most to
+`SEF_MAX_BODY_BYTES` (1 MiB) before the application sees it: a longer one, declared or counted
+while it is read, answers 413. An invoice has its limit of its own (`SEF_MAX_INVOICE_BYTES`).
+
 ## The corpus
 
 Explanations cite the official documents the validator's rules come from: the law and the
