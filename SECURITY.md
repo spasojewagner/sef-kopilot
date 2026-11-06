@@ -114,11 +114,17 @@ system are marked as such.
 
 - [ ] Content Security Policy, `X-Content-Type-Options`, `Referrer-Policy` and
       `Permissions-Policy` headers set by the web app and the API.
-- [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`.
+- [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`. The web application sets none so
+      far: the language is in the path (`localeCookie: false`), and where a signed-in visitor's
+      tokens are kept is decided with the first page that signs in (ADR-0026).
 
 ### V4 API and web service
 
-- [ ] CORS restricted to the configured web origin.
+- [x] CORS restricted to the configured web origins (`SEF_WEB_ORIGINS`, none by default and
+      `https://` only in production): their pages may send the token, the body's type and where
+      an event stream stopped, and read `Location` and `Retry-After`, an error's included; no
+      credentials, since a token travels in a header, never in a cookie. Tested with the
+      application's own origin, another one, and none configured.
 - [x] Every endpoint is public by name or requires a permission; a test over the application's
       routes enforces it, and OpenAPI documents the bearer scheme (an access token or an API
       key).
