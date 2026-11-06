@@ -63,6 +63,30 @@ is tagged.
   tabs take turns to refresh, so that the API's strict rotation never signs a person out. The
   header shows who is signed in, as `GET /auth/me` confirms it. Signing out, here or in another
   tab, forgets the visitor's cached answers.
+- `docs/api/openapi.json`: the API's OpenAPI document in the repository, written by
+  `make openapi` (`scripts/export_openapi.py`) from settings of its own, so that the environment
+  does not change it; a test fails when it is not the API's. The web application's types are
+  generated from it with `openapi-typescript`, and a test fails when they are not the
+  document's (ADR-0028).
+- `apps/web`: upload an invoice, read its report, and list the organization's invoices
+  (ADR-0028). The invoices' page sends an invoice or a credit note in UBL 2.1 XML under the
+  chosen profile (SEF, EN 16931 or Peppol) and opens its report; an error is said in the
+  visitor's language, with the seconds to wait when the API names them. The report shows what
+  the validator read (the seller, the buyer, the day of issue, the amount payable), the
+  verdict, every rule the invoice fails, the fatal ones first, with each place it fails it, and
+  what each layer of the validator did. The list shows the newest invoices first, twenty at a
+  time. An amount keeps every digit the invoice states, and an invoice's day is the same day in
+  every time zone.
+- `POST /invoices/{invoice_id}/explanations`: the explanations of a stored invoice's latest
+  report, as `POST /invoices/explain` writes them for a document in the body, in Serbian or
+  English. The invoice is not validated again; the request counts as one to the language model,
+  per caller and per organization, and as no validation (ADR-0029).
+- `apps/web`: the rules' explanations on an invoice's report, when the visitor asks for them,
+  in the page's language (ADR-0029). Each rule's card says what the rule requires, why the
+  invoice fails it and what to change, with the passages it cites, dated and linked to their
+  official sources. The page says first what the language model is sent, names the rules left
+  for a later request, and says why there are none: too many requests, no model on the server,
+  no answer in time.
 
 ### Changed
 

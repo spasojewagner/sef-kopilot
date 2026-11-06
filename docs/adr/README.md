@@ -33,5 +33,7 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0025](0025-repairs-the-model-proposes.md) | Repairs the model proposes: the fields around the violations, checked patches, two rounds | accepted | 2026-11-06 |
 | [0026](0026-the-web-application-shell.md) | The web application: the language in the path, shadcn/ui in the repository, the browser calling the API | accepted | 2026-11-06 |
 | [0027](0027-a-visitors-tokens-in-the-browser.md) | A visitor's tokens in the browser: the access token in memory, the refresh token in local storage, one refresh at a time | accepted | 2026-11-06 |
+| [0028](0028-the-apis-contract-and-the-pages-of-invoices.md) | The API's contract in the repository, the web application's types generated from it, and an invoice's page as a static shell | accepted | 2026-11-06 |
+| [0029](0029-explanations-of-a-stored-invoice.md) | Explanations of a stored invoice: its report explained, when the visitor asks | accepted | 2026-11-06 |
 
 Planned (recorded when the work lands): OAuth 2.1 for MCP (M4), evaluation thresholds (M6).

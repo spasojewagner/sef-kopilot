@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Final, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, Field
@@ -494,6 +494,74 @@ async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Se
     )
 
 
+@router.post(
+    "/{invoice_id}/explanations",
+    summary="Explain a stored invoice's violations",
+    description=(
+        "Explains each rule the stored invoice's latest report names, as `POST "
+        "/invoices/explain` does for a document in the request body: what the rule requires, "
+        "why the invoice fails it and what to change, citing the passages of the official "
+        "documents that apply on the invoice's issue date. The invoice is not validated again: "
+        "the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the "
+        "answer. Nothing is stored. The language model is sent each rule's first violation, "
+        "whose message may quote the invoice, and the passages; nothing else of the invoice. "
+        "Counted as a request to the language model, not as a validation."
+    ),
+    responses=_NOT_FOUND
+    | {
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "model": Problem,
+            "description": "Too many requests to the language model by the caller, or in their "
+            "organization; try again after `Retry-After` seconds.",
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": Problem,
+            "description": "No language model is configured on this server.",
+        },
+    },
+)
+async def explain_stored_invoice(
+    invoice_id: uuid.UUID,
+    request: Request,
+    response: Response,
+    *,
+    caller: CanSubmit,
+    session: Session,
+    language: Explaining = "sr",
+) -> Explained:
+    explainer = cast(Explainer | None, request.app.state.explainer)
+    if explainer is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "no language model is configured on this server"
+        )
+    count(request, caller, MODEL_REQUEST)
+    invoice = await store.find(session, scope_of(caller), invoice_id)
+    if invoice is None:
+        raise _not_found()
+    stored = _stored(invoice)
+    day = stored.summary.issue_date if stored.summary is not None else datetime.now(UTC).date()
+    settings = cast(Settings, request.app.state.settings)
+    explanations, unexplained = await explain_report(
+        session,
+        stored.report,
+        day=day,
+        language=language,
+        explainer=explainer,
+        embedder=cast(Embedder | None, request.app.state.embedder),
+        max_rules=settings.max_explanations,
+        seconds=settings.explanation_seconds,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return Explained(
+        report=stored.report,
+        day=day,
+        language=language,
+        model=explainer.model,
+        explanations=explanations,
+        unexplained=unexplained,
+    )
+
+
 @router.delete(
     "/{invoice_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -509,10 +577,21 @@ async def delete_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Sess
         raise _not_found()
 
 
+#: A kind of request, as the caller's limit and their organization's count it.
+Kind = tuple[Counted, Counted]
+VALIDATION: Final[Kind] = (Counted.VALIDATION, Counted.ORGANIZATION_VALIDATION)
+MODEL_REQUEST: Final[Kind] = (Counted.MODEL_REQUEST, Counted.ORGANIZATION_MODEL_REQUEST)
+
+
 def count_validation(request: Request, caller: Principal, *, asks_model: bool = False) -> None:
-    """Count a validation, and a request to the language model if it asks the model, against
-    the caller's limits and their organization's, all at once; 429 beyond any. A caller is a
-    member signed in, whatever the device, or one API key."""
+    """Count a validation, and a request to the language model if it asks the model."""
+    count(request, caller, VALIDATION, *((MODEL_REQUEST,) if asks_model else ()))
+
+
+def count(request: Request, caller: Principal, *kinds: Kind) -> None:
+    """Count a request of each kind against the caller's limit of that kind and their
+    organization's, all at once; 429 beyond any. A caller is a member signed in, whatever the
+    device, or one API key."""
     limiter = cast(RateLimiter, request.app.state.limiter)
     limits = cast(Mapping[Counted, Limit], request.app.state.limits)
     who = (
@@ -521,12 +600,9 @@ def count_validation(request: Request, caller: Principal, *, asks_model: bool = 
         else f"member {caller.organization_id} {caller.user_id}"
     )
     organization = str(caller.organization_id)
-    counted = [(Counted.VALIDATION, Counted.ORGANIZATION_VALIDATION)]
-    if asks_model:
-        counted.append((Counted.MODEL_REQUEST, Counted.ORGANIZATION_MODEL_REQUEST))
     rules = [
         rule
-        for each, together in counted
+        for each, together in kinds
         for rule in (
             Rule(each, who, limits[each]),
             Rule(together, organization, limits[together]),

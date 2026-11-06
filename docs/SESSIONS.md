@@ -1198,3 +1198,95 @@ at the first, 80 at the last) and production build; the Python suites (2 698 tes
 
 Next: `feat/web-upload-report`, stacked on this branch: upload an invoice, read its report, and a
 violation's detail with its explanation and citations.
+
+## 2026-11-06 — `feat/web-upload-report` (4 commits, stacked on `feat/web-sign-in`)
+
+Outcome: a signed-in visitor sends an invoice, reads the validator's report on it, and finds it
+again in the organization's list (ADR-0028). The invoices' page sends the XML under the profile
+chosen and opens the report. The report shows what the validator read, the verdict, every rule
+the invoice fails, the errors first, with each place, and what each layer did; the list shows
+the newest invoices first, twenty at a time. The web application takes the API's answers from
+the API's own OpenAPI document, which the repository now keeps and tests hold to the API's code,
+and the types are generated from it.
+
+Findings:
+
+- The OpenAPI document depended on the machine: the export read the environment and `.env`, and
+  `LLM_PROVIDER=groq` without a key stopped it. It builds the API with settings of its own now,
+  and a test changes the environment and expects the same document.
+- A page whose address the build cannot know, in an application built ahead: with
+  `cacheComponents`, the build refused to read the id outside `<Suspense>`, and refused the
+  header's language switcher, which reads the path, on that page. The id is awaited inside a
+  boundary and streamed into a prerendered shell; the browser fetches the report.
+- Chromium writes `14.400 RSD` where Node writes `14.400,00 RSD`: their data give the dinar 0
+  and 2 decimals. Amounts are formatted from the API's decimal string, with every decimal it
+  has and at least two, and never pass through a floating-point number.
+- A file input marked `required` left the form's data empty under jsdom, and browsers check it
+  differently; the form reads the input's files and says itself when none was chosen.
+- The two generated files, 7 500 lines, are marked `linguist-generated`, so that the pull
+  request's diff is the hand-written one; the document can still be expanded to review the
+  contract.
+- Seeding faults: forty-seven seeded in the web application (amounts and dates, the rules, the
+  requests, the upload, the list, the report, who sees the invoices, the generated types) and six
+  in the export. Twenty-nine of the web application's were caught at first; the other eighteen
+  found gaps, which tests now close: a day and a moment written from west of Greenwich (Belgrade
+  and CI's UTC both hid the wrong zone), a minute for an upload, the list asked for again, an
+  empty file, one upload at a time, the keys of a visitor's invoices, an id kept to one segment of
+  the path, a rule's errors apart from its warnings, an address that is no invoice's, what the
+  report could not place, left out or did not run, and nothing shown before the session is known.
+  All fifty-three are caught now.
+- What the pages show comes from an uploaded document, the rules' messages included, which quote
+  it. It is rendered as text; a lint rule (`react/no-danger`) now forbids setting HTML from
+  data, and a test renders a seller whose name is markup.
+- End to end against the API: a valid synthetic invoice ("Nema grešaka, nema upozorenja"), a
+  mutation that fails `SRB-001`, the report after a reload and in English, the list with its
+  amounts, and a text file kept as an unreadable document.
+
+Verification: each of the four commits on its own, the web application's lint, types, tests (81 at
+the first, 117 at the last) and production build; the Python suites (2 702 tests) at the first and
+the last.
+
+Next: `feat/web-explanations`, stacked on this branch: each violation's explanation, in Serbian
+or English, with its dated citations, on the report's page.
+
+## 2026-11-06 — `feat/web-explanations` (5 commits, stacked on `feat/web-upload-report`)
+
+Outcome: on an invoice's report, the visitor may ask for the rules to be explained, in the page's
+language; each rule's card then shows the explanation, what to change, and the passages cited,
+dated and linked to their sources (ADR-0029). The API gains
+`POST /invoices/{invoice_id}/explanations`, which explains the stored report without validating
+the invoice again and counts as one request to the language model.
+
+Findings:
+
+- The page has a stored invoice's id and report, not its document; reusing
+  `POST /invoices/explain` would have carried the document through the browser and back and
+  validated it again, possibly into another report than the one on the page. A route of its
+  own explains the stored report with the same `explain_report()`. Counting took a refactor,
+  in a commit of its own, so that a request can ask the model without being a validation.
+- The tests' cache treated every answer as stale where the pages keep one fresh for a minute,
+  so a test that a page did not ask again passed only because it looked before the page had
+  asked. The cache has the pages' defaults now, and such tests wait a moment.
+- A Serbian date ends with a period of its own (`5. 11. 2026.`); a message that put one after it
+  wrote two. The message now names the day mid-sentence.
+- The check in a browser served the API with a stand-in for the language model, from a script of
+  its own. The validator's processes import the main module again, so a script that starts the API
+  with the process validator serves only under `if __name__ == "__main__"`; without it, each
+  process tried to serve too.
+- Seeding faults: forty-four, thirteen in the API (the route, what it counts, the refactor of
+  counting) and thirty-one in the web application (the request, the query's key and its policy,
+  the panel, the citations). Eight were missed at first, and tests now catch them: the most rules
+  one request explains and the time the model is given (whose test checks the embedder too), a key
+  for each language under the invoice's, the query never asking again by itself, and a heading in
+  Cyrillic. All are caught now.
+- In a browser against the API, with a stand-in for the language model: nothing asked before the
+  button, SRB-009 explained with Article 2 of the PIB rulebook and BT-31 of SRB-CIUS, once in
+  Serbian and once in English, the same explanations after going to the list and back without a
+  new request, and a server without a model saying so.
+
+Verification: each of the five commits on its own: ruff, mypy and the Python suites (2 702 tests
+at the refactor, 2 713 from the route on), and the web application's lint, types, tests (117 up to
+the explanations, 136 with them) and production build.
+
+Next: `feat/web-diff-approve`, stacked on this branch: a repair's proposals as a diff of the
+invoice, approved or rejected one by one, and the report of the repaired copy.

@@ -9,12 +9,14 @@
   },
   "account": {
     "signIn": "Prijava",
-    "signOut": "Odjava"
+    "signOut": "Odjava",
+    "invoices": "Fakture"
   },
   "home": {
     "status": "pre-alpha",
     "title": "SEF Kopilot",
     "tagline": "Deterministička validacija, objašnjenja na običnom jeziku i pregledne ispravke elektronskih faktura za SEF, EN 16931 i Peppol.",
+    "check": "Proverite fakturu",
     "source": "Izvorni kod na GitHubu"
   },
   "footer": {
@@ -62,5 +64,116 @@
     "tooMany": "Previše pokušaja. Pokušajte ponovo za {seconds} s.",
     "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
     "failed": "Nije uspelo. Pokušajte ponovo."
+  },
+  "signedInOnly": {
+    "title": "Prijavite se",
+    "description": "Fakture se čuvaju za vašu organizaciju, pa ih vidite kad se prijavite.",
+    "signIn": "Prijava",
+    "register": "Registracija"
+  },
+  "invoices": {
+    "title": "Fakture",
+    "uploadTitle": "Nova faktura",
+    "uploadDescription": "Validator proverava fakturu prema izabranom profilu i čuva je sa izveštajem za vašu organizaciju.",
+    "listTitle": "Proverene fakture",
+    "loading": "Učitavanje faktura…",
+    "notLoaded": "Fakture nisu učitane. Pokušajte ponovo malo kasnije.",
+    "none": "Još nema faktura. Pošaljite prvu iznad.",
+    "number": "Broj",
+    "parties": "Prodavac → kupac",
+    "issued": "Datum izdavanja",
+    "amount": "Za plaćanje",
+    "verdict": "Nalaz",
+    "submitted": "Poslata",
+    "unreadable": "Nečitljiv dokument",
+    "more": "Prikaži još"
+  },
+  "upload": {
+    "file": "Faktura (UBL 2.1 XML)",
+    "fileHint": "Faktura ili knjižno odobrenje u XML-u, kako ga šaljete SEF-u.",
+    "missing": "Izaberite fakturu u XML-u.",
+    "profile": "Profil",
+    "submit": "Proveri i sačuvaj",
+    "pending": "Provera…"
+  },
+  "uploadErrors": {
+    "signedOut": "Sesija je istekla. Prijavite se ponovo.",
+    "forbidden": "Nemate dozvolu da šaljete fakture.",
+    "tooSlow": "Faktura nije primljena na vreme. Pokušajte ponovo.",
+    "tooLarge": "Faktura je prevelika: ima više bajtova ili elemenata nego što ovaj server prima.",
+    "notXml": "Pošaljite fakturu kao XML (UBL 2.1).",
+    "notValidated": "Validator nije stigao da proveri fakturu na vreme, ili na nju nije mogao da primeni pravila.",
+    "tooMany": "Previše provera. Pokušajte ponovo za {seconds} s.",
+    "validatorBusy": "Validator je zauzet. Pokušajte ponovo za {seconds} s.",
+    "validatorAway": "Validator trenutno nije dostupan. Pokušajte ponovo malo kasnije.",
+    "storageFull": "Organizacija je popunila prostor za fakture. Obrišite neke, pa pokušajte ponovo.",
+    "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
+    "failed": "Faktura nije sačuvana. Pokušajte ponovo."
+  },
+  "verdict": {
+    "valid": "Ispravna",
+    "invalid": "Neispravna"
+  },
+  "profiles": {
+    "srb": "SEF (SRB-CIUS)",
+    "en16931": "EN 16931",
+    "peppol": "Peppol BIS Billing 3.0"
+  },
+  "report": {
+    "title": "Izveštaj",
+    "loading": "Učitavanje izveštaja…",
+    "notFound": "Ova faktura ne postoji, ili nije vaša.",
+    "notLoaded": "Izveštaj nije učitan. Pokušajte ponovo malo kasnije.",
+    "back": "Nazad na fakture",
+    "unreadable": "Nečitljiv dokument",
+    "seller": "Prodavac",
+    "buyer": "Kupac",
+    "issued": "Datum izdavanja",
+    "amount": "Za plaćanje",
+    "checked": "Provereno prema profilu {profile}, {when}.",
+    "violations": "{fatal, plural, =0 {Nema grešaka} one {# greška} few {# greške} other {# grešaka}}, {warnings, plural, =0 {nema upozorenja} one {# upozorenje} few {# upozorenja} other {# upozorenja}}",
+    "none": "Validator nije našao nijedan prekršaj.",
+    "omitted": "Prekršaja koje izveštaj ne prikazuje: {count}.",
+    "setAside": "Nalaza objavljenih pravila koje ovaj profil ne primenjuje: {count}.",
+    "severity": {
+      "fatal": "Greška",
+      "warning": "Upozorenje"
+    },
+    "layers": {
+      "xml": "XML",
+      "xsd": "UBL 2.1 šema",
+      "schematron": "Schematron (EN 16931, Peppol)",
+      "srb-cius": "SRB-CIUS",
+      "arithmetic": "Računske provere (EN 16931)"
+    },
+    "places": "{count, plural, one {# mesto} few {# mesta} other {# mesta}}",
+    "wholeDocument": "ceo dokument",
+    "line": "red {line}",
+    "layersTitle": "Slojevi provere",
+    "layerFound": "{count, plural, =0 {bez prekršaja} one {# prekršaj} few {# prekršaja} other {# prekršaja}}",
+    "layerSkipped": "nije pokrenut"
+  },
+  "explanations": {
+    "title": "Objašnjenja",
+    "intro": "Jezički model može da objasni svako pravilo: šta traži, zašto ga faktura krši i šta treba promeniti, uz citate propisa koji važe na dan izdavanja fakture.",
+    "privacy": "Modelu se šalje poruka svakog pravila, koja može navesti vrednost iz fakture, i odlomci propisa; ništa se ne čuva.",
+    "ask": "Objasni pravila",
+    "writing": "Jezički model piše objašnjenja. Može potrajati do pola minuta…",
+    "written": "Prema propisima na dan {day} objašnjenja je napisao jezički model {model}. Svaki citat je odlomak propisa koji je model dobio.",
+    "unexplained": "Ovaj put nisu objašnjena: {rules}. Objasniće se kad se isprave pravila iznad.",
+    "fix": "Šta promeniti",
+    "citations": "Propisi",
+    "validFrom": "važi od {from}",
+    "validBetween": "važi od {from} do {to}",
+    "problem": "Ovo pravilo ovaj put nije objašnjeno. Pokušajte ponovo.",
+    "again": "Pokušaj ponovo",
+    "errors": {
+      "tooMany": "Previše zahteva jezičkom modelu. Pokušajte ponovo za {seconds} s.",
+      "noModel": "Na ovom serveru nije podešen jezički model, pa objašnjenja nisu dostupna.",
+      "notFound": "Ova faktura više ne postoji.",
+      "tooSlow": "Objašnjenja nisu stigla na vreme. Pokušajte ponovo.",
+      "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
+      "failed": "Objašnjenja nisu napisana. Pokušajte ponovo malo kasnije."
+    }
   }
 }

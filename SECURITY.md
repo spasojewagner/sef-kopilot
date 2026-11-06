@@ -68,7 +68,11 @@ system are marked as such.
 
 ### V1 Encoding and sanitization
 
-- [ ] Output encoding is applied by the templating / UI layer; API responses are JSON only.
+- [x] Output encoding is applied by the UI layer: the web application renders an invoice's
+      values, and the rules' messages that quote them, as text, which React escapes; a lint
+      rule forbids setting HTML from data (`react/no-danger`), and a test renders a document
+      whose values are markup (ADR-0028). API responses are JSON, but for a stored document,
+      served back as an attachment with `nosniff` (V5).
 - [~] XPath and XSLT inputs that originate from users (rule ids, paths) are validated against an
       allow-list, never interpolated into expressions: a patch's path is read by a grammar of
       child steps and walked one step at a time, never evaluated as XPath (ADR-0023; tested
@@ -97,7 +101,8 @@ system are marked as such.
       a few at a time (503 with `Retry-After` beyond), and counted per caller and per
       organization (429 with `Retry-After`) before the body is read; a request for
       explanations is counted as a validation and against limits of its own, per caller and
-      per organization, in the same step.
+      per organization, in the same step. The explanations of a stored invoice, which is not
+      validated again, count against the latter alone (ADR-0029).
 - [x] The work one request for explanations causes is bounded: five rules at most, passages
       cut to 6 000 characters, three answers a rule, and 30 seconds in all.
 - [x] The work one upload causes is bounded: a budget of elements counted before any

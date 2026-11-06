@@ -1,0 +1,152 @@
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
+import { invoiceQuery, invoicesQuery } from "@/lib/queries";
+import { json, keepSession, stubApi } from "@/test/api";
+import { storedInvoice } from "@/test/invoices";
+import { renderIn, testQueryClient } from "@/test/render";
+
+import { InvoiceUpload } from "./invoice-upload";
+
+const router = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+  prefetch: vi.fn(),
+  back: vi.fn(),
+  forward: vi.fn(),
+  refresh: vi.fn(),
+}));
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => router,
+  usePathname: () => "/sr-Latn/invoices",
+}));
+
+const XML = '<?xml version="1.0"?><Invoice/>';
+
+async function upload(profile?: string, content = XML) {
+  const user = userEvent.setup();
+  await user.upload(
+    screen.getByLabelText("Faktura (UBL 2.1 XML)"),
+    new File([content], "faktura.xml", { type: "text/xml" }),
+  );
+  if (profile) {
+    await user.selectOptions(screen.getByLabelText("Profil"), profile);
+  }
+  await user.click(screen.getByRole("button", { name: "Proveri i sačuvaj" }));
+}
+
+describe("Invoice upload", () => {
+  it("sends the invoice under the profile chosen, and shows its report", async () => {
+    keepSession();
+    router.push.mockClear();
+    const stored = storedInvoice();
+    const asked = stubApi(() => json(201, stored));
+    const client = testQueryClient();
+    client.setQueryData(invoicesQuery.queryKey, {
+      pages: [{ invoices: [], next: null }],
+      pageParams: [null],
+    });
+    renderIn("sr-Latn", <InvoiceUpload />, client);
+
+    await upload("en16931");
+
+    await waitFor(() => expect(router.push).toHaveBeenCalled());
+    expect(router.push.mock.calls[0][0]).toBe(`/sr-Latn/invoices/${stored.id}`);
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toMatchObject({
+      method: "POST",
+      path: "/invoices",
+      search: "?profile=en16931",
+    });
+    expect(asked[0].headers.get("Content-Type")).toBe("application/xml");
+    expect(asked[0].headers.get("Authorization")).toBe("Bearer access-2");
+    expect(await (asked[0].body as File).text()).toBe(XML);
+    expect(client.getQueryData(invoiceQuery(stored.id).queryKey)).toEqual(
+      stored,
+    );
+    expect(client.getQueryState(invoicesQuery.queryKey)?.isInvalidated).toBe(
+      true,
+    );
+  });
+
+  it("validates under the Serbian profile unless told otherwise", async () => {
+    keepSession();
+    const asked = stubApi(() => json(201, storedInvoice()));
+    renderIn("sr-Latn", <InvoiceUpload />);
+
+    await upload();
+
+    await waitFor(() => expect(asked).toHaveLength(1));
+    expect(asked[0].search).toBe("?profile=srb");
+  });
+
+  it("asks for a file before sending anything", async () => {
+    keepSession();
+    const asked = stubApi(() => json(201, storedInvoice()));
+    renderIn("sr-Latn", <InvoiceUpload />);
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Proveri i sačuvaj" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Izaberite fakturu u XML-u.",
+    );
+    expect(screen.getByLabelText("Faktura (UBL 2.1 XML)")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(asked).toEqual([]);
+  });
+
+  it("takes an empty file for no file at all", async () => {
+    keepSession();
+    const asked = stubApi(() => json(201, storedInvoice()));
+    renderIn("sr-Latn", <InvoiceUpload />);
+
+    await upload(undefined, "");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Izaberite fakturu u XML-u.",
+    );
+    expect(asked).toEqual([]);
+  });
+
+  it("sends one invoice at a time", async () => {
+    keepSession();
+    let answer: (response: Response) => void = () => undefined;
+    const asked = stubApi(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    renderIn("sr-Latn", <InvoiceUpload />);
+
+    await upload();
+    await waitFor(() => expect(asked).toHaveLength(1));
+
+    expect(screen.getByRole("button", { name: "Provera…" })).toBeDisabled();
+    answer(json(201, storedInvoice()));
+    expect(
+      await screen.findByRole("button", { name: "Proveri i sačuvaj" }),
+    ).toBeEnabled();
+  });
+
+  it("says why the invoice was not kept", async () => {
+    keepSession();
+    stubApi(() =>
+      json(507, { detail: "the organization stores as much as it may" }),
+    );
+    renderIn("sr-Latn", <InvoiceUpload />);
+
+    await upload();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Organizacija je popunila prostor za fakture.",
+    );
+  });
+});

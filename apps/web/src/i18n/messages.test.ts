@@ -22,9 +22,12 @@ function flatten(messages: object, prefix = ""): Map<string, unknown> {
 
 /** The arguments a message takes, ``{version}``, which every translation must take too. */
 function argumentsOf(text: string): string[] {
-  return [...text.matchAll(/\{\s*([A-Za-z_]\w*)/g)]
-    .map((found) => found[1])
-    .sort();
+  // An argument is a name that closes its braces or goes on with a format, `{count, plural,
+  // …}`; the words of a plural's branches, `one {# greška}`, are not arguments.
+  const names = [...text.matchAll(/\{\s*([A-Za-z_]\w*)\s*[,}]/g)].map(
+    (found) => found[1],
+  );
+  return [...new Set(names)].sort();
 }
 
 describe("Messages", () => {

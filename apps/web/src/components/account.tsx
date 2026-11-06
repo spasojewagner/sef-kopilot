@@ -35,6 +35,12 @@ export function Account() {
   }
   return (
     <div className="flex min-w-0 items-center gap-2">
+      <Link
+        href="/invoices"
+        className={buttonVariants({ variant: "ghost", size: "sm" })}
+      >
+        {t("invoices")}
+      </Link>
       <span
         className="hidden max-w-56 truncate text-sm text-muted-foreground sm:inline"
         title={(me.data ?? session.identity).organization.name}

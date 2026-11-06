@@ -9,12 +9,14 @@
   },
   "account": {
     "signIn": "Sign in",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "invoices": "Invoices"
   },
   "home": {
     "status": "pre-alpha",
     "title": "SEF Kopilot",
     "tagline": "Deterministic validation, plain-language explanations and reviewable repairs of electronic invoices for SEF, EN 16931 and Peppol.",
+    "check": "Check an invoice",
     "source": "Source code on GitHub"
   },
   "footer": {
@@ -62,5 +64,116 @@
     "tooMany": "Too many attempts. Try again in {seconds} s.",
     "unreachable": "The API is not answering. Try again a little later.",
     "failed": "That did not work. Try again."
+  },
+  "signedInOnly": {
+    "title": "Sign in",
+    "description": "Invoices are kept for your organization, so you see them once you sign in.",
+    "signIn": "Sign in",
+    "register": "Register"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "uploadTitle": "A new invoice",
+    "uploadDescription": "The validator checks the invoice under the profile you choose, and keeps it with its report for your organization.",
+    "listTitle": "Checked invoices",
+    "loading": "Loading the invoices…",
+    "notLoaded": "The invoices did not load. Try again a little later.",
+    "none": "No invoices yet. Send the first one above.",
+    "number": "Number",
+    "parties": "Seller → buyer",
+    "issued": "Issue date",
+    "amount": "Amount due",
+    "verdict": "Verdict",
+    "submitted": "Sent",
+    "unreadable": "Unreadable document",
+    "more": "Show more"
+  },
+  "upload": {
+    "file": "Invoice (UBL 2.1 XML)",
+    "fileHint": "An invoice or a credit note in XML, as you send it to SEF.",
+    "missing": "Choose an invoice in XML.",
+    "profile": "Profile",
+    "submit": "Check and keep",
+    "pending": "Checking…"
+  },
+  "uploadErrors": {
+    "signedOut": "The session has expired. Sign in again.",
+    "forbidden": "You may not send invoices.",
+    "tooSlow": "The invoice was not received in time. Try again.",
+    "tooLarge": "The invoice is too large: it has more bytes or elements than this server accepts.",
+    "notXml": "Send the invoice as XML (UBL 2.1).",
+    "notValidated": "The validator could not check the invoice in time, or could not apply the rules to it.",
+    "tooMany": "Too many checks. Try again in {seconds} s.",
+    "validatorBusy": "The validator is busy. Try again in {seconds} s.",
+    "validatorAway": "The validator is not available right now. Try again a little later.",
+    "storageFull": "The organization has filled its space for invoices. Delete some, then try again.",
+    "unreachable": "The API is not answering. Try again a little later.",
+    "failed": "The invoice was not kept. Try again."
+  },
+  "verdict": {
+    "valid": "Valid",
+    "invalid": "Invalid"
+  },
+  "profiles": {
+    "srb": "SEF (SRB-CIUS)",
+    "en16931": "EN 16931",
+    "peppol": "Peppol BIS Billing 3.0"
+  },
+  "report": {
+    "title": "Report",
+    "loading": "Loading the report…",
+    "notFound": "This invoice does not exist, or is not yours.",
+    "notLoaded": "The report did not load. Try again a little later.",
+    "back": "Back to the invoices",
+    "unreadable": "Unreadable document",
+    "seller": "Seller",
+    "buyer": "Buyer",
+    "issued": "Issue date",
+    "amount": "Amount due",
+    "checked": "Checked under the {profile} profile, {when}.",
+    "violations": "{fatal, plural, =0 {No errors} one {# error} other {# errors}}, {warnings, plural, =0 {no warnings} one {# warning} other {# warnings}}",
+    "none": "The validator found no violation.",
+    "omitted": "Violations the report does not show: {count}.",
+    "setAside": "Findings of published rules that this profile does not apply: {count}.",
+    "severity": {
+      "fatal": "Error",
+      "warning": "Warning"
+    },
+    "layers": {
+      "xml": "XML",
+      "xsd": "UBL 2.1 schema",
+      "schematron": "Schematron (EN 16931, Peppol)",
+      "srb-cius": "SRB-CIUS",
+      "arithmetic": "Calculations (EN 16931)"
+    },
+    "places": "{count, plural, one {# place} other {# places}}",
+    "wholeDocument": "the whole document",
+    "line": "line {line}",
+    "layersTitle": "Layers of the check",
+    "layerFound": "{count, plural, =0 {no violations} one {# violation} other {# violations}}",
+    "layerSkipped": "did not run"
+  },
+  "explanations": {
+    "title": "Explanations",
+    "intro": "A language model can explain each rule: what it requires, why the invoice fails it and what to change, citing the regulations that apply on the invoice's issue date.",
+    "privacy": "The model is sent each rule's message, which may quote a value of the invoice, and passages of the regulations; nothing is kept.",
+    "ask": "Explain the rules",
+    "writing": "The language model is writing the explanations. This may take up to half a minute…",
+    "written": "Explained by the language model {model}, from the regulations as of {day}. Every citation is a passage the model was given.",
+    "unexplained": "Not explained this time: {rules}. They will be once the rules above are fixed.",
+    "fix": "What to change",
+    "citations": "Regulations",
+    "validFrom": "applies from {from}",
+    "validBetween": "applies from {from} to {to}",
+    "problem": "This rule was not explained this time. Try again.",
+    "again": "Try again",
+    "errors": {
+      "tooMany": "Too many requests to the language model. Try again in {seconds} s.",
+      "noModel": "No language model is set up on this server, so explanations are not available.",
+      "notFound": "This invoice no longer exists.",
+      "tooSlow": "The explanations did not arrive in time. Try again.",
+      "unreachable": "The API does not answer. Try again a little later.",
+      "failed": "The explanations were not written. Try again a little later."
+    }
   }
 }

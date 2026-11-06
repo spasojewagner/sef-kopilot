@@ -1,0 +1,4407 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SEF Kopilot API",
+    "description": "\nDeterministic validation, plain-language explanations and reviewable repairs for Serbian (SEF)\nand EU electronic invoices.\n\n**This service is not a certified validator and is not affiliated with the Serbian Ministry of\nFinance or the SEF platform.** By default it only ever talks to the public SEF *demo* environment.\n",
+    "license": {
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
+    },
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Liveness probe",
+        "description": "Reports that the process is up. Never touches external dependencies.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness probe",
+        "description": "Reports whether this instance can serve traffic. Each dependency is listed under `checks`; as soon as one of them fails the status is `degraded` and the response 503.",
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A dependency failed; the instance should not receive traffic.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create an account and its organization",
+        "description": "Creates the account, an organization owned by it, and signs the person in.",
+        "operationId": "register_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "E-mail taken.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign in",
+        "description": "Checks the e-mail address and password and returns tokens for one organization. A member of several organizations names one in `organization_id`; without it the answer is 409 with the list to choose from.",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a member.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Several organizations; choose one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationChoice"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/accept-invitation": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Join an organization with an invitation code",
+        "description": "Redeems an invitation code: creates the account when the invited address has none, otherwise checks its password, then adds the membership and signs the person in to the organization. A code is good once.",
+        "operationId": "accept_invitation_auth_accept_invitation_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unusable code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The address just registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The new account's password is too short.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Exchange a refresh token for a new pair",
+        "description": "Spends the refresh token and returns a new access token and a new refresh token for the same session. A refresh token presented a second time ends the session.",
+        "operationId": "refresh_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign out",
+        "description": "Ends the session of the refresh token; an unknown token changes nothing.",
+        "operationId": "logout_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "429": {
+            "description": "Too many requests; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Who am I",
+        "description": "The person and organization of the access token and the role they hold now; 401 once the account is deactivated or the membership has ended.",
+        "operationId": "me_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
+    "/invoices/validate": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Validate an invoice",
+        "description": "Validates the UBL 2.1 invoice or credit note in the request body against a profile and returns the validator's report. Nothing is stored: the document lives in memory for the length of the request (no-store mode). A document the validator cannot read is a violation in the report, not an error.",
+        "operationId": "validate_invoices_validate_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profile",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "srb",
+                "en16931",
+                "peppol"
+              ],
+              "type": "string",
+              "description": "`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0).",
+              "default": "srb",
+              "title": "Profile"
+            },
+            "description": "`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationReport"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "The invoice was not received in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The invoice has more bytes or elements than this server accepts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Not XML.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The invoice could not be validated within the time limit, or the rule sets could not be applied to it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many validations by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The validator is busy (retry after `Retry-After` seconds) or not available on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "The invoice or credit note, UBL 2.1 XML.",
+          "content": {
+            "application/xml": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "text/xml": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/explain": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Explain an invoice's violations",
+        "description": "Validates the invoice in the request body as `POST /invoices/validate` does, then explains each rule its report names: what the rule requires, why the invoice fails it and what to change, citing the passages of the official documents that apply on the invoice's issue date. Every citation is a passage of the corpus this server holds. Each rule is explained once, those that make the invoice invalid first, as many as the server allows in one request; a rule without an explanation says why. Nothing is stored. The language model is sent each rule's first violation, whose message may quote the invoice, and the passages; nothing else of the invoice.",
+        "operationId": "explain_invoices_explain_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profile",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "srb",
+                "en16931",
+                "peppol"
+              ],
+              "type": "string",
+              "description": "`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0).",
+              "default": "srb",
+              "title": "Profile"
+            },
+            "description": "`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0)."
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "sr",
+                "en"
+              ],
+              "type": "string",
+              "description": "The language of the explanations: `sr` (Serbian, Latin script) or `en`.",
+              "default": "sr",
+              "title": "Language"
+            },
+            "description": "The language of the explanations: `sr` (Serbian, Latin script) or `en`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Explained"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "The invoice was not received in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The invoice has more bytes or elements than this server accepts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Not XML.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The invoice could not be validated within the time limit, or the rule sets could not be applied to it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many validations or requests to the language model by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No language model is configured on this server, or the validator is busy (retry after `Retry-After` seconds) or not available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "The invoice or credit note, UBL 2.1 XML.",
+          "content": {
+            "application/xml": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "text/xml": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Store an invoice",
+        "description": "Validates the UBL 2.1 invoice or credit note in the request body as `POST /invoices/validate` does, then keeps it for the caller's organization with the validator's report, byte for byte. A document the validator cannot read is stored too, with the report that says why. `Location` names the stored invoice.",
+        "operationId": "store_invoice_invoices_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profile",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "srb",
+                "en16931",
+                "peppol"
+              ],
+              "type": "string",
+              "description": "`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0).",
+              "default": "srb",
+              "title": "Profile"
+            },
+            "description": "`srb` (SEF), `en16931` or `peppol` (Peppol BIS Billing 3.0)."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoredInvoiceOut"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "The invoice was not received in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The invoice has more bytes or elements than this server accepts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Not XML.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The invoice could not be validated within the time limit, or the rule sets could not be applied to it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many validations by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The validator is busy (retry after `Retry-After` seconds) or not available on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "The organization stores as much as it may; delete invoices first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "The invoice or credit note, UBL 2.1 XML.",
+          "content": {
+            "application/xml": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "text/xml": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "List stored invoices",
+        "description": "The organization's stored invoices, the newest first, a page at a time: what the validator read from each and whether it is valid, without the reports. A member without `invoices:manage` sees the invoices they submitted. `valid=false` lists only the invoices the validator last found invalid, `valid=true` only the valid ones.",
+        "operationId": "list_invoices_invoices_get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Invoices per page.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Invoices per page."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The `next` of the page before, to continue it.",
+              "title": "After"
+            },
+            "description": "The `next` of the page before, to continue it."
+          },
+          {
+            "name": "valid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the invoices whose latest report is valid, or invalid.",
+              "title": "Valid"
+            },
+            "description": "Only the invoices whose latest report is valid, or invalid."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`after` is not a cursor this API gave.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/revalidations": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Validate stored invoices again",
+        "description": "Starts a job that validates again, with the rules this server has now, the stored invoices the caller may see, as `GET /invoices` lists them, and makes each new report the invoice's latest. `Location` names the job, which `GET /jobs/{job_id}` reads and `GET /jobs/{job_id}/events` follows. A member has one revalidation under way at a time. An invoice whose new report would take the organization past its quota keeps the report it has; the job counts it.",
+        "operationId": "revalidate_invoices_invoices_revalidations_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A revalidation the caller started is under way; `Location` names it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
+    "/invoices/{invoice_id}": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Read a stored invoice",
+        "description": "What the validator read from the invoice, and its latest report on it.",
+        "operationId": "get_invoice_invoices__invoice_id__get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoredInvoiceOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Delete a stored invoice",
+        "description": "Deletes the invoice, its document and its report; what the organization stores shrinks by as much.",
+        "operationId": "delete_invoice_invoices__invoice_id__delete",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/{invoice_id}/content": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Download a stored invoice",
+        "description": "The document as it was sent, byte for byte, as an attachment: a browser saves it rather than renders it.",
+        "operationId": "download_invoice_invoices__invoice_id__content_get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The UBL 2.1 document.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/{invoice_id}/explanations": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Explain a stored invoice's violations",
+        "description": "Explains each rule the stored invoice's latest report names, as `POST /invoices/explain` does for a document in the request body: what the rule requires, why the invoice fails it and what to change, citing the passages of the official documents that apply on the invoice's issue date. The invoice is not validated again: the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the answer. Nothing is stored. The language model is sent each rule's first violation, whose message may quote the invoice, and the passages; nothing else of the invoice. Counted as a request to the language model, not as a validation.",
+        "operationId": "explain_stored_invoice_invoices__invoice_id__explanations_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "sr",
+                "en"
+              ],
+              "type": "string",
+              "description": "The language of the explanations: `sr` (Serbian, Latin script) or `en`.",
+              "default": "sr",
+              "title": "Language"
+            },
+            "description": "The language of the explanations: `sr` (Serbian, Latin script) or `en`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Explained"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests to the language model by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No language model is configured on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/{invoice_id}/repairs": {
+      "post": {
+        "tags": [
+          "repairs"
+        ],
+        "summary": "Propose a repair of a stored invoice",
+        "description": "Applies the patches to a copy of the stored invoice, in order, as `einvoice patch` does, validates what they leave under the invoice's profile, and keeps the repair: what became of each patch, the difference and the report. The invoice itself does not change until a person approves the repair. A patch that touches an amount, VAT, a tax or company identifier, a date or the document's number is not applied: it needs a person's decision. Counted as a validation. `Location` names the repair.",
+        "operationId": "propose_repair_invoices__invoice_id__repairs_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepairRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see, or no such repair of it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "As many repairs of the invoice as allowed wait for a decision, or the invoice changed while the patches were applied to it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body, or the invoice's elements, beyond the server's limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The patches are malformed; or the invoice is not well-formed XML, or could not be validated within the time limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many validations by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The validator is busy (retry after `Retry-After` seconds) or not available on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "repairs"
+        ],
+        "summary": "List the repairs of a stored invoice",
+        "description": "The latest first, at most 100.",
+        "operationId": "list_repairs_invoices__invoice_id__repairs_get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepairListed"
+                  },
+                  "title": "Response List Repairs Invoices  Invoice Id  Repairs Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see, or no such repair of it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/{invoice_id}/repairs/suggestion": {
+      "post": {
+        "tags": [
+          "repairs"
+        ],
+        "summary": "Have the language model propose a repair of a stored invoice",
+        "description": "Asks the language model for patches that repair the stored invoice's fatal violations, and keeps them as a repair the caller proposes: the invoice itself does not change until a person approves it. The model is sent the violations, whose messages may quote the invoice, and the invoice's fields around them, by canonical path; nothing else of it. Every answer is checked before anything is applied: each patch at a canonical path, writing no value the model was not given. The patches are applied to a copy and validated, as `POST /invoices/{invoice_id}/repairs` does; while fatal violations remain, the model is shown what became of each patch, for 2 rounds within the server's time limit. A patch that failed is not kept; one that touches an amount, VAT, a tax or company identifier, a date or the document's number is kept as needing a person's decision. Counted as a validation and as a request to the language model. `Location` names the repair.",
+        "operationId": "suggest_repair_invoices__invoice_id__repairs_suggestion_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "sr",
+                "en"
+              ],
+              "type": "string",
+              "description": "The language of the patches' reasons: `sr` (Serbian, Latin script) or `en`.",
+              "default": "sr",
+              "title": "Language"
+            },
+            "description": "The language of the patches' reasons: `sr` (Serbian, Latin script) or `en`."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see, or no such repair of it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The invoice is valid; or as many of its repairs as allowed wait for a decision; or it changed while the model's patches were applied to it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body, or the invoice's elements, beyond the server's limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The language model proposed no patch that a repair keeps; or the invoice is not well-formed XML, or could not be validated within the time limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many validations or requests to the language model by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No language model is configured on this server; or the validator is busy (retry after `Retry-After` seconds) or not available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The language model gave no answer, or none that could be used.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The language model proposed no repair within the time allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/{invoice_id}/repairs/{repair_id}": {
+      "get": {
+        "tags": [
+          "repairs"
+        ],
+        "summary": "Read a repair of a stored invoice",
+        "operationId": "get_repair_invoices__invoice_id__repairs__repair_id__get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "repair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Repair Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see, or no such repair of it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/{invoice_id}/repairs/{repair_id}/approval": {
+      "post": {
+        "tags": [
+          "repairs"
+        ],
+        "summary": "Approve a repair",
+        "description": "A person approves the repair, in person: never with an API key. Its patches are applied again to the invoice, which must still be the document they were proposed for, and must leave the document they left then. The invoice becomes that document, with the validator's report on it, within the organization's storage quota; the other repairs that waited for the invoice are superseded. Counted as a validation.",
+        "operationId": "approve_repair_invoices__invoice_id__repairs__repair_id__approval_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "repair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Repair Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see, or no such repair of it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The repair waits for no decision or changes nothing; or the invoice, or what its patches leave, is not what it was when they were proposed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body, or the invoice's elements, beyond the server's limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The patches are malformed; or the invoice is not well-formed XML, or could not be validated within the time limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many validations by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The validator is busy (retry after `Retry-After` seconds) or not available on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller came with an API key: only a person decides on a repair.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "The patched invoice would take the organization past its quota.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/{invoice_id}/repairs/{repair_id}/rejection": {
+      "post": {
+        "tags": [
+          "repairs"
+        ],
+        "summary": "Reject a repair",
+        "description": "A person rejects the repair, in person: never with an API key. The invoice stays as it is.",
+        "operationId": "reject_repair_invoices__invoice_id__repairs__repair_id__rejection_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "repair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Repair Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see, or no such repair of it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller came with an API key: only a person decides on a repair.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The repair waits for no decision, changes nothing, or was proposed for a document the invoice no longer is.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}/events": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Follow a job",
+        "description": "Server-sent events: a `job` event with the job as `GET /jobs/{job_id}` reads it, at once and whenever the job changes. Each event's `id` is the job's `version`: a client that reconnects with `Last-Event-ID` is sent only what changed after it. The stream ends with the event of the finished job, or after five minutes, when the client reconnects. Comments keep a quiet stream open. A browser's `EventSource` cannot send an `Authorization` header: read the stream with `fetch`.",
+        "operationId": "follow_job_jobs__job_id__events_get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The `id` of the last event the client received.",
+              "title": "Last-Event-Id"
+            },
+            "description": "The `id` of the last event the client received."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A `job` event whenever the job changes.",
+            "content": {
+              "text/event-stream": {
+                "itemSchema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "retry": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Read a job",
+        "description": "Where the job is, how far it has come and, once it has finished, how it ended.",
+        "operationId": "read_job_jobs__job_id__get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members": {
+      "get": {
+        "tags": [
+          "members"
+        ],
+        "summary": "List the members",
+        "description": "The members of the caller's organization and their roles, by e-mail address.",
+        "operationId": "list_members_members_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Members Members Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
+    "/members/{user_id}": {
+      "patch": {
+        "tags": [
+          "members"
+        ],
+        "summary": "Change a member's role",
+        "description": "Takes effect at once, on the member's next request. The last owner keeps the role.",
+        "operationId": "change_role_members__user_id__patch",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such member.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "It is the last owner.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "members"
+        ],
+        "summary": "Remove a member",
+        "description": "Ends the member's sessions in this organization; their account remains. The last owner cannot be removed.",
+        "operationId": "remove_members__user_id__delete",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such member.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "It is the last owner.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations": {
+      "get": {
+        "tags": [
+          "members"
+        ],
+        "summary": "List the open invitations",
+        "description": "The invitations that can still be accepted, the newest first; without codes.",
+        "operationId": "list_invitations_invitations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Invitations Invitations Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "members"
+        ],
+        "summary": "Invite a person",
+        "description": "Creates an invitation valid for seven days and returns its code once. An open invitation for the same address is replaced.",
+        "operationId": "invite_invitations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedInvitation"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already a member.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
+    "/invitations/{invitation_id}": {
+      "delete": {
+        "tags": [
+          "members"
+        ],
+        "summary": "Revoke an invitation",
+        "description": "Its code stops working. Revoking a revoked or expired invitation changes nothing.",
+        "operationId": "revoke_invitations__invitation_id__delete",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitation Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such invitation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Accepted already.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-keys": {
+      "get": {
+        "tags": [
+          "api keys"
+        ],
+        "summary": "List API keys",
+        "description": "The keys that work, the newest first, without the keys themselves: the caller's own, or with `api_keys:manage` every key of the organization.",
+        "operationId": "list_keys_api_keys_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KeyOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Keys Api Keys Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "api keys"
+        ],
+        "summary": "Issue an API key",
+        "description": "Issues a key with which a machine client, such as an ERP, acts for the caller with some of their permissions, and returns it this once. What the key allows is checked again on every request against the caller's role at that moment. A key cannot be used to issue keys.",
+        "operationId": "issue_key_api_keys_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedKey"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller's role does not grant a permission the key was to hold.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The caller has as many keys as a member may.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
+    "/api-keys/{key_id}": {
+      "delete": {
+        "tags": [
+          "api keys"
+        ],
+        "summary": "Revoke an API key",
+        "description": "The key stops working at once. The caller revokes their own keys, or with `api_keys:manage` any key of the organization. Revoking a key that works no longer changes nothing.",
+        "operationId": "revoke_key_api_keys__key_id__delete",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Key Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AcceptInvitationRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Code",
+            "description": "The invitation code the person received from the organization's owner."
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "description": "The password of the invited address's account; when the address has no account yet, the password of the new account (12 to 128 characters)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "password"
+        ],
+        "title": "AcceptInvitationRequest"
+      },
+      "Citation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The passage's id, which names it for ever."
+          },
+          "document": {
+            "type": "string",
+            "title": "Document",
+            "description": "The document's key in the corpus."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "The document's title."
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The passage as the document labels it, `Члан 2.`, `BT-31`."
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "The edition of the document the passage is taken from."
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To",
+            "description": "The day it stops applying, if it does."
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "document",
+          "title",
+          "label",
+          "heading",
+          "version",
+          "valid_from",
+          "valid_to",
+          "source_url"
+        ],
+        "title": "Citation",
+        "description": "A stored passage of the corpus that an explanation cites."
+      },
+      "Explained": {
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/ValidationReport"
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day",
+            "description": "The day whose law the explanations cite: the invoice's issue date (BT-2), or today when the invoice cannot be read."
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "sr",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "The language model that wrote the explanations."
+          },
+          "explanations": {
+            "items": {
+              "$ref": "#/components/schemas/Explanation"
+            },
+            "type": "array",
+            "title": "Explanations",
+            "description": "One for each rule of the report, those with a fatal violation first."
+          },
+          "unexplained": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unexplained",
+            "description": "Rules of the report beyond the most one request explains; ask again for them once the others are fixed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "report",
+          "day",
+          "language",
+          "model",
+          "explanations",
+          "unexplained"
+        ],
+        "title": "Explained",
+        "description": "The validator's report on an invoice, and the explanations of the rules it names."
+      },
+      "Explanation": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "violations": {
+            "type": "integer",
+            "title": "Violations",
+            "description": "How many violations of the rule the report has."
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "What the rule requires and why the invoice fails it."
+          },
+          "fix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix",
+            "description": "What to change in the invoice, in words."
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem",
+            "description": "Why there is no explanation, when there is none."
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "violations",
+          "text",
+          "fix",
+          "citations"
+        ],
+        "title": "Explanation",
+        "description": "What one rule of a report asks and how to meet it, with the passages it rests on; or why\nthere is no explanation."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "description": "Always `ok` when the process can answer."
+          },
+          "service": {
+            "type": "string",
+            "title": "Service",
+            "description": "Service identifier, useful when several APIs share a host."
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Version of the running API, from the package metadata."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "version"
+        ],
+        "title": "HealthResponse",
+        "description": "Liveness report."
+      },
+      "InvitationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "invited_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invited By",
+            "description": "The member who invited, while they exist."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "invited_by",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "InvitationOut"
+      },
+      "InvitationRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "The address of the person to invite."
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role",
+            "description": "The role the person will have."
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "role"
+        ],
+        "title": "InvitationRequest"
+      },
+      "InvoiceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By",
+            "description": "The member who submitted it, while their account exists."
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "validated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Validated At",
+            "description": "When the validator last judged it: when it was stored, or validated again."
+          },
+          "profile": {
+            "type": "string",
+            "enum": [
+              "srb",
+              "en16931",
+              "peppol"
+            ],
+            "title": "Profile",
+            "description": "The profile it was validated under."
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid",
+            "description": "Whether the validator found no fatal violation."
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "Bytes of the document."
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256",
+            "description": "SHA-256 digest of the document, in hexadecimal."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvoiceSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None when the document is not a schema-valid invoice the validator can read."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "submitted_by",
+          "submitted_at",
+          "validated_at",
+          "profile",
+          "valid",
+          "size",
+          "sha256",
+          "summary"
+        ],
+        "title": "InvoiceOut",
+        "description": "A stored invoice: who submitted it and when, and what the validator read from it."
+      },
+      "InvoicePage": {
+        "properties": {
+          "invoices": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceOut"
+            },
+            "type": "array",
+            "title": "Invoices"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next",
+            "description": "Pass as `after` for the next page; null on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "invoices",
+          "next"
+        ],
+        "title": "InvoicePage",
+        "description": "Stored invoices, the newest first."
+      },
+      "InvoiceSummary": {
+        "properties": {
+          "document_type": {
+            "type": "string",
+            "enum": [
+              "Invoice",
+              "CreditNote"
+            ],
+            "title": "Document Type"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number",
+            "description": "BT-1 invoice number."
+          },
+          "issue_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Issue Date",
+            "description": "BT-2 issue date."
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency",
+            "description": "BT-5 invoice currency code."
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller",
+            "description": "BT-27 seller name, or BT-28 trading name."
+          },
+          "buyer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buyer",
+            "description": "BT-44 buyer name, or BT-45 trading name."
+          },
+          "payable_amount": {
+            "type": "string",
+            "title": "Payable Amount",
+            "description": "BT-115 amount due, in the invoice currency."
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_type",
+          "number",
+          "issue_date",
+          "currency",
+          "seller",
+          "buyer",
+          "payable_amount"
+        ],
+        "title": "InvoiceSummary",
+        "description": "What an invoice says about itself, as the validator read it: enough to list it by."
+      },
+      "IssuedInvitation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "invited_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invited By",
+            "description": "The member who invited, while they exist."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Shown this once: give it to the person, who joins with `POST /auth/accept-invitation`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "invited_by",
+          "created_at",
+          "expires_at",
+          "code"
+        ],
+        "title": "IssuedInvitation"
+      },
+      "IssuedKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "prefix": {
+            "type": "string",
+            "title": "Prefix",
+            "description": "The key's first characters, to tell it apart; not the key."
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "acts_for": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Acts For",
+            "description": "The member for whom the key acts."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "When the key stops working; null if never."
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "Shown this once: the machine client sends it as `Authorization: Bearer <key>`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "permissions",
+          "acts_for",
+          "created_at",
+          "expires_at",
+          "key"
+        ],
+        "title": "IssuedKey"
+      },
+      "JobKind": {
+        "type": "string",
+        "enum": [
+          "revalidation"
+        ],
+        "title": "JobKind",
+        "description": "What a job does."
+      },
+      "JobOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JobKind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By",
+            "description": "The member who started the job."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At",
+            "description": "When a worker first took the job on."
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "progress": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Progress",
+            "description": "How far the job has come, as its kind tells."
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result",
+            "description": "What the job came to, once it succeeded."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Why the job failed, if it did."
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "Grows with every change to the job."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "submitted_by",
+          "created_at",
+          "started_at",
+          "finished_at",
+          "progress",
+          "result",
+          "error",
+          "version"
+        ],
+        "title": "JobOut"
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "succeeded",
+          "failed"
+        ],
+        "title": "JobStatus",
+        "description": "Where a job is: waiting for a worker, being worked on, or finished one way or the other."
+      },
+      "KeyOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "prefix": {
+            "type": "string",
+            "title": "Prefix",
+            "description": "The key's first characters, to tell it apart; not the key."
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "acts_for": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Acts For",
+            "description": "The member for whom the key acts."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "When the key stops working; null if never."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "permissions",
+          "acts_for",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "KeyOut"
+      },
+      "KeyRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "description": "What the key is for, such as the ERP that uses it."
+          },
+          "permissions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "invoices:validate",
+                "invoices:submit",
+                "invoices:manage"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "title": "Permissions",
+            "description": "What the key allows: permissions the caller's role grants, among those a key may hold."
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "When the key stops working, in the future; never when null."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "title": "KeyRequest"
+      },
+      "LayerOutcome": {
+        "properties": {
+          "layer": {
+            "type": "string",
+            "enum": [
+              "xml",
+              "xsd",
+              "schematron",
+              "srb-cius",
+              "arithmetic"
+            ],
+            "title": "Layer"
+          },
+          "ran": {
+            "type": "boolean",
+            "title": "Ran"
+          },
+          "violations": {
+            "type": "integer",
+            "title": "Violations",
+            "description": "Violations the layer reported and the report keeps."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "The rule sets a layer ran, or why it did not run."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "layer",
+          "ran",
+          "violations"
+        ],
+        "title": "LayerOutcome",
+        "description": "Whether a layer ran, what it found, and why it did not run."
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id",
+            "description": "Required when the person is a member of more than one organization."
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "MeResponse": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/OrganizationOut"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "organization",
+          "role"
+        ],
+        "title": "MeResponse"
+      },
+      "MemberOut": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Joined At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "role",
+          "joined_at"
+        ],
+        "title": "MemberOut"
+      },
+      "MembershipOut": {
+        "properties": {
+          "organization": {
+            "$ref": "#/components/schemas/OrganizationOut"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization",
+          "role"
+        ],
+        "title": "MembershipOut"
+      },
+      "OrganizationChoice": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "organizations": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipOut"
+            },
+            "type": "array",
+            "title": "Organizations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail",
+          "organizations"
+        ],
+        "title": "OrganizationChoice"
+      },
+      "OrganizationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "OrganizationOut"
+      },
+      "Outcome": {
+        "properties": {
+          "patch": {
+            "$ref": "#/components/schemas/Patch"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "needs-decision",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "patch",
+          "status"
+        ],
+        "title": "Outcome",
+        "description": "What became of a patch. For an applied one, ``before`` is the text or attribute value\nits place had, and ``after`` the one it has now; either is ``None`` where there is none."
+      },
+      "Patch": {
+        "properties": {
+          "xpath": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Xpath"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "replace",
+              "add",
+              "remove"
+            ],
+            "title": "Op"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "xpath",
+          "op",
+          "reason"
+        ],
+        "title": "Patch",
+        "description": "One change to one place of an invoice."
+      },
+      "Permission": {
+        "type": "string",
+        "enum": [
+          "members:read",
+          "members:manage",
+          "invoices:validate",
+          "invoices:submit",
+          "invoices:manage",
+          "api_keys:issue",
+          "api_keys:manage"
+        ],
+        "title": "Permission",
+        "description": "Something a member may be allowed to do in their organization."
+      },
+      "Problem": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "Problem"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "degraded"
+            ],
+            "title": "Status",
+            "description": "`ready` when every check passed, `degraded` otherwise."
+          },
+          "checks": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "failed"
+              ]
+            },
+            "type": "object",
+            "title": "Checks",
+            "description": "Result per dependency (for example `database`, `redis`, `validator`)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ReadinessResponse",
+        "description": "Readiness report with one entry per dependency check."
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Refresh Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshRequest"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "The address to sign in with; stored in lower case."
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "Password",
+            "description": "12 to 128 characters."
+          },
+          "organization_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Organization Name",
+            "description": "The organization this account starts with; the person becomes its owner."
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "organization_name"
+        ],
+        "title": "RegisterRequest"
+      },
+      "RepairListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "invoice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invoice Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RepairStatus"
+          },
+          "proposed_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed By",
+            "description": "The member who proposed it, while their account exists."
+          },
+          "proposed_with_key": {
+            "type": "boolean",
+            "title": "Proposed With Key",
+            "description": "Whether it came from an API key."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "The language model that wrote the patches, when one did: the member who proposed the repair asked it for them."
+          },
+          "proposed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Proposed At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "changed": {
+            "type": "boolean",
+            "title": "Changed",
+            "description": "Whether its patches change the invoice at all."
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid",
+            "description": "Whether the validator finds the patched invoice valid."
+          },
+          "applied": {
+            "type": "integer",
+            "title": "Applied",
+            "description": "Patches that applied."
+          },
+          "needs_decision": {
+            "type": "integer",
+            "title": "Needs Decision",
+            "description": "Patches that touch what a person decides: an amount, VAT, a tax or company identifier, a date or the document's number."
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Patches that could not apply, each with the reason."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invoice_id",
+          "status",
+          "proposed_by",
+          "proposed_with_key",
+          "model",
+          "proposed_at",
+          "decided_by",
+          "decided_at",
+          "changed",
+          "valid",
+          "applied",
+          "needs_decision",
+          "failed"
+        ],
+        "title": "RepairListed",
+        "description": "A repair of an invoice, without the report and the difference."
+      },
+      "RepairOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "invoice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invoice Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RepairStatus"
+          },
+          "proposed_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed By",
+            "description": "The member who proposed it, while their account exists."
+          },
+          "proposed_with_key": {
+            "type": "boolean",
+            "title": "Proposed With Key",
+            "description": "Whether it came from an API key."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "The language model that wrote the patches, when one did: the member who proposed the repair asked it for them."
+          },
+          "proposed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Proposed At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "changed": {
+            "type": "boolean",
+            "title": "Changed",
+            "description": "Whether its patches change the invoice at all."
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid",
+            "description": "Whether the validator finds the patched invoice valid."
+          },
+          "applied": {
+            "type": "integer",
+            "title": "Applied",
+            "description": "Patches that applied."
+          },
+          "needs_decision": {
+            "type": "integer",
+            "title": "Needs Decision",
+            "description": "Patches that touch what a person decides: an amount, VAT, a tax or company identifier, a date or the document's number."
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Patches that could not apply, each with the reason."
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/Outcome"
+            },
+            "type": "array",
+            "title": "Outcomes"
+          },
+          "diff": {
+            "type": "string",
+            "title": "Diff",
+            "description": "A unified diff of the invoice before and after, indented alike."
+          },
+          "report": {
+            "$ref": "#/components/schemas/ValidationReport"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invoice_id",
+          "status",
+          "proposed_by",
+          "proposed_with_key",
+          "model",
+          "proposed_at",
+          "decided_by",
+          "decided_at",
+          "changed",
+          "valid",
+          "applied",
+          "needs_decision",
+          "failed",
+          "outcomes",
+          "diff",
+          "report"
+        ],
+        "title": "RepairOut",
+        "description": "A repair of an invoice: what became of each patch, the difference they make, and the\nvalidator's report on the patched invoice."
+      },
+      "RepairRequest": {
+        "properties": {
+          "patches": {
+            "items": {
+              "$ref": "#/components/schemas/Patch"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Patches",
+            "description": "Each `{xpath, op, value, reason}`: the canonical path of a place, as a violation reports it, `replace`, `add` or `remove`, the new text, and why."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "patches"
+        ],
+        "title": "RepairRequest",
+        "description": "Patches to apply to a stored invoice, in order."
+      },
+      "RepairStatus": {
+        "type": "string",
+        "enum": [
+          "proposed",
+          "approved",
+          "rejected",
+          "superseded"
+        ],
+        "title": "RepairStatus",
+        "description": "Where a repair is: waiting for a person, or decided."
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "accountant",
+          "client"
+        ],
+        "title": "Role",
+        "description": "What a member may do in an organization (the permissions follow from it)."
+      },
+      "RoleChange": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role",
+            "description": "The member's new role."
+          }
+        },
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "RoleChange"
+      },
+      "SetAsideViolation": {
+        "properties": {
+          "violation": {
+            "$ref": "#/components/schemas/Violation"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "replaced_by": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Replaced By",
+            "description": "The rules that check the matter instead, if any; a rule recomputed under its own id (BR-CO-*) is replaced by that rule alone."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "violation",
+          "reason",
+          "replaced_by"
+        ],
+        "title": "SetAsideViolation",
+        "description": "A violation a published rule set reported that the profile does not apply."
+      },
+      "Severity": {
+        "type": "string",
+        "enum": [
+          "fatal",
+          "warning"
+        ],
+        "title": "Severity",
+        "description": "How a violation affects the document.\n\nThe values are the ``flag`` values used by the EN 16931 and Peppol Schematron rule sets."
+      },
+      "StoredInvoiceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted By",
+            "description": "The member who submitted it, while their account exists."
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "validated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Validated At",
+            "description": "When the validator last judged it: when it was stored, or validated again."
+          },
+          "profile": {
+            "type": "string",
+            "enum": [
+              "srb",
+              "en16931",
+              "peppol"
+            ],
+            "title": "Profile",
+            "description": "The profile it was validated under."
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid",
+            "description": "Whether the validator found no fatal violation."
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "Bytes of the document."
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256",
+            "description": "SHA-256 digest of the document, in hexadecimal."
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvoiceSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None when the document is not a schema-valid invoice the validator can read."
+          },
+          "report": {
+            "$ref": "#/components/schemas/ValidationReport"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "submitted_by",
+          "submitted_at",
+          "validated_at",
+          "profile",
+          "valid",
+          "size",
+          "sha256",
+          "summary",
+          "report"
+        ],
+        "title": "StoredInvoiceOut",
+        "description": "A stored invoice with the validator's latest report on it."
+      },
+      "TokenResponse": {
+        "properties": {
+          "token_type": {
+            "type": "string",
+            "const": "bearer",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "access_token": {
+            "type": "string",
+            "title": "Access Token",
+            "description": "Send as `Authorization: Bearer <access_token>`."
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Seconds until the access token expires."
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Good for one `POST /auth/refresh`, then spent."
+          },
+          "refresh_expires_in": {
+            "type": "integer",
+            "title": "Refresh Expires In",
+            "description": "Seconds until the refresh token expires."
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/OrganizationOut"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_in",
+          "refresh_token",
+          "refresh_expires_in",
+          "user",
+          "organization",
+          "role"
+        ],
+        "title": "TokenResponse",
+        "description": "A new pair of tokens and what they are for."
+      },
+      "UserOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email"
+        ],
+        "title": "UserOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValidationReport": {
+        "properties": {
+          "profile": {
+            "type": "string",
+            "title": "Profile"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid",
+            "description": "True when no violation is fatal; warnings do not block."
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/Violation"
+            },
+            "type": "array",
+            "title": "Violations",
+            "description": "In layer order: XML, XSD, Schematron, SRB-CIUS, arithmetic."
+          },
+          "set_aside": {
+            "items": {
+              "$ref": "#/components/schemas/SetAsideViolation"
+            },
+            "type": "array",
+            "title": "Set Aside",
+            "default": []
+          },
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/LayerOutcome"
+            },
+            "type": "array",
+            "title": "Layers"
+          },
+          "omitted": {
+            "type": "integer",
+            "title": "Omitted",
+            "description": "Violations beyond the limit, counted only.",
+            "default": 0
+          },
+          "set_aside_omitted": {
+            "type": "integer",
+            "title": "Set Aside Omitted",
+            "description": "Set-aside violations beyond the same limit, counted only.",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile",
+          "valid",
+          "violations",
+          "layers"
+        ],
+        "title": "ValidationReport",
+        "description": "The verdict on one document under one profile."
+      },
+      "Violation": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id",
+            "description": "Identifier of the failed rule as published by its source: `XSD` for schema validity, `BR-CO-15` for EN 16931, `PEPPOL-EN16931-R001` for Peppol, `SRB-…` for the Serbian rules."
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "What the rule source reports, in English. May quote document values."
+          },
+          "xpath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Xpath",
+            "description": "Canonical XPath of the offending element (see `einvoice_core.xml.canonical_xpath`), or null when the problem concerns the document as a whole or cannot be located."
+          },
+          "layer": {
+            "type": "string",
+            "enum": [
+              "xml",
+              "xsd",
+              "schematron",
+              "srb-cius",
+              "arithmetic"
+            ],
+            "title": "Layer"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "Source-specific detail code, e.g. the libxml2 error type of an XSD violation (`SCHEMAV_ELEMENT_CONTENT`), used to pick an explanation template."
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line",
+            "description": "1-based line in the original document, when known."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule_id",
+          "severity",
+          "message",
+          "xpath",
+          "layer"
+        ],
+        "title": "Violation",
+        "description": "One failed rule, located in the original document."
+      }
+    },
+    "securitySchemes": {
+      "access token or API key": {
+        "type": "http",
+        "description": "An access token from `POST /auth/login`, `/auth/register` or `/auth/refresh`, or an API key from `POST /api-keys`.",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Liveness and readiness probes for orchestrators."
+    },
+    {
+      "name": "auth",
+      "description": "Accounts, sign-in and tokens: a short-lived access token for requests and a refresh token that is spent on use."
+    },
+    {
+      "name": "invoices",
+      "description": "Invoices and credit notes: the deterministic validator's report on them, and explanations of its rules that cite the official documents."
+    },
+    {
+      "name": "repairs",
+      "description": "Repairs of stored invoices: patches, written by the caller or by the language model, applied to a copy of an invoice and kept with what they did to it until a person decides."
+    },
+    {
+      "name": "jobs",
+      "description": "Work done in the background for the caller's organization, such as validating its invoices again, and how far it has come."
+    },
+    {
+      "name": "members",
+      "description": "The people of the caller's organization, their roles (owner, accountant, client) and the invitations to join it."
+    }
+  ]
+}

@@ -90,6 +90,10 @@ describe("Account in the header", () => {
     renderIn("sr-Latn", <Account />);
 
     expect(screen.getByText("alice@primer.example")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Fakture" })).toHaveAttribute(
+      "href",
+      "/sr-Latn/invoices",
+    );
     expect(await screen.findByText("alice@novo.example")).toBeInTheDocument();
     await userEvent
       .setup()

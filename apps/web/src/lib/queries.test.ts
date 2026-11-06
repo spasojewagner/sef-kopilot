@@ -1,7 +1,14 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
-import { healthQuery, isAboutTheApi, meQuery } from "./queries";
+import {
+  explanationsQuery,
+  healthQuery,
+  invoiceQuery,
+  invoicesQuery,
+  isAboutTheApi,
+  meQuery,
+} from "./queries";
 
 describe("The question of the API's health", () => {
   it("is asked of /health and kept under its key", async () => {
@@ -52,5 +59,36 @@ describe("The keys of the answers", () => {
   it("say which answers are the same for every visitor, and which are a visitor's", () => {
     expect(isAboutTheApi(healthQuery.queryKey)).toBe(true);
     expect(isAboutTheApi(meQuery.queryKey)).toBe(false);
+    expect(isAboutTheApi(invoiceQuery("i-1").queryKey)).toBe(false);
+    expect(isAboutTheApi(invoicesQuery.queryKey)).toBe(false);
+  });
+
+  it("keep each invoice under a key of its own", () => {
+    expect(invoiceQuery("i-1").queryKey).not.toEqual(
+      invoiceQuery("i-2").queryKey,
+    );
+  });
+});
+
+describe("The explanations of a stored invoice", () => {
+  it("are kept under the invoice's key, one entry for each language", () => {
+    const invoice = invoiceQuery("i-1").queryKey;
+    const serbian = explanationsQuery("i-1", "sr").queryKey;
+
+    expect(serbian.slice(0, invoice.length)).toEqual(invoice);
+    expect(serbian).not.toEqual(explanationsQuery("i-1", "en").queryKey);
+    expect(isAboutTheApi(serbian)).toBe(false);
+  });
+
+  it("are never asked for again by themselves, since each costs the model's requests", () => {
+    const { staleTime, gcTime, retry } = explanationsQuery("i-1", "sr");
+
+    // Never stale, so neither a new page nor the window's focus asks again; kept when the page
+    // is left; and a failure waits for the visitor to try again.
+    expect({ staleTime, gcTime, retry }).toEqual({
+      staleTime: Infinity,
+      gcTime: Infinity,
+      retry: false,
+    });
   });
 });

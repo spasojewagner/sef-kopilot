@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { Suspense } from "react";
 
 import { Account } from "@/components/account";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -14,7 +15,10 @@ export function SiteHeader() {
           {t("home")}
         </Link>
         <div className="flex items-center gap-2">
-          <LanguageSwitcher />
+          {/* A page whose path is known only when it is asked for renders the links then. */}
+          <Suspense>
+            <LanguageSwitcher />
+          </Suspense>
           <Account />
         </div>
       </div>

@@ -25,6 +25,14 @@ describe("Home page", () => {
     expect(screen.queryByText(/Deterministička/)).not.toBeInTheDocument();
   });
 
+  it("leads to checking an invoice", () => {
+    renderIn("sr-Latn", <HomePage />);
+
+    expect(
+      screen.getByRole("link", { name: "Proverite fakturu" }),
+    ).toHaveAttribute("href", "/sr-Latn/invoices");
+  });
+
   it("links to the public repository in a new tab", () => {
     renderIn("sr-Latn", <HomePage />);
 

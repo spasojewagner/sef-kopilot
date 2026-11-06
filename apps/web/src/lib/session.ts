@@ -7,30 +7,18 @@
  * issued last, so the browser's tabs take turns (the Web Locks API): two tabs spending one
  * token would look to the API like a stolen copy, and it would end the session.
  */
-import { ApiError, request } from "@/lib/api";
+import { ApiError, request, type ApiRequest, type Schemas } from "@/lib/api";
 
-export type Role = "owner" | "accountant" | "client";
+export type Role = Schemas["Role"];
 
-/** Who is signed in, in which organization, with which role. */
-export interface Identity {
-  user: { id: string; email: string };
-  organization: { id: string; name: string };
-  role: Role;
-}
+/** Who is signed in, in which organization, with which role (`GET /auth/me`). */
+export type Identity = Schemas["MeResponse"];
 
-/** The API's answer to a sign-in, a registration or a refresh (`TokenResponse`). */
-interface Tokens extends Identity {
-  access_token: string;
-  expires_in: number;
-  refresh_token: string;
-  refresh_expires_in: number;
-}
+/** The API's answer to a sign-in, a registration or a refresh. */
+type Tokens = Schemas["TokenResponse"];
 
 /** An organization the visitor is a member of, as a sign-in that must choose lists them. */
-export interface Membership {
-  organization: { id: string; name: string };
-  role: Role;
-}
+export type Membership = Schemas["MembershipOut"];
 
 /** What local storage keeps of a session. */
 interface Kept {
@@ -272,7 +260,7 @@ export function accessToken(): Promise<string | null> {
  */
 export async function authorized<T>(
   path: string,
-  init: RequestInit = {},
+  init: ApiRequest = {},
 ): Promise<T> {
   const send = (token: string) => {
     const headers = new Headers(init.headers);

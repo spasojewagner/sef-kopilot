@@ -43,6 +43,11 @@ fresh (a minute) and when a failed request is tried again (once, unless the API 
 In the tests no request leaves the machine: `vitest.setup.ts` makes each one fail as if the
 API could not be reached, unless the test answers it with `vi.stubGlobal("fetch", …)`.
 
+The answers' types come from the API's own OpenAPI document, `docs/api/openapi.json`:
+`src/lib/api-schema.d.ts` is generated from it (`pnpm api:types`, or `make openapi` from the
+root to write both), and a test fails when it is out of date. A type is named as the API names
+the schema: `Schemas["StoredInvoiceOut"]`.
+
 ## The visitor's session
 
 `src/lib/session.ts` keeps a signed-in visitor's session (ADR-0027). The access token stays in
@@ -59,6 +64,28 @@ A visitor registers at `/sr-Latn/register`, which creates the account and its or
 signs in at `/sr-Latn/sign-in`; a member of several organizations chooses one there. The
 header shows who is signed in, as the API confirms it, and signs out. An error is said in the
 visitor's language (`authErrors` in the messages); the API's own reasons are for developers.
+
+## Invoices
+
+A signed-in visitor sends an invoice at `/sr-Latn/invoices`, under a profile (SEF, EN 16931 or
+Peppol), and lands on its report at `/sr-Latn/invoices/{id}`; the same page lists the
+organization's invoices, the newest first, with their verdicts. The report shows what the
+validator read from the invoice, every rule it fails with the places it fails it, the errors
+first, and what each layer of the validator found. The rules' messages are their sources'
+own, in English, and are marked so. Amounts keep every decimal the invoice states. The report's
+page is the same for every invoice and is built once; the id is read when the page is asked
+for, and the report is fetched in the browser (ADR-0028).
+
+What these pages show comes from an uploaded document: the parties' names, the number, and the
+rules' messages, which quote the document's values. It is rendered as text, which React
+escapes; the lint rule `react/no-danger` keeps anyone from setting HTML from it.
+
+On the report, the visitor may ask for the rules to be explained, in the page's language: each
+rule's card then says what the rule requires, why the invoice fails it and what to change,
+with the passages of the regulations it cites, dated and linked to their sources. They come
+from `POST /invoices/{id}/explanations`, which the language model answers on the API's side;
+nothing is asked of it until the visitor asks, and explanations once written are kept until
+the page is reloaded. A server without a language model says so.
 
 ## Components and styles
 
@@ -89,18 +116,21 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 components.json    shadcn/ui's settings: style, stylesheet, aliases
 messages/          the interface's texts, one file per language
 src/app/[locale]/  routes (App Router) under the language: the root layout, the home page,
-                   `sign-in` and `register`, the 404; `page.test.tsx` next to `page.tsx`
+                   `sign-in`, `register`, `invoices` and `invoices/[id]`, the 404;
+                   `page.test.tsx` next to `page.tsx`
 src/app/globals.css  Tailwind, shadcn/ui's theme tokens, dark mode
 src/components/    components shared by the pages: the header and its account, the footer, the
                    language switcher, the API's status, the cache of the API's answers, the
-                   sign-in and registration forms
+                   sign-in and registration forms, the upload, the list and the report
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types
 src/hooks/         hooks shared by the components: the session
-src/lib/           the API client, the session, the questions the pages ask; `cn()`
+src/lib/           the API client and its generated types, the session, the questions the pages
+                   ask; `cn()`
 src/proxy.ts       sends a path without a language to the visitor's
-src/test/          what the tests share: rendering in a language, with a cache of its own
+src/test/          what the tests share: rendering in a language, with a cache of its own; an
+                   API that answers as the test says; invoices to answer with
 vitest.config.mts  Vitest with React plugin, jsdom and tsconfig path aliases
 vitest.setup.ts    jest-dom matchers, automatic cleanup, no request to the network
 ```

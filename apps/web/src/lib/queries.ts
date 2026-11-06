@@ -1,6 +1,8 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import { getHealth } from "@/lib/api";
+import { explainInvoice, type Language } from "@/lib/explanations";
+import { getInvoice, listInvoices } from "@/lib/invoices";
 import { authorized, type Identity } from "@/lib/session";
 
 /**
@@ -30,3 +32,36 @@ export const meQuery = queryOptions({
   queryKey: ["visitor", "me"],
   queryFn: ({ signal }) => authorized<Identity>("/auth/me", { signal }),
 });
+
+/** The organization's invoices, the newest first, a page at a time. */
+export const invoicesQuery = infiniteQueryOptions({
+  queryKey: ["invoices", "list"],
+  queryFn: ({ pageParam, signal }) =>
+    listInvoices({ after: pageParam, signal }),
+  initialPageParam: null as string | null,
+  getNextPageParam: (page) => page.next,
+});
+
+/** A stored invoice with the validator's latest report on it. */
+export function invoiceQuery(id: string) {
+  return queryOptions({
+    queryKey: ["invoices", "one", id],
+    queryFn: ({ signal }) => getInvoice(id, signal),
+  });
+}
+
+/**
+ * The explanations of the stored invoice ``id``'s report, in ``language``. Each costs requests
+ * to the language model, so they are written only when the visitor asks (the page passes
+ * ``enabled``), never asked for again by themselves, and kept until the page is reloaded or the
+ * visitor signs out. Under the invoice's key, so that what changes the invoice drops them too.
+ */
+export function explanationsQuery(id: string, language: Language) {
+  return queryOptions({
+    queryKey: ["invoices", "one", id, "explanations", language],
+    queryFn: ({ signal }) => explainInvoice(id, language, signal),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
+  });
+}
