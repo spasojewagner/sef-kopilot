@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import { routing } from "@/i18n/routing";
 
 import "../globals.css";
@@ -21,18 +22,13 @@ export default async function LocaleLayout({
   children,
 }: LayoutProps<"/[locale]">) {
   const locale = await getLocale();
-  const t = await getTranslations("footer");
   return (
     <html lang={locale} className="h-full antialiased">
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider>
-          <header className="flex justify-end px-6 py-4">
-            <LanguageSwitcher />
-          </header>
+          <SiteHeader />
           {children}
-          <footer className="px-6 py-6 text-center text-sm text-balance text-zinc-500 dark:text-zinc-400">
-            {t("notice")}
-          </footer>
+          <SiteFooter />
         </NextIntlClientProvider>
       </body>
     </html>

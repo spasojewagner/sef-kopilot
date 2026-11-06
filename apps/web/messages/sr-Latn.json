@@ -4,6 +4,7 @@
     "description": "Deterministička validacija, objašnjenja i pregledne ispravke elektronskih faktura (SEF, EN 16931, Peppol)."
   },
   "header": {
+    "home": "SEF Kopilot",
     "language": "Jezik"
   },
   "home": {

@@ -2,8 +2,10 @@
 
 import { useLocale, useTranslations } from "next-intl";
 
+import { buttonVariants } from "@/components/ui/button";
 import { Link, usePathname } from "@/i18n/navigation";
 import { routing, type Locale } from "@/i18n/routing";
+import { cn } from "@/lib/utils";
 
 /** Each language by its own name, so that a visitor finds theirs whatever the page's. */
 const NAMES: Record<Locale, string> = { "sr-Latn": "Srpski", en: "English" };
@@ -15,7 +17,7 @@ export function LanguageSwitcher() {
   const pathname = usePathname();
   return (
     <nav aria-label={t("language")}>
-      <ul className="flex gap-3 text-sm">
+      <ul className="flex gap-1">
         {routing.locales.map((locale) => (
           <li key={locale}>
             <Link
@@ -24,7 +26,10 @@ export function LanguageSwitcher() {
               lang={locale}
               hrefLang={locale}
               aria-current={locale === current ? "true" : undefined}
-              className="underline-offset-4 hover:underline aria-[current]:font-semibold"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "text-muted-foreground aria-[current]:text-foreground",
+              )}
             >
               {NAMES[locale]}
             </Link>

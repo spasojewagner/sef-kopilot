@@ -4,6 +4,7 @@
     "description": "Deterministic validation, explanations and reviewable repairs of electronic invoices (SEF, EN 16931, Peppol)."
   },
   "header": {
+    "home": "SEF Kopilot",
     "language": "Language"
   },
   "home": {

@@ -29,6 +29,17 @@ compiler refuses a key that the Serbian file does not have. A page reads them wi
 `useTranslations("home")`, and a test renders it with `renderIn(locale, …)` from
 `src/test/intl.tsx`.
 
+## Components and styles
+
+The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:
+style `new-york` on Radix primitives (ADR-0026), copied into the repository rather than
+installed as a package, so they are ours to read and change. `components.json` holds the CLI's
+settings, and `pnpm exec shadcn add dialog`, run from `apps/web`, adds a component with the CLI
+version that `package.json` pins. Colours, radii and dark mode are CSS variables in
+`src/app/globals.css`; dark mode follows the operating system, with no switch and no script.
+Class names are joined with `cn()` from `@/lib/utils`, which resolves Tailwind conflicts in
+favour of the last.
+
 ## Checks
 
 ```bash
@@ -43,12 +54,16 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 ## Layout
 
 ```text
+components.json    shadcn/ui's settings: style, stylesheet, aliases
 messages/          the interface's texts, one file per language
 src/app/[locale]/  routes (App Router) under the language: the root layout, the pages, the 404;
                    `page.test.tsx` next to `page.tsx`
-src/components/    components shared by the pages: the language switcher
+src/app/globals.css  Tailwind, shadcn/ui's theme tokens, dark mode
+src/components/    components shared by the pages: the header, the footer, the language switcher
+src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types
+src/lib/           helpers shared by the components: `cn()`
 src/proxy.ts       sends a path without a language to the visitor's
 src/test/          what the tests share: rendering in a language
 vitest.config.mts  Vitest with React plugin, jsdom and tsconfig path aliases

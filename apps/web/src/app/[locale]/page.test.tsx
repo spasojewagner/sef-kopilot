@@ -33,6 +33,15 @@ describe("Home page", () => {
       "href",
       "https://github.com/spasojewagner/sef-kopilot",
     );
+    expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+  });
+
+  it("draws the link as a button, its arrow hidden from screen readers", () => {
+    renderIn("en", <HomePage />);
+
+    const link = screen.getByRole("link", { name: "Source code on GitHub" });
+    expect(link).toHaveAttribute("data-slot", "button");
+    expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 });
