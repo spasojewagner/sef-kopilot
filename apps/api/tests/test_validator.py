@@ -15,15 +15,17 @@ from typing import Any
 
 import pytest
 
+from einvoice_core.patches import Patch
 from einvoice_core.pipeline import validate
 from einvoice_core.rulesets import ENV_VAR
 from sef_api.invoices import validator
-from sef_api.invoices.validation import Validation
+from sef_api.invoices.validation import Patched, Validation, patched_outcome
 from sef_api.invoices.validator import (
     Admission,
     ProcessValidator,
     ThreadValidator,
     TooManyElementsError,
+    UnreadableInvoiceError,
     ValidationRefusedError,
     ValidationTimeoutError,
     ValidatorBusyError,
@@ -42,6 +44,13 @@ assert LINE is not None
 #: An invoice of 1500 lines: about a second of work, far more than a short time limit.
 LONG = INVOICE.replace(LINE[0], LINE[0] * 1500, 1)
 BUDGET = 20_000
+MISTAKE = (FIXTURES / "synthetic" / "mutations" / "srb-001-invoice-type-code.xml").read_bytes()
+TYPE_CODE = Patch(
+    xpath="/ubl:Invoice/cbc:InvoiceTypeCode",
+    op="replace",
+    value="380",
+    reason="SEF takes the invoice type codes 380, 381, 383 and 386 only",
+)
 
 
 def report_of(content: bytes, profile: str = "srb") -> dict[str, Any]:
@@ -88,6 +97,20 @@ def test_admission_lets_go_of_a_validation_that_fails() -> None:
 def test_every_outcome_but_a_report_is_an_exception(kind: Any, error: type[Exception]) -> None:
     with pytest.raises(error, match="the detail"):
         validator._validation((kind, "the detail"))
+    with pytest.raises(error, match="the detail"):
+        validator._patched((kind, "the detail"))
+
+
+def test_a_document_that_is_not_xml_is_an_exception_of_its_own() -> None:
+    with pytest.raises(UnreadableInvoiceError, match="no patch applies"):
+        validator._patched(("unreadable", "the invoice is not XML, so no patch applies to it"))
+
+
+def test_an_answer_of_the_other_kind_fails_without_quoting_it() -> None:
+    with pytest.raises(ValidatorFailedError, match=r"^the validator answered patched out of turn$"):
+        validator._validation(("patched", '{"document": "quoted-from-the-invoice"}'))
+    with pytest.raises(ValidatorFailedError, match=r"^the validator answered report out of turn$"):
+        validator._patched(("report", '{"report": "quoted-from-the-invoice"}'))
 
 
 # --- the thread, for tests and tools ----------------------------------------------------------
@@ -125,6 +148,28 @@ async def test_the_thread_validator_says_why_it_cannot_run(
     await runner.stop()
 
 
+async def test_the_thread_validator_patches_as_the_validator_does() -> None:
+    runner = ThreadValidator(max_elements=BUDGET)
+
+    patched = await runner.patch(MISTAKE, "srb", [TYPE_CODE])
+    await runner.stop()
+
+    assert patched == Patched.model_validate_json(
+        patched_outcome(MISTAKE, "srb", [TYPE_CODE], max_elements=BUDGET)[1]
+    )
+
+
+async def test_the_thread_validator_patches_nothing_without_rule_sets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(ENV_VAR, str(tmp_path))
+    runner = ThreadValidator(max_elements=BUDGET)
+
+    with pytest.raises(ValidatorUnavailableError, match=r"'ubl-2\.1' is not present"):
+        await runner.patch(MISTAKE, "srb", [TYPE_CODE])
+    await runner.stop()
+
+
 # --- the child process ------------------------------------------------------------------------
 
 
@@ -146,6 +191,24 @@ async def test_the_child_validates_as_the_validator_does_one_invoice_at_a_time(
 
     assert [validation.report.valid for validation in validations] == [True] * 5
     assert capfd.readouterr() == ("", "")  # the child wrote nothing to the API's streams
+
+
+async def test_the_child_patches_as_the_validator_does_between_validations() -> None:
+    runner = ProcessValidator(max_elements=BUDGET, seconds=60)
+    await runner.start()
+
+    before = await runner.validate(MISTAKE, "srb")
+    patched = await runner.patch(MISTAKE, "srb", [TYPE_CODE])
+    after = await runner.validate(patched.document.encode(), "srb")
+    with pytest.raises(UnreadableInvoiceError, match="not well-formed XML"):
+        await runner.patch(b"<Invoice>", "srb", [TYPE_CODE])
+    await runner.stop()
+
+    assert not before.report.valid
+    assert patched == Patched.model_validate_json(
+        patched_outcome(MISTAKE, "srb", [TYPE_CODE], max_elements=BUDGET)[1]
+    )
+    assert after.report == patched.validation.report
 
 
 async def test_a_validation_over_the_time_limit_is_stopped_and_the_child_replaced() -> None:
@@ -206,9 +269,9 @@ def test_an_answer_to_another_message_is_refused() -> None:
     theirs.send((6, "report", "{}"))  # left over from an earlier message
 
     with pytest.raises(validator._OutOfStepError, match="answer to message 6 came for message 7"):
-        child.exchange((7, "srb", INVOICE, BUDGET), 5)
+        child.exchange((7, "srb", INVOICE, BUDGET, None), 5)
 
-    assert theirs.recv() == (7, "srb", INVOICE, BUDGET)
+    assert theirs.recv() == (7, "srb", INVOICE, BUDGET, None)
 
 
 async def test_a_child_that_answers_out_of_step_is_replaced(
@@ -330,7 +393,7 @@ from sef_api.invoices import child
 
 class Connection:
     def __init__(self):
-        self.received = [(7, "srb", b"<Invoice/>", 10)]
+        self.received = [(8, "srb", b"<Invoice/>", 10, "[]"), (7, "srb", b"<Invoice/>", 10, None)]
         self.sent = []
 
     def recv(self):
@@ -351,9 +414,11 @@ def loud(*_args, **_kwargs):
 
 child.warm_up = lambda: None
 child.outcome = loud
+child.patched_outcome = loud
 connection = Connection()
 child.serve(connection)
-sys.exit(0 if connection.sent == [("ready", ""), (7, "failed", "RuntimeError")] else 3)
+answers = [("ready", ""), (7, "failed", "RuntimeError"), (8, "failed", "RuntimeError")]
+sys.exit(0 if connection.sent == answers else 3)
 """
 
 

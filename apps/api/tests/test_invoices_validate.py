@@ -24,7 +24,7 @@ from einvoice_core import pipeline
 from einvoice_core.pipeline import ValidationReport
 from sef_api.db import Database, get_session
 from sef_api.invoices import validation
-from sef_api.invoices.validation import Validation
+from sef_api.invoices.validation import Patched, Validation
 from sef_api.invoices.validator import (
     ValidationRefusedError,
     ValidationTimeoutError,
@@ -101,6 +101,9 @@ class Scripted:
             raise self.error
         report = ValidationReport(profile=profile, valid=True, violations=(), layers=())
         return Validation(report=report, summary=None)
+
+    async def patch(self, _content: bytes, _profile: str, _patches: object) -> Patched:
+        raise AssertionError("not patched in these tests")
 
     async def stop(self) -> None:
         pass

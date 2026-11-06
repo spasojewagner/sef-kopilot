@@ -15,11 +15,12 @@ from typing import Any, get_args
 import pytest
 
 from einvoice_core import schematron, xsd
+from einvoice_core.patches import Patch
 from einvoice_core.pipeline import PROFILES, validate
 from einvoice_core.rulesets import ENV_VAR, RulesetNotFoundError
 from einvoice_core.schematron import SchematronError
 from sef_api.invoices import validation
-from sef_api.invoices.validation import InvoiceSummary, Validation
+from sef_api.invoices.validation import InvoiceSummary, Patched, Validation
 
 from .conftest import REPOSITORY_ROOT
 
@@ -30,6 +31,20 @@ CREDIT_NOTE = (
     REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic" / "credit-note-full.xml"
 ).read_bytes()
 BUDGET = 20_000
+MISTAKE = (
+    REPOSITORY_ROOT
+    / "fixtures"
+    / "invoices"
+    / "synthetic"
+    / "mutations"
+    / "srb-001-invoice-type-code.xml"
+).read_bytes()
+TYPE_CODE = Patch(
+    xpath="/ubl:Invoice/cbc:InvoiceTypeCode",
+    op="replace",
+    value="380",
+    reason="SEF takes the invoice type codes 380, 381, 383 and 386 only",
+)
 
 
 def test_the_api_offers_the_validators_profiles() -> None:
@@ -58,9 +73,10 @@ def test_warming_up_compiles_the_schemas_and_every_profiles_rule_sets(
     compiled: list[str] = []
     monkeypatch.setattr(xsd, "default_validator", lambda: compiled.append("xsd"))
     monkeypatch.setattr(schematron, "default_validator", compiled.append)
+    monkeypatch.setattr(validation, "schema_order", lambda: compiled.append("schema order"))
 
     assert validation.warm_up() is None
-    assert compiled == ["xsd", "en16931", "en16931-peppol", "peppol"]
+    assert compiled == ["xsd", "en16931", "en16931-peppol", "peppol", "schema order"]
 
 
 def test_warming_up_without_rule_sets_says_which_is_missing(
@@ -256,3 +272,85 @@ def test_what_goes_wrong_is_a_kind_of_outcome_without_document_content(
     monkeypatch.setattr(validation, "validate", failing)
 
     assert validation.outcome(INVOICE, "srb", max_elements=BUDGET) == expected
+
+
+# --- patches ------------------------------------------------------------------------------------
+
+
+def test_patches_are_applied_and_what_they_leave_is_validated_with_what_it_reads() -> None:
+    kind, detail = validation.patched_outcome(MISTAKE, "srb", [TYPE_CODE], max_elements=BUDGET)
+
+    assert kind == "patched"
+    patched = Patched.model_validate_json(detail)
+    assert [(o.status, o.before, o.after) for o in patched.outcomes] == [("applied", "393", "380")]
+    assert patched.changed
+    assert "<cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>" in patched.document
+    assert "+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>" in patched.diff.splitlines()
+    assert patched.validation.report.valid
+    assert patched.validation.summary is not None
+    assert patched.validation.summary.number == "RF-2026-000123"
+
+
+def test_a_patch_a_person_decides_leaves_the_document_and_its_report() -> None:
+    pib = Patch(
+        xpath="/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cbc:EndpointID",
+        op="replace",
+        value="100000024",
+        reason="the check digit",
+    )
+
+    kind, detail = validation.patched_outcome(INVOICE, "srb", [pib], max_elements=BUDGET)
+
+    patched = Patched.model_validate_json(detail)
+    assert (kind, patched.changed, patched.diff) == ("patched", False, "")
+    assert patched.outcomes[0].status == "needs-decision"
+
+
+def test_a_document_that_is_not_xml_takes_no_patch() -> None:
+    assert validation.patched_outcome(b"<Invoice>", "srb", [TYPE_CODE], max_elements=BUDGET) == (
+        "unreadable",
+        "the invoice is not well-formed XML, so no patch applies to it",
+    )
+
+
+def test_a_document_over_the_budget_is_not_patched(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(validation, "repair", lambda *_: pytest.fail("patched anyway"))
+
+    assert validation.patched_outcome(INVOICE, "srb", [TYPE_CODE], max_elements=100) == (
+        "too-many-elements",
+        "the invoice has more than 100 elements",
+    )
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (
+            RulesetNotFoundError("rule set 'ubl-2.1' is not present"),
+            ("unavailable", "the validator's rule sets are not installed"),
+        ),
+        (
+            SchematronError("rule set 'peppol' failed: quoted-from-the-invoice"),
+            ("refused", "the rule sets could not be applied to this invoice"),
+        ),
+        (
+            RuntimeError("the patch choked on quoted-from-the-invoice"),
+            ("failed", "RuntimeError"),
+        ),
+    ],
+)
+def test_what_goes_wrong_while_patching_carries_no_document_content(
+    monkeypatch: pytest.MonkeyPatch, error: Exception, expected: tuple[str, str]
+) -> None:
+    def failing(*_: Any) -> None:
+        raise error
+
+    monkeypatch.setattr(validation, "repair", failing)
+
+    assert validation.patched_outcome(INVOICE, "srb", [TYPE_CODE], max_elements=BUDGET) == expected
+
+
+def test_patches_travel_to_the_validators_process_as_json() -> None:
+    listed = validation.PATCHES.dump_json([TYPE_CODE])
+
+    assert validation.PATCHES.validate_json(listed) == [TYPE_CODE]

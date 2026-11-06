@@ -7,10 +7,11 @@ a document makes this process say may reach a log. The API learns what happened 
 outcome it sends back (:mod:`sef_api.invoices.validation`) and from its exit code.
 
 Messages on the connection: the child first sends ``("ready", "")`` or
-``("unavailable", why)``; then, for each ``(number, profile, content, max_elements)`` it
-receives, the number and an :data:`~sef_api.invoices.validation.Outcome`:
-``(number, kind, detail)``. The number lets the API check that an answer is to the message it
-has just sent. The child stops when the connection closes.
+``("unavailable", why)``; then, for each ``(number, profile, content, max_elements, patches)``
+it receives, the number and an :data:`~sef_api.invoices.validation.Outcome`:
+``(number, kind, detail)``. ``patches`` is None to validate the document, or a list of patches
+as JSON to apply first. The number lets the API check that an answer is to the message it has
+just sent. The child stops when the connection closes.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from __future__ import annotations
 import os
 from multiprocessing.connection import Connection
 
-from sef_api.invoices.validation import outcome, warm_up
+from sef_api.invoices.validation import PATCHES, Outcome, outcome, patched_outcome, warm_up
 
 __all__ = ["serve"]
 
@@ -39,7 +40,13 @@ def serve(connection: Connection) -> None:
         return
     while True:
         try:
-            number, profile, content, max_elements = connection.recv()
+            number, profile, content, max_elements, patches = connection.recv()
         except EOFError:
             return
-        connection.send((number, *outcome(content, profile, max_elements=max_elements)))
+        answer: Outcome
+        if patches is None:
+            answer = outcome(content, profile, max_elements=max_elements)
+        else:
+            listed = PATCHES.validate_json(patches)
+            answer = patched_outcome(content, profile, listed, max_elements=max_elements)
+        connection.send((number, *answer))

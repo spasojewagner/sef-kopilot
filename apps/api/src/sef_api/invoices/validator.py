@@ -26,19 +26,23 @@ import functools
 import logging
 import multiprocessing
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from multiprocessing.connection import Connection
 from multiprocessing.process import BaseProcess
-from typing import Final, Literal, Protocol
+from typing import Final, Literal, NoReturn, Protocol
 
+from einvoice_core.patches import Patch
 from sef_api.invoices.child import serve
 from sef_api.invoices.validation import (
+    PATCHES,
     Outcome,
+    Patched,
     ProfileName,
     Validation,
     outcome,
+    patched_outcome,
     rule_sets_missing,
     warm_up,
 )
@@ -49,6 +53,7 @@ __all__ = [
     "ProcessValidator",
     "ThreadValidator",
     "TooManyElementsError",
+    "UnreadableInvoiceError",
     "ValidationRefusedError",
     "ValidationTimeoutError",
     "Validator",
@@ -67,8 +72,9 @@ RETRY_SECONDS: Final = 30.0
 #: How long a child that waits for an invoice has to end once its connection is closed.
 _GRACE_SECONDS: Final = 5.0
 
-#: What the child is sent: a number for the message, the profile, the invoice, the budget.
-_Message = tuple[int, ProfileName, bytes, int]
+#: What the child is sent: a number for the message, the profile, the invoice, the budget, and
+#: the patches to apply first as JSON, or None.
+_Message = tuple[int, ProfileName, bytes, int, str | None]
 #: How a turn ends: the child's outcome, or the time limit, which stopped the child.
 _Ending = Outcome | tuple[Literal["timeout"], str]
 
@@ -93,6 +99,10 @@ class ValidationRefusedError(Exception):
     """The rule sets could not be applied to this invoice."""
 
 
+class UnreadableInvoiceError(Exception):
+    """The invoice is not well-formed XML, so no patch applies to it."""
+
+
 class ValidatorFailedError(Exception):
     """The validator failed; the message is the type of the error, never document content."""
 
@@ -113,22 +123,42 @@ class Validator(Protocol):
 
     async def validate(self, content: bytes, profile: ProfileName) -> Validation: ...
 
+    async def patch(
+        self, content: bytes, profile: ProfileName, patches: Sequence[Patch]
+    ) -> Patched: ...
+
     async def stop(self) -> None: ...
 
 
-def _validation(result: _Ending) -> Validation:
-    kind, detail = result
-    if kind == "report":
-        return Validation.model_validate_json(detail)
+def _raise_for(kind: str, detail: str) -> NoReturn:
     if kind == "too-many-elements":
         raise TooManyElementsError(detail)
+    if kind == "unreadable":
+        raise UnreadableInvoiceError(detail)
     if kind == "unavailable":
         raise ValidatorUnavailableError(detail)
     if kind == "refused":
         raise ValidationRefusedError(detail)
     if kind == "timeout":
         raise ValidationTimeoutError(detail)
-    raise ValidatorFailedError(detail)
+    if kind == "failed":
+        raise ValidatorFailedError(detail)
+    # A report or a patched document out of turn: its detail quotes the document, so not it.
+    raise ValidatorFailedError(f"the validator answered {kind} out of turn")
+
+
+def _validation(result: _Ending) -> Validation:
+    kind, detail = result
+    if kind == "report":
+        return Validation.model_validate_json(detail)
+    _raise_for(kind, detail)
+
+
+def _patched(result: _Ending) -> Patched:
+    kind, detail = result
+    if kind == "patched":
+        return Patched.model_validate_json(detail)
+    _raise_for(kind, detail)
 
 
 class Admission:
@@ -187,6 +217,17 @@ class ThreadValidator:
             raise ValidatorUnavailableError(self._problem)
         work = functools.partial(outcome, content, profile, max_elements=self._max_elements)
         return _validation(await asyncio.get_running_loop().run_in_executor(self._executor, work))
+
+    async def patch(
+        self, content: bytes, profile: ProfileName, patches: Sequence[Patch]
+    ) -> Patched:
+        await self._warm()
+        if self._problem is not None:
+            raise ValidatorUnavailableError(self._problem)
+        work = functools.partial(
+            patched_outcome, content, profile, patches, max_elements=self._max_elements
+        )
+        return _patched(await asyncio.get_running_loop().run_in_executor(self._executor, work))
 
     async def stop(self) -> None:
         self._executor.shutdown(wait=False, cancel_futures=True)
@@ -299,18 +340,26 @@ class ProcessValidator:
             await self._replace()
 
     async def validate(self, content: bytes, profile: ProfileName) -> Validation:
+        return _validation(await self._answer(content, profile, None))
+
+    async def patch(
+        self, content: bytes, profile: ProfileName, patches: Sequence[Patch]
+    ) -> Patched:
+        listed = PATCHES.dump_json(list(patches)).decode()
+        return _patched(await self._answer(content, profile, listed))
+
+    async def _answer(self, content: bytes, profile: ProfileName, patches: str | None) -> _Ending:
         entered = asyncio.Event()
-        turn = asyncio.ensure_future(self._take_turn(content, profile, entered))
+        turn = asyncio.ensure_future(self._take_turn(content, profile, patches, entered))
         try:
-            ending = await asyncio.shield(turn)
+            return await asyncio.shield(turn)
         except asyncio.CancelledError:
             if not entered.is_set():
                 turn.cancel()  # still waiting for its turn: it has nothing to settle
             raise
-        return _validation(ending)
 
     async def _take_turn(
-        self, content: bytes, profile: ProfileName, entered: asyncio.Event
+        self, content: bytes, profile: ProfileName, patches: str | None, entered: asyncio.Event
     ) -> _Ending:
         """One validation, after which the child is ready for the next document.
 
@@ -328,7 +377,7 @@ class ProcessValidator:
             if child is None:
                 return "unavailable", self._problem or "the validator is not available"
             self._sent += 1
-            message = (self._sent, profile, content, self._max_elements)
+            message = (self._sent, profile, content, self._max_elements, patches)
             try:
                 result = await self._run(functools.partial(child.exchange, message, self._seconds))
             except (EOFError, OSError):
