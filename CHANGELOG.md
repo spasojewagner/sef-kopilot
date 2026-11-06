@@ -11,6 +11,11 @@ is tagged.
 
 ### Fixed
 
+- `apps/api`: an explanation names no date, amount, rate or identifier that neither the
+  violation nor the passages contain (ADR-0022). The first live answer to `SRB-009` gave a
+  corrected PIB "for example", which the prompt forbade; such an answer now goes back to the
+  model with the values it named, and the model's non-breaking hyphens (`BT‑31`) become plain
+  ones.
 - `apps/api`: every JSON answer says `charset=utf-8`. Windows PowerShell 5.1 read a JSON body
   without one as ISO-8859-1, so `č` came out as `Ä` and the quotation marks of an explanation
   as control codes that hid the letters between them.

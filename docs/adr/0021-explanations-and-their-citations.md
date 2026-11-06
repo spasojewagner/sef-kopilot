@@ -1,6 +1,7 @@
 # 21. Explanations: the report's rules, passages found from the rule outward, an answer held to the passages it cites
 
-- Status: accepted
+- Status: accepted; amended by [0022](0022-explanations-name-no-value-of-their-own.md), under
+  which an answer names no value its question does not contain
 - Date: 2026-11-05
 - Deciders: Marko Spasojević
 - Technical story: milestone M2, branch `feat/rag-explain-citations`

@@ -36,3 +36,4 @@ per branch, to keep them with the code they describe.
 | `ci/corpus-sources-check` | [m2-ci-corpus-sources-check.md](m2-ci-corpus-sources-check.md) |
 | `chore/release-0.2.0` | [m2-release-0.2.0.md](m2-release-0.2.0.md) |
 | `fix/api-json-charset` | [m3-api-json-charset.md](m3-api-json-charset.md) |
+| `fix/rag-explanations-invent-no-values` | [m3-rag-explanations-invent-no-values.md](m3-rag-explanations-invent-no-values.md) |

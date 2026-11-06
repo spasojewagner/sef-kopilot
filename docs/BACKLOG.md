@@ -66,7 +66,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] `feat/repair-loop-audit` — approval flow and audit log
 - [ ] `feat/web-bootstrap` — Next.js app shell, shadcn/ui, TanStack Query, `next-intl` (sr-Latn default, en)
 - [ ] `feat/web-upload-report` — upload, report, violation detail with citations
-- [ ] A fix names no value the invoice does not have: the first live answer to SRB-009 gave a corrected PIB "for example", which the prompt forbids. A deterministic check of the numbers an answer names, sent back as feedback, and the model's non-breaking hyphens (`BT‑31`) written as plain ones, so that a search for `BT-31` finds them
+- [x] `fix/rag-explanations-invent-no-values` — a fix names no value the invoice does not have: the first live answer to SRB-009 gave a corrected PIB "for example", which the prompt forbids. A deterministic check of the numbers an answer names, sent back as feedback, and the model's non-breaking hyphens (`BT‑31`) written as plain ones, so that a search for `BT-31` finds them
 - [x] `fix/api-json-charset` — JSON answers declare `charset=utf-8`: Windows PowerShell 5.1 reads a JSON body without one as ISO-8859-1 and garbles č, ć, š, ž and the model's quotation marks
 - [ ] Retention (moved from M2; decided 2026-11-06): finished jobs deleted 30 days after they end (`SEF_JOB_RETENTION_DAYS`, 30); stored invoices kept until their organization sets a retention period of its own, none by default (`SECURITY.md`, V14)
 - [ ] Explanations of a stored invoice kept with its report, written once by a job and read with the invoice; the embeddings of what the rules say kept for reuse
