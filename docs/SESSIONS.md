@@ -1049,3 +1049,30 @@ tests at the first and 2 581 at the last; the new modules of the API at 100 % co
 
 Next: `feat/repair-approval`, a person's decision on a repair, and the invoice replaced by the
 document they approved.
+
+## 2026-11-06 — `feat/repair-approval` (3 commits)
+
+Outcome: a person decides on a repair (ADR-0024). `POST .../approval` applies the patches again
+and replaces the invoice with the document they leave, only if the invoice is still the document
+they were proposed for and the result is the one proposed, within the storage quota; the other
+repairs that waited for the invoice are superseded. `POST .../rejection` leaves the invoice as
+it is. An API key may propose but is refused a decision (403). Both decisions go to the audit
+log.
+
+Findings:
+
+- Proposing kept the repair without checking the proposer again after the validator's work,
+  which storing an invoice does: a member removed meanwhile, or a key revoked, could leave a
+  repair behind. Fixed, with the two tests that the merged branch lacked.
+- The first draft of approval locked the repair before the organization's storage lock, so
+  approving two repairs of one invoice at once could deadlock over the repair the first one
+  supersedes; the storage lock comes first now, as replacing a report takes it.
+- Seeding faults: twelve seeded (a key deciding, no superseding, the result or the invoice not
+  compared, the quota, a decided repair decided again, events missing or wrong, the approver
+  not checked again, an empty repair approved, the scope); twelve caught.
+
+Verification: each of the three commits on its own green with PostgreSQL and Redis, 2 583
+tests at the first and 2 602 at the last; the repairs' routes and store at 100 % coverage.
+
+Next: `feat/repair-model-loop`, the model proposing patches for a report's violations through
+the same repairs.

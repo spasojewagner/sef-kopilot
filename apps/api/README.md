@@ -150,9 +150,9 @@ or by a machine client with an API key. `POST /invoices/{id}/repairs` applies th
 copy of the invoice in the validator's child process, within the same limits as a validation,
 and keeps the repair: what became of each patch, the difference, and the validator's report on
 the patched invoice. It answers 201, and `Location` names the repair. The invoice itself does
-not change: a person approves or rejects the repair (next in M3). A patch that touches an
-amount, VAT, a tax or company identifier, a date or the document's number is not applied: it
-needs that person's decision.
+not change until a person approves the repair. A patch that touches an amount, VAT, a tax or
+company identifier, a date or the document's number is not applied: it needs that person's
+decision.
 
 ```bash
 curl -si localhost:8000/invoices/$INVOICE/repairs -H "Authorization: Bearer $ACCESS_TOKEN" \
@@ -165,12 +165,19 @@ curl -si localhost:8000/invoices/$INVOICE/repairs -H "Authorization: Bearer $ACC
 | `POST /invoices/{id}/repairs` | 201 with the repair; 409 when ten of the invoice's repairs wait for a decision, or the invoice changed while the patches were applied; 422 for malformed patches, or an invoice that is not well-formed XML |
 | `GET /invoices/{id}/repairs` | the invoice's repairs, the latest first (100 at most), without their reports and differences |
 | `GET /invoices/{id}/repairs/{repair_id}` | one repair: each patch's outcome, the difference, the report |
+| `POST /invoices/{id}/repairs/{repair_id}/approval` | 200 with the repair, `approved`: the invoice is now the patched document with its report; 403 with an API key; 409 when the repair waits for no decision, changes nothing, or the invoice or what its patches leave is not what it was when they were proposed; 507 beyond the storage quota |
+| `POST /invoices/{id}/repairs/{repair_id}/rejection` | 200 with the repair, `rejected`; the invoice stays as it is; 403 with an API key |
 
-A repair is seen by whoever sees its invoice, and is deleted with it. Proposing counts as a
-validation against the rate limits. Each proposal is committed with an event in the audit log
+Only a person decides: a member signed in with an access token, never an API key, since a key
+can leak from the ERP it serves. Approval applies the patches again, counted as a validation,
+and only to the document they were proposed for, which they must turn into the document they
+turned it into then; the invoice becomes that document within `SEF_MAX_STORED_BYTES`, and the
+other repairs that waited for it become `superseded`, since they were proposed for a document
+it no longer is. A repair is seen by whoever sees its invoice, and is deleted with it.
+Proposing counts as a validation against the rate limits. Each proposal, approval and rejection is committed with an event in the audit log
 (`audit_events`): who, with which key, to which invoice and repair, the digests of the document
-before and after, the verdict, and each patch's place, operation and outcome; never a value or
-a reason, which may quote the invoice. An event outlives the invoice and the repair it names,
+before and after, the verdict, each patch's place, operation and outcome, and the repairs an
+approval superseded; never a value or a reason, which may quote the invoice. An event outlives the invoice and the repair it names,
 and goes with the organization.
 
 ## Jobs
