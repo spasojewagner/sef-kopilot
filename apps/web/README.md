@@ -80,6 +80,13 @@ What these pages show comes from an uploaded document: the parties' names, the n
 rules' messages, which quote the document's values. It is rendered as text, which React
 escapes; the lint rule `react/no-danger` keeps anyone from setting HTML from it.
 
+On the report, the visitor may ask for the rules to be explained, in the page's language: each
+rule's card then says what the rule requires, why the invoice fails it and what to change,
+with the passages of the regulations it cites, dated and linked to their sources. They come
+from `POST /invoices/{id}/explanations`, which the language model answers on the API's side;
+nothing is asked of it until the visitor asks, and explanations once written are kept until
+the page is reloaded. A server without a language model says so.
+
 ## Components and styles
 
 The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:

@@ -3,6 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 
+import {
+  ExplanationsPanel,
+  RuleExplanation,
+  useExplanations,
+} from "@/components/invoice-explanations";
 import { Verdict } from "@/components/verdict";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +22,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { ApiError } from "@/lib/api";
 import { formatAmount, formatDay, formatMoment } from "@/lib/format";
+import type { Explanation } from "@/lib/explanations";
 import type { Report, StoredInvoice } from "@/lib/invoices";
 import { invoiceQuery } from "@/lib/queries";
 import { byRule, type RuleViolations } from "@/lib/report";
@@ -64,6 +70,13 @@ function Loaded({ invoice }: { invoice: StoredInvoice }) {
   const locale = useLocale();
   const { summary, report } = invoice;
   const rules = byRule(report);
+  const explaining = useExplanations(invoice.id);
+  const explanations = new Map(
+    (explaining.explained.data?.explanations ?? []).map((explanation) => [
+      explanation.rule_id,
+      explanation,
+    ]),
+  );
   const fatal = report.violations.filter((v) => v.severity === "fatal").length;
   const warnings = report.violations.length - fatal;
   return (
@@ -108,8 +121,13 @@ function Loaded({ invoice }: { invoice: StoredInvoice }) {
         {rules.length === 0 && (
           <p className="text-sm text-muted-foreground">{t("none")}</p>
         )}
+        {rules.length > 0 && <ExplanationsPanel {...explaining} />}
         {rules.map((rule) => (
-          <Rule key={`${rule.severity} ${rule.ruleId}`} rule={rule} />
+          <Rule
+            key={`${rule.severity} ${rule.ruleId}`}
+            rule={rule}
+            explanation={explanations.get(rule.ruleId)}
+          />
         ))}
         {report.omitted > 0 && (
           <p className="text-sm text-muted-foreground">
@@ -138,8 +156,17 @@ function Fact({ term, value }: { term: string; value: string }) {
   );
 }
 
-/** One rule the invoice fails, what its source says, and every place it fails it. */
-function Rule({ rule }: { rule: RuleViolations }) {
+/**
+ * One rule the invoice fails, what its source says, and every place it fails it; and the
+ * explanation of it, once the visitor has asked for one.
+ */
+function Rule({
+  rule,
+  explanation,
+}: {
+  rule: RuleViolations;
+  explanation?: Explanation;
+}) {
   const t = useTranslations("report");
   return (
     <Card className="gap-4 py-5">
@@ -175,6 +202,7 @@ function Rule({ rule }: { rule: RuleViolations }) {
             </li>
           ))}
         </ul>
+        {explanation && <RuleExplanation explanation={explanation} />}
       </CardContent>
     </Card>
   );

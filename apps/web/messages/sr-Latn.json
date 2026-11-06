@@ -152,5 +152,28 @@
     "layersTitle": "Slojevi provere",
     "layerFound": "{count, plural, =0 {bez prekršaja} one {# prekršaj} few {# prekršaja} other {# prekršaja}}",
     "layerSkipped": "nije pokrenut"
+  },
+  "explanations": {
+    "title": "Objašnjenja",
+    "intro": "Jezički model može da objasni svako pravilo: šta traži, zašto ga faktura krši i šta treba promeniti, uz citate propisa koji važe na dan izdavanja fakture.",
+    "privacy": "Modelu se šalje poruka svakog pravila, koja može navesti vrednost iz fakture, i odlomci propisa; ništa se ne čuva.",
+    "ask": "Objasni pravila",
+    "writing": "Jezički model piše objašnjenja. Može potrajati do pola minuta…",
+    "written": "Prema propisima na dan {day} objašnjenja je napisao jezički model {model}. Svaki citat je odlomak propisa koji je model dobio.",
+    "unexplained": "Ovaj put nisu objašnjena: {rules}. Objasniće se kad se isprave pravila iznad.",
+    "fix": "Šta promeniti",
+    "citations": "Propisi",
+    "validFrom": "važi od {from}",
+    "validBetween": "važi od {from} do {to}",
+    "problem": "Ovo pravilo ovaj put nije objašnjeno. Pokušajte ponovo.",
+    "again": "Pokušaj ponovo",
+    "errors": {
+      "tooMany": "Previše zahteva jezičkom modelu. Pokušajte ponovo za {seconds} s.",
+      "noModel": "Na ovom serveru nije podešen jezički model, pa objašnjenja nisu dostupna.",
+      "notFound": "Ova faktura više ne postoji.",
+      "tooSlow": "Objašnjenja nisu stigla na vreme. Pokušajte ponovo.",
+      "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
+      "failed": "Objašnjenja nisu napisana. Pokušajte ponovo malo kasnije."
+    }
   }
 }

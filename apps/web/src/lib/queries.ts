@@ -1,6 +1,7 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import { getHealth } from "@/lib/api";
+import { explainInvoice, type Language } from "@/lib/explanations";
 import { getInvoice, listInvoices } from "@/lib/invoices";
 import { authorized, type Identity } from "@/lib/session";
 
@@ -46,5 +47,21 @@ export function invoiceQuery(id: string) {
   return queryOptions({
     queryKey: ["invoices", "one", id],
     queryFn: ({ signal }) => getInvoice(id, signal),
+  });
+}
+
+/**
+ * The explanations of the stored invoice ``id``'s report, in ``language``. Each costs requests
+ * to the language model, so they are written only when the visitor asks (the page passes
+ * ``enabled``), never asked for again by themselves, and kept until the page is reloaded or the
+ * visitor signs out. Under the invoice's key, so that what changes the invoice drops them too.
+ */
+export function explanationsQuery(id: string, language: Language) {
+  return queryOptions({
+    queryKey: ["invoices", "one", id, "explanations", language],
+    queryFn: ({ signal }) => explainInvoice(id, language, signal),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
   });
 }
