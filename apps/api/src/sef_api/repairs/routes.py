@@ -1,18 +1,19 @@
 """``/invoices/{invoice_id}/repairs``: patches proposed for a stored invoice, kept with what they
 did to a copy of it until a person decides, and the decision (ADR-0024).
 
-Anyone who may submit invoices proposes, in person or with an API key. Only a person decides:
-an approval or a rejection made with an API key is refused, since a key can leak from the
-machine it serves.
+Anyone who may submit invoices proposes, in person or with an API key, patches of their own or
+the language model's (ADR-0025). Only a person decides: an approval or a rejection made with an
+API key is refused, since a key can leak from the machine it serves.
 """
 
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,9 +26,18 @@ from sef_api.db import get_session
 from sef_api.invoices import store as invoice_store
 from sef_api.invoices.routes import count_validation, judged, refuse_when_busy, scope_of
 from sef_api.invoices.store import StorageFullError
-from sef_api.invoices.validation import ProfileName
+from sef_api.invoices.validation import Patched, ProfileName
+from sef_api.llm import Language
 from sef_api.models import Repair, RepairStatus
 from sef_api.repairs import store
+from sef_api.repairs.repairer import (
+    ROUNDS,
+    ModelFailedError,
+    NoPatchError,
+    NothingToRepairError,
+    Repairer,
+    RepairTimeoutError,
+)
 from sef_api.settings import Settings
 
 router = APIRouter(prefix="/invoices", tags=["repairs"])
@@ -47,6 +57,12 @@ def in_person(caller: CanSubmit) -> Principal:
 
 
 InPerson = Annotated[Principal, Depends(in_person)]
+Reasons = Annotated[
+    Language,
+    Query(
+        description="The language of the patches' reasons: `sr` (Serbian, Latin script) or `en`."
+    ),
+]
 
 
 class RepairRequest(BaseModel):
@@ -72,6 +88,10 @@ class RepairListed(BaseModel):
         description="The member who proposed it, while their account exists."
     )
     proposed_with_key: bool = Field(description="Whether it came from an API key.")
+    model: str | None = Field(
+        description="The language model that wrote the patches, when one did: the member who "
+        "proposed the repair asked it for them."
+    )
     proposed_at: datetime
     decided_by: uuid.UUID | None
     decided_at: datetime | None
@@ -109,6 +129,7 @@ def _fields(repair: Repair, outcomes: list[Outcome]) -> dict[str, Any]:
         "status": RepairStatus(repair.status),
         "proposed_by": repair.proposed_by,
         "proposed_with_key": repair.key_id is not None,
+        "model": repair.model,
         "proposed_at": repair.created_at,
         "decided_by": repair.decided_by,
         "decided_at": repair.decided_at,
@@ -232,6 +253,126 @@ async def propose_repair(
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "the invoice changed while the patches were applied to it: propose them again",
+        ) from None
+    if repair is None:
+        raise _not_found()
+    response.headers["Location"] = f"/invoices/{invoice_id}/repairs/{repair.id}"
+    return repair_out(repair)
+
+
+_SUGGESTION: dict[int | str, dict[str, Any]] = _PROPOSAL | {
+    status.HTTP_409_CONFLICT: {
+        "model": Problem,
+        "description": "The invoice is valid; or as many of its repairs as allowed wait for a "
+        "decision; or it changed while the model's patches were applied to it.",
+    },
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {
+        "model": Problem,
+        "description": "The language model proposed no patch that a repair keeps; or the invoice "
+        "is not well-formed XML, or could not be validated within the time limit.",
+    },
+    status.HTTP_429_TOO_MANY_REQUESTS: {
+        "model": Problem,
+        "description": "Too many validations or requests to the language model by the caller, "
+        "or in their organization; try again after `Retry-After` seconds.",
+    },
+    status.HTTP_502_BAD_GATEWAY: {
+        "model": Problem,
+        "description": "The language model gave no answer, or none that could be used.",
+    },
+    status.HTTP_503_SERVICE_UNAVAILABLE: {
+        "model": Problem,
+        "description": "No language model is configured on this server; or the validator is "
+        "busy (retry after `Retry-After` seconds) or not available.",
+    },
+    status.HTTP_504_GATEWAY_TIMEOUT: {
+        "model": Problem,
+        "description": "The language model proposed no repair within the time allowed.",
+    },
+}
+
+
+@router.post(
+    "/{invoice_id}/repairs/suggestion",
+    status_code=status.HTTP_201_CREATED,
+    summary="Have the language model propose a repair of a stored invoice",
+    description=(
+        "Asks the language model for patches that repair the stored invoice's fatal "
+        "violations, and keeps them as a repair the caller proposes: the invoice itself does "
+        "not change until a person approves it. The model is sent the violations, whose "
+        "messages may quote the invoice, and the invoice's fields around them, by canonical "
+        "path; nothing else of it. Every answer is checked before anything is applied: each "
+        "patch at a canonical path, writing no value the model was not given. The patches are "
+        "applied to a copy and validated, as `POST /invoices/{invoice_id}/repairs` does; while "
+        f"fatal violations remain, the model is shown what became of each patch, for {ROUNDS} "
+        "rounds within the server's time limit. A patch that failed is not kept; one that "
+        "touches an amount, VAT, a tax or company identifier, a date or the document's number "
+        "is kept as needing a person's decision. Counted as a validation and as a request to "
+        "the language model. `Location` names the repair."
+    ),
+    responses=_SUGGESTION,
+)
+async def suggest_repair(
+    invoice_id: uuid.UUID,
+    *,
+    request: Request,
+    response: Response,
+    caller: CanSubmit,
+    session: Session,
+    language: Reasons = "sr",
+) -> RepairOut:
+    repairer = cast(Repairer | None, request.app.state.repairer)
+    if repairer is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "no language model is configured on this server"
+        )
+    count_validation(request, caller, asks_model=True)
+    scope = scope_of(caller)
+    invoice = await invoice_store.find(session, scope, invoice_id)
+    content = await invoice_store.content_of(session, scope, invoice_id)
+    if invoice is None or content is None:
+        raise _not_found()
+    if await store.waiting(session, invoice_id) >= store.MAX_WAITING:
+        raise _too_many_waiting()
+    profile, based_on = cast(ProfileName, invoice.profile), invoice.sha256
+    settings = cast(Settings, request.app.state.settings)
+    # No connection is held while the model and the validator work.
+    await session.commit()
+
+    async def apply(patches: Sequence[Patch]) -> Patched:
+        refuse_when_busy(request)
+        with judged(request) as validator:
+            return await validator.patch(content, profile, patches, fields=True)
+
+    try:
+        suggestion = await repairer.suggest(
+            apply, language=language, seconds=settings.repair_seconds
+        )
+    except NothingToRepairError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
+    except NoPatchError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
+    except ModelFailedError as error:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from None
+    except RepairTimeoutError as error:
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, str(error)) from None
+    await check_again(session, caller, Permission.INVOICES_SUBMIT)
+    written = store.Written(model=repairer.model, rounds=suggestion.rounds)
+    try:
+        repair = await store.propose(
+            session,
+            caller,
+            invoice_id=invoice_id,
+            based_on=based_on,
+            patched=suggestion.patched,
+            written=written,
+        )
+    except store.TooManyWaitingError:
+        raise _too_many_waiting() from None
+    except store.InvoiceChangedError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "the invoice changed while the model's patches were applied to it: ask again",
         ) from None
     if repair is None:
         raise _not_found()

@@ -456,6 +456,13 @@ GUARDED: dict[Endpoint, Guarded] = {
         {"patches": [{"xpath": "/ubl:Invoice/cbc:Note", "op": "remove", "reason": "why"}]},
         _primers_invoice_takes_no_repair,
     ),
+    ("POST", "/invoices/{invoice_id}/repairs/suggestion"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/repairs/suggestion",
+        None,
+        _primers_invoice_takes_no_repair,
+    ),
     ("GET", "/invoices/{invoice_id}/repairs"): Guarded(
         Permission.INVOICES_SUBMIT,
         False,

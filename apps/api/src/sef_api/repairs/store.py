@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from dataclasses import dataclass
 from typing import Any, Final
 
 from sqlalchemy import func, select, update
@@ -37,6 +38,7 @@ __all__ = [
     "InvoiceChangedError",
     "PatchesChangedError",
     "TooManyWaitingError",
+    "Written",
     "approve",
     "find",
     "propose",
@@ -81,10 +83,22 @@ async def waiting(session: AsyncSession, invoice_id: uuid.UUID) -> int:
     return int(count or 0)
 
 
-def _detail(based_on: str, patched_sha256: str, patched: Patched) -> dict[str, Any]:
-    """What the audit log keeps of a proposal: digests, the verdict, and each patch's place,
-    operation and outcome; never a value or a reason."""
-    return {
+@dataclass(frozen=True)
+class Written:
+    """Who wrote a repair's patches when the caller did not: a language model, which the
+    caller asked, and the rounds of patches it took (ADR-0025)."""
+
+    model: str
+    rounds: int
+
+
+def _detail(
+    based_on: str, patched_sha256: str, patched: Patched, written: Written | None
+) -> dict[str, Any]:
+    """What the audit log keeps of a proposal: digests, the verdict, each patch's place,
+    operation and outcome, and the model that wrote them, if one did; never a value or a
+    reason."""
+    detail: dict[str, Any] = {
         "based_on": based_on,
         "patched_sha256": patched_sha256,
         "changed": patched.changed,
@@ -94,6 +108,9 @@ def _detail(based_on: str, patched_sha256: str, patched: Patched) -> dict[str, A
             for outcome in patched.outcomes
         ],
     }
+    if written is not None:
+        detail |= {"model": written.model, "rounds": written.rounds}
+    return detail
 
 
 async def propose(
@@ -103,9 +120,11 @@ async def propose(
     invoice_id: uuid.UUID,
     based_on: str,
     patched: Patched,
+    written: Written | None = None,
 ) -> Repair | None:
     """Keep the repair ``patched`` describes, of the invoice whose document had the digest
-    ``based_on``, with its audit event, and commit. None when the invoice is gone;
+    ``based_on``, with its audit event, and commit; ``written`` names the model that wrote its
+    patches, when the caller did not. None when the invoice is gone;
     :class:`InvoiceChangedError` when it has another document now, and
     :class:`TooManyWaitingError` when as many of its repairs as allowed wait already."""
     current = await session.scalar(
@@ -130,6 +149,7 @@ async def propose(
         valid=patched.validation.report.valid,
         report=patched.validation.report.model_dump(mode="json"),
         diff=patched.diff,
+        model=None if written is None else written.model,
     )
     session.add(repair)
     await session.flush()
@@ -139,7 +159,7 @@ async def propose(
         AuditAction.REPAIR_PROPOSED,
         invoice_id=invoice_id,
         repair_id=repair.id,
-        detail=_detail(based_on, patched_sha256, patched),
+        detail=_detail(based_on, patched_sha256, patched, written),
     )
     await session.commit()
     return repair

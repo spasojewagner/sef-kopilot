@@ -21,6 +21,7 @@ from sef_api.main import create_app
 from sef_api.models import CorpusPassage, StoredInvoice
 from sef_api.rag.embeddings import JinaEmbedder
 from sef_api.rag.explainer import Explainer
+from sef_api.repairs.repairer import Repairer
 
 from .conftest import settings_for
 from .corpora import QuotingModel, ScriptedModel, repository_corpus, store_corpus
@@ -274,8 +275,11 @@ async def test_the_application_explains_with_the_model_the_settings_name() -> No
 
     assert isinstance(app.state.explainer, Explainer)
     assert app.state.explainer.model == f"groq/{GroqClient.MODEL}"
+    assert isinstance(app.state.repairer, Repairer)  # with the same model, closed once
+    assert app.state.repairer.model == f"groq/{GroqClient.MODEL}"
     assert isinstance(app.state.embedder, JinaEmbedder)
-    assert create_app(settings_for()).state.explainer is None
+    without = create_app(settings_for())
+    assert (without.state.explainer, without.state.repairer) == (None, None)
 
 
 async def test_shutting_down_closes_the_model_and_the_embedder() -> None:

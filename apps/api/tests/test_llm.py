@@ -234,15 +234,17 @@ def test_the_settings_choose_the_model() -> None:
         settings_for(LLM_PROVIDER="openai")
 
 
-def test_the_limits_of_explaining_come_from_the_settings() -> None:
+def test_the_limits_of_asking_the_model_come_from_the_settings() -> None:
     settings = settings_for(
         SEF_MAX_EXPLANATIONS="3",
         SEF_EXPLANATION_SECONDS="12.5",
+        SEF_REPAIR_SECONDS="7.5",
         SEF_EXPLANATIONS_PER_MINUTE="4",
         SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE="8",
     )
 
     assert (settings.max_explanations, settings.explanation_seconds) == (3, 12.5)
+    assert (settings.repair_seconds, settings_for().repair_seconds) == (7.5, 20.0)
     assert (settings.explanations_per_minute, settings.organization_explanations_per_minute) == (
         4,
         8,
@@ -251,3 +253,5 @@ def test_the_limits_of_explaining_come_from_the_settings() -> None:
         settings_for(SEF_MAX_EXPLANATIONS="0")
     with pytest.raises(ValidationError):
         settings_for(SEF_EXPLANATION_SECONDS="0")
+    with pytest.raises(ValidationError):
+        settings_for(SEF_REPAIR_SECONDS="0")
