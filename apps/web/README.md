@@ -43,6 +43,18 @@ fresh (a minute) and when a failed request is tried again (once, unless the API 
 In the tests no request leaves the machine: `vitest.setup.ts` makes each one fail as if the
 API could not be reached, unless the test answers it with `vi.stubGlobal("fetch", …)`.
 
+## The visitor's session
+
+`src/lib/session.ts` keeps a signed-in visitor's session (ADR-0027). The access token stays in
+the tab's memory; the refresh token and whose it is are in local storage, so that a reload or
+another tab stays signed in. The tabs take turns to refresh, with the Web Locks API, because the
+API spends a refresh token on use and ends a session whose spent token comes back.
+`authorized()` sends a request with the access token, replaces a token the API refuses once,
+and throws `SignedOutError` when no session is left. `useSession()` gives a component the
+session as it changes, in this tab or in another. When a visitor signs out, or another signs
+in, the visitor's cached answers are forgotten: a query key that starts with `api` holds what
+the API says about itself, and every other key a visitor's data.
+
 ## Components and styles
 
 The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:
@@ -79,7 +91,8 @@ src/components/    components shared by the pages: the header, the footer, the l
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types
-src/lib/           the API client and the questions the pages ask it; `cn()`
+src/hooks/         hooks shared by the components: the session
+src/lib/           the API client, the session, the questions the pages ask; `cn()`
 src/proxy.ts       sends a path without a language to the visitor's
 src/test/          what the tests share: rendering in a language, with a cache of its own
 vitest.config.mts  Vitest with React plugin, jsdom and tsconfig path aliases

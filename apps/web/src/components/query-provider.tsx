@@ -4,10 +4,13 @@ import {
   isServer,
   QueryClient,
   QueryClientProvider,
+  useQueryClient,
 } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
+import { useSession } from "@/hooks/use-session";
 import { ApiError } from "@/lib/api";
+import { isAboutTheApi } from "@/lib/queries";
 
 /** The defaults of every question the pages ask the API. */
 export function makeQueryClient(): QueryClient {
@@ -40,9 +43,37 @@ function queryClient(): QueryClient {
   return browserClient;
 }
 
+/**
+ * Forgets a visitor's answers when they sign out, here or in another tab, or another visitor
+ * signs in: the next person at this browser does not see them. What the API says about itself
+ * is the same for everyone, and kept.
+ */
+export function ForgetAVisitorsAnswers() {
+  const client = useQueryClient();
+  const session = useSession();
+  const visitor =
+    session.status === "signed-in"
+      ? `${session.identity.user.id} in ${session.identity.organization.id}`
+      : session.status;
+  const last = useRef(visitor);
+  useEffect(() => {
+    const before = last.current;
+    last.current = visitor;
+    if (before !== visitor && before !== "unknown" && before !== "signed-out") {
+      client.removeQueries({
+        predicate: (query) => !isAboutTheApi(query.queryKey),
+      });
+    }
+  }, [client, visitor]);
+  return null;
+}
+
 /** Gives the pages' client components one cache of the API's answers. */
 export function QueryProvider({ children }: { children: ReactNode }) {
   return (
-    <QueryClientProvider client={queryClient()}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient()}>
+      <ForgetAVisitorsAnswers />
+      {children}
+    </QueryClientProvider>
   );
 }
