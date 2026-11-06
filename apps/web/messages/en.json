@@ -177,6 +177,16 @@
     }
   },
   "repairs": {
+    "title": "Repairs",
+    "loading": "Loading the repairs…",
+    "notLoaded": "The repairs did not load. Try again a little later.",
+    "none": "No repair of this invoice has been proposed yet.",
+    "proposedAt": "Proposed",
+    "proposedBy": "By",
+    "status": "Status",
+    "after": "After the changes",
+    "patches": "Changes",
+    "counts": "{applied} applied, {needsDecision} awaiting a decision, {failed} not applied",
     "states": {
       "proposed": "Awaiting a decision",
       "approved": "Approved",

@@ -8,6 +8,7 @@ import {
   ExplanationsPanel,
   useExplanations,
 } from "@/components/invoice-explanations";
+import { RepairHistory } from "@/components/repair-history";
 import { ReportLayers, RuleCard } from "@/components/report-rules";
 import { Verdict } from "@/components/verdict";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -133,6 +134,7 @@ function Loaded({ invoice }: { invoice: StoredInvoice }) {
         )}
       </section>
 
+      <RepairHistory invoiceId={invoice.id} />
       <ReportLayers report={report} />
       <BackToTheList />
     </article>

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { invoiceQuery } from "@/lib/queries";
 import { aMoment, json, keepSession, stubApi } from "@/test/api";
-import { storedInvoice } from "@/test/invoices";
+import { storedInvoice, stubReportApi } from "@/test/invoices";
 import { renderIn, testQueryClient } from "@/test/render";
 
 import { InvoiceReport } from "./invoice-report";
@@ -13,7 +13,7 @@ const ID = "0b3f6a2e-1c4d-4e5f-8a9b-0c1d2e3f4a5b";
 describe("Invoice report", () => {
   it("shows what the validator read from the invoice, and its verdict", async () => {
     keepSession();
-    const asked = stubApi(() => json(200, storedInvoice()));
+    const asked = stubReportApi();
 
     renderIn("sr-Latn", <InvoiceReport id={ID} />);
 
@@ -27,12 +27,15 @@ describe("Invoice report", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "1 greška, 1 upozorenje" }),
     ).toBeInTheDocument();
-    expect(asked.map((request) => request.path)).toEqual([`/invoices/${ID}`]);
+    expect(asked.map((request) => request.path)).toEqual([
+      `/invoices/${ID}`,
+      `/invoices/${ID}/repairs`,
+    ]);
   });
 
   it("lists each rule with every place it fails, the errors first", async () => {
     keepSession();
-    stubApi(() => json(200, storedInvoice()));
+    stubReportApi();
 
     renderIn("sr-Latn", <InvoiceReport id={ID} />);
 
@@ -60,7 +63,7 @@ describe("Invoice report", () => {
 
   it("shows what each layer of the validator found", async () => {
     keepSession();
-    stubApi(() => json(200, storedInvoice()));
+    stubReportApi();
 
     renderIn("en", <InvoiceReport id={ID} />);
 
@@ -105,8 +108,8 @@ describe("Invoice report", () => {
   it("says what the validator could not place, left out or did not run", async () => {
     keepSession();
     const stored = storedInvoice();
-    stubApi(() =>
-      json(200, {
+    stubReportApi({
+      stored: {
         ...stored,
         report: {
           ...stored.report,
@@ -137,8 +140,8 @@ describe("Invoice report", () => {
           ],
           omitted: 3,
         },
-      }),
-    );
+      },
+    });
 
     renderIn("sr-Latn", <InvoiceReport id={ID} />);
 
@@ -175,7 +178,7 @@ describe("Invoice report", () => {
       },
     });
     stored.report.violations[0].message = `The seller is not '${markup}'.`;
-    stubApi(() => json(200, stored));
+    stubReportApi({ stored });
 
     const { container } = renderIn("sr-Latn", <InvoiceReport id={ID} />);
 
@@ -186,9 +189,9 @@ describe("Invoice report", () => {
     expect(container.querySelector("img")).toBeNull();
   });
 
-  it("shows the report the upload brought without asking again", async () => {
+  it("shows the report the upload brought without asking for it again", async () => {
     keepSession();
-    const asked = stubApi(() => json(500, {}));
+    const asked = stubReportApi();
     const client = testQueryClient();
     client.setQueryData(invoiceQuery(ID).queryKey, storedInvoice());
 
@@ -198,6 +201,8 @@ describe("Invoice report", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "F-2026-0042" }),
     ).toBeInTheDocument();
-    expect(asked).toEqual([]);
+    expect(asked.map((request) => request.path)).toEqual([
+      `/invoices/${ID}/repairs`,
+    ]);
   });
 });

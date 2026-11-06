@@ -13,6 +13,14 @@ export type Outcome = Schemas["Outcome"];
 const repairsOf = (invoiceId: string) =>
   `/invoices/${encodeURIComponent(invoiceId)}/repairs`;
 
+/** The repairs of the stored invoice ``invoiceId``, the latest first. */
+export function listRepairs(
+  invoiceId: string,
+  signal?: AbortSignal,
+): Promise<ListedRepair[]> {
+  return authorized<ListedRepair[]>(repairsOf(invoiceId), { signal });
+}
+
 /** The repair ``repairId`` of the stored invoice ``invoiceId``. */
 export function getRepair(
   invoiceId: string,

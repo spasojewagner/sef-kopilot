@@ -177,6 +177,16 @@
     }
   },
   "repairs": {
+    "title": "Popravke",
+    "loading": "Učitavanje popravki…",
+    "notLoaded": "Popravke nisu učitane. Pokušajte ponovo malo kasnije.",
+    "none": "Ova faktura još nema predloženih popravki.",
+    "proposedAt": "Predložena",
+    "proposedBy": "Predložio",
+    "status": "Stanje",
+    "after": "Posle izmena",
+    "patches": "Izmene",
+    "counts": "primenjeno {applied}, čeka odluku {needsDecision}, nije primenjeno {failed}",
     "states": {
       "proposed": "Čeka odluku",
       "approved": "Odobrena",

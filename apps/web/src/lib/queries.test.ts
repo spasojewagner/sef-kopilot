@@ -9,6 +9,7 @@ import {
   isAboutTheApi,
   meQuery,
   repairQuery,
+  repairsQuery,
 } from "./queries";
 
 describe("The question of the API's health", () => {
@@ -102,5 +103,13 @@ describe("The repairs of a stored invoice", () => {
     expect(repair.slice(0, invoice.length)).toEqual(invoice);
     expect(repair).not.toEqual(repairQuery("i-1", "r-2").queryKey);
     expect(isAboutTheApi(repair)).toBe(false);
+  });
+
+  it("are listed under the invoice's key, apart from each repair", () => {
+    const invoice = invoiceQuery("i-1").queryKey;
+    const list = repairsQuery("i-1").queryKey;
+
+    expect(list.slice(0, invoice.length)).toEqual(invoice);
+    expect(repairQuery("i-1", "r-1").queryKey).not.toEqual(list);
   });
 });
