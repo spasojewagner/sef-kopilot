@@ -5,7 +5,9 @@ packages:
 # resolve it, which keeps freshly published (possibly compromised) releases out of the lock file.
 minimumReleaseAge: 1440
 
-# Native post-install scripts must be opted in explicitly (pnpm >= 10 security default).
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+# Every install script of a dependency is ruled on here: pnpm 11 and later fail an install that
+# meets one that is not, and `allowBuilds` replaced the earlier lists. None runs: sharp and
+# unrs-resolver ship prebuilt binaries for each platform.
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
