@@ -29,6 +29,7 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0021](0021-explanations-and-their-citations.md) | Explanations: the report's rules, passages found from the rule outward, an answer held to the passages it cites | accepted | 2026-11-05 |
 | [0022](0022-explanations-name-no-value-of-their-own.md) | An explanation names no value its question does not contain | accepted | 2026-11-06 |
 | [0023](0023-patches-and-the-fields-a-person-decides.md) | Patches: canonical places, the schema's order, and the fields a person decides | accepted | 2026-11-06 |
+| [0024](0024-repairs-of-stored-invoices-and-the-audit-log.md) | Repairs of stored invoices: proposed by anyone, decided by a person, and audited | accepted | 2026-11-06 |
 
-Planned (recorded when the work lands): the repair loop and its audit log (M3), OAuth 2.1 for
+Planned (recorded when the work lands): the model's proposals of patches (M3), OAuth 2.1 for
 MCP (M4), evaluation thresholds (M6).

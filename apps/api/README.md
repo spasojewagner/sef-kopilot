@@ -143,6 +143,36 @@ invoice's report is its latest, and `validated_at` says when the validator made 
 invoice was stored, or validated again. After a revalidation, `GET /invoices?valid=false`
 lists the invoices it found invalid.
 
+## Repairs
+
+A repair is a list of patches for a stored invoice (ADR-0023, ADR-0024), proposed by a member
+or by a machine client with an API key. `POST /invoices/{id}/repairs` applies the patches to a
+copy of the invoice in the validator's child process, within the same limits as a validation,
+and keeps the repair: what became of each patch, the difference, and the validator's report on
+the patched invoice. It answers 201, and `Location` names the repair. The invoice itself does
+not change: a person approves or rejects the repair (next in M3). A patch that touches an
+amount, VAT, a tax or company identifier, a date or the document's number is not applied: it
+needs that person's decision.
+
+```bash
+curl -si localhost:8000/invoices/$INVOICE/repairs -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"patches": [{"xpath": "/ubl:Invoice/cbc:InvoiceTypeCode", "op": "replace", "value": "380", "reason": "SEF takes 380, 381, 383 and 386 only"}]}'
+```
+
+| Endpoint | Answer |
+| --- | --- |
+| `POST /invoices/{id}/repairs` | 201 with the repair; 409 when ten of the invoice's repairs wait for a decision, or the invoice changed while the patches were applied; 422 for malformed patches, or an invoice that is not well-formed XML |
+| `GET /invoices/{id}/repairs` | the invoice's repairs, the latest first (100 at most), without their reports and differences |
+| `GET /invoices/{id}/repairs/{repair_id}` | one repair: each patch's outcome, the difference, the report |
+
+A repair is seen by whoever sees its invoice, and is deleted with it. Proposing counts as a
+validation against the rate limits. Each proposal is committed with an event in the audit log
+(`audit_events`): who, with which key, to which invoice and repair, the digests of the document
+before and after, the verdict, and each patch's place, operation and outcome; never a value or
+a reason, which may quote the invoice. An event outlives the invoice and the repair it names,
+and goes with the organization.
+
 ## Jobs
 
 Work that outlasts a request runs as a job (ADR-0019). The first one validates stored invoices
@@ -384,14 +414,19 @@ src/sef_api/
   db.py          declarative base, engine, sessions, the `get_session` dependency, pgvector's
                  column type
   models.py      organizations, users, memberships, roles, invitations, refresh tokens,
-                 stored invoices, API keys, jobs, the corpus's documents and passages
+                 stored invoices, API keys, jobs, the corpus's documents and passages,
+                 repairs and audit events
   locks.py       the advisory locks on an organization's members, invoices and API keys,
                  and the one that makes two ingests of the corpus take turns
   rate_limits.py the rate limiter (GCRA), what it counts and the limits
   api_keys/      issuing, authenticating, listing and revoking API keys, `/api-keys` routes
   auth/          passwords, tokens, the sign-in service, `/auth` routes, `current_principal`
-  invoices/      upload limits, the validator and its child process, stored invoices and
-                 validating them again, `/invoices` routes
+  invoices/      upload limits, the validator and its child process (validating and patching),
+                 stored invoices and validating them again, `/invoices` routes
+  repairs/       repairs of stored invoices: proposals and their outcomes,
+                 `/invoices/{id}/repairs` routes
+  audit.py       the audit log's events: who did what, without the invoice's content
+  bodies.py      the limit on every request body other than an invoice
   jobs/          running a job, the inline runner, the Redis queue and its worker, `/jobs`
                  routes with the event stream
   members/       members and invitations, `/members` and `/invitations` routes
