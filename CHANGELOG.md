@@ -121,6 +121,10 @@ is tagged.
   worker runs into a new minute, a few CI runs in a hundred. That worker waited for the sweep
   at second 0 and the job the test leaves unfinished ran too early; the tests' workers now
   sweep at startup only, and a test pins the production schedule.
+- `apps/web`: the signed-in header fits a phone. The product's name no longer breaks over
+  two lines, nor does the account's button stand past the screen's edge (by up to 51 px at
+  360 px), which made every page scroll sideways; below 640 px the languages are in the
+  footer. Their place is kept until their links come, so that nothing beside them moves.
 
 ## [0.2.0] - 2026-11-06
 

@@ -39,5 +39,7 @@ describe("Site header", () => {
     expect(
       within(languages).getByRole("link", { name: "English" }),
     ).toHaveAttribute("href", "/en/invoices");
+    // From 640 px up: a phone's header has room for the account alone.
+    expect(languages.parentElement).toHaveClass("hidden", "sm:block");
   });
 });
