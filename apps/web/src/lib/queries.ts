@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { getHealth } from "@/lib/api";
+import { getInvoice } from "@/lib/invoices";
 import { authorized, type Identity } from "@/lib/session";
 
 /**
@@ -30,3 +31,11 @@ export const meQuery = queryOptions({
   queryKey: ["visitor", "me"],
   queryFn: ({ signal }) => authorized<Identity>("/auth/me", { signal }),
 });
+
+/** A stored invoice with the validator's latest report on it. */
+export function invoiceQuery(id: string) {
+  return queryOptions({
+    queryKey: ["invoices", "one", id],
+    queryFn: ({ signal }) => getInvoice(id, signal),
+  });
+}

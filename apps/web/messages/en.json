@@ -62,5 +62,54 @@
     "tooMany": "Too many attempts. Try again in {seconds} s.",
     "unreachable": "The API is not answering. Try again a little later.",
     "failed": "That did not work. Try again."
+  },
+  "signedInOnly": {
+    "title": "Sign in",
+    "description": "Invoices are kept for your organization, so you see them once you sign in.",
+    "signIn": "Sign in",
+    "register": "Register"
+  },
+  "verdict": {
+    "valid": "Valid",
+    "invalid": "Invalid"
+  },
+  "profiles": {
+    "srb": "SEF (SRB-CIUS)",
+    "en16931": "EN 16931",
+    "peppol": "Peppol BIS Billing 3.0"
+  },
+  "report": {
+    "title": "Report",
+    "loading": "Loading the report…",
+    "notFound": "This invoice does not exist, or is not yours.",
+    "notLoaded": "The report did not load. Try again a little later.",
+    "back": "Back to the invoices",
+    "unreadable": "Unreadable document",
+    "seller": "Seller",
+    "buyer": "Buyer",
+    "issued": "Issue date",
+    "amount": "Amount due",
+    "checked": "Checked under the {profile} profile, {when}.",
+    "violations": "{fatal, plural, =0 {No errors} one {# error} other {# errors}}, {warnings, plural, =0 {no warnings} one {# warning} other {# warnings}}",
+    "none": "The validator found no violation.",
+    "omitted": "Violations the report does not show: {count}.",
+    "setAside": "Findings of published rules that this profile does not apply: {count}.",
+    "severity": {
+      "fatal": "Error",
+      "warning": "Warning"
+    },
+    "layers": {
+      "xml": "XML",
+      "xsd": "UBL 2.1 schema",
+      "schematron": "Schematron (EN 16931, Peppol)",
+      "srb-cius": "SRB-CIUS",
+      "arithmetic": "Calculations (EN 16931)"
+    },
+    "places": "{count, plural, one {# place} other {# places}}",
+    "wholeDocument": "the whole document",
+    "line": "line {line}",
+    "layersTitle": "Layers of the check",
+    "layerFound": "{count, plural, =0 {no violations} one {# violation} other {# violations}}",
+    "layerSkipped": "did not run"
   }
 }

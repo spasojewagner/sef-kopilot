@@ -10,6 +10,12 @@ const eslintConfig = defineConfig([
   // TanStack Query's rules: complete query keys, a stable client, queries built with
   // queryOptions().
   ...pluginQuery.configs["flat/recommended-strict"],
+  // An invoice's values, and the rules' messages that quote them, come from an uploaded
+  // document: they are rendered as text, which React escapes, and never set as HTML.
+  {
+    files: ["**/*.{js,jsx,mjs,ts,tsx}"],
+    rules: { "react/no-danger": "error" },
+  },
   // Formatting is Prettier's job: disable every stylistic rule that would fight it.
   eslintConfigPrettier,
   // Override default ignores of eslint-config-next.

@@ -62,5 +62,54 @@
     "tooMany": "Previše pokušaja. Pokušajte ponovo za {seconds} s.",
     "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
     "failed": "Nije uspelo. Pokušajte ponovo."
+  },
+  "signedInOnly": {
+    "title": "Prijavite se",
+    "description": "Fakture se čuvaju za vašu organizaciju, pa ih vidite kad se prijavite.",
+    "signIn": "Prijava",
+    "register": "Registracija"
+  },
+  "verdict": {
+    "valid": "Ispravna",
+    "invalid": "Neispravna"
+  },
+  "profiles": {
+    "srb": "SEF (SRB-CIUS)",
+    "en16931": "EN 16931",
+    "peppol": "Peppol BIS Billing 3.0"
+  },
+  "report": {
+    "title": "Izveštaj",
+    "loading": "Učitavanje izveštaja…",
+    "notFound": "Ova faktura ne postoji, ili nije vaša.",
+    "notLoaded": "Izveštaj nije učitan. Pokušajte ponovo malo kasnije.",
+    "back": "Nazad na fakture",
+    "unreadable": "Nečitljiv dokument",
+    "seller": "Prodavac",
+    "buyer": "Kupac",
+    "issued": "Datum izdavanja",
+    "amount": "Za plaćanje",
+    "checked": "Provereno prema profilu {profile}, {when}.",
+    "violations": "{fatal, plural, =0 {Nema grešaka} one {# greška} few {# greške} other {# grešaka}}, {warnings, plural, =0 {nema upozorenja} one {# upozorenje} few {# upozorenja} other {# upozorenja}}",
+    "none": "Validator nije našao nijedan prekršaj.",
+    "omitted": "Prekršaja koje izveštaj ne prikazuje: {count}.",
+    "setAside": "Nalaza objavljenih pravila koje ovaj profil ne primenjuje: {count}.",
+    "severity": {
+      "fatal": "Greška",
+      "warning": "Upozorenje"
+    },
+    "layers": {
+      "xml": "XML",
+      "xsd": "UBL 2.1 šema",
+      "schematron": "Schematron (EN 16931, Peppol)",
+      "srb-cius": "SRB-CIUS",
+      "arithmetic": "Računske provere (EN 16931)"
+    },
+    "places": "{count, plural, one {# mesto} few {# mesta} other {# mesta}}",
+    "wholeDocument": "ceo dokument",
+    "line": "red {line}",
+    "layersTitle": "Slojevi provere",
+    "layerFound": "{count, plural, =0 {bez prekršaja} one {# prekršaj} few {# prekršaja} other {# prekršaja}}",
+    "layerSkipped": "nije pokrenut"
   }
 }

@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
-import { healthQuery, isAboutTheApi, meQuery } from "./queries";
+import { healthQuery, invoiceQuery, isAboutTheApi, meQuery } from "./queries";
 
 describe("The question of the API's health", () => {
   it("is asked of /health and kept under its key", async () => {
@@ -52,5 +52,12 @@ describe("The keys of the answers", () => {
   it("say which answers are the same for every visitor, and which are a visitor's", () => {
     expect(isAboutTheApi(healthQuery.queryKey)).toBe(true);
     expect(isAboutTheApi(meQuery.queryKey)).toBe(false);
+    expect(isAboutTheApi(invoiceQuery("i-1").queryKey)).toBe(false);
+  });
+
+  it("keep each invoice under a key of its own", () => {
+    expect(invoiceQuery("i-1").queryKey).not.toEqual(
+      invoiceQuery("i-2").queryKey,
+    );
   });
 });
