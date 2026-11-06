@@ -911,3 +911,24 @@ Verification: 2 326 tests green; `einvoice --version` and `GET /health` report 0
 
 Next: M3, starting with `feat/repair-patch-engine` (the patch model and the forbidden-field
 guard).
+
+## 2026-11-06 — `fix/api-json-charset` (1 commit)
+
+Outcome: every JSON answer says `application/json; charset=utf-8`, through a small ASGI
+middleware (`sef_api.charset.DeclareUTF8`) that covers FastAPI's own answers too: validation
+errors, unknown paths and the OpenAPI document.
+
+Findings:
+
+- The maintainer's first live explanation came out garbled in Windows PowerShell 5.1, which
+  reads a body without a `charset` as ISO-8859-1. The bytes were right; the client guessed.
+- A response class with the charset in its media type would have missed FastAPI's own handlers
+  and written `application/json; charset=utf-8` as the content key of every operation in the
+  OpenAPI document.
+- Seeding faults: four seeded (no middleware, every type rewritten, any header rewritten, the
+  lifespan wrapped), four caught.
+
+Verification: API 710 tests, coverage 100 %.
+
+Next: a deterministic check of the values an explanation names, the other finding of the live
+test; then `feat/repair-patch-engine`.

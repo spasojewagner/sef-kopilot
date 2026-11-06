@@ -19,6 +19,7 @@ from sef_api import __version__
 from sef_api.api_keys import routes as api_keys
 from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
+from sef_api.charset import DeclareUTF8
 from sef_api.db import Database
 from sef_api.invoices import routes as invoices
 from sef_api.invoices.validator import Admission, Validator, validator_for
@@ -149,6 +150,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         },
         lifespan=lifespan,
     )
+    app.add_middleware(DeclareUTF8)
     app.state.settings = settings
     app.state.database = database
     app.state.tokens = TokenSettings.from_settings(settings)

@@ -9,6 +9,12 @@ is tagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- `apps/api`: every JSON answer says `charset=utf-8`. Windows PowerShell 5.1 read a JSON body
+  without one as ISO-8859-1, so `č` came out as `Ä` and the quotation marks of an explanation
+  as control codes that hid the letters between them.
+
 ## [0.2.0] - 2026-11-06
 
 The HTTP API around the validator, and the explanations (milestone M2): FastAPI on PostgreSQL

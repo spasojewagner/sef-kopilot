@@ -26,6 +26,10 @@ Configuration comes from the environment or a `.env` file in the working directo
 variables are in [`.env.example`](../../.env.example). Without `DATABASE_URL` the API uses the
 database of `make up`; in production the variable is required.
 
+Every JSON answer is `application/json; charset=utf-8`. JSON needs no charset, but Windows
+PowerShell 5.1 reads a body without one as ISO-8859-1, which garbles the Serbian letters of a
+message or an explanation.
+
 ## Accounts and tokens
 
 `/auth` signs people up and in (ADR-0012). Registration creates an account, its organization and
