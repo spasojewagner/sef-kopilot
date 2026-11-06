@@ -8,10 +8,12 @@ they empty, and are skipped without it.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 import sys
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -66,14 +68,21 @@ def through_redis(database_url: str, redis_url: str | None = TEST_REDIS_URL) -> 
 
 
 async def work(settings: Settings) -> None:
-    """Run a worker until the queue is empty, the jobs its sweep puts there included; a worker
-    still busy after 30 seconds fails the test."""
+    """Run a worker until the queue is empty, the jobs its sweep at startup puts there included;
+    a worker still busy after 30 seconds fails the test.
+
+    The sweep at second 0 of every minute is moved half an hour away. A run that crossed a
+    minute would sweep twice, and put back on the queue a job the test leaves unfinished."""
     assert TEST_REDIS_URL is not None
+    options = worker.options(settings, TEST_REDIS_URL)
+    later = (datetime.now(UTC).minute + 30) % 60
+    options["cron_jobs"] = [dataclasses.replace(job, minute=later) for job in options["cron_jobs"]]
     serving = Worker(
-        **worker.options(settings, TEST_REDIS_URL),
+        **options,
         burst=True,
         poll_delay=0.01,
         handle_signals=False,
+        timezone=UTC,
     )
     try:
         await asyncio.wait_for(serving.async_run(), 30)
@@ -272,7 +281,10 @@ def test_a_worker_serves_the_queue_of_its_settings(monkeypatch: pytest.MonkeyPat
     (options,) = served
     assert [function.name for function in options["functions"]] == [TASK]
     assert options["functions"][0].timeout_s == worker.ATTEMPT_SECONDS
-    assert [job.name for job in options["cron_jobs"]] == ["cron:sweep"]
+    (sweeping,) = options["cron_jobs"]
+    assert sweeping.name == "cron:sweep"
+    # at startup, then at second 0 of every minute (the tests move the latter away)
+    assert (sweeping.run_at_startup, sweeping.minute, sweeping.second) == (True, None, 0)
     assert (options["redis_settings"].host, options["redis_settings"].port) == (
         "queue.example",
         6380,
