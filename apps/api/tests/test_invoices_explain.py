@@ -196,7 +196,7 @@ async def test_requests_for_explanations_are_counted_and_count_as_validations(
     assert explained.status_code == 200
     assert (held.status_code, held.json(), held.headers["Retry-After"]) == (
         429,
-        {"detail": "too many requests for explanations; try again in 60 s"},
+        {"detail": "too many requests to the language model; try again in 60 s"},
         "60",
     )
     assert (validated.status_code, no_more.status_code) == (200, 429)
@@ -213,7 +213,10 @@ async def test_the_callers_of_an_organization_share_its_count_of_explanations(
 
     assert (held.status_code, held.json()) == (
         429,
-        {"detail": "too many requests for explanations in this organization; try again in 60 s"},
+        {
+            "detail": "too many requests to the language model in this organization; "
+            "try again in 60 s"
+        },
     )
 
 

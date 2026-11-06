@@ -174,8 +174,8 @@ class Counted(StrEnum):
     FAILED_PASSWORD = "failed passwords for this e-mail address"
     VALIDATION = "validations"
     ORGANIZATION_VALIDATION = "validations in this organization"
-    EXPLANATION = "requests for explanations"
-    ORGANIZATION_EXPLANATION = "requests for explanations in this organization"
+    MODEL_REQUEST = "requests to the language model"
+    ORGANIZATION_MODEL_REQUEST = "requests to the language model in this organization"
 
 
 #: The limits that settings do not change. Per address: what one client may try, generous
@@ -194,8 +194,8 @@ DEFAULT_LIMITS: Final[Mapping[Counted, Limit]] = MappingProxyType(
 
 def limits(settings: Settings) -> Mapping[Counted, Limit]:
     """Every limit the API counts against: :data:`DEFAULT_LIMITS`, and the validations and the
-    requests for explanations a minute that the settings allow one caller and one
-    organization."""
+    requests to the language model (for explanations or a repair) a minute that the settings
+    allow one caller and one organization."""
     minute = timedelta(minutes=1)
     return MappingProxyType(
         {
@@ -204,8 +204,8 @@ def limits(settings: Settings) -> Mapping[Counted, Limit]:
             Counted.ORGANIZATION_VALIDATION: Limit(
                 settings.organization_validations_per_minute, minute
             ),
-            Counted.EXPLANATION: Limit(settings.explanations_per_minute, minute),
-            Counted.ORGANIZATION_EXPLANATION: Limit(
+            Counted.MODEL_REQUEST: Limit(settings.explanations_per_minute, minute),
+            Counted.ORGANIZATION_MODEL_REQUEST: Limit(
                 settings.organization_explanations_per_minute, minute
             ),
         }

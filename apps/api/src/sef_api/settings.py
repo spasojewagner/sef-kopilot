@@ -219,15 +219,16 @@ class Settings(BaseSettings):
         ge=1,
         le=100_000,
         validation_alias="SEF_EXPLANATIONS_PER_MINUTE",
-        description="Requests for explanations one caller may make a minute; 429 beyond.",
+        description="Requests to the language model, for explanations or a repair, one caller "
+        "may make a minute; 429 beyond.",
     )
     organization_explanations_per_minute: int = Field(
         default=30,
         ge=1,
         le=1_000_000,
         validation_alias="SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE",
-        description="Requests for explanations all the callers of one organization may make a "
-        "minute; 429 beyond.",
+        description="Requests to the language model, for explanations or a repair, all the "
+        "callers of one organization may make a minute; 429 beyond.",
     )
 
     @property
