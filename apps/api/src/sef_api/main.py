@@ -35,6 +35,7 @@ from sef_api.members import routes as members
 from sef_api.rag.embeddings import Embedder, embedder_for
 from sef_api.rag.explainer import Explainer
 from sef_api.rate_limits import RateLimiter, limits
+from sef_api.repairs import routes as repairs
 from sef_api.routes import health
 from sef_api.settings import Settings
 
@@ -59,6 +60,11 @@ OPENAPI_TAGS = [
         "name": "invoices",
         "description": "Invoices and credit notes: the deterministic validator's report on them, "
         "and explanations of its rules that cite the official documents.",
+    },
+    {
+        "name": "repairs",
+        "description": "Repairs of stored invoices: patches applied to a copy of an invoice, "
+        "kept with what they did to it until a person decides.",
     },
     {
         "name": "jobs",
@@ -166,6 +172,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(invoices.router)
+    app.include_router(repairs.router)
     app.include_router(jobs.router)
     app.include_router(members.router)
     app.include_router(members.invitations_router)

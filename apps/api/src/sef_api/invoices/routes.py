@@ -26,6 +26,7 @@ from sef_api.invoices.validation import InvoiceSummary, ProfileName, Validation
 from sef_api.invoices.validator import (
     Admission,
     TooManyElementsError,
+    UnreadableInvoiceError,
     ValidationRefusedError,
     ValidationTimeoutError,
     Validator,
@@ -590,7 +591,7 @@ def judged(request: Request) -> Iterator[Validator]:
         ) from None
     except TooManyElementsError as error:
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, str(error)) from None
-    except (ValidationTimeoutError, ValidationRefusedError) as error:
+    except (ValidationTimeoutError, ValidationRefusedError, UnreadableInvoiceError) as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
     except Exception as error:
         # A message may quote the document, which must never reach a log: the type only. The
