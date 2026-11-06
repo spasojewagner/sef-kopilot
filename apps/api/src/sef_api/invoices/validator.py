@@ -72,9 +72,9 @@ RETRY_SECONDS: Final = 30.0
 #: How long a child that waits for an invoice has to end once its connection is closed.
 _GRACE_SECONDS: Final = 5.0
 
-#: What the child is sent: a number for the message, the profile, the invoice, the budget, and
-#: the patches to apply first as JSON, or None.
-_Message = tuple[int, ProfileName, bytes, int, str | None]
+#: What the child is sent: a number for the message, the profile, the invoice, the budget, the
+#: patches to apply first as JSON, or None, and whether to list the fields around what remains.
+_Message = tuple[int, ProfileName, bytes, int, str | None, bool]
 #: How a turn ends: the child's outcome, or the time limit, which stopped the child.
 _Ending = Outcome | tuple[Literal["timeout"], str]
 
@@ -124,8 +124,16 @@ class Validator(Protocol):
     async def validate(self, content: bytes, profile: ProfileName) -> Validation: ...
 
     async def patch(
-        self, content: bytes, profile: ProfileName, patches: Sequence[Patch]
-    ) -> Patched: ...
+        self,
+        content: bytes,
+        profile: ProfileName,
+        patches: Sequence[Patch],
+        *,
+        fields: bool = False,
+    ) -> Patched:
+        """What ``patches`` do to ``content``; with ``fields``, with the fields around the
+        violations to repair that remain."""
+        ...
 
     async def stop(self) -> None: ...
 
@@ -219,13 +227,23 @@ class ThreadValidator:
         return _validation(await asyncio.get_running_loop().run_in_executor(self._executor, work))
 
     async def patch(
-        self, content: bytes, profile: ProfileName, patches: Sequence[Patch]
+        self,
+        content: bytes,
+        profile: ProfileName,
+        patches: Sequence[Patch],
+        *,
+        fields: bool = False,
     ) -> Patched:
         await self._warm()
         if self._problem is not None:
             raise ValidatorUnavailableError(self._problem)
         work = functools.partial(
-            patched_outcome, content, profile, patches, max_elements=self._max_elements
+            patched_outcome,
+            content,
+            profile,
+            patches,
+            max_elements=self._max_elements,
+            fields=fields,
         )
         return _patched(await asyncio.get_running_loop().run_in_executor(self._executor, work))
 
@@ -340,17 +358,25 @@ class ProcessValidator:
             await self._replace()
 
     async def validate(self, content: bytes, profile: ProfileName) -> Validation:
-        return _validation(await self._answer(content, profile, None))
+        return _validation(await self._answer(content, profile, None, fields=False))
 
     async def patch(
-        self, content: bytes, profile: ProfileName, patches: Sequence[Patch]
+        self,
+        content: bytes,
+        profile: ProfileName,
+        patches: Sequence[Patch],
+        *,
+        fields: bool = False,
     ) -> Patched:
         listed = PATCHES.dump_json(list(patches)).decode()
-        return _patched(await self._answer(content, profile, listed))
+        return _patched(await self._answer(content, profile, listed, fields=fields))
 
-    async def _answer(self, content: bytes, profile: ProfileName, patches: str | None) -> _Ending:
+    async def _answer(
+        self, content: bytes, profile: ProfileName, patches: str | None, *, fields: bool
+    ) -> _Ending:
         entered = asyncio.Event()
-        turn = asyncio.ensure_future(self._take_turn(content, profile, patches, entered))
+        message = (profile, content, patches, fields)
+        turn = asyncio.ensure_future(self._take_turn(*message, entered))
         try:
             return await asyncio.shield(turn)
         except asyncio.CancelledError:
@@ -359,7 +385,12 @@ class ProcessValidator:
             raise
 
     async def _take_turn(
-        self, content: bytes, profile: ProfileName, patches: str | None, entered: asyncio.Event
+        self,
+        profile: ProfileName,
+        content: bytes,
+        patches: str | None,
+        fields: bool,
+        entered: asyncio.Event,
     ) -> _Ending:
         """One validation, after which the child is ready for the next document.
 
@@ -377,7 +408,7 @@ class ProcessValidator:
             if child is None:
                 return "unavailable", self._problem or "the validator is not available"
             self._sent += 1
-            message = (self._sent, profile, content, self._max_elements, patches)
+            message = (self._sent, profile, content, self._max_elements, patches, fields)
             try:
                 result = await self._run(functools.partial(child.exchange, message, self._seconds))
             except (EOFError, OSError):

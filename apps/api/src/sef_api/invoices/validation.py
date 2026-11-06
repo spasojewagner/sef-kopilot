@@ -2,10 +2,10 @@
 
 :func:`outcome` is what a validator runs for each document, in its child process or in a
 thread (:mod:`sef_api.invoices.validator`); :func:`patched_outcome` applies patches to a
-document first and validates what they leave (ADR-0023, ADR-0024). Neither raises: what is
-wrong with the document is the report, and what goes wrong with the validation is a kind of
-outcome that carries no document content, so that it can cross a process boundary and be
-logged.
+document first and validates what they leave (ADR-0023, ADR-0024), and for a repairer lists the
+fields around the violations that remain (ADR-0025). Neither raises: what is wrong with the
+document is the report, and what goes wrong with the validation is a kind of outcome that
+carries no document content, so that it can cross a process boundary and be logged.
 
 Before the validation proper, the elements of the document are counted, without building it,
 by a parser as hardened as the validator's own. The cost of validating grows with elements,
@@ -28,6 +28,7 @@ from lxml import etree
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from einvoice_core import schematron, xsd
+from einvoice_core.fields import InvoiceField, fields_around
 from einvoice_core.model import DocumentType
 from einvoice_core.patches import Outcome as PatchOutcome
 from einvoice_core.patches import Patch
@@ -37,9 +38,12 @@ from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
 from einvoice_core.schema_order import schema_order
 from einvoice_core.schematron import SchematronError
 from einvoice_core.ubl import build_invoice
+from einvoice_core.violations import Severity, Violation
 from einvoice_core.xml import ParseError, load_document
 
 __all__ = [
+    "MAX_FIELDS",
+    "MAX_TO_REPAIR",
     "PATCHES",
     "SUMMARY_TEXT_LIMIT",
     "InvoiceSummary",
@@ -53,6 +57,7 @@ __all__ = [
     "patched_outcome",
     "rule_sets_missing",
     "summarize",
+    "violations_to_repair",
     "warm_up",
 ]
 
@@ -76,6 +81,11 @@ PATCHES: Final = TypeAdapter(list[Patch])
 #: The characters a summary keeps of each text: a list of invoices stays small whatever a
 #: document holds.
 SUMMARY_TEXT_LIMIT: Final = 200
+
+#: The most violations a repairer is shown at once, and the most fields of the invoice around
+#: them: a question of a few thousand tokens, whatever the invoice holds.
+MAX_TO_REPAIR: Final = 10
+MAX_FIELDS: Final = 60
 
 _EVENTS: Final = ("end",)
 
@@ -107,7 +117,8 @@ class Validation(BaseModel):
 
 class Patched(BaseModel):
     """What patches did to a document: the outcome of each, whether the document changed, the
-    document they left with the validator's report on it, and the difference."""
+    document they left with the validator's report on it, and the difference; and, for a
+    repairer, the fields around the violations to repair."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -116,6 +127,16 @@ class Patched(BaseModel):
     document: str = Field(description="The patched document, UTF-8 XML.")
     diff: str
     validation: Validation
+    fields: tuple[InvoiceField, ...] = Field(
+        default=(), description="The fields around the violations to repair, when asked for."
+    )
+
+
+def violations_to_repair(report: ValidationReport) -> list[Violation]:
+    """The violations a repairer is shown: the fatal ones, in the report's order, at most
+    :data:`MAX_TO_REPAIR`. A warning does not keep an invoice from being sent."""
+    fatal = [violation for violation in report.violations if violation.severity is Severity.FATAL]
+    return fatal[:MAX_TO_REPAIR]
 
 
 def _packages() -> list[str]:
@@ -233,10 +254,16 @@ def outcome(content: bytes, profile: ProfileName, *, max_elements: int) -> Outco
 
 
 def patched_outcome(
-    content: bytes, profile: ProfileName, patches: Sequence[Patch], *, max_elements: int
+    content: bytes,
+    profile: ProfileName,
+    patches: Sequence[Patch],
+    *,
+    max_elements: int,
+    fields: bool = False,
 ) -> Outcome:
     """Apply ``patches`` to ``content``, if it has at most ``max_elements`` elements, and
-    validate what they leave under ``profile``."""
+    validate what they leave under ``profile``; with ``fields``, list the fields around the
+    violations to repair that remain (:func:`violations_to_repair`)."""
     if count_elements(content, limit=max_elements) > max_elements:
         return "too-many-elements", f"the invoice has more than {max_elements} elements"
     try:
@@ -246,6 +273,8 @@ def patched_outcome(
             return "unreadable", "the invoice is not well-formed XML, so no patch applies to it"
         tree = load_document(repaired.document)
         summary = summarize(tree) if _schema_valid(repaired.report) else None
+        places = [violation.xpath for violation in violations_to_repair(repaired.report)]
+        around = fields_around(tree, places, limit=MAX_FIELDS) if fields else ()
     except RulesetNotFoundError:
         return "unavailable", "the validator's rule sets are not installed"
     except SchematronError:
@@ -258,5 +287,6 @@ def patched_outcome(
         document=repaired.document.decode(),
         diff=repaired.diff,
         validation=Validation(report=repaired.report, summary=summary),
+        fields=around,
     )
     return "patched", patched.model_dump_json()

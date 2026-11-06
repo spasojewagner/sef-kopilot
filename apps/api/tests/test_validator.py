@@ -159,6 +159,18 @@ async def test_the_thread_validator_patches_as_the_validator_does() -> None:
     )
 
 
+async def test_the_thread_validator_lists_the_fields_for_a_repairer() -> None:
+    runner = ThreadValidator(max_elements=BUDGET)
+
+    patched = await runner.patch(MISTAKE, "srb", [], fields=True)
+    await runner.stop()
+
+    assert patched == Patched.model_validate_json(
+        patched_outcome(MISTAKE, "srb", [], max_elements=BUDGET, fields=True)[1]
+    )
+    assert patched.fields
+
+
 async def test_the_thread_validator_patches_nothing_without_rule_sets(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -200,6 +212,7 @@ async def test_the_child_patches_as_the_validator_does_between_validations() -> 
     before = await runner.validate(MISTAKE, "srb")
     patched = await runner.patch(MISTAKE, "srb", [TYPE_CODE])
     after = await runner.validate(patched.document.encode(), "srb")
+    around = await runner.patch(MISTAKE, "srb", [], fields=True)
     with pytest.raises(UnreadableInvoiceError, match="not well-formed XML"):
         await runner.patch(b"<Invoice>", "srb", [TYPE_CODE])
     await runner.stop()
@@ -209,6 +222,10 @@ async def test_the_child_patches_as_the_validator_does_between_validations() -> 
         patched_outcome(MISTAKE, "srb", [TYPE_CODE], max_elements=BUDGET)[1]
     )
     assert after.report == patched.validation.report
+    assert around == Patched.model_validate_json(
+        patched_outcome(MISTAKE, "srb", [], max_elements=BUDGET, fields=True)[1]
+    )
+    assert (patched.fields, len(around.fields)) == ((), 9)
 
 
 async def test_a_validation_over_the_time_limit_is_stopped_and_the_child_replaced() -> None:
@@ -269,9 +286,9 @@ def test_an_answer_to_another_message_is_refused() -> None:
     theirs.send((6, "report", "{}"))  # left over from an earlier message
 
     with pytest.raises(validator._OutOfStepError, match="answer to message 6 came for message 7"):
-        child.exchange((7, "srb", INVOICE, BUDGET, None), 5)
+        child.exchange((7, "srb", INVOICE, BUDGET, None, False), 5)
 
-    assert theirs.recv() == (7, "srb", INVOICE, BUDGET, None)
+    assert theirs.recv() == (7, "srb", INVOICE, BUDGET, None, False)
 
 
 async def test_a_child_that_answers_out_of_step_is_replaced(
@@ -393,7 +410,10 @@ from sef_api.invoices import child
 
 class Connection:
     def __init__(self):
-        self.received = [(8, "srb", b"<Invoice/>", 10, "[]"), (7, "srb", b"<Invoice/>", 10, None)]
+        self.received = [
+            (8, "srb", b"<Invoice/>", 10, "[]", True),
+            (7, "srb", b"<Invoice/>", 10, None, False),
+        ]
         self.sent = []
 
     def recv(self):

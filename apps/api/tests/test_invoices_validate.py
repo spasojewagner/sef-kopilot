@@ -102,7 +102,14 @@ class Scripted:
         report = ValidationReport(profile=profile, valid=True, violations=(), layers=())
         return Validation(report=report, summary=None)
 
-    async def patch(self, _content: bytes, _profile: str, _patches: object) -> Patched:
+    async def patch(
+        self,
+        _content: bytes,
+        _profile: str,
+        _patches: object,
+        *,
+        fields: bool = False,  # noqa: ARG002
+    ) -> Patched:
         raise AssertionError("not patched in these tests")
 
     async def stop(self) -> None:
