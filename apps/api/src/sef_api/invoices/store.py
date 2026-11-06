@@ -3,9 +3,9 @@ validator's latest report on it, within a storage quota (ADR-0016).
 
 What an organization stores is counted in bytes, its documents and their reports together: a
 small invoice that breaks many rules has a report many times its size. Adding up what is
-stored and storing one more, or replacing a report with a larger one (ADR-0019), happen under
-a lock on the organization's stored invoices, so that no two of them can take it past its
-quota.
+stored and storing one more, replacing a report with a larger one (ADR-0019), or replacing a
+document with the one an approved repair leaves (ADR-0024), happen under a lock on the
+organization's stored invoices, so that no two of them can take it past its quota.
 
 Every read is within a :class:`Scope`: the organization, and for a member who may not see
 every invoice of it, only the ones they submitted. An invoice outside the scope does not
@@ -43,6 +43,7 @@ __all__ = [
     "find",
     "forget",
     "page_of",
+    "replace_document",
     "replace_report",
     "store",
     "stored_bytes",
@@ -187,6 +188,58 @@ async def replace_report(
             valid=validation.report.valid,
             report=validation.report.model_dump(mode="json"),
             report_size=size,
+            validated_at=func.now(),
+            **_listing(validation.summary),
+        )
+    )
+    return "replaced"
+
+
+async def replace_document(
+    session: AsyncSession,
+    *,
+    organization_id: uuid.UUID,
+    invoice_id: uuid.UUID,
+    based_on: str,
+    content: bytes,
+    validation: Validation,
+    quota: int,
+) -> Literal["replaced", "changed", "full", "gone"]:
+    """Make ``content``, with ``validation``, the document of the organization's invoice whose
+    document has the digest ``based_on``, without committing: the caller commits it with
+    whatever else belongs to the change, and the lock on the organization's stored invoices is
+    held until then.
+
+    ``"changed"`` when the invoice has another document now, ``"full"`` when the new document
+    and its report are larger than the old ones and the organization would then store more than
+    ``quota`` bytes, and ``"gone"`` when the organization has no such invoice.
+    """
+    await lock_invoice_storage(session, organization_id)
+    old = (
+        await session.execute(
+            select(StoredInvoice.sha256, StoredInvoice.size, StoredInvoice.report_size)
+            .where(StoredInvoice.organization_id == organization_id, StoredInvoice.id == invoice_id)
+            .with_for_update()
+        )
+    ).one_or_none()
+    if old is None:
+        return "gone"
+    if old.sha256 != based_on:
+        return "changed"
+    report_size = len(validation.report.model_dump_json().encode())
+    grows = len(content) + report_size - old.size - old.report_size
+    if grows > 0 and await stored_bytes(session, organization_id) + grows > quota:
+        return "full"
+    await session.execute(
+        update(StoredInvoice)
+        .where(StoredInvoice.id == invoice_id)
+        .values(
+            content=content,
+            size=len(content),
+            sha256=hashlib.sha256(content).hexdigest(),
+            valid=validation.report.valid,
+            report=validation.report.model_dump(mode="json"),
+            report_size=report_size,
             validated_at=func.now(),
             **_listing(validation.summary),
         )

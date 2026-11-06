@@ -1,5 +1,10 @@
 """``/invoices/{invoice_id}/repairs``: patches proposed for a stored invoice, kept with what they
-did to a copy of it until a person decides (ADR-0024)."""
+did to a copy of it until a person decides, and the decision (ADR-0024).
+
+Anyone who may submit invoices proposes, in person or with an API key. Only a person decides:
+an approval or a rejection made with an API key is refused, since a key can leak from the
+machine it serves.
+"""
 
 from __future__ import annotations
 
@@ -19,14 +24,29 @@ from sef_api.auth.routes import Problem
 from sef_api.db import get_session
 from sef_api.invoices import store as invoice_store
 from sef_api.invoices.routes import count_validation, judged, refuse_when_busy, scope_of
+from sef_api.invoices.store import StorageFullError
 from sef_api.invoices.validation import ProfileName
 from sef_api.models import Repair, RepairStatus
 from sef_api.repairs import store
+from sef_api.settings import Settings
 
 router = APIRouter(prefix="/invoices", tags=["repairs"])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 CanSubmit = Annotated[Principal, Depends(require(Permission.INVOICES_SUBMIT))]
+
+
+def in_person(caller: CanSubmit) -> Principal:
+    """The caller, if they came in person, with an access token: not with an API key."""
+    if caller.key is not None:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "a person decides on a repair: sign in to decide, an API key cannot",
+        )
+    return caller
+
+
+InPerson = Annotated[Principal, Depends(in_person)]
 
 
 class RepairRequest(BaseModel):
@@ -247,3 +267,138 @@ async def get_repair(
     if repair is None:
         raise _not_found("repair of this invoice")
     return repair_out(repair)
+
+
+def _decided(error: store.DecidedError) -> HTTPException:
+    return HTTPException(
+        status.HTTP_409_CONFLICT, f"the repair is {error.status}: it waits for no decision"
+    )
+
+
+def _stale() -> HTTPException:
+    return HTTPException(
+        status.HTTP_409_CONFLICT,
+        "the invoice changed since the repair was proposed: propose it again",
+    )
+
+
+_DECISION: dict[int | str, dict[str, Any]] = _NOT_FOUND | {
+    status.HTTP_403_FORBIDDEN: {
+        "model": Problem,
+        "description": "The caller came with an API key: only a person decides on a repair.",
+    },
+    status.HTTP_409_CONFLICT: {
+        "model": Problem,
+        "description": "The repair waits for no decision, changes nothing, or was proposed for "
+        "a document the invoice no longer is.",
+    },
+}
+_APPROVAL: dict[int | str, dict[str, Any]] = (
+    _PROPOSAL
+    | _DECISION
+    | {
+        status.HTTP_409_CONFLICT: {
+            "model": Problem,
+            "description": "The repair waits for no decision or changes nothing; or the "
+            "invoice, or what its patches leave, is not what it was when they were proposed.",
+        },
+        status.HTTP_507_INSUFFICIENT_STORAGE: {
+            "model": Problem,
+            "description": "The patched invoice would take the organization past its quota.",
+        },
+    }
+)
+
+
+@router.post(
+    "/{invoice_id}/repairs/{repair_id}/approval",
+    summary="Approve a repair",
+    description=(
+        "A person approves the repair, in person: never with an API key. Its patches are "
+        "applied again to the invoice, which must still be the document they were proposed "
+        "for, and must leave the document they left then. The invoice becomes that document, "
+        "with the validator's report on it, within the organization's storage quota; the other "
+        "repairs that waited for the invoice are superseded. Counted as a validation."
+    ),
+    responses=_APPROVAL,
+)
+async def approve_repair(
+    invoice_id: uuid.UUID,
+    repair_id: uuid.UUID,
+    *,
+    request: Request,
+    caller: InPerson,
+    session: Session,
+) -> RepairOut:
+    count_validation(request, caller)
+    scope = scope_of(caller)
+    invoice = await invoice_store.find(session, scope, invoice_id)
+    content = await invoice_store.content_of(session, scope, invoice_id)
+    if invoice is None or content is None:
+        raise _not_found()
+    repair = await store.find(session, invoice_id, repair_id)
+    if repair is None:
+        raise _not_found("repair of this invoice")
+    if repair.status != RepairStatus.PROPOSED:
+        raise _decided(store.DecidedError(repair.status))
+    if not repair.changed:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "the repair changes nothing: there is nothing to approve"
+        )
+    if invoice.sha256 != repair.based_on:
+        raise _stale()
+    profile = cast(ProfileName, invoice.profile)
+    patches = [outcome.patch for outcome in _outcomes(repair)]
+    settings = cast(Settings, request.app.state.settings)
+    await session.commit()  # the connection goes back while the validator works
+    refuse_when_busy(request)
+    with judged(request) as validator:
+        patched = await validator.patch(content, profile, patches)
+    await check_again(session, caller, Permission.INVOICES_SUBMIT)
+    try:
+        approved = await store.approve(
+            session,
+            caller,
+            invoice_id=invoice_id,
+            repair_id=repair_id,
+            patched=patched,
+            quota=settings.max_stored_bytes,
+        )
+    except store.DecidedError as error:
+        raise _decided(error) from None
+    except store.InvoiceChangedError:
+        raise _stale() from None
+    except store.PatchesChangedError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "the patches no longer leave the document they left when they were proposed: "
+            "propose them again",
+        ) from None
+    except StorageFullError:
+        raise HTTPException(
+            status.HTTP_507_INSUFFICIENT_STORAGE, "the organization stores as much as it may"
+        ) from None
+    if approved is None:
+        raise _not_found("repair of this invoice")
+    return repair_out(approved)
+
+
+@router.post(
+    "/{invoice_id}/repairs/{repair_id}/rejection",
+    summary="Reject a repair",
+    description="A person rejects the repair, in person: never with an API key. The invoice "
+    "stays as it is.",
+    responses=_DECISION,
+)
+async def reject_repair(
+    invoice_id: uuid.UUID, repair_id: uuid.UUID, caller: InPerson, session: Session
+) -> RepairOut:
+    if await invoice_store.find(session, scope_of(caller), invoice_id) is None:
+        raise _not_found()
+    try:
+        rejected = await store.reject(session, caller, invoice_id=invoice_id, repair_id=repair_id)
+    except store.DecidedError as error:
+        raise _decided(error) from None
+    if rejected is None:
+        raise _not_found("repair of this invoice")
+    return repair_out(rejected)

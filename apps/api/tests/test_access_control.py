@@ -35,6 +35,7 @@ from sef_api.main import create_app
 from sef_api.members import invitations
 from sef_api.models import (
     ApiKey,
+    AuditEvent,
     Invitation,
     Job,
     Membership,
@@ -308,6 +309,18 @@ async def _primers_invoice_takes_no_repair(
     assert await session.scalar(select(func.count()).select_from(Repair)) == 0
 
 
+async def _primers_invoice_is_not_decided(
+    response: Response, session: AsyncSession, w: World
+) -> None:
+    """Nothing is decided for Primer: another organization's member finds no such invoice, and
+    its API key is refused, as every key is, before anything is looked up."""
+    assert (response.status_code, response.json()["detail"]) in {
+        (404, "no such invoice in this organization"),
+        (403, "a person decides on a repair: sign in to decide, an API key cannot"),
+    }
+    assert await session.scalar(select(func.count()).select_from(AuditEvent)) == 0
+
+
 async def _primers_invoice_is_not_found(
     response: Response, session: AsyncSession, w: World
 ) -> None:
@@ -456,6 +469,20 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda w: f"/invoices/{w.invoice.id}/repairs/{w.invoice.id}",
         None,
         _primers_invoice_is_not_found,
+    ),
+    ("POST", "/invoices/{invoice_id}/repairs/{repair_id}/approval"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/repairs/{w.invoice.id}/approval",
+        None,
+        _primers_invoice_is_not_decided,
+    ),
+    ("POST", "/invoices/{invoice_id}/repairs/{repair_id}/rejection"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/repairs/{w.invoice.id}/rejection",
+        None,
+        _primers_invoice_is_not_decided,
     ),
     ("POST", "/invoices/validate"): Guarded(
         Permission.INVOICES_VALIDATE,
