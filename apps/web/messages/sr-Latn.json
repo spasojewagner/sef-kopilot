@@ -32,6 +32,50 @@
       "replace": "zameni",
       "approved": "Odobreno",
       "after": "Ponovo provereno: bez grešaka"
+    },
+    "route": {
+      "title": "Model predlaže, validator sudi, vi odlučujete",
+      "intro": "Jezički model stoji između dva deterministička zida: pre njega validator nalazi greške, posle njega sudi o izmenama koje je model predložio. Ništa ne prolazi bez izveštaja bez grešaka.",
+      "steps": {
+        "validate": {
+          "title": "Validacija",
+          "text": "Šema UBL 2.1, Schematron pravila EN 16931 i Peppol, pravila SRB-CIUS napisana u kodu i računske provere u Pythonu. Ista faktura uvek dobija isti izveštaj."
+        },
+        "explain": {
+          "title": "Objašnjenje",
+          "text": "Jezički model piše na srpskom ili engleskom šta pravilo traži i zašto ga faktura krši. Citirati sme samo odlomke propisa koje je pretraga vratila, sa datumom od kada važe."
+        },
+        "repair": {
+          "title": "Predlog ispravke",
+          "text": "Model predlaže izmene kao zakrpe: gde, šta i zašto. Kod ih primenjuje na kopiju fakture, a validator kopiju proverava ponovo."
+        },
+        "decide": {
+          "title": "Vaša odluka",
+          "text": "Faktura se ne menja dok je ne odobrite. Izmene iznosa, PDV-a, PIB-a, matičnog broja i datuma prometa model ne može da primeni: ostaju vama na odluku."
+        }
+      }
+    },
+    "standards": {
+      "title": "Pravila po kojima se proverava",
+      "intro": "Zvanični skupovi pravila, neizmenjeni, i srpska pravila napisana prema specifikaciji. Model nije sudija: presuda je njihov izveštaj.",
+      "ubl": "Šema dokumenta: elementi, njihov redosled i tipovi, kako ih propisuje OASIS.",
+      "en16931": "Poslovna pravila evropske norme za elektronsku fakturu, u Schematronu CEN-a.",
+      "srb": "Srpska primena norme za SEF: pravila napisana u kodu prema zvaničnoj specifikaciji.",
+      "peppol": "Profil za razmenu preko mreže Peppol, u Schematronu OpenPeppola.",
+      "arithmetic": "Računske provere",
+      "arithmeticText": "Zbirovi stavki, osnovice i PDV (BR-CO), sabrani u Pythonu, nikad u modelu."
+    },
+    "developers": {
+      "title": "Isto i bez stranice: HTTP API i MCP",
+      "text": "Svaka provera dostupna je i kroz HTTP API, opisan OpenAPI dokumentom, i kroz MCP server na /mcp, za AI asistente i automatizaciju ERP-a. Ključeve za API izdaje vlasnik organizacije.",
+      "docs": "Dokumentacija API-ja",
+      "file": "faktura.xml"
+    },
+    "closing": {
+      "title": "Probajte na izmišljenoj firmi",
+      "text": "U repozitorijumu su sintetičke fakture izmišljenih firmi, ispravne i one koje bi SEF odbio. Javni demo je za njih: ne otpremajte prave fakture.",
+      "examples": "Primeri faktura",
+      "start": "Počnite proveru"
     }
   },
   "footer": {

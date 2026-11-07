@@ -169,7 +169,9 @@ shadcn/ui components read, so that they take it unchanged:
 ## The home page
 
 The home page is the product's page (`src/components/landing`): what it does and the way to try
-it, on the brand's navy beside an example of an invoice's report.
+it, on the brand's navy beside an example of an invoice's report; the course an invoice takes,
+in four steps; the rules it is checked against; the same checks through the HTTP API and the MCP
+server, at the address of the API the build talks to; and the synthetic invoices to try it on.
 The example tells its story once as the page opens, with CSS alone (`story-*` in
 `globals.css`): the error, the explanation, the repair and the verdict. Its end is what shows
 without motion, so that a visitor who asks for less motion, or a page whose animations have not

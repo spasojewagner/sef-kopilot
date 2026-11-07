@@ -32,6 +32,50 @@
       "replace": "replace",
       "approved": "Approved",
       "after": "Checked again: no errors"
+    },
+    "route": {
+      "title": "The model suggests, the validator judges, you decide",
+      "intro": "The language model stands between two deterministic walls: before it, the validator finds the errors; after it, the validator judges the changes the model proposed. Nothing gets through without a report free of errors.",
+      "steps": {
+        "validate": {
+          "title": "Validation",
+          "text": "The UBL 2.1 schema, the EN 16931 and Peppol Schematron rules, the SRB-CIUS rules written as code, and the arithmetic checked in Python. The same invoice always gets the same report."
+        },
+        "explain": {
+          "title": "Explanation",
+          "text": "A language model writes, in Serbian or English, what the rule asks and why the invoice breaks it. It may cite only the passages of the law that retrieval returned, with the date they apply from."
+        },
+        "repair": {
+          "title": "Proposed repair",
+          "text": "The model proposes changes as patches: where, what and why. Code applies them to a copy of the invoice, and the validator checks the copy again."
+        },
+        "decide": {
+          "title": "Your decision",
+          "text": "The invoice does not change until you approve. The model cannot apply a change to an amount, VAT, a tax or company number or a date of supply: those are left to you."
+        }
+      }
+    },
+    "standards": {
+      "title": "The rules it checks against",
+      "intro": "The official rule sets, unchanged, and the Serbian rules written from the specification. The model is no judge: their report is the verdict.",
+      "ubl": "The document's schema: its elements, their order and their types, as OASIS defines them.",
+      "en16931": "The business rules of the European standard for electronic invoices, in CEN's Schematron.",
+      "srb": "Serbia's use of the standard for SEF: its rules written as code from the official specification.",
+      "peppol": "The profile for exchange over the Peppol network, in OpenPeppol's Schematron.",
+      "arithmetic": "Arithmetic checks",
+      "arithmeticText": "Line totals, tax bases and VAT (BR-CO), added up in Python, never by the model."
+    },
+    "developers": {
+      "title": "The same without the page: an HTTP API and MCP",
+      "text": "Every check is also an HTTP API, described by an OpenAPI document, and an MCP server at /mcp, for AI assistants and an ERP's own automation. An organization's owner issues the API keys.",
+      "docs": "The API's documentation",
+      "file": "invoice.xml"
+    },
+    "closing": {
+      "title": "Try it on a made-up company",
+      "text": "The repository has synthetic invoices of made-up companies, valid ones and ones SEF would refuse. The public demo is for those: do not upload real invoices.",
+      "examples": "Example invoices",
+      "start": "Start checking"
     }
   },
   "footer": {

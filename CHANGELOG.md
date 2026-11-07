@@ -59,7 +59,9 @@ is tagged.
   one the page is in marked, and a first link that leads a keyboard past it to the page's
   content; the footer says where the source code is.
 - `apps/web`: the home page is the product's page: what it does, beside an example of a report
-  that tells its story once (the error, the explanation, the approved repair, the verdict).
+  that tells its story once (the error, the explanation, the approved repair, the verdict); how
+  an invoice goes through the validator, the model and a person; the rules it is checked
+  against; the HTTP API and the MCP server; and the synthetic invoices to try it on.
 
 ## [0.3.0] - 2026-11-07
 
