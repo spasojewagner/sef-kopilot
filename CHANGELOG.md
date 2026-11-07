@@ -40,6 +40,10 @@ is tagged.
 - `apps/api`: what each rule says is embedded once an embedding model and its vector kept
   (ADR-0041, migration 0014): an explanation asks the embedder only for texts it has not seen,
   once a text, and an embedder that fails or is late keeps nothing new.
+- `apps/api`: an MCP server at `/mcp`, in the API's process (ADR-0042): Streamable HTTP
+  without sessions, every message a POST answered with JSON, for clients of the protocol's
+  current revision and earlier ones. A client connects with an API key; an access token of the
+  web application, a page of another origin and a method other than POST are refused.
 
 ## [0.3.0] - 2026-11-07
 

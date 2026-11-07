@@ -33,6 +33,7 @@ from sef_api.jobs.queue import ArqRunner, redis_settings
 from sef_api.jobs.runners import InlineRunner, JobRunner
 from sef_api.jobs.runs import JobContext, run_job
 from sef_api.llm import llm_for
+from sef_api.mcp import server as mcp
 from sef_api.members import routes as members
 from sef_api.organization import routes as organization
 from sef_api.rag.embeddings import Embedder, embedder_for
@@ -153,7 +154,8 @@ async def _resume(app: FastAPI) -> None:
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    """Build the FastAPI application with its settings, its database and every router.
+    """Build the FastAPI application with its settings, its database, every router and the
+    MCP endpoint.
 
     A factory (instead of a module-level singleton) lets tests build a fresh application with
     their own settings, and keeps importing the module free of side effects. The database
@@ -179,6 +181,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await running.enter_async_context(
                     _deleting_old_data(database, settings.job_retention_days)
                 )
+            # The MCP endpoint's sessions, which it keeps only for a message's length.
+            await running.enter_async_context(application.state.mcp.run())
             yield
         await application.state.jobs.stop()
         await validator.stop()
@@ -237,4 +241,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(members.invitations_router)
     app.include_router(organization.router)
     app.include_router(api_keys.router)
+    app.state.mcp = mcp.mount(app, settings)
     return app

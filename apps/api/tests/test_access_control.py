@@ -1,9 +1,10 @@
 """Access control across the whole API, checked against the application's real routes so that a
 new endpoint cannot slip past it.
 
-- Every route is one the audit understands: an API route, or one of FastAPI's documentation
-  pages. A mounted application or a websocket route fails the audit until it is guarded and
-  added here.
+- Every route is one the audit understands: an API route, one of FastAPI's documentation
+  pages, or the MCP endpoint behind its own guard (``RequireKey``; its tools and what each
+  requires are audited in ``test_mcp.py``). A mounted application or a websocket route fails
+  the audit until it is guarded and added here.
 - Every endpoint is public by name, open by name to any signed-in caller, or guarded by a
   permission. What each guarded endpoint requires is pinned in ``GUARDED``: the permission,
   and whether it changes the members and so checks the role again under the organization's
@@ -32,6 +33,7 @@ from starlette.routing import BaseRoute, Route
 from sef_api.auth.dependencies import current_principal, require
 from sef_api.auth.permissions import KEY_PERMISSIONS, ROLE_PERMISSIONS, Permission
 from sef_api.main import create_app
+from sef_api.mcp.access import RequireKey
 from sef_api.members import invitations
 from sef_api.models import (
     ApiKey,
@@ -72,7 +74,9 @@ SIGNED_IN: set[Endpoint] = {("GET", "/auth/me")}
 @dataclass(frozen=True)
 class Walked:
     endpoints: dict[Endpoint, APIRoute]
-    #: Routes that are neither API routes nor FastAPI's documentation pages.
+    #: The routes to the MCP endpoint, each behind the guard that admits API keys.
+    mcp: list[str]
+    #: Routes that are none of the above, nor FastAPI's documentation pages.
     unknown: list[BaseRoute]
 
 
@@ -84,6 +88,7 @@ def walk(app: FastAPI) -> Walked:
         app.swagger_ui_oauth2_redirect_url,
     }
     found: dict[Endpoint, APIRoute] = {}
+    mcp: list[str] = []
     unknown: list[BaseRoute] = []
 
     def visit(routes: Iterable[BaseRoute]) -> None:
@@ -93,11 +98,13 @@ def walk(app: FastAPI) -> Walked:
             elif (included := getattr(route, "original_router", None)) is not None:
                 # FastAPI keeps an included router as one route that holds it.
                 visit(included.routes)
+            elif type(route) is Route and isinstance(route.endpoint, RequireKey):
+                mcp.append(route.path)
             elif not (type(route) is Route and route.path in documentation):
                 unknown.append(route)
 
     visit(app.routes)
-    return Walked(found, unknown)
+    return Walked(found, mcp, unknown)
 
 
 def calls(dependant: Dependant) -> Iterator[Callable[..., Any]]:
@@ -588,7 +595,10 @@ def lacking(permission: Permission) -> list[Role]:
 
 
 def test_every_route_is_one_the_audit_understands(app: FastAPI) -> None:
-    assert walk(app).unknown == []
+    walked = walk(app)
+
+    assert walked.unknown == []
+    assert walked.mcp == ["/mcp"]
 
 
 def test_the_audit_sees_every_operation_the_api_documents(app: FastAPI) -> None:
