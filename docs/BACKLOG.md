@@ -81,7 +81,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/web-diff-approve` — approve or reject a repair on its page, in person, an approval asked twice; the invoice, its report, its repairs and the list's verdicts read again; why the API refuses, by the conflict's reason; the repair read again when the outcome is unknown (ADR-0032)
 - [ ] `chore/infra-deploy` — public demo on Render + Neon + Upstash + Cloudflare Pages, "waking up" state for cold starts; the web application as a static export or on a Node.js server, which the report's page needs for its id (ADR-0026, ADR-0028)
 - [x] `test/web-golden-path` — Playwright smoke test for the golden path (upload → report → fix → approve): one test in Chromium against the production build and the API, which starts on a database made anew with a scripted model; a CI job on every pull request (ADR-0033)
-- [ ] The API's test applications read the developer's environment and `.env`, though `settings_for` in `apps/api/tests/conftest.py` says they do not: `Settings.model_validate` reads both. Build them from the values given alone, as `scripts/export_openapi.py` and `scripts/serve_e2e_api.py` do (found in `test/web-golden-path`)
+- [x] `test/api-settings-without-the-environment` — the API's test applications read the developer's environment and `.env`, though `settings_for` said they did not (`Settings.model_validate` reads both); they are built from the values given alone, with `Settings.from_values()`, as the OpenAPI exporter and the end-to-end test's launcher are (found in `test/web-golden-path`)
 - [ ] Release: `v0.3.0`
 
 ## M4 — MCP + OAuth 2.1 (week 7) · tag `v0.4.0`

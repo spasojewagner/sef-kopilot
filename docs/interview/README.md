@@ -51,3 +51,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-diff-approve` | [m3-web-diff-approve.md](m3-web-diff-approve.md) |
 | `test/web-golden-path` | [m3-web-golden-path.md](m3-web-golden-path.md) |
 | `fix/repair-patches-that-change-nothing` | [m3-repair-patches-that-change-nothing.md](m3-repair-patches-that-change-nothing.md) |
+| `test/api-settings-without-the-environment` | [m3-api-settings-without-the-environment.md](m3-api-settings-without-the-environment.md) |
