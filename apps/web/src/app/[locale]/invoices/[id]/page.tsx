@@ -21,7 +21,7 @@ export default function InvoiceReportPage({
 }: PageProps<"/[locale]/invoices/[id]">) {
   const t = useTranslations("report");
   return (
-    <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-8 px-6 py-10">
+    <div className="page-width grid flex-1 content-start gap-8 py-10">
       <SignedInOnly>
         <Suspense
           fallback={
@@ -31,7 +31,7 @@ export default function InvoiceReportPage({
           <ReportOf params={params} />
         </Suspense>
       </SignedInOnly>
-    </main>
+    </div>
   );
 }
 

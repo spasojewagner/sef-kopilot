@@ -135,6 +135,34 @@ version that `package.json` pins. Colours, radii and dark mode are CSS variables
 Class names are joined with `cn()` from `@/lib/utils`, which resolves Tailwind conflicts in
 favour of the last.
 
+## The brand
+
+The pages' look is a set of tokens in `src/app/globals.css` (ADR-0043), under the names the
+shadcn/ui components read, so that they take it unchanged:
+
+- **Colours**, in OKLCH: ink navy for text and the primary action, on a cool off-white with
+  white cards, every grey tinted towards the navy; one accent, a teal (`brand`), which also
+  marks what is valid (`success`), beside `warning` and `destructive`. Dark mode sets the same
+  names, deeper. `surface-ink` is the brand's navy in both modes: it sets the tokens again for
+  what it holds, so that a button inside it is light on navy with no variant of its own.
+  `src/app/tokens.test.ts` measures every pair of tokens a page sets together, text at 4.5:1
+  and the accent and the focus ring at 3:1, in light, in dark and on the navy; a new pairing
+  goes into its lists.
+- **Typefaces**: Onest for the text and JetBrains Mono for rule ids, paths and XML
+  (`font-mono`), imported from the `@fontsource-variable` packages in the root layout and served
+  with the pages. A browser loads only the ranges of characters a page has: Latin, Latin
+  Extended for č, ć, đ, š and ž, Cyrillic.
+- **The mark**, a compass bezel whose needle is a check: `Logo` and `LogoMark` in
+  `src/components/logo.tsx`, the ring in the text's colour and the check in the accent. The
+  favicon, `src/app/icon.svg`, draws the same paths in fixed colours, and a test keeps the two
+  equal. `apple-icon.png` and `favicon.ico`, beside it, are rendered from it in Chromium and
+  committed: after changing the mark, run `pnpm --filter @sef-kopilot/web brand:images`.
+- **The header** is on the navy on every page: the logo, the sections of a member who is
+  signed in, the one the page is in marked (`aria-current`), the languages and the account.
+  Its first link, shown when a keyboard reaches it, leads past it to the page's content, the
+  one `main` of the root layout. `page-width` is the width of the content of the header, of
+  every page and of the footer, so that they line up.
+
 ## Checks
 
 ```bash
@@ -178,15 +206,18 @@ components.json    shadcn/ui's settings: style, stylesheet, aliases
 e2e/               the end-to-end test of the golden path (Playwright)
 messages/          the interface's texts, one file per language
 playwright.config.ts  the end-to-end test's browser, and the API and the build it starts
+scripts/           renders the brand's raster icons from the favicon (`pnpm brand:images`)
 src/app/[locale]/  routes (App Router) under the language: the root layout, the home page,
                    `sign-in`, `register`, `invoices`, `invoices/[id]` and its
                    `repairs/[repairId]`, `organization`, the 404;
                    `page.test.tsx` next to `page.tsx`
-src/app/globals.css  Tailwind, shadcn/ui's theme tokens, dark mode
-src/components/    components shared by the pages: the header and its account, the footer, the
-                   language switcher, the API's status, the cache of the API's answers, the
-                   sign-in and registration forms, the upload, the list, the report, the
-                   repairs and the diff, the organization's page
+src/app/globals.css  Tailwind, the brand's tokens under shadcn/ui's names, dark mode, the
+                   navy surface and the page's width; `tokens.test.ts` measures their contrast
+src/app/icon.svg   the favicon, and the icons rendered from it: `apple-icon.png`, `favicon.ico`
+src/components/    components shared by the pages: the logo, the header with its sections and
+                   its account, the footer, the language switcher, the API's status, the cache
+                   of the API's answers, the sign-in and registration forms, the upload, the
+                   list, the report, the repairs and the diff, the organization's page
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types

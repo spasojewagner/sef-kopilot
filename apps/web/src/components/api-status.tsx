@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils";
 
 /** The colour of the dot beside the words, which say the same. */
 const DOT = {
-  pending: "bg-amber-500 motion-safe:animate-pulse",
-  success: "bg-emerald-500",
+  pending: "bg-warning motion-safe:animate-pulse",
+  success: "bg-success",
   error: "bg-destructive",
 } as const;
 

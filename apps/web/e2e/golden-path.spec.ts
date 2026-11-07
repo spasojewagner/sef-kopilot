@@ -29,6 +29,34 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
   });
   page.on("pageerror", (error) => errors.push(error.message));
 
+  await test.step("the pages wear the brand, and a key leads past the header", async () => {
+    await page.goto("/sr-Latn/register");
+
+    // The typeface is the one the pages load, not a fallback of the system's.
+    await page.evaluate(() => document.fonts.ready);
+    const loaded = await page.evaluate(() =>
+      [...document.fonts]
+        .filter((face) => face.status === "loaded")
+        .map((face) => face.family.replaceAll('"', "")),
+    );
+    expect(loaded).toContain("Onest Variable");
+    expect(
+      await page.evaluate(() => getComputedStyle(document.body).fontFamily),
+    ).toMatch(/^"?Onest Variable/);
+    const icon = await page.request.get(
+      (await page
+        .locator('link[rel="icon"][type="image/svg+xml"]')
+        .getAttribute("href"))!,
+    );
+    expect(icon.headers()["content-type"]).toContain("image/svg+xml");
+
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Pređi na sadržaj" });
+    await expect(skip).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("main")).toBeFocused();
+  });
+
   await test.step("a person registers, with an organization of their own", async () => {
     const email = `marija.${Date.now()}@primer.example`;
     await page.goto("/sr-Latn/register");

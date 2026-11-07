@@ -5,7 +5,9 @@
   },
   "header": {
     "home": "SEF Kopilot",
-    "language": "Jezik"
+    "language": "Jezik",
+    "skip": "Pređi na sadržaj",
+    "sections": "Odeljci"
   },
   "account": {
     "signIn": "Prijava",
@@ -22,6 +24,7 @@
   },
   "footer": {
     "notice": "Nezavisan projekat otvorenog koda. Nije sertifikovani validator i nije povezan sa Ministarstvom finansija ni sa SEF platformom.",
+    "source": "Izvorni kod",
     "api": {
       "checking": "Proveravam API…",
       "waking": "API se budi…",

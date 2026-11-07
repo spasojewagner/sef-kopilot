@@ -20,7 +20,7 @@ export default function RepairPage({
 }: PageProps<"/[locale]/invoices/[id]/repairs/[repairId]">) {
   const t = useTranslations("repair");
   return (
-    <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-8 px-6 py-10">
+    <div className="page-width grid flex-1 content-start gap-8 py-10">
       <SignedInOnly>
         <Suspense
           fallback={
@@ -30,7 +30,7 @@ export default function RepairPage({
           <RepairOf params={params} />
         </Suspense>
       </SignedInOnly>
-    </main>
+    </div>
   );
 }
 

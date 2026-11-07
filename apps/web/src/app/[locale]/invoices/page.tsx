@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function InvoicesPage() {
   const t = useTranslations("invoices");
   return (
-    <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-8 px-6 py-10">
+    <div className="page-width grid flex-1 content-start gap-8 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
       <SignedInOnly>
         <Card>
@@ -43,6 +43,6 @@ export default function InvoicesPage() {
           <InvoiceList />
         </section>
       </SignedInOnly>
-    </main>
+    </div>
   );
 }

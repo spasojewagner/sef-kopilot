@@ -14,7 +14,7 @@ export function ApiWakingNotice() {
   const t = useTranslations("apiWaking");
   const waking = useApiWaking();
   return (
-    <div role="status" className="mx-auto w-full max-w-5xl px-6">
+    <div role="status" className="page-width">
       {waking ? (
         // The region announces it, politely: no alert of its own.
         <Alert role="none" className="mt-6">

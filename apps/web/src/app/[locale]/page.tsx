@@ -9,7 +9,7 @@ import { REPOSITORY_URL } from "@/lib/links";
 export default function HomePage() {
   const t = useTranslations("home");
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center">
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center">
       <Badge variant="outline" className="tracking-wide uppercase">
         {t("status")}
       </Badge>
@@ -30,6 +30,6 @@ export default function HomePage() {
           </a>
         </Button>
       </div>
-    </main>
+    </div>
   );
 }
