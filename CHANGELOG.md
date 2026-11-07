@@ -94,6 +94,12 @@ is tagged.
 - `apps/web`: the language links keep the query of the page's address, so that a page that
   reads it is the same page in the other language.
 
+### Fixed
+
+- `apps/api`: `GET /oauth/authorize` sends a resource that is no URI back to the client as
+  `invalid_target`, where it answered 500, and refuses an unknown scope without repeating
+  what the client asked for: an OAuth error's description may hold only some characters.
+
 ### Security
 
 - `apps/web`: no other site may show a page of the application in a frame
