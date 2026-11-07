@@ -26,6 +26,8 @@ vi.mock("next/navigation", async (importOriginal) => ({
 }));
 
 const XML = '<?xml version="1.0"?><Invoice/>';
+/** The first bytes of a PNG file: its signature. */
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 async function upload(profile?: string, content = XML) {
   const user = userEvent.setup();
@@ -114,6 +116,59 @@ describe("Invoice upload", () => {
       "Izaberite fakturu u XML-u.",
     );
     expect(asked).toEqual([]);
+  });
+
+  it("tells a picture of an invoice from the invoice, and sends nothing", async () => {
+    keepSession();
+    const asked = stubApi(() => json(201, storedInvoice()));
+    renderIn("sr-Latn", <InvoiceUpload />);
+    // The file picker offers XML files, but lets a person choose any other.
+    const user = userEvent.setup({ applyAccept: false });
+
+    await user.upload(
+      screen.getByLabelText("Faktura (UBL 2.1 XML)"),
+      new File([PNG], "racun.png", { type: "image/png" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Proveri i sačuvaj" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Izabrali ste sliku. SEF Kopilot proverava samu e-fakturu, XML (UBL 2.1) koji se šalje SEF-u, a ne njenu sliku. Slika nije poslata: preuzmite XML iz SEF-a ili iz programa u kom je faktura izdata.",
+    );
+    expect(screen.getByLabelText("Faktura (UBL 2.1 XML)")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(asked).toEqual([]);
+  });
+
+  it("tells a PDF of one too, and sends the XML chosen next", async () => {
+    keepSession();
+    const asked = stubApi(() => json(201, storedInvoice()));
+    renderIn("en", <InvoiceUpload />);
+    const user = userEvent.setup({ applyAccept: false });
+    const file = screen.getByLabelText("Invoice (UBL 2.1 XML)");
+    const send = screen.getByRole("button", { name: "Check and keep" });
+
+    await user.upload(
+      file,
+      new File(["%PDF-1.7"], "invoice.pdf", { type: "application/pdf" }),
+    );
+    await user.click(send);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You chose a PDF. SEF Kopilot checks the e-invoice itself, the XML (UBL 2.1) that is sent to SEF, not a PDF of it. The PDF was not sent: download the XML from SEF or from the program the invoice was issued in.",
+    );
+    expect(asked).toEqual([]);
+
+    await user.upload(
+      file,
+      new File([XML], "invoice.xml", { type: "text/xml" }),
+    );
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(file).not.toHaveAttribute("aria-invalid");
+    await user.click(send);
+    await waitFor(() => expect(asked).toHaveLength(1));
   });
 
   it("sends one invoice at a time", async () => {

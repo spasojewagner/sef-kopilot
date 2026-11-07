@@ -82,6 +82,8 @@ is tagged.
   (ADR-0044): what the client asks, the name it gave itself (unchecked), the address it takes
   them back to and the organization it will work in; allowing or denying takes them back to
   the client with its answer. A visitor who is not signed in signs in there, and stays.
+- `apps/web`: a picture or a PDF chosen on the upload page is not sent; the page says that SEF
+  Kopilot checks the e-invoice itself, the XML sent to SEF, and where to get it.
 
 ### Changed
 

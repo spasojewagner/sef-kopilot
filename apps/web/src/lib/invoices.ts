@@ -24,6 +24,25 @@ export const PAGE_SIZE = 20;
  */
 export const UPLOAD_TIMEOUT_MS = 60_000;
 
+/** The names of pictures, for a browser that gives such a file no media type. */
+const PICTURE_NAME = /\.(png|jpe?g|gif|webp|avif|heic|heif|tiff?|bmp)$/i;
+
+/**
+ * What a chosen file is when it shows an invoice rather than being one: a picture, such as a
+ * photo or a screenshot, or a PDF. The validator checks the XML, so neither is worth sending;
+ * null for any other file, which the validator judges. The browser's media type says, or else
+ * the file's name.
+ */
+export function renderingOf(file: File): "picture" | "pdf" | null {
+  if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+    return "pdf";
+  }
+  if (file.type.startsWith("image/") || PICTURE_NAME.test(file.name)) {
+    return "picture";
+  }
+  return null;
+}
+
 /** Stores an invoice for the visitor's organization, with the validator's report on it. */
 export function storeInvoice(
   document: Blob,

@@ -14,14 +14,24 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { useRouter } from "@/i18n/navigation";
-import { PROFILES, storeInvoice, type Profile } from "@/lib/invoices";
+import {
+  PROFILES,
+  renderingOf,
+  storeInvoice,
+  type Profile,
+} from "@/lib/invoices";
 import { SYNTHETIC_INVOICES_URL } from "@/lib/links";
 import { healthQuery, invoiceQuery, invoicesQuery } from "@/lib/queries";
+
+/** Why the chosen file was not sent: there is none, or it is a picture or a PDF of an invoice. */
+type Unsent = "missing" | "picture" | "pdf";
 
 /**
  * Sends an invoice to be validated and stored for the organization, then shows its report. The
  * report comes with the answer, so the report's page does not ask for it again. On a public
- * demo it first asks for a synthetic invoice (ADR-0037).
+ * demo it first asks for a synthetic invoice (ADR-0037). A picture or a PDF of an invoice is not
+ * sent: the validator checks the XML, and a rendering, perhaps of a real invoice, would only be
+ * stored on the server to be called unreadable.
  */
 export function InvoiceUpload() {
   const t = useTranslations("upload");
@@ -34,7 +44,7 @@ export function InvoiceUpload() {
   const client = useQueryClient();
   // Said here rather than by the browser's `required`, whose check of a file input differs
   // from one browser to another.
-  const [missing, setMissing] = useState(false);
+  const [unsent, setUnsent] = useState<Unsent | null>(null);
   const uploading = useMutation({
     mutationFn: ({ document, profile }: { document: File; profile: Profile }) =>
       storeInvoice(document, profile),
@@ -51,10 +61,15 @@ export function InvoiceUpload() {
     const document = (fields.namedItem("invoice") as HTMLInputElement)
       .files?.[0];
     if (document === undefined || document.size === 0) {
-      setMissing(true);
+      setUnsent("missing");
       return;
     }
-    setMissing(false);
+    // The file picker offers XML files, but lets a person choose any other, as dropping does.
+    const rendering = renderingOf(document);
+    setUnsent(rendering);
+    if (rendering !== null) {
+      return;
+    }
     const profile = (fields.namedItem("profile") as HTMLSelectElement).value;
     uploading.mutate({ document, profile: profile as Profile });
   }
@@ -92,8 +107,8 @@ export function InvoiceUpload() {
           // The browser's own button, drawn as the page's: a box with room to aim at.
           className="h-auto cursor-pointer border-dashed bg-muted/40 py-2.5 file:mr-4 file:h-8 file:cursor-pointer file:rounded-md file:bg-primary file:px-3 file:text-primary-foreground hover:file:bg-primary/90 dark:bg-muted/40"
           aria-describedby="invoice-hint"
-          aria-invalid={missing || undefined}
-          onChange={() => setMissing(false)}
+          aria-invalid={unsent !== null || undefined}
+          onChange={() => setUnsent(null)}
         />
         <p id="invoice-hint" className="text-sm text-muted-foreground">
           {t("fileHint")}
@@ -109,12 +124,12 @@ export function InvoiceUpload() {
           ))}
         </NativeSelect>
       </div>
-      {missing && (
+      {unsent !== null && (
         <Alert variant="destructive">
-          <AlertDescription>{t("missing")}</AlertDescription>
+          <AlertDescription>{t(unsent)}</AlertDescription>
         </Alert>
       )}
-      {uploading.isError && !missing && (
+      {uploading.isError && unsent === null && (
         <Alert variant="destructive">
           <AlertDescription>{messageFor(uploading.error)}</AlertDescription>
         </Alert>

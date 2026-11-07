@@ -4,7 +4,12 @@ import { REQUEST_TIMEOUT_MS } from "@/lib/api";
 import { json, keepSession, stubApi } from "@/test/api";
 import { storedInvoice } from "@/test/invoices";
 
-import { getInvoice, storeInvoice, UPLOAD_TIMEOUT_MS } from "./invoices";
+import {
+  getInvoice,
+  renderingOf,
+  storeInvoice,
+  UPLOAD_TIMEOUT_MS,
+} from "./invoices";
 
 /** An answer that never comes: the request ends only when its signal aborts it. */
 function silence(signal: AbortSignal | null | undefined): Promise<Response> {
@@ -48,5 +53,25 @@ describe("An upload", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("A file chosen for upload", () => {
+  it.each([
+    ["faktura.xml", "text/xml", null],
+    ["faktura.xml", "application/xml", null],
+    // A browser may know no media type for a file: its name says what it is.
+    ["faktura.xml", "", null],
+    ["racun.png", "image/png", "picture"],
+    ["scan", "image/jpeg", "picture"],
+    ["IMG_0042.HEIC", "", "picture"],
+    ["Screenshot 2026-11-08.webp", "", "picture"],
+    // An SVG is XML, but a picture: no invoice.
+    ["logo.svg", "image/svg+xml", "picture"],
+    ["racun.pdf", "application/pdf", "pdf"],
+    ["download", "application/pdf", "pdf"],
+    ["RACUN.PDF", "", "pdf"],
+  ])("named %j, of the type %j, is %j", (name, type, rendering) => {
+    expect(renderingOf(new File(["…"], name, { type }))).toBe(rendering);
   });
 });
