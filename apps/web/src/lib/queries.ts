@@ -3,6 +3,7 @@ import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { getHealth } from "@/lib/api";
 import { explainInvoice, type Language } from "@/lib/explanations";
 import { getInvoice, listInvoices } from "@/lib/invoices";
+import { getRepair, listRepairs } from "@/lib/repairs";
 import { authorized, type Identity } from "@/lib/session";
 
 /**
@@ -63,5 +64,21 @@ export function explanationsQuery(id: string, language: Language) {
     staleTime: Infinity,
     gcTime: Infinity,
     retry: false,
+  });
+}
+
+/** The repairs of the stored invoice ``invoiceId``, the latest first. */
+export function repairsQuery(invoiceId: string) {
+  return queryOptions({
+    queryKey: ["invoices", "one", invoiceId, "repairs"],
+    queryFn: ({ signal }) => listRepairs(invoiceId, signal),
+  });
+}
+
+/** The repair ``repairId`` of the stored invoice ``invoiceId``, with its diff and report. */
+export function repairQuery(invoiceId: string, repairId: string) {
+  return queryOptions({
+    queryKey: ["invoices", "one", invoiceId, "repairs", repairId],
+    queryFn: ({ signal }) => getRepair(invoiceId, repairId, signal),
   });
 }

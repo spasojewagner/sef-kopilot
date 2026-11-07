@@ -1,23 +1,39 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { explanationsQuery, invoiceQuery } from "@/lib/queries";
-import { aMoment, type Asked, json, keepSession, stubApi } from "@/test/api";
-import { explained, storedInvoice } from "@/test/invoices";
+import { aMoment, type Asked, json, keepSession } from "@/test/api";
+import { explained, storedInvoice, stubReportApi } from "@/test/invoices";
 import { renderIn, testQueryClient } from "@/test/render";
 
 import { InvoiceReport } from "./invoice-report";
+
+// The report offers the model's repair, which opens the repair's page when it is written.
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
 
 const ID = "0b3f6a2e-1c4d-4e5f-8a9b-0c1d2e3f4a5b";
 
 /** An API that has the stored invoice, and answers a request for its explanations so. */
 function api(explanations: (asked: Asked) => Response | Promise<Response>) {
-  return stubApi((asked) =>
-    asked.path.endsWith("/explanations")
-      ? explanations(asked)
-      : json(200, storedInvoice()),
-  );
+  return stubReportApi({ other: explanations });
+}
+
+/** The requests for explanations among those the API was asked. */
+function forExplanations(asked: Asked[]): string[] {
+  return asked
+    .filter((request) => request.path.endsWith("/explanations"))
+    .map(({ method, path, search }) => `${method} ${path}${search}`);
 }
 
 /** The card of the rule ``ruleId``. */
@@ -39,7 +55,7 @@ describe("The explanations on an invoice's report", () => {
     expect(
       await screen.findByText(/koja može navesti vrednost iz fakture/),
     ).toBeInTheDocument();
-    expect(asked.map((request) => request.path)).toEqual([`/invoices/${ID}`]);
+    expect(forExplanations(asked)).toEqual([]);
 
     await ask();
 
@@ -63,10 +79,7 @@ describe("The explanations on an invoice's report", () => {
         "Prema propisima na dan 5. 11. 2026. objašnjenja je napisao jezički model test/quoting. Svaki citat je odlomak propisa koji je model dobio.",
       ),
     ).toBeInTheDocument();
-    expect(
-      asked.map(({ method, path, search }) => `${method} ${path}${search}`),
-    ).toEqual([
-      `GET /invoices/${ID}`,
+    expect(forExplanations(asked)).toEqual([
       `POST /invoices/${ID}/explanations?language=sr`,
     ]);
   });
@@ -142,7 +155,9 @@ describe("The explanations on an invoice's report", () => {
         "Explained by the language model test/quoting, from the regulations as of Nov 5, 2026. Every citation is a passage the model was given.",
       ),
     ).toBeInTheDocument();
-    expect(asked[1].search).toBe("?language=en");
+    expect(forExplanations(asked)).toEqual([
+      `POST /invoices/${ID}/explanations?language=en`,
+    ]);
   });
 
   it("name the rules left for later, and a rule the model could not explain", async () => {
@@ -270,17 +285,14 @@ describe("The explanations on an invoice's report", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(asked.map((request) => request.method)).toEqual([
-      "GET",
-      "POST",
-      "POST",
-      "POST",
-    ]);
+    expect(forExplanations(asked)).toHaveLength(3);
   });
 
   it("written in another language are not shown, but offered in the page's", async () => {
     keepSession();
-    const asked = stubApi(() => json(500, { detail: "not asked" }));
+    const asked = stubReportApi({
+      other: () => json(500, { detail: "not asked" }),
+    });
     const client = testQueryClient();
     client.setQueryData(invoiceQuery(ID).queryKey, storedInvoice());
     client.setQueryData(explanationsQuery(ID, "sr").queryKey, explained());
@@ -296,14 +308,14 @@ describe("The explanations on an invoice's report", () => {
         "PIB prodavca mora imati devet cifara i ispravnu kontrolnu cifru.",
       ),
     ).not.toBeInTheDocument();
-    expect(asked).toEqual([]);
+    expect(forExplanations(asked)).toEqual([]);
   });
 
   it("are not offered for an invoice without violations", async () => {
     keepSession();
     const valid = storedInvoice();
     valid.report = { ...valid.report, valid: true, violations: [] };
-    stubApi(() => json(200, valid));
+    stubReportApi({ stored: valid });
     renderIn("sr-Latn", <InvoiceReport id={ID} />);
 
     expect(
@@ -316,7 +328,9 @@ describe("The explanations on an invoice's report", () => {
 
   it("written earlier in the visit are shown at once, without asking the model again", async () => {
     keepSession();
-    const asked = stubApi(() => json(500, { detail: "not asked" }));
+    const asked = stubReportApi({
+      other: () => json(500, { detail: "not asked" }),
+    });
     const client = testQueryClient();
     client.setQueryData(invoiceQuery(ID).queryKey, storedInvoice());
     client.setQueryData(explanationsQuery(ID, "sr").queryKey, explained());
@@ -332,6 +346,6 @@ describe("The explanations on an invoice's report", () => {
     expect(
       screen.queryByRole("button", { name: "Objasni pravila" }),
     ).not.toBeInTheDocument();
-    expect(asked).toEqual([]);
+    expect(forExplanations(asked)).toEqual([]);
   });
 });

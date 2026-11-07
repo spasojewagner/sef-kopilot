@@ -11,9 +11,10 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,6 +58,50 @@ def in_person(caller: CanSubmit) -> Principal:
 
 
 InPerson = Annotated[Principal, Depends(in_person)]
+
+ConflictReason = Literal[
+    "nothing-to-repair",
+    "too-many-waiting",
+    "invoice-changed",
+    "decided",
+    "changes-nothing",
+    "outcome-changed",
+]
+
+
+class RepairConflict(BaseModel):
+    """Why a request about repairs was refused with 409: a reason that a client tells apart
+    from the others and acts on, and the detail, in English, for a person."""
+
+    detail: str
+    reason: ConflictReason = Field(
+        description="`nothing-to-repair`: the invoice is valid. `too-many-waiting`: as many "
+        "repairs of the invoice as allowed wait for a decision. `invoice-changed`: the invoice "
+        "is not the document the repair was proposed for, or changed while the patches were "
+        "applied to it. `decided`: the repair waits for no decision. `changes-nothing`: the "
+        "repair changes nothing, so there is nothing to approve. `outcome-changed`: the "
+        "patches no longer leave the document they left when they were proposed."
+    )
+
+
+class ConflictError(Exception):
+    """A request about repairs that the API refuses with 409, and why (:class:`RepairConflict`)."""
+
+    def __init__(self, reason: ConflictReason, detail: str) -> None:
+        super().__init__(detail)
+        self.reason: ConflictReason = reason
+        self.detail = detail
+
+
+async def answer_conflict(_request: Request, error: Exception) -> JSONResponse:
+    """The answer to a :class:`ConflictError`: 409, with its reason and its detail."""
+    conflict = cast(ConflictError, error)
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content=RepairConflict(reason=conflict.reason, detail=conflict.detail).model_dump(),
+    )
+
+
 Reasons = Annotated[
     Language,
     Query(
@@ -161,9 +206,9 @@ def _not_found(what: str = "invoice in this organization") -> HTTPException:
     return HTTPException(status.HTTP_404_NOT_FOUND, f"no such {what}")
 
 
-def _too_many_waiting() -> HTTPException:
-    return HTTPException(
-        status.HTTP_409_CONFLICT,
+def _too_many_waiting() -> ConflictError:
+    return ConflictError(
+        "too-many-waiting",
         f"{store.MAX_WAITING} repairs of this invoice wait for a decision: decide on them first",
     )
 
@@ -176,7 +221,7 @@ _NOT_FOUND: dict[int | str, dict[str, Any]] = {
 }
 _PROPOSAL: dict[int | str, dict[str, Any]] = _NOT_FOUND | {
     status.HTTP_409_CONFLICT: {
-        "model": Problem,
+        "model": RepairConflict,
         "description": "As many repairs of the invoice as allowed wait for a decision, or the "
         "invoice changed while the patches were applied to it.",
     },
@@ -250,8 +295,8 @@ async def propose_repair(
     except store.TooManyWaitingError:
         raise _too_many_waiting() from None
     except store.InvoiceChangedError:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
+        raise ConflictError(
+            "invoice-changed",
             "the invoice changed while the patches were applied to it: propose them again",
         ) from None
     if repair is None:
@@ -262,7 +307,7 @@ async def propose_repair(
 
 _SUGGESTION: dict[int | str, dict[str, Any]] = _PROPOSAL | {
     status.HTTP_409_CONFLICT: {
-        "model": Problem,
+        "model": RepairConflict,
         "description": "The invoice is valid; or as many of its repairs as allowed wait for a "
         "decision; or it changed while the model's patches were applied to it.",
     },
@@ -349,7 +394,7 @@ async def suggest_repair(
             apply, language=language, seconds=settings.repair_seconds
         )
     except NothingToRepairError as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
+        raise ConflictError("nothing-to-repair", str(error)) from None
     except NoPatchError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
     except ModelFailedError as error:
@@ -370,8 +415,8 @@ async def suggest_repair(
     except store.TooManyWaitingError:
         raise _too_many_waiting() from None
     except store.InvoiceChangedError:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
+        raise ConflictError(
+            "invoice-changed",
             "the invoice changed while the model's patches were applied to it: ask again",
         ) from None
     if repair is None:
@@ -410,16 +455,13 @@ async def get_repair(
     return repair_out(repair)
 
 
-def _decided(error: store.DecidedError) -> HTTPException:
-    return HTTPException(
-        status.HTTP_409_CONFLICT, f"the repair is {error.status}: it waits for no decision"
-    )
+def _decided(error: store.DecidedError) -> ConflictError:
+    return ConflictError("decided", f"the repair is {error.status}: it waits for no decision")
 
 
-def _stale() -> HTTPException:
-    return HTTPException(
-        status.HTTP_409_CONFLICT,
-        "the invoice changed since the repair was proposed: propose it again",
+def _stale() -> ConflictError:
+    return ConflictError(
+        "invoice-changed", "the invoice changed since the repair was proposed: propose it again"
     )
 
 
@@ -429,7 +471,7 @@ _DECISION: dict[int | str, dict[str, Any]] = _NOT_FOUND | {
         "description": "The caller came with an API key: only a person decides on a repair.",
     },
     status.HTTP_409_CONFLICT: {
-        "model": Problem,
+        "model": RepairConflict,
         "description": "The repair waits for no decision, changes nothing, or was proposed for "
         "a document the invoice no longer is.",
     },
@@ -439,7 +481,7 @@ _APPROVAL: dict[int | str, dict[str, Any]] = (
     | _DECISION
     | {
         status.HTTP_409_CONFLICT: {
-            "model": Problem,
+            "model": RepairConflict,
             "description": "The repair waits for no decision or changes nothing; or the "
             "invoice, or what its patches leave, is not what it was when they were proposed.",
         },
@@ -483,8 +525,8 @@ async def approve_repair(
     if repair.status != RepairStatus.PROPOSED:
         raise _decided(store.DecidedError(repair.status))
     if not repair.changed:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "the repair changes nothing: there is nothing to approve"
+        raise ConflictError(
+            "changes-nothing", "the repair changes nothing: there is nothing to approve"
         )
     if invoice.sha256 != repair.based_on:
         raise _stale()
@@ -510,8 +552,8 @@ async def approve_repair(
     except store.InvoiceChangedError:
         raise _stale() from None
     except store.PatchesChangedError:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
+        raise ConflictError(
+            "outcome-changed",
             "the patches no longer leave the document they left when they were proposed: "
             "propose them again",
         ) from None

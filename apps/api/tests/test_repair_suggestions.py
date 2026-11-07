@@ -185,7 +185,10 @@ async def test_a_patch_a_person_decides_is_kept_for_them_and_changes_nothing_to_
     )
     assert (approved.status_code, approved.json()) == (
         409,
-        {"detail": "the repair changes nothing: there is nothing to approve"},
+        {
+            "detail": "the repair changes nothing: there is nothing to approve",
+            "reason": "changes-nothing",
+        },
     )
 
 
@@ -248,7 +251,10 @@ async def test_a_valid_invoice_is_not_sent_to_the_model(
 
     assert (response.status_code, response.json()) == (
         409,
-        {"detail": "the invoice is valid: there is nothing to repair"},
+        {
+            "detail": "the invoice is valid: there is nothing to repair",
+            "reason": "nothing-to-repair",
+        },
     )
     assert model.asked == []
 
@@ -323,7 +329,10 @@ async def test_no_model_is_asked_while_as_many_repairs_as_allowed_wait(
 
     assert (response.status_code, response.json()) == (
         409,
-        {"detail": "10 repairs of this invoice wait for a decision: decide on them first"},
+        {
+            "detail": "10 repairs of this invoice wait for a decision: decide on them first",
+            "reason": "too-many-waiting",
+        },
     )
     assert model.asked == []
 
@@ -343,20 +352,26 @@ async def test_an_invoice_that_changes_while_the_model_works_keeps_no_repair(
 
     assert (response.status_code, response.json()) == (
         409,
-        {"detail": "the invoice changed while the model's patches were applied to it: ask again"},
+        {
+            "detail": "the invoice changed while the model's patches were applied to it: ask again",
+            "reason": "invoice-changed",
+        },
     )
     assert await session.scalar(select(Repair.id)) is None
 
 
 @pytest.mark.parametrize(
-    ("happened", "status", "detail"),
+    ("happened", "status", "body"),
     [
         (
             store.TooManyWaitingError(),
             409,
-            "10 repairs of this invoice wait for a decision: decide on them first",
+            {
+                "detail": "10 repairs of this invoice wait for a decision: decide on them first",
+                "reason": "too-many-waiting",
+            },
         ),
-        (None, 404, "no such invoice in this organization"),
+        (None, 404, {"detail": "no such invoice in this organization"}),
     ],
 )
 async def test_what_happened_while_the_model_worked_is_answered(
@@ -365,7 +380,7 @@ async def test_what_happened_while_the_model_worked_is_answered(
     monkeypatch: pytest.MonkeyPatch,
     happened: Exception | None,
     status: int,
-    detail: str,
+    body: dict[str, str],
 ) -> None:
     invoice = await kept(session, primer)
 
@@ -378,7 +393,7 @@ async def test_what_happened_while_the_model_worked_is_answered(
     async with suggesting(session, ScriptedModel(answer(FIX_TYPE))) as api:
         response = await api.post(suggestion(invoice), headers=primer.as_client())
 
-    assert (response.status_code, response.json()) == (status, {"detail": detail})
+    assert (response.status_code, response.json()) == (status, body)
 
 
 async def test_a_member_removed_while_the_model_works_keeps_no_repair(

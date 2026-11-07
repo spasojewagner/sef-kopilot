@@ -87,6 +87,18 @@ is tagged.
   official sources. The page says first what the language model is sent, names the rules left
   for a later request, and says why there are none: too many requests, no model on the server,
   no answer in time.
+- `apps/web`: the repairs of a stored invoice (ADR-0030). The report's page lists them, the
+  latest first: who proposed each, where it stands, whether the copy it leaves is valid, and
+  how many of its patches applied, wait for a person or could not apply. Each repair has its own
+  page, with who decided on it, what became of each patch and why, the difference it makes to
+  the invoice, as the API keeps it, and the validator's report on the copy. A removed or added
+  line is marked for screen readers, not only by colour, and the diff shows no line numbers:
+  they count the lines of the invoice indented anew, not of the file sent.
+- `apps/web`: a repair asked of the language model from an invalid invoice's report
+  (ADR-0031). The page says first what the model is sent, asks nothing until the visitor asks,
+  and opens the repair it writes, its reasons in the page's language. A refusal says why: the
+  conflict's reason, no patch a repair keeps, an unusable answer, the seconds to wait, or no
+  model on the server; asking again is offered only where it could help.
 
 ### Changed
 
@@ -97,6 +109,10 @@ is tagged.
   pnpm 11 and later read instead of `ignoredBuiltDependencies`; none runs.
 - `NEXT_PUBLIC_API_URL` moves from the root `.env.example` to `apps/web/.env.example`, because
   Next.js reads a web application's variables from its own directory.
+- `apps/api`: every 409 of the repairs names its `reason` beside the `detail`
+  (`RepairConflict`): `nothing-to-repair`, `too-many-waiting`, `invoice-changed`, `decided`,
+  `changes-nothing`, `outcome-changed`, so that a client tells them apart without reading the
+  English.
 
 ### Security
 

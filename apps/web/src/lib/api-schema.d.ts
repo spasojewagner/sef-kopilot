@@ -1230,6 +1230,21 @@ export interface components {
             organization_name: string;
         };
         /**
+         * RepairConflict
+         * @description Why a request about repairs was refused with 409: a reason that a client tells apart
+         *     from the others and acts on, and the detail, in English, for a person.
+         */
+        RepairConflict: {
+            /** Detail */
+            detail: string;
+            /**
+             * Reason
+             * @description `nothing-to-repair`: the invoice is valid. `too-many-waiting`: as many repairs of the invoice as allowed wait for a decision. `invoice-changed`: the invoice is not the document the repair was proposed for, or changed while the patches were applied to it. `decided`: the repair waits for no decision. `changes-nothing`: the repair changes nothing, so there is nothing to approve. `outcome-changed`: the patches no longer leave the document they left when they were proposed.
+             * @enum {string}
+             */
+            reason: "nothing-to-repair" | "too-many-waiting" | "invoice-changed" | "decided" | "changes-nothing" | "outcome-changed";
+        };
+        /**
          * RepairListed
          * @description A repair of an invoice, without the report and the difference.
          */
@@ -2553,7 +2568,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/json": components["schemas"]["RepairConflict"];
                 };
             };
             /** @description The request body, or the invoice's elements, beyond the server's limit. */
@@ -2632,7 +2647,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/json": components["schemas"]["RepairConflict"];
                 };
             };
             /** @description The request body, or the invoice's elements, beyond the server's limit. */
@@ -2777,7 +2792,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/json": components["schemas"]["RepairConflict"];
                 };
             };
             /** @description The request body, or the invoice's elements, beyond the server's limit. */
@@ -2872,7 +2887,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/json": components["schemas"]["RepairConflict"];
                 };
             };
             /** @description Validation Error */

@@ -8,6 +8,8 @@ import {
   invoicesQuery,
   isAboutTheApi,
   meQuery,
+  repairQuery,
+  repairsQuery,
 } from "./queries";
 
 describe("The question of the API's health", () => {
@@ -90,5 +92,24 @@ describe("The explanations of a stored invoice", () => {
       gcTime: Infinity,
       retry: false,
     });
+  });
+});
+
+describe("The repairs of a stored invoice", () => {
+  it("are kept under the invoice's key, each repair under one of its own", () => {
+    const invoice = invoiceQuery("i-1").queryKey;
+    const repair = repairQuery("i-1", "r-1").queryKey;
+
+    expect(repair.slice(0, invoice.length)).toEqual(invoice);
+    expect(repair).not.toEqual(repairQuery("i-1", "r-2").queryKey);
+    expect(isAboutTheApi(repair)).toBe(false);
+  });
+
+  it("are listed under the invoice's key, apart from each repair", () => {
+    const invoice = invoiceQuery("i-1").queryKey;
+    const list = repairsQuery("i-1").queryKey;
+
+    expect(list.slice(0, invoice.length)).toEqual(invoice);
+    expect(repairQuery("i-1", "r-1").queryKey).not.toEqual(list);
   });
 });

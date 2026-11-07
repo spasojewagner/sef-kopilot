@@ -1,5 +1,7 @@
 import type { Explained } from "@/lib/explanations";
 import type { Invoice, StoredInvoice } from "@/lib/invoices";
+import type { ListedRepair } from "@/lib/repairs";
+import { type Asked, json, stubApi } from "@/test/api";
 
 /** An invoice as the API lists it, with ``changes`` of the test's own. */
 export function invoice(changes: Partial<Invoice> = {}): Invoice {
@@ -136,4 +138,28 @@ export function explained(changes: Partial<Explained> = {}): Explained {
     unexplained: [],
     ...changes,
   };
+}
+
+/**
+ * An API as an invoice's report finds it: the stored invoice ``stored`` and its ``repairs``,
+ * and ``other`` for anything else; what it was asked is returned.
+ */
+export function stubReportApi({
+  stored = storedInvoice(),
+  repairs = [],
+  other = () => json(404, { detail: "not found" }),
+}: {
+  stored?: StoredInvoice;
+  repairs?: ListedRepair[];
+  other?: (asked: Asked) => Response | Promise<Response>;
+} = {}): Asked[] {
+  return stubApi((asked) => {
+    if (asked.path === `/invoices/${stored.id}`) {
+      return json(200, stored);
+    }
+    if (asked.path === `/invoices/${stored.id}/repairs`) {
+      return json(200, repairs);
+    }
+    return other(asked);
+  });
 }

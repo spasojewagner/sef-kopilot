@@ -38,3 +38,10 @@ export function byRule(report: Report): RuleViolations[] {
     ...all.filter((rule) => rule.severity !== "fatal"),
   ];
 }
+
+/** Whether the document is XML, which patches apply to: the report's XML layer found nothing. */
+export function isXml(report: Report): boolean {
+  return report.layers.some(
+    (layer) => layer.layer === "xml" && layer.ran && layer.violations === 0,
+  );
+}

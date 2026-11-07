@@ -175,5 +175,91 @@
       "unreachable": "The API does not answer. Try again a little later.",
       "failed": "The explanations were not written. Try again a little later."
     }
+  },
+  "repairs": {
+    "title": "Repairs",
+    "loading": "Loading the repairs…",
+    "notLoaded": "The repairs did not load. Try again a little later.",
+    "none": "No repair of this invoice has been proposed yet.",
+    "proposedAt": "Proposed",
+    "proposedBy": "By",
+    "status": "Status",
+    "after": "After the changes",
+    "patches": "Changes",
+    "counts": "{applied} applied, {needsDecision} awaiting a decision, {failed} not applied",
+    "states": {
+      "proposed": "Awaiting a decision",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "superseded": "Superseded"
+    },
+    "who": {
+      "you": "you",
+      "member": "another member",
+      "former": "a former member",
+      "key": "an API key"
+    },
+    "withModel": "{who}, with the language model {model}"
+  },
+  "suggestion": {
+    "intro": "A language model can propose changes that fix this invoice's errors. The validator checks them on a copy, and the invoice does not change until someone approves the repair.",
+    "privacy": "The model is sent the violations, whose messages may quote values of the invoice, and the invoice's fields around them; nothing else of it.",
+    "ask": "Suggest a repair",
+    "writing": "The language model is proposing changes and the validator is checking them. This may take up to half a minute…",
+    "written": "The repair has been proposed.",
+    "open": "View the repair",
+    "again": "Try again",
+    "errors": {
+      "nothingToRepair": "The invoice has no errors, so there is nothing to repair.",
+      "tooManyWaiting": "Too many repairs of this invoice await a decision. Approve or reject one of them, then ask for another.",
+      "invoiceChanged": "The invoice changed while the model was working. Try again.",
+      "noPatch": "The model proposed no change that a repair can keep. Try again, or correct the invoice yourself.",
+      "modelFailed": "The language model gave no answer that could be used. Try again.",
+      "tooSlow": "The repair did not arrive in time. Try again.",
+      "tooMany": "Too many requests. Try again in {seconds} s.",
+      "unavailable": "Repairs are not available on this server: no language model is set up, or the validator is not running.",
+      "busy": "The validator is busy. Try again in {seconds} s.",
+      "notFound": "This invoice no longer exists.",
+      "unreachable": "The API does not answer. Try again a little later.",
+      "failed": "No repair was proposed. Try again a little later."
+    }
+  },
+  "repair": {
+    "title": "Repair",
+    "loading": "Loading the repair…",
+    "notFound": "This repair does not exist, or the invoice is not yours.",
+    "notLoaded": "The repair did not load. Try again a little later.",
+    "back": "Back to the report",
+    "heading": "Repair of {when}",
+    "proposedBy": "Proposed by",
+    "decidedBy": {
+      "approved": "Approved by",
+      "rejected": "Rejected by"
+    },
+    "decision": "{who}, {when}",
+    "superseded": "Superseded",
+    "supersededAt": "{when}, when another repair was approved",
+    "unchanged": "These changes do not change the invoice.",
+    "patches": "Changes",
+    "ops": {
+      "replace": "replace",
+      "add": "add",
+      "remove": "remove"
+    },
+    "outcomes": {
+      "applied": "Applied",
+      "needs-decision": "Awaiting a person's decision",
+      "failed": "Not applied"
+    },
+    "needsDecision": "A change to an amount, VAT, a tax or company identifier, a date or the document's number is never applied by itself: a person decides on it.",
+    "change": "{before} → {after}",
+    "nothing": "nothing",
+    "proposedValue": "Proposed value: {value}",
+    "reason": "Reason",
+    "diff": "Difference in the invoice",
+    "gap": "Lines that do not change are left out here.",
+    "added": "added",
+    "removed": "removed",
+    "reportAfter": "Report after the changes"
   }
 }

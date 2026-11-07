@@ -1290,3 +1290,89 @@ the explanations, 136 with them) and production build.
 
 Next: `feat/web-diff-approve`, stacked on this branch: a repair's proposals as a diff of the
 invoice, approved or rejected one by one, and the report of the repaired copy.
+
+## 2026-11-07 — `feat/web-repairs` (5 commits) and `fix/web-header-phone` (1 commit), both on `main`
+
+Outcome: the report's page lists a stored invoice's repairs, and each repair has a page of its
+own: who proposed it and who decided on it, what became of each patch and why, the difference
+it makes to the invoice as the API keeps it, and the validator's report on the copy it leaves
+(ADR-0030). A separate fix makes the signed-in header fit a phone, its languages in the footer
+below 640 px, and keeps their place while their links stream in. Both branches start from
+`main` and merge in either order.
+
+Findings:
+
+- The API diffs the invoice indented anew, two spaces a level, so its hunks' numbers are lines
+  of that copy, not of the file sent nor of the report: SRB-001's type code is line 16 of the
+  file and line 7 of the diff. The first draft showed the numbers; reading how the core writes
+  the diff, for the parser's commit, showed what they count, and the report and the repair's
+  page side by side confirmed it. The parser now drops them and marks a gap where unchanged
+  lines are left out.
+- A patch the guard keeps for a person carries the guard's reason as its problem ("it touches a
+  tax identifier (cac:PartyTaxScheme): a person decides it"); the tests' repair had none. The
+  fixtures now word the problems as the validator does.
+- "Predložio vi." does not agree in Serbian. Who proposed and who decided are now facts under
+  the heading, as the report's seller and buyer are, which reads as a label and its value.
+- The box that scrolls a wide line is a named group, not a region: the section around it is
+  the landmark, and two landmarks of one name would be noise.
+- Checking in a browser: Next.js keeps the page just left in the DOM, hidden (React's
+  `Activity`), so a CSS locator found two headers; and React reveals the streamed language links
+  a moment after the rest of a page rendered when it is asked for, so a picture taken at once
+  had none.
+- At 390 px the signed-in header did not fit: the name broke over two lines and the account's
+  button stood past the edge (by up to 51 px at 360 px in English). Measured, smaller did not
+  fit; the languages moved to the footer below 640 px. That fix is a branch of its own from
+  `main`, which touches other lines of the changelog, the backlog and the interview index, so
+  that the two merge cleanly in either order.
+- Seeding faults: sixty-three in the repairs (the parser, the diff's view, the page, the
+  history, the keys, the API's paths). Nine were missed at first, and tests now catch them: an
+  id the API refuses (422), the guard's note where no patch waits, "nothing" before an added
+  value and after a removed one, the history's counts (every row had 1, 1 and 1), and the three
+  keys under the invoice's. Eight in the header fix, all caught. All are caught now.
+- Process: PR #45 had been merged into `feat/web-sign-in` instead of `main`, because the handoff
+  gave a stacked branch's base, which a merge does not change. PR #47 brought everything to
+  `main`; from now on a handoff gives `--base main` once the branch below is merged.
+
+Verification: each commit on its own, with the web application's lint, types, tests (136 at the
+refactor, 141 with the parser, 153 with the repair's page, 158 with the list; 138 for the header
+fix) and production build, and the Python suites at the tip, which the branches do not touch.
+
+Next: `feat/web-repair-suggestion`: ask the language model for a repair from the report's page,
+and open the repair it writes.
+
+## 2026-11-07 — `feat/web-repair-suggestion` (3 commits, stacked on `feat/web-repairs`)
+
+Outcome: the report of an invalid invoice offers a repair written by the language model; the
+page says first what the model is sent, asks nothing until the visitor asks, and opens the repair
+it writes, its reasons in the page's language. Every 409 of the repairs names its reason beside
+the English detail, so that the page, and any other client, tells the refusals apart
+(ADR-0031).
+
+Findings:
+
+- Three refusals of a suggestion share 409: a valid invoice, too many repairs waiting, an invoice
+  changed meanwhile. Only the last is worth asking again, and the body said which in prose. The
+  reason is now part of the contract, for all four routes, raised as one `ConflictError` and
+  answered by one handler, as the login answers its 409 with the organizations to choose from.
+- A suggestion creates a repair, so the page asks with a mutation, not a query: a query may run
+  again by itself, and each run would create another. The answer goes into the cache under the
+  repair's key, and the navigation runs only while the report is still on screen.
+- A server without a model and one without a validator both answer 503 without `Retry-After`;
+  the page names both rather than guess.
+- Every test that renders the report now needs a router, since the report may navigate to the
+  repair it asked for.
+- Checking in a browser, with a stand-in model that patches the type code of every invoice: on
+  SRB-009's mutation, whose type code is already 380, the repairer kept a repair whose only patch
+  rewrote 380 with 380. It changes nothing and waits for a decision that cannot approve it; the
+  backlog has the repairer drop such patches. The stand-in then answered no patch for other
+  rules, and the page showed the 422 with a new try.
+- Seeding faults: thirty-seven, twelve in the API (each conflict's reason, the handler and its
+  body, the OpenAPI document) and twenty-five in the web application (the request, reading the
+  reason, the XML check, the panel, where it is offered). All were caught the first time.
+
+Verification: each commit on its own, with ruff, mypy and the Python suites, and the web
+application's lint, types, tests (158 at the API's commit, 178 from the suggestion on) and
+production build.
+
+Next: `feat/web-diff-approve`: approve or reject a repair on its page, in person, and read the
+invoice, its report and its repairs again.
