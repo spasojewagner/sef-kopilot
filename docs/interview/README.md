@@ -58,3 +58,4 @@ per branch, to keep them with the code they describe.
 | `fix/api-image-fetches-rule-sets` | [m3-api-image-from-a-clone.md](m3-api-image-from-a-clone.md) |
 | `feat/web-api-waking-up` | [m3-web-api-waking-up.md](m3-web-api-waking-up.md) |
 | `docs/infra-first-deploy` | [m3-infra-first-deploy.md](m3-infra-first-deploy.md) |
+| `feat/web-demo-upload-notice` | [m3-web-demo-upload-notice.md](m3-web-demo-upload-notice.md) |
