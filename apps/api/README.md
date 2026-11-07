@@ -503,13 +503,17 @@ that an accountant talks to, or an ERP's own automation (ADR-0042). It answers a
 the API's process, over Streamable HTTP without sessions: each message is a POST, answered with
 JSON. Clients of the protocol's current revision (2026-07-28) and of earlier ones are answered.
 
-- **Who may connect:** until the server has its own OAuth 2.1 authorization server (the next
-  step of M4), a client sends an API key as a bearer token, as a machine client of the routes
-  does. An access token of the web application is refused (401): it was issued for the API's
-  routes. A revoked or expired key, or one of a member who has left, is refused as the routes
-  refuse it.
+- **Who may connect:** a client sends, as a bearer token, an API key, as a machine client of
+  the routes does, or, once `SEF_PUBLIC_URL` makes the API an authorization server, an access
+  token its token endpoint issued for the MCP endpoint (below). An access token of the web
+  application is refused (401): it was issued for the API's routes. A revoked or expired key, a
+  consent that was revoked or is gone, and a member who has left are refused as the routes
+  refuse them. A refusal's `WWW-Authenticate` names the endpoint's protected resource metadata
+  and the scopes (RFC 9728 §5.1), which is how a client that has never met the server finds
+  where to sign its person in.
 - **What it may do:** each tool requires a permission, as the route it stands for does, and
-  counts against the same limits. A tool's error is the route's error, in the same words.
+  counts against the same limits; with an access token, its scopes must allow it too. A tool's
+  error is the route's error, in the same words.
 - **Its tools:**
 
   | Tool | Requires | Does what this route does |
@@ -564,18 +568,21 @@ without it, they answer 404, and the MCP endpoint takes API keys alone.
   and the web application's never pass for each other. A client that registered the
   `refresh_token` grant also gets a refresh token, kept as its SHA-256, which
   `grant_type=refresh_token` spends once for the next pair, with the consent's scopes or fewer.
-  A code or a refresh token presented a second time revokes the consent: its refresh tokens are
-  refused from then on, and its access tokens will be at the MCP endpoint, which is to read the
-  consent on every request. The role is read again at every exchange, and a member who is no
-  longer one takes the consent with them (migration 0017). Token requests are counted by
-  address: sixty a minute.
+  A code or a refresh token presented a second time revokes the consent: its refresh tokens and
+  its access tokens are refused from then on. The role is read again at every exchange, and a
+  member who is no longer one takes the consent with them (migration 0017). Token requests are
+  counted by address: sixty a minute.
 - **The documents that send a client here** are public, and a page of any origin may read them:
   `/.well-known/oauth-protected-resource/mcp` (RFC 9728), the MCP endpoint's, names this server
   as the issuer of its access tokens, and is at `/.well-known/oauth-protected-resource` too;
   `/.well-known/oauth-authorization-server` (RFC 8414) names this server's endpoints and what
   they support.
-- **Next:** the MCP endpoint accepting these tokens and naming its metadata when it refuses a
-  request, then client ID metadata documents.
+- **The MCP endpoint takes these access tokens**, checking on every request that the consent
+  behind one stands and reading the member's role again, so that a revoked consent stops its
+  access tokens at once. Refused, a client is told where the endpoint's metadata is (RFC 9728
+  §5.1) and finds the rest from there: it needs no address but `/mcp`.
+- **Next:** client ID metadata documents, the newest revision's preferred way for a client to
+  introduce itself.
 
 ## Database and migrations
 

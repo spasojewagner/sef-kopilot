@@ -244,10 +244,16 @@ system are marked as such.
       it will take them back to and the organization it will work in, so that a request someone
       else started, sent to them as a link, can be told for what it is; it cannot be framed
       (V3), and it decides only on a press of its own.
-- [ ] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
+- [x] The MCP endpoint takes an access token only if this server issued it for the endpoint
+      (`iss`, `aud`, the key of these tokens) and the consent behind it stands and is the
+      token's (its person, organization and client), read on every request with the member's
+      role; a tool needs its permission in the role and in the token's scopes. A refusal names
+      the protected resource metadata and the scopes (RFC 9728 §5.1); the metadata documents
+      (RFC 9728, RFC 8414) are public and hold no secret.
+- [~] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
       protected resource metadata (RFC 9728), authorization server metadata (RFC 8414), the
       issuer in authorization responses (RFC 9207) and client ID metadata documents, with scope
-      checks per tool.
+      checks per tool. All but client ID metadata documents, which come next.
 
 ### V11 Cryptography
 
