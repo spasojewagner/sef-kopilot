@@ -62,8 +62,11 @@ its time limit. Behind a platform's proxy, `FORWARDED_ALLOW_IPS` names the addre
 count each client and not the proxy (ADR-0018). The image's health check asks `/health`; a
 platform's readiness check asks `/ready`.
 
-**CI** builds the image, starts it on an empty database, waits for `/ready`, and registers and
-validates an invoice through it.
+**CI** builds the image from what a clone of the repository holds, as Render does, so that the
+build fetches the rule sets itself; it then starts the image on an empty database, waits for
+`/ready`, and registers and validates an invoice through it. (Amended on 2026-11-07: CI gave the
+build the rule sets from its cache, which hid that its stage had no git, and the first build on
+Render failed.)
 
 ### Consequences
 
@@ -85,6 +88,8 @@ Bad / accepted:
 - Migrations at start race if two containers start at once: Alembic takes no lock. The free
   plan runs one instance; more instances need the platform's pre-deploy step, or a lock.
 - The server's database role must be allowed to change the schema.
+- CI's build of the image fetches the rule sets from their sources, as a platform's does, and
+  fails when one of them cannot be reached; the other jobs keep using the cache.
 - The migrations' check is a second interpreter's start, about 10 s of a wake on a tenth of a
   CPU; running it in the server's own process would save most of it.
 - About 200 MB to pull, compressed, of which the Python runtime and Saxon are most.
