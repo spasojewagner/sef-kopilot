@@ -49,3 +49,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-repairs` | [m3-web-repairs.md](m3-web-repairs.md) |
 | `feat/web-repair-suggestion` | [m3-web-repair-suggestion.md](m3-web-repair-suggestion.md) |
 | `feat/web-diff-approve` | [m3-web-diff-approve.md](m3-web-diff-approve.md) |
+| `test/web-golden-path` | [m3-web-golden-path.md](m3-web-golden-path.md) |

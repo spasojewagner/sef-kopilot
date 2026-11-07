@@ -1408,3 +1408,46 @@ production build; the branch changes no Python, whose suites pass on the branch 
 
 Next: `chore/infra-deploy`, the public demo; then the Playwright smoke test of the golden path
 and the release of v0.3.0.
+
+## 2026-11-07 — `test/web-golden-path` (4 commits, stacked on `feat/web-diff-approve`)
+
+Outcome: the brief's one Playwright smoke test (ADR-0033). A browser walks the golden path in
+Chromium, in Serbian: a person registers, uploads an invoice whose type code SEF does not
+accept, reads its report, again after a reload, finds it invalid in the list, has the language
+model suggest a repair, reads its diff, approves it with the second press, and finds the invoice
+valid on its report and in the list, with no error in the console. It runs against the web application's production build
+and the API as it runs, which `scripts/serve_e2e_api.py` starts on a database made anew for each
+run, with a scripted model that repairs SRB-001 and nothing else, so that no key is needed. A CI
+job runs it on every pull request and keeps the report and the trace of a failure.
+
+Findings:
+
+- `Settings.model_validate` reads the environment and `.env` as the constructor does, so the
+  API's test applications are not independent of a developer's `.env`, as `settings_for` says
+  they are. The launcher builds its settings from the values it gives alone, as
+  `scripts/export_openapi.py` does; the test suite's fix is in the backlog.
+- The footer's API status is a `role="status"` too, so the test reads the decision's status
+  within the repair's article; and a role's name matches as a substring unless it is exact, so
+  "Odobri" is pressed by its exact name, beside "Da, odobri".
+- The commit-msg hook refuses a `fixup!` subject (`--strict`): a change to an unhanded commit
+  below the tip is tidied with `git reset --soft` and the commits made again.
+- The API is ready in about 4 s, even with the compiled stylesheets of the rule sets removed, as
+  in CI; the test itself takes about 2 s, and with the build and both servers about 15 s.
+- Seeding faults: twenty-six at first, one at a time, in the API's CORS, the build's address of
+  the API, the session, the upload, the registration, the report's offer, the opening of the
+  repair, the diff, the decision, the cache after an approval, the approval's commit, a page's
+  hydration, and the launcher. One was missed: an approval that leaves the list of invoices
+  marked fresh, because the upload had marked it stale and the test had not opened it since.
+  The test now opens the list between the upload and the repair. With one more, a refresh that
+  names its token otherwise, all twenty-seven are caught: twenty-two by the end-to-end test
+  (the page that hydrates otherwise only by the console's error), and every fault of the
+  launcher by its own tests.
+
+Verification: each commit on its own, with ruff, mypy, the Python suites (2 722 tests), and the
+web application's lint, types, tests (200) and production build; the end-to-end test at each
+commit that has it, eight times in a row at the tip, and three times with every processor kept
+busy.
+
+Next: the two repairs the backlog holds for M3 (the repairer's patch that changes nothing, the
+test applications' settings), then `chore/infra-deploy`, the public demo, prepared for the
+maintainer's accounts, and the release of v0.3.0.

@@ -38,5 +38,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0030](0030-a-repairs-page.md) | A repair's page: the API's diff and report, read as it keeps them | accepted | 2026-11-07 |
 | [0031](0031-a-repair-asked-of-the-model-from-the-page.md) | A repair asked of the model from the page, and a reason in every conflict | accepted | 2026-11-07 |
 | [0032](0032-a-persons-decision-on-the-repairs-page.md) | A person's decision on a repair's page: asked twice, and read again when unknown | accepted | 2026-11-07 |
+| [0033](0033-one-end-to-end-test-of-the-golden-path.md) | One end-to-end test of the golden path, against the API with a scripted model | accepted | 2026-11-07 |
 
 Planned (recorded when the work lands): OAuth 2.1 for MCP (M4), evaluation thresholds (M6).
