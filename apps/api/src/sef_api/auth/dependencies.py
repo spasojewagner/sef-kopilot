@@ -35,6 +35,7 @@ __all__ = [
     "current_principal",
     "current_role",
     "get_token_settings",
+    "invalid_key",
     "no_longer_active",
     "require",
 ]
@@ -88,7 +89,7 @@ async def current_principal(
     if api_keys.is_api_key(credentials.credentials):
         holder = await api_keys.authenticate(session, credentials.credentials)
         if holder is None:
-            raise _invalid_key()
+            raise invalid_key()
         return Principal(holder.user_id, holder.organization_id, holder.role, holder.grant)
     try:
         claims = decode_access_token(credentials.credentials, secret=tokens.secret)
@@ -115,7 +116,8 @@ async def current_role(session: AsyncSession, principal: Principal) -> Role | No
     )
 
 
-def _invalid_key() -> HTTPException:
+def invalid_key() -> HTTPException:
+    """401 for an API key that does not exist, has expired or was revoked."""
     return HTTPException(
         status.HTTP_401_UNAUTHORIZED,
         detail="invalid, expired or revoked API key",
@@ -175,7 +177,7 @@ async def check_again(
     whose work outlasts the transaction in which :func:`require` checked it, such as an upload
     and its validation. 401 or 403 as :func:`require` answers."""
     if principal.key is not None and not await api_keys.still_works(session, principal.key.key_id):
-        raise _invalid_key()
+        raise invalid_key()
     return await _permitted(session, principal, permission)
 
 

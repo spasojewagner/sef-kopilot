@@ -134,6 +134,12 @@ system are marked as such.
 - [x] Every endpoint is public by name or requires a permission; a test over the application's
       routes enforces it, and OpenAPI documents the bearer scheme (an access token or an API
       key).
+- [x] The MCP endpoint (`/mcp`, ADR-0042) admits a request as the routes do: an API key that
+      works, of a member whose role is read again (401 otherwise, an access token of the web
+      application included); each tool requires the permission of the route it stands for and
+      counts against the same limits, and a test pins every tool's permission. Only POST is
+      answered (405), and a page of an origin other than the web application's is refused
+      (403), as the protocol asks against DNS rebinding.
 - [ ] OpenAPI names the permission each endpoint requires.
 - [ ] Consistent error schema; no stack traces or internal paths in responses.
 
@@ -244,7 +250,9 @@ system are marked as such.
 - [x] No invoice content in logs: a failure logs only the type of its error, and a test sends
       a marked invoice through every outcome of the validation endpoint, checking both the log
       records and the file descriptors. A job that fails logs only the type of its error too,
-      and records a message written for its member.
+      and records a message written for its member. The MCP server logs no tool's arguments
+      (tested with an invoice through both revisions of the protocol it answers), and making it
+      leaves the process's root logger as it was.
 - [ ] No invoice content in traces, metrics or crash reports (with Langfuse and Sentry).
 - [x] The validator writes nothing to the process's standard streams: Saxon's warnings, which
       can quote a document, go to the null device (tested on the file descriptors); where that

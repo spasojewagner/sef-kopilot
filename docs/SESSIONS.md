@@ -1831,3 +1831,31 @@ Verification: the API's tests, the explainer's and the migrations' included; the
 each caught (see the pull request); ruff, mypy.
 
 Next: the MCP server, the milestone's own work.
+
+## 2026-11-07 — `feat/mcp-server` (3 commits, stacked on `perf/rag-rule-embeddings-kept`)
+
+Outcome: M4's MCP server, at `/mcp` in the API's process (ADR-0042). Streamable HTTP without
+sessions answers clients of the protocol's 2026-07-28 revision and earlier ones, and an API key
+admits a client until the OAuth 2.1 step. The first tool, `validate_invoice`, does what
+`POST /invoices/validate` does, with the same permission and the same limit.
+
+Findings:
+
+- The SDK configures the root logger when a server is made (`logging.basicConfig`, at INFO):
+  left alone, it would have printed every library's INFO lines in production. The application
+  puts the logger back; the test empties the root's handlers first, since pytest's would hide
+  the change.
+- The SDK's guard against DNS rebinding compares `Host` with a list of hosts, which a server
+  behind the platform's proxy does not know; the endpoint checks `Origin` instead.
+- Left to the SDK, a GET opens an event stream that never ends, since a server without sessions
+  has no messages of its own to send: the endpoint answers 405.
+- The application's lifespan holds the SDK's task group, which must be left in the task that
+  entered it: the tests run the lifespan in a task of its own.
+- The backlog's one item became four: the tools on stored invoices, `propose_fix` and
+  `search_rules` follow, one reviewable change each, and `send_to_sef_demo` moves to M5 with
+  the client it calls.
+
+Verification: the API's tests, the MCP server's compared with the routes they stand for; the
+seeded faults, each caught (see the pull request); ruff, mypy; the lock file.
+
+Next: the MCP tools on stored invoices.

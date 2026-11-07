@@ -1,8 +1,8 @@
 # sef-kopilot-api
 
 FastAPI application exposing the validator, the explanation and repair layers, multi-tenant
-persistence, background jobs with SSE progress, the SEF demo integration and (from M4) the MCP
-server. The deterministic engine lives in `packages/einvoice_core`; this app only orchestrates it.
+persistence, background jobs with SSE progress, the SEF demo integration and the MCP server.
+The deterministic engine lives in `packages/einvoice_core`; this app only orchestrates it.
 
 ## Run locally
 
@@ -496,6 +496,40 @@ next request writes a new set in its place. `GET /invoices/{id}/explanations` re
 set alone, and never asks the model; it answers 204 when none is kept, which a browser does not
 log as an error, as it would a 404.
 
+## The MCP server
+
+The API is also an MCP server, for the clients of the Model Context Protocol: an assistant
+that an accountant talks to, or an ERP's own automation (ADR-0042). It answers at `/mcp`, in
+the API's process, over Streamable HTTP without sessions: each message is a POST, answered with
+JSON. Clients of the protocol's current revision (2026-07-28) and of earlier ones are answered.
+
+- **Who may connect:** until the server has its own OAuth 2.1 authorization server (the next
+  step of M4), a client sends an API key as a bearer token, as a machine client of the routes
+  does. An access token of the web application is refused (401): it was issued for the API's
+  routes. A revoked or expired key, or one of a member who has left, is refused as the routes
+  refuse it.
+- **What it may do:** each tool requires a permission, as the route it stands for does, and
+  counts against the same limits. A tool's error is the route's error, in the same words.
+- **Its tools:**
+
+  | Tool | Requires | Does what this route does |
+  | --- | --- | --- |
+  | `validate_invoice` | `invoices:validate` | `POST /invoices/validate`: the XML as text, a profile (`srb` by default); nothing is stored |
+
+- **Its limits:** a message is a JSON body, at most `SEF_MAX_BODY_BYTES` (1 MiB): a larger
+  invoice is uploaded to `POST /invoices/validate`. Only POST is answered (405 otherwise),
+  since the server sends no messages of its own. A page of an origin other than the web
+  application's is refused (403).
+
+A client that lets its user set a header connects with the URL and the key. By hand:
+
+```bash
+curl -s localhost:8000/mcp -H "Authorization: Bearer $API_KEY" \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2025-06-18' \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
+```
+
 ## Database and migrations
 
 PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
@@ -530,7 +564,8 @@ as well, the database named by `SEF_TEST_REDIS_URL` (`redis://localhost:6379/15`
 
 ```text
 src/sef_api/
-  main.py        application factory (`create_app`): settings, database, routers
+  main.py        application factory (`create_app`): settings, database, routers, the MCP
+                 endpoint
   settings.py    configuration from the environment (pydantic-settings)
   db.py          declarative base, engine, sessions, the `get_session` dependency, pgvector's
                  column type
@@ -557,6 +592,7 @@ src/sef_api/
   retention.py   deleting finished jobs and stored invoices once they are past their retention
   rag/           the corpus: text in two scripts, editions and dated passages, embeddings,
                  ingesting (`python -m sef_api.rag.ingest`), the passages each rule cites
+  mcp/           the MCP server at `/mcp`: who may connect, its tools, the endpoint
   migrations/    Alembic environment and revisions (`versions/`)
   routes/        one router module per resource
 alembic.ini      command-line configuration of the migrations
