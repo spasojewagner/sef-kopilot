@@ -1,6 +1,6 @@
 {
   "name": "sef-kopilot",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Deterministic validation, plain-language explanations and reviewable repairs for Serbian (SEF) and EU electronic invoices.",
   "license": "Apache-2.0",
