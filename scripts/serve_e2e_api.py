@@ -9,6 +9,10 @@ golden path, upload, report, repair and approval, the same way every time:
 - no language model is called: :class:`ScriptedModel` proposes the repairs, given to the
   repairer as the API's own tests give it a model.
 
+It is also the MCP endpoint's authorization server, at the address it answers at, and sends a
+person to the web application's page to decide on a client's request, as a deployment that sets
+``SEF_PUBLIC_URL`` and ``SEF_WEB_URL`` does.
+
 Nothing else is read from the environment, so that a developer's ``.env`` can neither point the
 test at another database nor send an invoice to a model's provider. From the repository's root::
 
@@ -108,16 +112,19 @@ class ScriptedModel:
         pass
 
 
-def settings_for(database_url: str, web_origin: str) -> Settings:
+def settings_for(database_url: str, web_origin: str, public_url: str) -> Settings:
     """The API's settings for the test: its database, the origin of the web application's pages,
-    and the rest as a deployment of one process has them by default, with neither a language
-    model nor embeddings. The key that signs tokens is made anew for the process. Nothing is
-    read from the environment or ``.env``."""
+    where a person decides what an MCP client may do, the API's own address, and the rest as a
+    deployment of one process has them by default, with neither a language model nor
+    embeddings. The key that signs tokens is made anew for the process. Nothing is read from the
+    environment or ``.env``."""
     return Settings.from_values(
         {
             "SEF_ENVIRONMENT": "test",
             "DATABASE_URL": database_url,
             "SEF_WEB_ORIGINS": web_origin,
+            "SEF_WEB_URL": web_origin,
+            "SEF_PUBLIC_URL": public_url,
             "SEF_VALIDATOR": "process",
             "SEF_JOBS": "inline",
             "LLM_PROVIDER": "none",
@@ -181,7 +188,8 @@ def main(argv: Sequence[str] | None = None, *, env_file: Path = REPOSITORY_ROOT 
             file=sys.stderr,
         )
         return 2
-    app = create_app(settings_for(fresh_database(server), arguments.web_origin))
+    public_url = f"http://{arguments.host}:{arguments.port}"
+    app = create_app(settings_for(fresh_database(server), arguments.web_origin, public_url))
     app.state.repairer = Repairer(ScriptedModel())
     uvicorn.run(app, host=arguments.host, port=arguments.port, log_level="warning")
     return 0
