@@ -1812,3 +1812,22 @@ Verification: the web application's tests, lint, types and build, and the end-to
 seeded faults, each caught (see the pull request).
 
 Next: the embeddings of what the rules say, kept for reuse.
+
+## 2026-11-07 — `perf/rag-rule-embeddings-kept` (2 commits, stacked on `feat/web-explanations-kept`)
+
+Outcome: what each rule says is embedded once an embedding model and its vector kept (ADR-0041,
+migration 0014). An explanation reads the vectors kept for its model, asks the embedder only for
+the texts it has not seen, once a text, and keeps the answers in the transaction that reads the
+passages.
+
+Findings:
+
+- Writing inside the embedder's time limit would let a timeout interrupt a statement and leave
+  the session's transaction to roll back: the vectors are read before and written after it.
+- When the embedder fails, the rules whose vectors were kept now keep them, where before a
+  failure left every rule to its words.
+
+Verification: the API's tests, the explainer's and the migrations' included; the seeded faults,
+each caught (see the pull request); ruff, mypy.
+
+Next: the MCP server, the milestone's own work.

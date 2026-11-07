@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from einvoice_core.pipeline import ValidationReport
 from einvoice_core.violations import Severity, Violation
 from sef_api.llm import LANGUAGES, Language, LLMClient, LLMError, Message
+from sef_api.rag import meanings
 from sef_api.rag.embeddings import Embedder, EmbeddingError
 from sef_api.rag.retrieval import Found, Retriever, meaning_text
 from sef_api.rag.text import transliterate
@@ -338,10 +339,13 @@ def _rules(report: ValidationReport) -> list[_Rule]:
 
 
 async def _vectors(
-    embedder: Embedder | None, rules: Sequence[_Rule], *, seconds: float
+    session: AsyncSession, embedder: Embedder | None, rules: Sequence[_Rule], *, seconds: float
 ) -> dict[str, list[float]]:
-    """The embedding of what each rule says (:func:`meaning_text`), or none at all when the
-    embedder fails or takes longer than ``seconds``: the words still find passages."""
+    """The embedding of what each rule says (:func:`meaning_text`), by rule. Each text is asked
+    of the embedder once a model (ADR-0041): the vectors it made before are read, and those it
+    makes now are kept in ``session``'s transaction. When it fails or takes longer than
+    ``seconds``, the rules whose vectors were kept have them, and the others none: the words
+    still find passages."""
     if embedder is None:
         return {}
     said = {
@@ -349,14 +353,19 @@ async def _vectors(
         for rule in rules
         if (text := meaning_text(rule.violation)) is not None
     }
+    by_text = await meanings.kept(session, embedder.model, said.values())
+    asked = [text for text in dict.fromkeys(said.values()) if text not in by_text]
     try:
         async with asyncio.timeout(seconds):
-            return {rule_id: await embedder.query(text) for rule_id, text in said.items()}
+            made = {text: await embedder.query(text) for text in asked}
     except EmbeddingError as error:
         logger.warning("explaining without embeddings: %s", error)
     except TimeoutError:
         logger.warning("explaining without embeddings: none within %.1f s", seconds)
-    return {}
+    else:
+        await meanings.keep(session, embedder.model, made)
+        by_text |= made
+    return {rule_id: by_text[text] for rule_id, text in said.items() if text in by_text}
 
 
 async def explain_report(
@@ -380,7 +389,7 @@ async def explain_report(
     chosen, rest = rules[:max_rules], rules[max_rules:]
     loop = asyncio.get_running_loop()
     deadline = loop.time() + seconds
-    vectors = await _vectors(embedder, chosen, seconds=seconds * EMBEDDING_SHARE)
+    vectors = await _vectors(session, embedder, chosen, seconds=seconds * EMBEDDING_SHARE)
     retriever = Retriever(session, day)
     found = {
         rule.violation.rule_id: await retriever.passages(

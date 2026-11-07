@@ -37,6 +37,9 @@ is tagged.
 - `apps/web`: the report's page shows the explanations the API keeps for the report at once,
   reading them with `GET`, which asks the language model nothing, and offers to ask the model
   only when none are kept.
+- `apps/api`: what each rule says is embedded once an embedding model and its vector kept
+  (ADR-0041, migration 0014): an explanation asks the embedder only for texts it has not seen,
+  once a text, and an embedder that fails or is late keeps nothing new.
 
 ## [0.3.0] - 2026-11-07
 

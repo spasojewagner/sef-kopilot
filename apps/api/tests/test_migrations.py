@@ -30,6 +30,7 @@ TABLES = {
     "repairs",
     "audit_events",
     "explanations",
+    "rule_embeddings",
 }
 
 
