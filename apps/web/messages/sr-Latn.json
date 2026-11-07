@@ -95,7 +95,11 @@
     "missing": "Izaberite fakturu u XML-u.",
     "profile": "Profil",
     "submit": "Proveri i sačuvaj",
-    "pending": "Provera…"
+    "pending": "Provera…",
+    "demo": {
+      "title": "Javni demo: samo sintetičke fakture",
+      "description": "Ono što otpremite čuva se na ovom serveru, a objašnjenja i popravke šalju poruke pravila i polja fakture dobavljaču jezičkog modela. Ne otpremajte pravu fakturu: uzmite <examples>neku od sintetičkih</examples>, sa izmišljenim firmama i PIB-ovima."
+    }
   },
   "uploadErrors": {
     "signedOut": "Sesija je istekla. Prijavite se ponovo.",

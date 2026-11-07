@@ -2,7 +2,8 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { invoiceQuery, invoicesQuery } from "@/lib/queries";
+import { SYNTHETIC_INVOICES_URL } from "@/lib/links";
+import { healthQuery, invoiceQuery, invoicesQuery } from "@/lib/queries";
 import { json, keepSession, stubApi } from "@/test/api";
 import { storedInvoice } from "@/test/invoices";
 import { renderIn, testQueryClient } from "@/test/render";
@@ -148,5 +149,48 @@ describe("Invoice upload", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Organizacija je popunila prostor za fakture.",
     );
+  });
+});
+
+describe("Invoice upload on a public demo", () => {
+  /** A cache in which the footer's question had the API's health for its answer. */
+  function answered(publicDemo: boolean) {
+    const client = testQueryClient();
+    client.setQueryData(healthQuery.queryKey, {
+      status: "ok",
+      service: "sef-kopilot-api",
+      version: "0.2.0",
+      public_demo: publicDemo,
+    });
+    return client;
+  }
+
+  it("asks for a synthetic invoice, and links to the repository's", () => {
+    renderIn("sr-Latn", <InvoiceUpload />, answered(true));
+
+    const note = screen.getByRole("note");
+    expect(note).toHaveTextContent("Javni demo: samo sintetičke fakture");
+    expect(note).toHaveTextContent(
+      "Ono što otpremite čuva se na ovom serveru, a objašnjenja i popravke šalju poruke pravila i polja fakture dobavljaču jezičkog modela. Ne otpremajte pravu fakturu: uzmite neku od sintetičkih, sa izmišljenim firmama i PIB-ovima.",
+    );
+    expect(
+      screen.getByRole("link", { name: "neku od sintetičkih" }),
+    ).toHaveAttribute("href", SYNTHETIC_INVOICES_URL);
+  });
+
+  it("says nothing of it on a server that is no public demo", () => {
+    renderIn("en", <InvoiceUpload />, answered(false));
+
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+  });
+
+  it("says nothing of it, and asks nothing, before the footer has the answer", async () => {
+    const asked = stubApi(() => json(200, {}));
+
+    renderIn("en", <InvoiceUpload />);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    expect(asked).toEqual([]);
   });
 });
