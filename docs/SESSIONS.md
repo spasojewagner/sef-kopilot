@@ -1451,3 +1451,22 @@ busy.
 Next: the two repairs the backlog holds for M3 (the repairer's patch that changes nothing, the
 test applications' settings), then `chore/infra-deploy`, the public demo, prepared for the
 maintainer's accounts, and the release of v0.3.0.
+
+## 2026-11-07 — `fix/repair-patches-that-change-nothing` (1 commit, stacked on `test/web-golden-path`)
+
+Outcome: the repairer keeps no patch that writes at its place the value already there. Such a
+patch applied and changed nothing, and a suggestion of it alone was kept as a repair the page
+could only offer to reject. It is now dropped as a failed patch is, so that a suggestion of
+nothing else answers 422, and the model is told in its second round that the patch changed
+nothing. A patch a person decides is kept as before.
+
+Findings:
+
+- The patch engine's outcome already said it: `before` and `after` are equal. The repairer kept
+  patches by their status alone.
+- Both new tests failed before the change, the repairer's and the route's (201 instead of 422).
+
+Verification: the Python suites, with ruff and mypy; the branch changes no web code.
+
+Next: `test/api-settings-without-the-environment`, the API's test applications built from the
+values given alone; then `chore/infra-deploy`.

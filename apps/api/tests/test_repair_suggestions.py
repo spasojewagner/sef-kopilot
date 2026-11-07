@@ -200,6 +200,12 @@ async def test_a_patch_a_person_decides_is_kept_for_them_and_changes_nothing_to_
             422,
             "the language model proposes no patch for these violations: a person must",
         ),
+        # A patch that writes the type code the invoice has: it applies, and changes nothing.
+        (
+            ScriptedModel(*[answer({**FIX_TYPE, "value": "393"})] * 2),
+            422,
+            "none of the patches the language model proposes changes the invoice",
+        ),
         (
             ScriptedModel(LLMError("Groq answered 401 (invalid_api_key)")),
             502,

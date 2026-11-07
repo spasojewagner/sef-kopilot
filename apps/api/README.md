@@ -220,8 +220,10 @@ The validator's child process applies the patches, after those kept from an earl
 validates what they leave. While fatal violations remain, the model is told what became of each
 patch and asked once more: two rounds at most, within `SEF_REPAIR_SECONDS` (20).
 
-A patch that failed is not kept, since it changed nothing. One that a person decides is kept,
-for the person to see, and changes nothing either. A round that leaves more fatal violations
+A patch that failed is not kept, since it changed nothing, nor is one that wrote at its place
+the value already there; the model is told so in the next round, and without another patch to
+keep the answer is 422. One that a person decides is kept, for the person to see, and changes
+nothing either. A round that leaves more fatal violations
 than there were is not kept. A suggestion counts as a validation and as a request to the
 language model, and the audit event of the proposal adds the model and the rounds.
 

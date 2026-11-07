@@ -135,6 +135,10 @@ is tagged.
 
 ### Fixed
 
+- `apps/api`: the repairer keeps no patch that writes at its place the value already there. It
+  applied and changed nothing, so a suggestion of such patches alone was kept as a repair that
+  could only be rejected; it is now no repair (422), and in a second round the model is told
+  that the patch changed nothing.
 - `apps/api`: a repair is kept only if its proposer still holds the permission once the
   patches are applied, as an invoice is stored; a member removed meanwhile, or a key revoked,
   left a repair behind.
