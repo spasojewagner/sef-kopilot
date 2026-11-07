@@ -34,5 +34,6 @@ just used. New notes are added in the pull request that introduces the concept.
 | 26 | [A read that costs: POST, asked for on purpose, kept once paid for](26-a-read-that-costs.md) | M3 |
 | 27 | [Reading a unified diff, and what its numbers count](27-reading-a-unified-diff.md) | M3 |
 | 28 | [A request that creates: a mutation, and what the cache learns from its answer](28-a-request-that-creates.md) | M3 |
+| 29 | [A write whose outcome is unknown: read before you write again](29-a-write-whose-outcome-is-unknown.md) | M3 |
 
 Planned: OAuth 2.1 flows for MCP.

@@ -99,6 +99,12 @@ is tagged.
   and opens the repair it writes, its reasons in the page's language. A refusal says why: the
   conflict's reason, no patch a repair keeps, an unusable answer, the seconds to wait, or no
   model on the server; asking again is offered only where it could help.
+- `apps/web`: a person approves or rejects a repair on its page (ADR-0032). The page says what
+  an approval does, the invoice becomes the copy and the other waiting repairs are superseded,
+  and asks a second time; a rejection takes one press, and a repair that changes nothing offers
+  only its rejection. Afterwards the invoice, its report, its repairs and the list's verdicts are
+  read again when shown. When the outcome is unknown (no answer in time, no API, a server's
+  failure), the page reads the repair again and shows where it stands.
 
 ### Changed
 

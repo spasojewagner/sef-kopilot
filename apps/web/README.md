@@ -99,6 +99,11 @@ what the model is sent, asks nothing until the visitor asks, and opens the repai
 refusal says why, by the reason the API names, and offers to ask again only where that could
 help (ADR-0031).
 
+A repair that waits for a decision ends with it: an approval, which makes the invoice the copy
+and supersedes the other waiting repairs, asked a second time; or a rejection, which changes
+nothing. When the page cannot know whether a decision was recorded, it reads the repair again
+and shows where it stands rather than sending the decision again (ADR-0032).
+
 ## Components and styles
 
 The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:

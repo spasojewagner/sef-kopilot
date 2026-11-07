@@ -1376,3 +1376,35 @@ production build.
 
 Next: `feat/web-diff-approve`: approve or reject a repair on its page, in person, and read the
 invoice, its report and its repairs again.
+
+## 2026-11-07 — `feat/web-diff-approve` (2 commits, stacked on `feat/web-repair-suggestion`)
+
+Outcome: a person approves or rejects a repair on its page. An approval says what it does and
+asks a second time; a rejection takes one press; a repair that changes nothing offers only its
+rejection. Afterwards the invoice, its report, its repairs and the list's verdicts are read
+again when shown, and when the page cannot know whether the decision was recorded it reads the
+repair again rather than send it twice (ADR-0032). With this branch the web half of M3's repair
+loop is done: upload, report, explanation, suggestion, diff, decision.
+
+Findings:
+
+- A timeout, a dropped connection or a 500, 502 or 504 may come after the API recorded the
+  approval. Saying "try again" would have the person send it twice and see a 409 for a decision
+  that went through; the page reads the repair and shows where it stands instead.
+- Writing the answer into the cache must follow the invalidation of the invoice's key, which
+  holds the repair too; the other way round, the repair just answered is marked stale, and read
+  again as soon as the window regains focus.
+- The second press for an approval moves the keyboard's focus with it: the button pressed goes
+  away with the question, and focus would otherwise fall to the page's start.
+- In a browser against the API: the approval after the second press, the report valid
+  afterwards and its other repair superseded, the list's verdict changed, a rejection leaving
+  the invoice as it was, and a repair that changes nothing offering only its rejection.
+- Seeding faults: thirty-one, in the request, the panel, the cache and the messages. One was
+  missed at first: nothing said what was under way while the decision was being made. A test
+  catches it now, and all thirty-one are caught.
+
+Verification: each commit on its own, with the web application's lint, types, tests (200) and
+production build; the branch changes no Python, whose suites pass on the branch below.
+
+Next: `chore/infra-deploy`, the public demo; then the Playwright smoke test of the golden path
+and the release of v0.3.0.
