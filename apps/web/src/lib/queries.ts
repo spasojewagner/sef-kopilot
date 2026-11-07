@@ -1,7 +1,16 @@
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import {
+  infiniteQueryOptions,
+  type QueryClient,
+  queryOptions,
+} from "@tanstack/react-query";
 
 import { getHealth } from "@/lib/api";
-import { explainInvoice, type Language } from "@/lib/explanations";
+import {
+  type Explained,
+  explainInvoice,
+  keptExplanations,
+  type Language,
+} from "@/lib/explanations";
 import { getInvoice, listInvoices } from "@/lib/invoices";
 import { getOrganization } from "@/lib/organization";
 import { getRepair, listRepairs } from "@/lib/repairs";
@@ -63,18 +72,39 @@ export function invoiceQuery(id: string) {
 }
 
 /**
- * The explanations of the stored invoice ``id``'s report, in ``language``. Each costs requests
- * to the language model, so they are written only when the visitor asks (the page passes
- * ``enabled``), never asked for again by themselves, and kept until the page is reloaded or the
- * visitor signs out. Under the invoice's key, so that what changes the invoice drops them too.
+ * The explanations of the stored invoice ``id``'s report in ``language``, as far as the visit
+ * knows them: those the API keeps for the report, read at once since reading asks the language
+ * model nothing (ADR-0040), or null when none are kept. {@link askForExplanations} writes them
+ * under the same key. Never asked again by themselves, and kept until the page is reloaded or
+ * the visitor signs out. Under the invoice's key, so that what changes the invoice drops them
+ * too.
  */
 export function explanationsQuery(id: string, language: Language) {
   return queryOptions({
     queryKey: ["invoices", "one", id, "explanations", language],
-    queryFn: ({ signal }) => explainInvoice(id, language, signal),
+    queryFn: ({ signal }): Promise<Explained | null> =>
+      keptExplanations(id, language, signal),
     staleTime: Infinity,
     gcTime: Infinity,
     retry: false,
+  });
+}
+
+/**
+ * Asks for the explanations of the stored invoice ``id``'s report in ``language``, which may cost
+ * requests to the language model, and keeps the answer, or the failure, under the key of
+ * {@link explanationsQuery}, where the page reads them.
+ */
+export function askForExplanations(
+  client: QueryClient,
+  id: string,
+  language: Language,
+): Promise<Explained | null> {
+  return client.fetchQuery({
+    ...explanationsQuery(id, language),
+    queryFn: ({ signal }) => explainInvoice(id, language, signal),
+    // What the visit knows, none kept say, is fresh: asking fetches all the same.
+    staleTime: 0,
   });
 }
 

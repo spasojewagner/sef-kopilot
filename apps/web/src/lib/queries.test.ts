@@ -1,7 +1,12 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
+import { json, keepSession, stubApi } from "@/test/api";
+import { explained } from "@/test/invoices";
+import { testQueryClient } from "@/test/render";
+
 import {
+  askForExplanations,
   explanationsQuery,
   healthQuery,
   invoiceQuery,
@@ -81,6 +86,24 @@ describe("The explanations of a stored invoice", () => {
     expect(serbian.slice(0, invoice.length)).toEqual(invoice);
     expect(serbian).not.toEqual(explanationsQuery("i-1", "en").queryKey);
     expect(isAboutTheApi(serbian)).toBe(false);
+  });
+
+  it("are those the API keeps until the visitor asks, and then the model's, under one key", async () => {
+    keepSession();
+    const asked = stubApi((request) =>
+      request.method === "GET"
+        ? new Response(null, { status: 204 })
+        : json(200, explained()),
+    );
+    const client = testQueryClient();
+    const key = explanationsQuery("i-1", "sr").queryKey;
+
+    expect(await client.fetchQuery(explanationsQuery("i-1", "sr"))).toBeNull();
+    const written = await askForExplanations(client, "i-1", "sr");
+
+    expect(written?.model).toBe("test/quoting");
+    expect(client.getQueryData(key)).toEqual(written);
+    expect(asked.map((request) => request.method)).toEqual(["GET", "POST"]);
   });
 
   it("are never asked for again by themselves, since each costs the model's requests", () => {

@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import type { Explained } from "@/lib/explanations";
 import { explanationsQuery, invoiceQuery } from "@/lib/queries";
 import { aMoment, type Asked, json, keepSession } from "@/test/api";
 import { explained, storedInvoice, stubReportApi } from "@/test/invoices";
@@ -24,9 +25,24 @@ vi.mock("next/navigation", async (importOriginal) => ({
 
 const ID = "0b3f6a2e-1c4d-4e5f-8a9b-0c1d2e3f4a5b";
 
-/** An API that has the stored invoice, and answers a request for its explanations so. */
-function api(explanations: (asked: Asked) => Response | Promise<Response>) {
-  return stubReportApi({ other: explanations });
+/**
+ * An API that has the stored invoice, keeps ``kept`` as the explanations of its report, none
+ * unless given, and answers a request to write them with ``explanations``.
+ */
+function api(
+  explanations: (asked: Asked) => Response | Promise<Response>,
+  kept: Explained | null = null,
+) {
+  return stubReportApi({
+    other: (asked) => {
+      if (asked.method !== "GET") {
+        return explanations(asked);
+      }
+      return kept === null
+        ? new Response(null, { status: 204 })
+        : json(200, kept);
+    },
+  });
 }
 
 /** The requests for explanations among those the API was asked. */
@@ -55,7 +71,10 @@ describe("The explanations on an invoice's report", () => {
     expect(
       await screen.findByText(/koja može navesti vrednost iz fakture/),
     ).toBeInTheDocument();
-    expect(forExplanations(asked)).toEqual([]);
+    // What the API keeps is read, which asks the model nothing; none is kept.
+    expect(forExplanations(asked)).toEqual([
+      `GET /invoices/${ID}/explanations?language=sr`,
+    ]);
 
     await ask();
 
@@ -80,6 +99,7 @@ describe("The explanations on an invoice's report", () => {
       ),
     ).toBeInTheDocument();
     expect(forExplanations(asked)).toEqual([
+      `GET /invoices/${ID}/explanations?language=sr`,
       `POST /invoices/${ID}/explanations?language=sr`,
     ]);
   });
@@ -156,6 +176,7 @@ describe("The explanations on an invoice's report", () => {
       ),
     ).toBeInTheDocument();
     expect(forExplanations(asked)).toEqual([
+      `GET /invoices/${ID}/explanations?language=en`,
       `POST /invoices/${ID}/explanations?language=en`,
     ]);
   });
@@ -285,7 +306,8 @@ describe("The explanations on an invoice's report", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(forExplanations(asked)).toHaveLength(3);
+    // What is kept is read once; asking is sent three times.
+    expect(forExplanations(asked)).toHaveLength(4);
   });
 
   it("written in another language are not shown, but offered in the page's", async () => {
@@ -298,17 +320,19 @@ describe("The explanations on an invoice's report", () => {
     client.setQueryData(explanationsQuery(ID, "sr").queryKey, explained());
 
     renderIn("en", <InvoiceReport id={ID} />, client);
-    await aMoment();
 
     expect(
-      screen.getByRole("button", { name: "Explain the rules" }),
+      await screen.findByRole("button", { name: "Explain the rules" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByText(
         "PIB prodavca mora imati devet cifara i ispravnu kontrolnu cifru.",
       ),
     ).not.toBeInTheDocument();
-    expect(forExplanations(asked)).toEqual([]);
+    // What the API keeps in English is read; that it could not be read leaves the offer.
+    expect(forExplanations(asked)).toEqual([
+      `GET /invoices/${ID}/explanations?language=en`,
+    ]);
   });
 
   it("are not offered for an invoice without violations", async () => {
@@ -324,6 +348,50 @@ describe("The explanations on an invoice's report", () => {
     expect(
       screen.queryByRole("button", { name: "Objasni pravila" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("kept by the API are shown at once, and the model is not asked", async () => {
+    keepSession();
+    const asked = api(() => json(500, { detail: "not asked" }), explained());
+
+    renderIn("sr-Latn", <InvoiceReport id={ID} />);
+
+    expect(
+      await screen.findByText(
+        "PIB prodavca mora imati devet cifara i ispravnu kontrolnu cifru.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Objasni pravila" }),
+    ).not.toBeInTheDocument();
+    expect(forExplanations(asked)).toEqual([
+      `GET /invoices/${ID}/explanations?language=sr`,
+    ]);
+  });
+
+  it("offer the model's while what is kept is unknown, and show nothing meanwhile", async () => {
+    keepSession();
+    let keep: (response: Response) => void = () => undefined;
+    stubReportApi({
+      other: () =>
+        new Promise<Response>((resolve) => {
+          keep = resolve;
+        }),
+    });
+    renderIn("sr-Latn", <InvoiceReport id={ID} />);
+
+    await screen.findByRole("heading", { level: 3, name: "SRB-009" });
+    await aMoment();
+    expect(
+      screen.queryByRole("button", { name: "Objasni pravila" }),
+    ).not.toBeInTheDocument();
+    // Reading what is kept is not the model writing.
+    expect(screen.queryByText(/Jezički model piše/)).not.toBeInTheDocument();
+    keep(json(503, { detail: "unavailable" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Objasni pravila" }),
+    ).toBeInTheDocument();
   });
 
   it("written earlier in the visit are shown at once, without asking the model again", async () => {

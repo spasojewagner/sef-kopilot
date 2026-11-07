@@ -8,6 +8,7 @@ import {
   cyrillic,
   EXPLAIN_TIMEOUT_MS,
   explainInvoice,
+  keptExplanations,
   languageOf,
 } from "./explanations";
 
@@ -17,6 +18,46 @@ function silence(signal: AbortSignal | null | undefined): Promise<Response> {
     signal?.addEventListener("abort", () => reject(signal.reason));
   });
 }
+
+describe("The explanations the API keeps", () => {
+  it("are read with a GET, which asks the language model nothing", async () => {
+    keepSession();
+    const asked = stubApi(() => json(200, explained()));
+
+    const kept = await keptExplanations("i-1", "sr");
+
+    expect(kept?.model).toBe("test/quoting");
+    expect(
+      asked.map(({ method, path, search }) => `${method} ${path}${search}`),
+    ).toEqual(["GET /invoices/i-1/explanations?language=sr"]);
+  });
+
+  it.each([
+    ["none are kept", () => new Response(null, { status: 204 })],
+    ["the invoice is gone", () => json(404, { detail: "no such invoice" })],
+    ["the API fails", () => json(500, { detail: "Internal Server Error" })],
+    ["the API does not answer", () => Promise.reject(new TypeError("Failed"))],
+  ])("are none when %s: asking reads them too", async (_, answer) => {
+    keepSession();
+    stubApi(answer);
+
+    expect(await keptExplanations("i-1", "sr")).toBeNull();
+  });
+
+  it("are not read once the page no longer wants them", async () => {
+    keepSession();
+    const asked = stubApi(({ signal }) => silence(signal));
+    const leaving = new AbortController();
+
+    const reading = keptExplanations("i-1", "sr", leaving.signal).catch(
+      (thrown: unknown) => thrown,
+    );
+    await vi.waitFor(() => expect(asked).toHaveLength(1));
+    leaving.abort(new DOMException("left", "AbortError"));
+
+    expect(await reading).toMatchObject({ name: "AbortError" });
+  });
+});
 
 describe("The explanations of a stored invoice", () => {
   it("are asked of the API in the language given, with nothing in the body", async () => {

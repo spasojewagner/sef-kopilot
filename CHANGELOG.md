@@ -34,6 +34,9 @@ is tagged.
   without asking the language model or counting a request, until the invoice's report is
   another; `GET /invoices/{invoice_id}/explanations` reads them alone, or answers 204 when none
   are kept, and every answer with explanations says when they were written (`written_at`).
+- `apps/web`: the report's page shows the explanations the API keeps for the report at once,
+  reading them with `GET`, which asks the language model nothing, and offers to ask the model
+  only when none are kept.
 
 ## [0.3.0] - 2026-11-07
 

@@ -1788,3 +1788,27 @@ Verification: the API's tests, the migrations' included; the seeded faults, each
 pull request); ruff, mypy; the OpenAPI document and the web application's types regenerated.
 
 Next: the report's page shows the kept explanations at once.
+
+## 2026-11-07 — `feat/web-explanations-kept` (2 commits, stacked on `feat/api-explanations-kept`)
+
+Outcome: the report's page shows the explanations the API keeps (ADR-0040) as it opens, read
+with `GET`, which asks the language model nothing; the offer to ask the model appears only when
+none are kept. The kept and the written explanations share one cache key.
+
+Findings:
+
+- A read the page cancels must not be taken for "none kept", or a visitor who leaves and comes
+  back would see the offer for a report whose explanations are kept; any other failure is taken
+  for none, since asking reads the kept set too.
+- The panel said that the model was writing while the page only read: it shows nothing until
+  the read is done.
+- A test's stand-in for a silent API never rejected for a signal aborted before the request;
+  the test aborts once the request is sent, as a browser would.
+- The API answered 404 when none was kept, and a browser logs every 404 as an error: the
+  end-to-end test, which fails on any error in the console, caught it on the first report it
+  opened. The API's `GET` answers 204 instead (ADR-0040), and the page reads that as none.
+
+Verification: the web application's tests, lint, types and build, and the end-to-end test; the
+seeded faults, each caught (see the pull request).
+
+Next: the embeddings of what the rules say, kept for reuse.
