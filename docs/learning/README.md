@@ -38,5 +38,6 @@ just used. New notes are added in the pull request that introduces the concept.
 | 30 | [An end-to-end test for the seams: what only it can catch, and how it stays steady](30-an-end-to-end-test-for-the-seams.md) | M3 |
 | 31 | [An image built once, started many times](31-an-image-built-once-started-many-times.md) | M3 |
 | 32 | [A warm cache hides a cold path: test the path the platform takes](32-a-warm-cache-hides-a-cold-path.md) | M3 |
+| 33 | [Waking or down: a cold start, seen from the browser](33-waking-or-down.md) | M3 |
 
 Planned: OAuth 2.1 flows for MCP.

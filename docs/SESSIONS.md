@@ -1573,3 +1573,31 @@ in a clone and fails in a workspace with fetched rule sets. Hooks and the secret
 
 Next: the maintainer merges; Render deploys once CI passes; the corpus is loaded; then
 `feat/web-api-waking-up`.
+
+## 2026-11-07 — `feat/web-api-waking-up` (3 commits)
+
+Outcome: the pages wait for a sleeping API (ADR-0036). When the API has not answered the tab for
+ten minutes, a request first asks `/health` until it answers, for up to two minutes, and is then
+sent once, with its own timeout from there; the requests that wait share one wake-up. After
+three seconds of waiting, the footer says that the API is waking up, and a notice above every
+page says why and that what is sent will go once it answers.
+
+Findings:
+
+- The first deploy went live at 15:34 after the image's fix: `/ready` answers `ready` with the
+  database (Neon) and the validator `ok`, and the web application's footer reads the API's
+  version across origins. The corpus is still to be loaded, from the maintainer's machine.
+- Forgetting that the API was awake after any failed request would have made a second click
+  wait for a wake-up, but would also have called an API that is down "waking" after every error;
+  the API is taken to be awake for ten minutes after its last answer, and no longer.
+- Waiting is safe only before a request is sent: a write is never sent twice, as ADR-0032 and
+  learning note 29 require.
+
+Verification: 218 web tests (16 new: the wait, its timing, the shared wake-up, an aborted wait,
+a refusal, the notice and the footer), `tsc --noEmit`, ESLint and Prettier clean, each commit on
+its own with the production build and the golden path's end-to-end test; eleven seeded faults,
+each caught (see the pull request); screenshots of the notice from a build whose `/health` was
+held, in Serbian and English, light and dark, and on a phone.
+
+Next: `docs/infra-first-deploy` (what the first deploy needed, in the runbook); the upload
+notice; the release of v0.3.0.

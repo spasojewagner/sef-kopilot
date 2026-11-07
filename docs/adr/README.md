@@ -41,5 +41,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0033](0033-one-end-to-end-test-of-the-golden-path.md) | One end-to-end test of the golden path, against the API with a scripted model | accepted | 2026-11-07 |
 | [0034](0034-the-apis-image.md) | The API's image: the lock file's dependencies, rule sets compiled in, migrations at start | accepted | 2026-11-07 |
 | [0035](0035-the-public-demos-hosting.md) | The public demo: the web application on Vercel, the API on Render, its database on Neon | accepted | 2026-11-07 |
+| [0036](0036-the-pages-wait-for-a-sleeping-api.md) | The pages wait for a sleeping API, and say that it is waking up | accepted | 2026-11-07 |
 
 Planned (recorded when the work lands): OAuth 2.1 for MCP (M4), evaluation thresholds (M6).
