@@ -562,13 +562,15 @@ without it, they answer 404, and the MCP endpoint takes API keys alone.
   `SEF_PUBLIC_URL/mcp`, naming the person, their organization, the client, the scopes and the
   consent, signed with a key derived from `SEF_JWT_SECRET` for these tokens alone, so that it
   and the web application's never pass for each other. A client that registered the
-  `refresh_token` grant also gets a refresh token, kept as its SHA-256. A code presented a
-  second time revokes the consent: its access tokens will be refused at the MCP endpoint, which
-  is to read the consent on every request. The role is read again when the code is exchanged,
-  and a member who is no longer one takes the consent with them (migration 0017). Token
-  requests are counted by address: sixty a minute.
-- **Next:** spending a refresh token, the MCP endpoint accepting these tokens, the metadata
-  documents that send clients here (RFC 8414, RFC 9728), and client ID metadata documents.
+  `refresh_token` grant also gets a refresh token, kept as its SHA-256, which
+  `grant_type=refresh_token` spends once for the next pair, with the consent's scopes or fewer.
+  A code or a refresh token presented a second time revokes the consent: its refresh tokens are
+  refused from then on, and its access tokens will be at the MCP endpoint, which is to read the
+  consent on every request. The role is read again at every exchange, and a member who is no
+  longer one takes the consent with them (migration 0017). Token requests are counted by
+  address: sixty a minute.
+- **Next:** the MCP endpoint accepting these tokens, the metadata documents that send clients
+  here (RFC 8414, RFC 9728), and client ID metadata documents.
 
 ## Database and migrations
 

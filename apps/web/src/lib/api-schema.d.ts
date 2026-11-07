@@ -723,8 +723,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Exchange a code for tokens
-         * @description The token endpoint (OAuth 2.1 §3.2), for public clients: the body is a form. `authorization_code` exchanges the code a consent issued, once, with the PKCE verifier that began it. The access token is for the MCP endpoint alone, for minutes; a client that registered the `refresh_token` grant also gets a refresh token. A code presented a second time revokes the consent. The scopes are those the person's role still allows.
+         * Exchange a code, or a refresh token, for tokens
+         * @description The token endpoint (OAuth 2.1 §3.2), for public clients: the body is a form. `authorization_code` exchanges the code a consent issued, once, with the PKCE verifier that began it; `refresh_token` spends a refresh token for the next pair, with as many of the consent's scopes or fewer, for a client that registered that grant. The access token is for the MCP endpoint alone, for minutes; a code or a refresh token presented a second time revokes the consent. The scopes are those the person's role still allows.
          */
         post: operations["issue_tokens_oauth_token_post"];
         delete?: never;
@@ -1800,7 +1800,7 @@ export interface components {
              * Error
              * @enum {string}
              */
-            error: "invalid_request" | "invalid_grant" | "invalid_target" | "unsupported_grant_type";
+            error: "invalid_request" | "invalid_grant" | "invalid_scope" | "invalid_target" | "unauthorized_client" | "unsupported_grant_type";
             /** Error Description */
             error_description: string;
         };
@@ -3991,9 +3991,9 @@ export interface operations {
                 "application/x-www-form-urlencoded": {
                     /**
                      * Grant Type
-                     * @constant
+                     * @enum {string}
                      */
-                    grant_type: "authorization_code";
+                    grant_type: "authorization_code" | "refresh_token";
                     /**
                      * Client Id
                      * @description The client's id, as it registered.
@@ -4015,6 +4015,16 @@ export interface operations {
                      */
                     redirect_uri?: string | null;
                     /**
+                     * Refresh Token
+                     * @description The refresh token to spend.
+                     */
+                    refresh_token?: string | null;
+                    /**
+                     * Scope
+                     * @description On a refresh, fewer of the consent's scopes, separated by spaces.
+                     */
+                    scope?: string | null;
+                    /**
                      * Resource
                      * @description The MCP endpoint, which the person consented to (RFC 8707).
                      */
@@ -4032,7 +4042,7 @@ export interface operations {
                     "application/json": components["schemas"]["IssuedTokens"];
                 };
             };
-            /** @description The request or the code will not do. */
+            /** @description The request, the code or the refresh token will not do. */
             400: {
                 headers: {
                     [name: string]: unknown;

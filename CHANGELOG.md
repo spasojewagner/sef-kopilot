@@ -67,8 +67,9 @@ is tagged.
 - `apps/api`: the token endpoint, `POST /oauth/token`: a code a consent issued is exchanged
   once, with its PKCE verifier, for an access token for the MCP endpoint alone (a JWT whose
   audience is the endpoint, signed with a key of its own) and, for a client that registered
-  the grant, a refresh token; a code presented again revokes the consent, and the role is read
-  again when it is exchanged (migration 0017).
+  the grant, a refresh token, spent once for the next pair; a code or a refresh token
+  presented again revokes the consent, and the role is read again at each exchange (migration
+  0017).
 - `apps/web`: the page where a person decides on an MCP client's request, `/oauth/consent`
   (ADR-0044): what the client asks, the name it gave itself (unchecked), the address it takes
   them back to and the organization it will work in; allowing or denying takes them back to

@@ -341,9 +341,10 @@ async def refuse_request(
 
 
 class TokenRequest(BaseModel):
-    """A token request's parameters, sent as a form (RFC 6749 §3.2): a code's exchange."""
+    """A token request's parameters, sent as a form (RFC 6749 §3.2): those of a code's exchange
+    or of a refresh, by its ``grant_type``."""
 
-    grant_type: Literal["authorization_code"]
+    grant_type: Literal["authorization_code", "refresh_token"]
     client_id: str = Field(description="The client's id, as it registered.")
     code: str | None = Field(None, description="The code a consent issued (`authorization_code`).")
     code_verifier: str | None = Field(
@@ -352,6 +353,10 @@ class TokenRequest(BaseModel):
     redirect_uri: str | None = Field(
         None,
         description="Where the code was sent; required unless the client registered one only.",
+    )
+    refresh_token: str | None = Field(None, description="The refresh token to spend.")
+    scope: str | None = Field(
+        None, description="On a refresh, fewer of the consent's scopes, separated by spaces."
     )
     resource: str | None = Field(
         None, description="The MCP endpoint, which the person consented to (RFC 8707)."
@@ -378,7 +383,9 @@ class TokenErrorAnswer(BaseModel):
     error: Literal[
         "invalid_request",
         "invalid_grant",
+        "invalid_scope",
         "invalid_target",
+        "unauthorized_client",
         "unsupported_grant_type",
     ]
     error_description: str
@@ -389,12 +396,13 @@ _NO_STORE = {"Cache-Control": "no-store", "Pragma": "no-cache"}
 
 @router.post(
     "/token",
-    summary="Exchange a code for tokens",
+    summary="Exchange a code, or a refresh token, for tokens",
     description=(
         "The token endpoint (OAuth 2.1 §3.2), for public clients: the body is a form. "
         "`authorization_code` exchanges the code a consent issued, once, with the PKCE verifier "
-        "that began it. The access token is for the MCP endpoint alone, for minutes; a client "
-        "that registered the `refresh_token` grant also gets a refresh token. A code presented "
+        "that began it; `refresh_token` spends a refresh token for the next pair, with as many "
+        "of the consent's scopes or fewer, for a client that registered that grant. The access "
+        "token is for the MCP endpoint alone, for minutes; a code or a refresh token presented "
         "a second time revokes the consent. The scopes are those the person's role still allows."
     ),
     response_model=IssuedTokens,
@@ -409,7 +417,7 @@ _NO_STORE = {"Cache-Control": "no-store", "Pragma": "no-cache"}
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": TokenErrorAnswer,
-            "description": "The request or the code will not do.",
+            "description": "The request, the code or the refresh token will not do.",
         },
         status.HTTP_404_NOT_FOUND: {
             "model": Problem,
@@ -434,11 +442,13 @@ async def issue_tokens(
         grant = form.get("grant_type")
         if grant == "authorization_code":
             issued = await oauth_tokens.exchange_code(session, settings, tokens, form)
+        elif grant == "refresh_token":
+            issued = await oauth_tokens.refresh(session, settings, tokens, form)
         elif grant is None:
             raise oauth_tokens.TokenError("invalid_request", "the parameter grant_type is required")
         else:
             raise oauth_tokens.TokenError(
-                "unsupported_grant_type", "the grant_type is authorization_code"
+                "unsupported_grant_type", "the grant_type is authorization_code or refresh_token"
             )
     except oauth_tokens.TokenError as refused:
         answer = TokenErrorAnswer.model_validate(

@@ -874,3 +874,38 @@ async def test_of_two_exchanges_of_one_code_at_once_the_second_revokes_the_conse
     assert (first.status_code, second.status_code) == (200, 400)
     assert second.json()["error"] == "invalid_grant"
     assert await revoked(committed_database, client)
+
+
+async def test_of_two_refreshes_with_one_token_at_once_the_second_revokes_the_consent(
+    authorization_server: AsyncClient,
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The first refresh holds the consent's row; the second waits for it, then finds the token
+    spent, and the consent ends: the token the first refresh issued is refused too."""
+    organization, ana, _ = primer
+    client, code = await a_consent(authorization_server, organization, ana)
+    issued = (
+        await authorization_server.post("/oauth/token", data=an_exchange(client, code))
+    ).json()
+    renewal = {
+        "grant_type": "refresh_token",
+        "refresh_token": issued["refresh_token"],
+        "client_id": client,
+    }
+    held_at = gate(monkeypatch, oauth_tokens, "_role_of")
+
+    first, second = await while_held(
+        authorization_server.post("/oauth/token", data=renewal),
+        lambda: authorization_server.post("/oauth/token", data=renewal),
+        held_at,
+        then_waits=True,
+    )
+    latest = await authorization_server.post(
+        "/oauth/token",
+        data=renewal | {"refresh_token": first.json()["refresh_token"]},
+    )
+
+    assert (first.status_code, second.status_code, latest.status_code) == (200, 400, 400)
+    assert await revoked(committed_database, client)

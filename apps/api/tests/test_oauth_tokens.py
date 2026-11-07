@@ -1,5 +1,5 @@
-"""``/oauth/token``: a code a consent issued exchanged for tokens (OAuth 2.1 §4.1.3, ADR-0044);
-the access token is for the MCP endpoint alone."""
+"""``/oauth/token``: a code a consent issued exchanged for tokens, and a refresh token for new
+ones (OAuth 2.1 §4.1.3 and §4.3, ADR-0044); the access token is for the MCP endpoint alone."""
 
 from __future__ import annotations
 
@@ -75,6 +75,15 @@ def exchange(client: str, code: str, /, **changes: str | None) -> dict[str, str 
         "client_id": client,
         "code_verifier": VERIFIER,
         "redirect_uri": CALLBACK,
+        "resource": RESOURCE,
+    } | changes
+
+
+def renewal(client: str, refresh_token: str, /, **changes: str | None) -> dict[str, str | None]:
+    return {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id": client,
         "resource": RESOURCE,
     } | changes
 
@@ -215,12 +224,14 @@ async def test_a_code_presented_twice_revokes_every_token_it_led_to(
         client, code = await consented(api, primer)
         first = await token(api, exchange(client, code))
         second = await token(api, exchange(client, code))
+        renewed = await token(api, renewal(client, first.json()["refresh_token"]))
 
     assert first.status_code == 200
     assert refused(second) == (400, "invalid_grant")
     assert second.json()["error_description"] == (
         "the code was used already: every token it led to is revoked"
     )
+    assert refused(renewed) == (400, "invalid_grant")
     assert (await consent_of(session, code)).revoked_at is not None
 
 
@@ -261,10 +272,28 @@ async def test_a_client_that_did_not_register_refreshes_gets_no_refresh_token(
     async with server(session) as api:
         client, code = await consented(api, primer, grants=("authorization_code",))
         answer = await token(api, exchange(client, code))
+        consent_id = (await consent_of(session, code)).id
+        # Were it to hold one, from before the rule, it could not spend it.
+        held = "a-refresh-token-of-a-client-without-the-grant"
+        session.add(
+            OAuthRefreshToken(
+                authorization_id=consent_id,
+                digest=opaque_token_digest(held),
+                expires_at=datetime.now(UTC) + timedelta(days=1),
+            )
+        )
+        await session.flush()
+        renewed = await token(api, renewal(client, held))
 
     assert answer.status_code == 200
     assert "refresh_token" not in answer.json()
-    assert await session.scalar(select(OAuthRefreshToken)) is None
+    assert (
+        await session.scalar(
+            select(OAuthRefreshToken).where(OAuthRefreshToken.digest != opaque_token_digest(held))
+        )
+        is None
+    )
+    assert refused(renewed) == (400, "unauthorized_client")
 
 
 async def test_a_resource_that_is_no_uri_is_the_wrong_target(session: AsyncSession) -> None:
@@ -272,8 +301,11 @@ async def test_a_resource_that_is_no_uri_is_the_wrong_target(session: AsyncSessi
     async with server(session) as api:
         client, code = await consented(api, primer)
         exchanged = await token(api, exchange(client, code, resource="http://["))
+        first = (await token(api, exchange(client, code))).json()
+        renewed = await token(api, renewal(client, first["refresh_token"], resource="http://["))
 
     assert refused(exchanged) == (400, "invalid_target")
+    assert refused(renewed) == (400, "invalid_target")
 
 
 async def test_a_consent_given_to_the_server_at_another_address_issues_nothing(
@@ -316,6 +348,117 @@ async def test_the_role_is_read_again_when_the_code_is_exchanged(
     assert answer.json()["scope"] == "invoices:validate"
 
 
+# --- a refresh token for new ones --------------------------------------------------------------
+
+
+async def test_a_refresh_token_is_spent_once_and_replaced(session: AsyncSession) -> None:
+    primer = await office(session, "Primer Računovodstvo", "primer.example")
+    async with server(session) as api:
+        client, code = await consented(api, primer)
+        first = (await token(api, exchange(client, code))).json()
+        second = await token(api, renewal(client, first["refresh_token"]))
+        third = await token(api, renewal(client, second.json()["refresh_token"]))
+
+    assert (second.status_code, third.status_code) == (200, 200)
+    assert len({first["refresh_token"], second.json()["refresh_token"]}) == 2
+    kept = (await session.scalars(select(OAuthRefreshToken))).all()
+    assert len(kept) == 3
+    assert sum(token.used_at is None for token in kept) == 1
+
+
+async def test_a_refresh_token_presented_again_revokes_the_consent(session: AsyncSession) -> None:
+    primer = await office(session, "Primer Računovodstvo", "primer.example")
+    async with server(session) as api:
+        client, code = await consented(api, primer)
+        first = (await token(api, exchange(client, code))).json()
+        second = (await token(api, renewal(client, first["refresh_token"]))).json()
+        replayed = await token(api, renewal(client, first["refresh_token"]))
+        # The token the rightful client holds now is revoked with the rest.
+        latest = await token(api, renewal(client, second["refresh_token"]))
+
+    assert refused(replayed) == (400, "invalid_grant")
+    assert replayed.json()["error_description"] == (
+        "the refresh token was used already: every token of the consent is revoked"
+    )
+    assert refused(latest) == (400, "invalid_grant")
+    assert latest.json()["error_description"] == "the consent was revoked"
+
+
+@pytest.mark.parametrize(
+    ("changes", "error"),
+    [
+        ({"client_id": "another-client"}, "invalid_grant"),
+        ({"refresh_token": "not-one-this-server-issued"}, "invalid_grant"),
+        ({"resource": f"{ISSUER}/api"}, "invalid_target"),
+        ({"scope": "invoices:validate invoices:submit"}, "invalid_scope"),
+        ({"scope": " "}, "invalid_scope"),
+        ({"scope": 'invoices:validate "quoted"'}, "invalid_scope"),
+        ({"client_id": None}, "invalid_request"),
+    ],
+)
+async def test_a_refresh_will_not_do_with_anything_but_the_consent(
+    session: AsyncSession, changes: dict[str, str | None], error: str
+) -> None:
+    primer = await office(session, "Primer Računovodstvo", "primer.example")
+    async with server(session) as api:
+        client, code = await consented(api, primer)
+        refresh_token = (await token(api, exchange(client, code))).json()["refresh_token"]
+        answer = await token(api, renewal(client, refresh_token, **changes))
+        after = await token(api, renewal(client, refresh_token))
+
+    assert refused(answer) == (400, error)
+    assert after.status_code == 200
+
+
+async def test_an_expired_refresh_token_will_not_do(session: AsyncSession) -> None:
+    primer = await office(session, "Primer Računovodstvo", "primer.example")
+    async with server(session) as api:
+        client, code = await consented(api, primer)
+        refresh_token = (await token(api, exchange(client, code))).json()["refresh_token"]
+        await session.execute(
+            update(OAuthRefreshToken).values(expires_at=datetime.now(UTC) - timedelta(seconds=1))
+        )
+        answer = await token(api, renewal(client, refresh_token))
+
+    assert refused(answer) == (400, "invalid_grant")
+    assert answer.json()["error_description"] == "the refresh token has expired"
+
+
+async def test_a_refresh_may_ask_for_fewer_scopes_and_the_role_is_read_again(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        authorizations,
+        "SCOPES",
+        MappingProxyType(
+            {
+                "invoices:validate": Permission.INVOICES_VALIDATE,
+                "members:manage": Permission.MEMBERS_MANAGE,
+            }
+        ),
+    )
+    primer = await office(session, "Primer Računovodstvo", "primer.example")
+    async with server(session) as api:
+        client, code = await consented(
+            api, primer, as_owner=True, scope="invoices:validate members:manage"
+        )
+        both = (await token(api, exchange(client, code))).json()
+        fewer = (
+            await token(api, renewal(client, both["refresh_token"], scope="invoices:validate"))
+        ).json()
+        # The owner becomes an accountant: managing members is no longer the role's to grant.
+        await session.execute(
+            update(Membership)
+            .where(Membership.user_id == primer.owner.id)
+            .values(role=Role.ACCOUNTANT)
+        )
+        demoted = (await token(api, renewal(client, fewer["refresh_token"]))).json()
+
+    assert both["scope"] == "invoices:validate members:manage"
+    assert fewer["scope"] == "invoices:validate"
+    assert demoted["scope"] == "invoices:validate"
+
+
 async def test_a_member_no_longer_active_or_no_longer_a_member_gets_no_tokens(
     session: AsyncSession,
 ) -> None:
@@ -324,17 +467,19 @@ async def test_a_member_no_longer_active_or_no_longer_a_member_gets_no_tokens(
     person = primer.client.id
     async with server(session) as api:
         client, code = await consented(api, primer)
+        refresh_token = (await token(api, exchange(client, code))).json()["refresh_token"]
         await session.execute(update(User).where(User.id == person).values(is_active=False))
-        inactive = await token(api, exchange(client, code))
+        inactive = await token(api, renewal(client, refresh_token))
+        await session.execute(update(User).where(User.id == person).values(is_active=True))
         await session.execute(delete(Membership).where(Membership.user_id == person))
-        removed = await token(api, exchange(client, code))
+        removed = await token(api, renewal(client, refresh_token))
 
     assert refused(inactive) == (400, "invalid_grant")
     # Why is the member's business, not the client's.
     assert inactive.json()["error_description"] == "the consent no longer grants any scope"
-    # The consent went with the membership, and its code with it.
+    # The consent and its tokens went with the membership.
     assert refused(removed) == (400, "invalid_grant")
-    assert removed.json()["error_description"] == "the code is not one this server issued"
+    assert await session.scalar(select(OAuthRefreshToken)) is None
 
 
 # --- the request itself ------------------------------------------------------------------------

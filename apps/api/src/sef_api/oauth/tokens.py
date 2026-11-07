@@ -1,17 +1,18 @@
-"""The tokens a consent issues to an MCP client, for the code it issued (OAuth 2.1 §4.1.3,
-ADR-0044).
+"""The tokens a consent issues to an MCP client: a code exchanged for them, and a refresh token
+for new ones (OAuth 2.1 §4.1.3 and §4.3, ADR-0044).
 
 An access token is a JWT for the MCP endpoint alone (RFC 9068): issued by this server (``iss``)
 for the resource the person consented to (``aud``), naming the person (``sub``), their
 organization, the client, the scopes and the consent (``sid``), for minutes. It is signed with a
 key of its own, derived from the API's, so that it cannot pass for the web application's access
-token, nor theirs for it, even where a check were missed. A client that registered the
-``refresh_token`` grant also gets a refresh token, opaque and kept as its SHA-256. A code
-presented twice means someone else may hold it: the consent is revoked, and the MCP endpoint,
-which reads the consent on every request, refuses its access tokens.
+token, nor theirs for it, even where a check were missed. A refresh token is opaque, kept as its
+SHA-256, spent once and replaced, to a client that registered the ``refresh_token`` grant. One
+presented again, or a code presented twice, means someone else holds a copy: the consent is
+revoked. Its refresh tokens are refused from then on, and its access tokens at the MCP endpoint,
+which reads the consent on every request.
 
-The person's role is read again when the code is exchanged: a token carries the scopes the
-consent granted that the role still allows, and a role that allows none of them gets no token.
+The person's role is read again at every exchange: a token carries the scopes the consent
+granted that the role still allows, and a role that allows none of them gets no token.
 """
 
 from __future__ import annotations
@@ -55,6 +56,7 @@ __all__ = [
     "exchange_code",
     "form_of",
     "issue_access_token",
+    "refresh",
 ]
 
 ALGORITHM: Final = "HS256"
@@ -263,6 +265,83 @@ async def exchange_code(
         raise
     await session.commit()
     return issued
+
+
+async def refresh(
+    session: AsyncSession,
+    settings: Settings,
+    tokens: TokenSettings,
+    form: Mapping[str, str],
+    *,
+    now: datetime | None = None,
+) -> Issued:
+    """New tokens for a refresh token, which is spent (``grant_type=refresh_token``), and commit;
+    :class:`TokenError` when the request will not do. The consent's row is locked first, so
+    that its refreshes and replays take turns, and each sees what the one before wrote."""
+    moment = now if now is not None else datetime.now(UTC)
+    digest = opaque_token_digest(_required(form, "refresh_token"))
+    client_id = _required(form, "client_id")
+    consent_id = await session.scalar(
+        select(OAuthRefreshToken.authorization_id).where(OAuthRefreshToken.digest == digest)
+    )
+    if consent_id is None:
+        raise TokenError("invalid_grant", "the refresh token is not one this server issued")
+    consent = await session.scalar(
+        select(OAuthAuthorization).where(OAuthAuthorization.id == consent_id).with_for_update()
+    )
+    stored = await session.scalar(
+        select(OAuthRefreshToken).where(OAuthRefreshToken.digest == digest)
+    )
+    try:
+        if consent is None or stored is None:  # gone with its membership a moment ago
+            raise TokenError("invalid_grant", "the refresh token is not one this server issued")
+        if consent.revoked_at is not None:
+            raise TokenError("invalid_grant", "the consent was revoked")
+        if stored.used_at is not None:
+            consent.revoked_at = moment
+            await session.commit()
+            raise TokenError(
+                "invalid_grant",
+                "the refresh token was used already: every token of the consent is revoked",
+            )
+        if stored.expires_at <= moment:
+            raise TokenError("invalid_grant", "the refresh token has expired")
+        if client_id != consent.client_id:
+            raise TokenError("invalid_grant", "the refresh token was issued to another client")
+        client = await session.get(OAuthClient, consent.client_id)
+        if client is None or REFRESH_GRANT not in client.grant_types:
+            raise TokenError(
+                "unauthorized_client", "the client did not register the refresh_token grant"
+            )
+        _check_resource(settings, consent, form.get("resource"))
+        asked = _scopes_asked(form, consent)
+        scopes = _allowed(
+            [scope for scope in consent.scopes if scope in asked], await _role_of(session, consent)
+        )
+        stored.used_at = moment
+        # Spent before the next one is kept: a consent has one unspent refresh token at most.
+        await session.flush()
+        issued = await _issue(
+            session, settings, tokens, consent, scopes=scopes, moment=moment, renewable=True
+        )
+    except TokenError:
+        await session.rollback()
+        raise
+    await session.commit()
+    return issued
+
+
+def _scopes_asked(form: Mapping[str, str], consent: OAuthAuthorization) -> list[str]:
+    """The scopes a refresh asks for: those it names, all of them granted by the consent, or
+    the consent's when it names none (RFC 6749 §6)."""
+    if "scope" not in form:
+        return list(consent.scopes)
+    asked = form["scope"].split(" ")
+    # What the consent granted is all well formed; anything else, an empty name or one of other
+    # characters, is refused with it, and not repeated back (RFC 6749 §5.2).
+    if not set(asked) <= set(consent.scopes):
+        raise TokenError("invalid_scope", "the consent does not grant every scope asked for")
+    return asked
 
 
 def _check_resource(settings: Settings, consent: OAuthAuthorization, resource: str | None) -> None:
