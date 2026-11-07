@@ -1,4 +1,5 @@
-"""Finished jobs are deleted once they are older than ``SEF_JOB_RETENTION_DAYS`` (ADR-0038).
+"""What is kept for a while, and then deleted: finished jobs, once they are older than
+``SEF_JOB_RETENTION_DAYS`` (ADR-0038).
 
 A job's row keeps its parameters, its progress and its result or error, which say what was done
 for an organization; after the retention period they are deleted with it. Jobs under way are

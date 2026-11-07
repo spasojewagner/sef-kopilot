@@ -23,8 +23,8 @@ from sef_api.invoices.validator import validator_for
 from sef_api.jobs import store
 from sef_api.jobs.kinds import HANDLERS
 from sef_api.jobs.queue import TASK, put, redis_settings
-from sef_api.jobs.retention import forget_old_jobs
 from sef_api.jobs.runs import JobContext, run_job
+from sef_api.retention import forget_old_jobs
 from sef_api.settings import Settings
 
 __all__ = ["ATTEMPT_SECONDS", "forget", "main", "options", "run", "shutdown", "startup", "sweep"]

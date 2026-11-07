@@ -30,7 +30,6 @@ from sef_api.jobs import routes as jobs
 from sef_api.jobs import store as job_store
 from sef_api.jobs.kinds import HANDLERS
 from sef_api.jobs.queue import ArqRunner, redis_settings
-from sef_api.jobs.retention import keep_forgetting_old_jobs
 from sef_api.jobs.runners import InlineRunner, JobRunner
 from sef_api.jobs.runs import JobContext, run_job
 from sef_api.llm import llm_for
@@ -40,6 +39,7 @@ from sef_api.rag.explainer import Explainer
 from sef_api.rate_limits import RateLimiter, limits
 from sef_api.repairs import routes as repairs
 from sef_api.repairs.repairer import Repairer
+from sef_api.retention import keep_forgetting_old_jobs
 from sef_api.routes import health
 from sef_api.settings import Settings
 from sef_api.unexpected import AnswerUnexpectedErrors

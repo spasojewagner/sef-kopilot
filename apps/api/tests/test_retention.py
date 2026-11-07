@@ -1,4 +1,4 @@
-"""Finished jobs are deleted after the retention period; jobs under way never are (ADR-0038)."""
+"""What is deleted after its retention period: finished jobs, never one under way (ADR-0038)."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from sef_api import retention
 from sef_api.db import Database
-from sef_api.jobs import retention
 from sef_api.main import create_app
 from sef_api.models import Job, JobStatus, Role
 from sef_api.settings import Settings
