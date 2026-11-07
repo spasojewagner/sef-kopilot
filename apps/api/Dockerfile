@@ -13,6 +13,11 @@ ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.13.7
 FROM ${UV_IMAGE} AS uv
 
 FROM ${PYTHON_IMAGE} AS build
+# Git, with which the rule sets pinned to a tag are fetched when the build is given none, as
+# from a clone of the repository. Only this stage has it: the image copies /app alone from here.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \

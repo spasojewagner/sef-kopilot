@@ -55,3 +55,4 @@ per branch, to keep them with the code they describe.
 | `test/api-settings-without-the-environment` | [m3-api-settings-without-the-environment.md](m3-api-settings-without-the-environment.md) |
 | `build/api-container` | [m3-api-container.md](m3-api-container.md) |
 | `chore/infra-deploy` | [m3-infra-deploy.md](m3-infra-deploy.md) |
+| `fix/api-image-fetches-rule-sets` | [m3-api-image-from-a-clone.md](m3-api-image-from-a-clone.md) |

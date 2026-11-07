@@ -145,6 +145,10 @@ is tagged.
 
 ### Fixed
 
+- `apps/api`: the API's image builds from a clone of the repository, which holds no rule sets.
+  The build then fetches them, three of them with git, which its stage lacked, so the first
+  build on Render failed; CI had given its build the rule sets from its cache, and now gives it
+  what a clone holds.
 - `apps/api` tests: a test application's settings are the values its test gives, and no longer
   what the developer's environment and `.env` hold besides, which could give it a language
   model's provider and key. `Settings.from_values()` builds settings from given values alone,

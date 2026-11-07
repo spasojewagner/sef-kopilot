@@ -323,17 +323,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The rule sets the other jobs cache, which the build checks against their pins and keeps;
-      # on a miss the build fetches them from their official sources itself.
-      - name: Cache fetched rule sets
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            third_party/*
-            !third_party/README.md
-            !third_party/manifest.json
-            !third_party/_compiled
-          key: rulesets-${{ hashFiles('third_party/manifest.json') }}
+      # Not the rule sets the other jobs cache: the build is given what a clone of the repository
+      # holds, as Render's is, and fetches them from their official sources itself. A cache here
+      # once hid that it could not.
+      - name: Check that the build is given no rule sets
+        run: test -z "$(git ls-files --others third_party)"
 
       - name: Build the image
         run: docker build -f apps/api/Dockerfile -t sef-kopilot-api:ci .
