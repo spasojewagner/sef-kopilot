@@ -25,6 +25,8 @@ is tagged.
   3 650 days, or none with `null` (the permissions `organization:read` and
   `organization:manage`, which no API key holds). A change checks the owner's role again under
   the organization's lock, and the audit log records it with what the period was.
+- `apps/web`: the organization's page, `/organization`, linked from the header: every member
+  sees the organization's name, their role and how long it keeps its stored invoices.
 
 ## [0.3.0] - 2026-11-07
 

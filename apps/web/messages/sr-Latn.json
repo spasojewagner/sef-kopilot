@@ -10,7 +10,8 @@
   "account": {
     "signIn": "Prijava",
     "signOut": "Odjava",
-    "invoices": "Fakture"
+    "invoices": "Fakture",
+    "organization": "Organizacija"
   },
   "home": {
     "status": "pre-alpha",
@@ -296,6 +297,28 @@
       "unreachable": "API ne odgovara. Stanje popravke se ponovo učitava: proverite ga pre nego što pokušate ponovo.",
       "uncertain": "API nije jasno odgovorio. Stanje popravke je ponovo učitano: proverite ga pre nego što pokušate ponovo.",
       "failed": "Odluka nije zabeležena. Pokušajte ponovo malo kasnije."
+    }
+  },
+  "organization": {
+    "title": "Organizacija",
+    "loading": "Učitavanje organizacije…",
+    "notLoaded": "Organizacija nije učitana. Pokušajte ponovo malo kasnije.",
+    "name": "Naziv",
+    "you": "Vaš nalog",
+    "role": "Vaša uloga",
+    "roles": {
+      "owner": "vlasnik",
+      "accountant": "računovođa",
+      "client": "klijent"
+    },
+    "retention": {
+      "title": "Čuvanje faktura",
+      "description": "Koliko dugo se ovde čuvaju fakture koje organizacija sačuva, sa izveštajem i popravkama.",
+      "none": "Fakture se čuvaju dok ih neko ne obriše.",
+      "period": "Svaka faktura se čuva {period} od dana kada je sačuvana, a zatim se briše sa izveštajem i popravkama.",
+      "ownersOnly": "Rok čuvanja menja vlasnik organizacije.",
+      "days": "{days, plural, one {# dan} other {# dana}}",
+      "years": "{years, plural, one {# godinu} few {# godine} other {# godina}}"
     }
   },
   "apiWaking": {
