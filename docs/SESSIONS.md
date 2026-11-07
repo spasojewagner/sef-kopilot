@@ -1937,3 +1937,27 @@ the seeded faults, each caught (see the pull request); screenshots of every page
 dark.
 
 Next: a short film of the golden path, then M4's OAuth 2.1 steps, rebased on these.
+
+## 2026-11-07 — `feat/mcp-explain-errors` (3 commits, stacked on `feat/web-app-restyle`)
+
+Outcome: the MCP server's second tool, `explain_errors`, does what `POST /invoices/explain`
+does: the report, and an explanation of each rule it names with the passages it cites, in
+Serbian or English, counted as a validation and a request to the language model, storing
+nothing. A refactor first gives the tools one way to validate the invoice they are given.
+
+Findings:
+
+- The tool's description tells the client's model to quote the server's citations rather than
+  add law of its own: the guardrail of ADR-0021 holds on the server, and the client's prose is
+  the client's.
+- A server without a model refuses before counting anything, as the route does, so a refusal
+  spends none of the caller's validations (tested).
+- The explanations kept with a stored invoice (ADR-0040) wait for the tools on stored invoices;
+  this tool explains the document it is given.
+- OAuth 2.1 moves ahead of the remaining tools: the assistants that sign in their users, the
+  milestone's demo among them, connect only with it.
+
+Verification: the API's tests, the tool's answer compared with the route's in both languages;
+the seeded faults, each caught (see the pull request); ruff, mypy.
+
+Next: OAuth 2.1 for the MCP server.

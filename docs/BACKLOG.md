@@ -102,10 +102,11 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/web-brand` — the brand, at the maintainer's request (2026-11-07): ink navy and one teal accent as tokens under shadcn/ui's names, in light and dark, their contrast tested against WCAG 2.2 AA; Onest and JetBrains Mono from the packages' files; the mark, a compass bezel whose needle is a check, as the favicon and the home-screen icon; the header on the navy, with a member's sections and the current one marked, and a link past it to the one `main` (ADR-0043)
 - [x] `feat/web-landing` — the home page as the product's page: what it does, beside an example of a report that tells its story once, the end shown without motion; the course an invoice takes; the rule sets; the HTTP API and the MCP server at the build's API; the synthetic invoices to try it on; the image a shared link shows, at `SITE_URL` off Vercel
 - [x] `feat/web-app-restyle` — the application's pages in the brand's look: states as tints that keep 4.5:1 (tested as a browser mixes them), a report and a repair opening with their summary under the way back, the validator's layers as a checklist beside the rules, the upload's field, the framed list and its empty state, signing in beside the navy, the 404
-- [ ] `feat/mcp-invoice-tools` — tools on stored invoices, through the routes' services: storing one, `explain_errors` (the kept explanations first, ADR-0040) and `revalidate`
+- [x] `feat/mcp-explain-errors` — `explain_errors` does what `POST /invoices/explain` does: the report and an explanation of each rule it names, in Serbian or English, with its citations; counted as a validation and a request to the language model, storing nothing; refused before counting on a server without a model
+- [ ] `feat/mcp-oauth21` — OAuth 2.1 with PKCE, RFC 9728, RFC 8414, RFC 8707, RFC 7591; scopes per tool (moved up on 2026-11-07: assistants that sign in their users connect only with it)
+- [ ] `feat/mcp-invoice-tools` — tools on stored invoices, through the routes' services: storing one, its explanations (the kept ones first, ADR-0040) and `revalidate`
 - [ ] `feat/mcp-propose-fix` — `propose_fix`: a repair the model proposes for a stored invoice, which a person decides on the repair's page (ADR-0024), whose address the tool answers
 - [ ] `feat/mcp-search-rules` — `search_rules`: the rules of a profile and the passages of the corpus, by a rule's id or by words
-- [ ] `feat/mcp-oauth21` — OAuth 2.1 with PKCE, RFC 9728, RFC 8414, RFC 8707, RFC 7591; scopes per tool
 - [ ] Demo from Claude and ChatGPT documented with screenshots
 - [ ] Learning note: OAuth 2.1 flows for MCP
 - [ ] Release: `v0.4.0`
