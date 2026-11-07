@@ -122,16 +122,42 @@ pnpm --filter @sef-kopilot/web lint        # ESLint (Next.js core-web-vitals + T
 pnpm --filter @sef-kopilot/web typecheck   # next typegen + tsc --noEmit
 pnpm --filter @sef-kopilot/web test        # Vitest + Testing Library (jsdom)
 pnpm --filter @sef-kopilot/web build       # production build
+pnpm --filter @sef-kopilot/web e2e         # the golden path in a browser (Playwright), below
 ```
 
 Formatting is handled by Prettier from the repository root (`pnpm format`).
+
+## The end-to-end test
+
+One Playwright test walks the golden path in Chromium (`e2e/golden-path.spec.ts`, ADR-0033): a
+person registers, uploads an invoice whose type code SEF does not accept, reads its report, has
+the language model suggest a repair, reads its diff, approves it, and finds the invoice valid on
+its report and in the list. It runs against the application's production build and the API as
+it runs, on ports of their own, 3100 and 8100, so that it runs beside `pnpm dev` and `make api`;
+`playwright.config.ts` starts both and stops them afterwards. The API starts on a database of
+its own, made anew each time, and a scripted model proposes the repair
+(`scripts/serve_e2e_api.py`): nothing is sent to a model's provider.
+
+It needs PostgreSQL (`make up`), named by `SEF_TEST_DATABASE_URL` as in the root `.env.example`,
+the rule sets (`make rulesets`), and Chromium for Playwright, installed once:
+
+```bash
+pnpm --filter @sef-kopilot/web exec playwright install chromium
+pnpm --filter @sef-kopilot/web e2e         # or `make e2e` from the root
+```
+
+A failure names its step, and keeps a screenshot and a trace of the page in `test-results/`;
+`pnpm --filter @sef-kopilot/web exec playwright show-report` opens them. The build the test
+makes sends the pages to its API: build again before `pnpm start`.
 
 ## Layout
 
 ```text
 .env.example       the web application's settings: the API's address
 components.json    shadcn/ui's settings: style, stylesheet, aliases
+e2e/               the end-to-end test of the golden path (Playwright)
 messages/          the interface's texts, one file per language
+playwright.config.ts  the end-to-end test's browser, and the API and the build it starts
 src/app/[locale]/  routes (App Router) under the language: the root layout, the home page,
                    `sign-in`, `register`, `invoices`, `invoices/[id]` and its
                    `repairs/[repairId]`, the 404;

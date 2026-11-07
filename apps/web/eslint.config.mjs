@@ -27,6 +27,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated from the API's OpenAPI document (`pnpm api:types`).
     "src/lib/api-schema.d.ts",
+    // What the end-to-end test leaves: its report, with the trace viewer's scripts, and traces.
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 
