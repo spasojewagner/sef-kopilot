@@ -3,13 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderIn } from "@/test/render";
 
-import { LanguageSwitcher } from "./language-switcher";
+import { LanguageSwitcher, Languages } from "./language-switcher";
 
-const pathname = vi.hoisted(() => ({ current: "/sr-Latn" }));
+/** The page's path; none while it is not known yet, as when the page is built. */
+const pathname = vi.hoisted(() => ({ current: "/sr-Latn" as string | null }));
 
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
-  usePathname: () => pathname.current,
+  usePathname: () => {
+    if (pathname.current === null) {
+      // Rendering waits for the path, as it does where the path is known only when asked for.
+      throw new Promise(() => {});
+    }
+    return pathname.current;
+  },
 }));
 
 describe("Language switcher", () => {
@@ -51,5 +58,17 @@ describe("Language switcher", () => {
     expect(screen.getByRole("link", { name: "Srpski" })).not.toHaveAttribute(
       "aria-current",
     );
+  });
+
+  it("keeps the links' place, neither seen nor read, until the page's path is known", () => {
+    pathname.current = null;
+
+    renderIn("sr-Latn", <Languages />);
+
+    const place = screen.getByText("Srpski").closest("ul") as HTMLElement;
+    expect(place).toHaveAttribute("aria-hidden", "true");
+    expect(place).toHaveClass("invisible");
+    expect(place.textContent).toBe("SrpskiEnglish");
+    expect(screen.queryAllByRole("link", { hidden: true })).toEqual([]);
   });
 });
