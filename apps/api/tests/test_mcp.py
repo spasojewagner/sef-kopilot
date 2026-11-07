@@ -13,7 +13,7 @@ from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Final
 
 import httpx2
 import pytest
@@ -28,20 +28,29 @@ from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
 from sef_api.db import Database
 from sef_api.main import create_app
 from sef_api.models import ApiKey, User
+from sef_api.rag.explainer import Explainer
 
 from .conftest import REPOSITORY_ROOT, settings_for
+from .corpora import QuotingModel, repository_corpus, store_corpus
 from .factories import Key, Office, api_key, office
+from .test_explainer import FakeEmbedder
 
 FIXTURES = REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic"
 VALID = (FIXTURES / "srb-final-invoice.xml").read_text()
 #: The seller's PIB has a wrong check digit, 100000025, which the violations quote.
 WRONG_PIB = (FIXTURES / "mutations" / "srb-009-pib-check-digit.xml").read_text()
+#: The total with VAT is wrong, and so the amount due: two rules, BR-CO-15 and BR-CO-16.
+WRONG_TOTALS = (FIXTURES / "mutations" / "br-co-15-total-with-vat.xml").read_text()
 
 #: The tools the server offers, what each requires, and arguments it accepts: the audit that a
 #: tool cannot join the server without a permission of its own.
 TOOLS: dict[str, tuple[Permission, dict[str, Any]]] = {
     "validate_invoice": (Permission.INVOICES_VALIDATE, {"xml": VALID}),
+    "explain_errors": (Permission.INVOICES_VALIDATE, {"xml": WRONG_PIB}),
 }
+
+#: What ``serving`` is given for a server without a language model.
+NO_MODEL: Final = object()
 
 #: The headers a client sends with every message it posts.
 POSTED = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
@@ -88,12 +97,27 @@ async def running(app: FastAPI) -> AsyncIterator[None]:
 
 
 @asynccontextmanager
-async def serving(database: Database, database_url: str, **variables: str) -> AsyncIterator[Served]:
+async def serving(
+    database: Database,
+    database_url: str,
+    *,
+    model: Any = None,
+    embedder: Any = None,
+    corpus: bool = False,
+    **variables: str,
+) -> AsyncIterator[Served]:
+    """The application with ``variables`` set, running, on a database with Primer's office and,
+    if asked, the repository's corpus; explaining with ``model``, a stand-in that quotes the
+    passages unless another is given, and with ``embedder`` if one is."""
     async with database.sessions() as setup:
+        if corpus:
+            await store_corpus(setup, repository_corpus())
         primer = await office(setup, "Primer Računovodstvo", "primer.example")
         key = await api_key(setup, primer.organization, primer.client)
         await setup.commit()
     app = create_app(settings_for(database_url, **variables))
+    app.state.explainer = None if model is NO_MODEL else Explainer(model or QuotingModel())
+    app.state.embedder = embedder
     async with running(app):
         yield Served(app, primer, key)
 
@@ -288,6 +312,16 @@ async def test_the_server_offers_its_tools_with_what_each_does(served: Served) -
     assert validating.input_schema["required"] == ["xml"]
     assert validating.output_schema is not None
     assert validating.output_schema["title"] == "ValidationReport"
+    explaining = offered["explain_errors"]
+    assert explaining.annotations is not None
+    # Each call asks the model, whose answers may differ.
+    assert (explaining.annotations.read_only_hint, explaining.annotations.idempotent_hint) == (
+        True,
+        False,
+    )
+    assert explaining.input_schema["required"] == ["xml"]
+    assert explaining.output_schema is not None
+    assert explaining.output_schema["title"] == "Explained"
 
 
 @pytest.mark.parametrize("name", sorted(TOOLS))
@@ -403,15 +437,141 @@ async def test_a_document_the_validator_refuses_is_refused_in_the_routes_words(
     assert text_of(answered) == f"Error executing tool validate_invoice: {routed.json()['detail']}"
 
 
+# --- explain_errors ----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("language", ["sr", "en"])
+async def test_errors_are_explained_as_the_route_explains_them(
+    language: str, committed_database: Database, database_url: str
+) -> None:
+    model = QuotingModel()
+    async with (
+        serving(committed_database, database_url, model=model, corpus=True) as served,
+        connected(served.app, served.key) as client,
+        served.http(served.key.header()) as http,
+    ):
+        answered = await client.call_tool(
+            "explain_errors", {"xml": WRONG_PIB, "language": language}
+        )
+        routed = await http.post(
+            "/invoices/explain",
+            params={"language": language},
+            content=WRONG_PIB.encode(),
+            headers={"Content-Type": "application/xml"},
+        )
+
+    assert not answered.is_error
+    explained, expected = answered.structured_content, routed.json()
+    assert explained is not None
+    # Written a moment apart; nothing else differs.
+    del explained["written_at"], expected["written_at"]
+    assert explained == expected
+    (explanation,) = explained["explanations"]
+    assert explanation["rule_id"] == "SRB-009"
+    assert explanation["citations"]
+    assert explained["language"] == language
+    # The model was asked the same by the tool and by the route.
+    by_tool, by_route = model.asked
+    assert by_tool == by_route
+
+
+async def test_the_rules_beyond_a_calls_share_are_left_as_the_route_leaves_them(
+    committed_database: Database, database_url: str
+) -> None:
+    async with (
+        serving(committed_database, database_url, corpus=True, SEF_MAX_EXPLANATIONS="1") as served,
+        connected(served.app, served.key) as client,
+        served.http(served.key.header()) as http,
+    ):
+        answered = await client.call_tool("explain_errors", {"xml": WRONG_TOTALS})
+        routed = await http.post(
+            "/invoices/explain",
+            content=WRONG_TOTALS.encode(),
+            headers={"Content-Type": "application/xml"},
+        )
+
+    explained = answered.structured_content
+    assert explained is not None
+    assert [explanation["rule_id"] for explanation in explained["explanations"]] == ["BR-CO-15"]
+    assert explained["unexplained"] == routed.json()["unexplained"] == ["BR-CO-16"]
+
+
+async def test_the_servers_embedder_finds_passages_by_their_meaning(
+    committed_database: Database, database_url: str
+) -> None:
+    embedder = FakeEmbedder()
+    async with (
+        serving(committed_database, database_url, corpus=True, embedder=embedder) as served,
+        connected(served.app, served.key) as client,
+    ):
+        answered = await client.call_tool("explain_errors", {"xml": WRONG_PIB})
+
+    assert not answered.is_error
+    # What SRB-009 says, never what the violation found.
+    assert embedder.queries
+    assert not [query for query in embedder.queries if "100000025" in query]
+
+
+async def test_a_server_without_a_model_says_so_and_counts_nothing(
+    committed_database: Database, database_url: str
+) -> None:
+    async with (
+        serving(
+            committed_database, database_url, model=NO_MODEL, SEF_VALIDATIONS_PER_MINUTE="1"
+        ) as served,
+        connected(served.app, served.key) as client,
+    ):
+        refused = await client.call_tool("explain_errors", {"xml": WRONG_PIB})
+        validated = await client.call_tool("validate_invoice", {"xml": WRONG_PIB})
+
+    assert refused.is_error
+    assert text_of(refused) == (
+        "Error executing tool explain_errors: no language model is configured on this server"
+    )
+    # The validation a minute was not spent on the refused explanation.
+    assert not validated.is_error
+
+
+async def test_requests_to_the_model_are_counted_with_the_routes(
+    committed_database: Database, database_url: str
+) -> None:
+    async with (
+        serving(
+            committed_database, database_url, corpus=True, SEF_EXPLANATIONS_PER_MINUTE="1"
+        ) as served,
+        connected(served.app, served.key) as client,
+        served.http(served.key.header()) as http,
+    ):
+        first = await client.call_tool("explain_errors", {"xml": WRONG_PIB})
+        routed = await http.post(
+            "/invoices/explain",
+            content=WRONG_PIB.encode(),
+            headers={"Content-Type": "application/xml"},
+        )
+        again = await client.call_tool("explain_errors", {"xml": WRONG_PIB})
+
+    assert not first.is_error
+    assert routed.status_code == 429
+    assert again.is_error
+    assert text_of(again) == f"Error executing tool explain_errors: {routed.json()['detail']}"
+
+
+# --- what the server logs ----------------------------------------------------------------------
+
+
 async def test_nothing_of_the_invoice_reaches_a_log(
-    served: Served, caplog: pytest.LogCaptureFixture
+    committed_database: Database, database_url: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.DEBUG)
 
-    async with connected(served.app, served.key) as client:
-        answered = await client.call_tool("validate_invoice", {"xml": WRONG_PIB})
-    # A client of an earlier revision takes another path through the server, which logs more.
-    async with served.http(served.key.header() | POSTED) as http:
+    async with (
+        serving(committed_database, database_url, corpus=True) as served,
+        connected(served.app, served.key) as client,
+        served.http(served.key.header() | POSTED) as http,
+    ):
+        validated = await client.call_tool("validate_invoice", {"xml": WRONG_PIB})
+        explained = await client.call_tool("explain_errors", {"xml": WRONG_PIB})
+        # A client of an earlier revision takes another path through the server, which logs more.
         await http.post("/mcp", json=initialize())
         earlier = await http.post(
             "/mcp", json=asking("tools/call", name="validate_invoice", arguments={"xml": WRONG_PIB})
@@ -424,7 +584,8 @@ async def test_nothing_of_the_invoice_reaches_a_log(
         for record in caplog.records
         if not record.name.startswith(("mcp.client", "httpx"))
     ]
-    assert "100000025" in str(answered.structured_content)
+    assert "100000025" in str(validated.structured_content)
+    assert "100000025" in str(explained.structured_content)
     assert "100000025" in earlier.text
     assert logged
     assert not [line for line in logged if "100000025" in line or "RF-2026-000123" in line]
