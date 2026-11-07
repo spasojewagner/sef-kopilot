@@ -25,9 +25,9 @@ any revision, so a restart, which the free plan does often, loses nothing.
 **What a tool call goes through here.**
 
 ```text
-POST /mcp ─► LimitBodies (1 MiB) ─► RequireKey: Origin? POST? API key? ─► SDK: parse, find the
-tool, check the arguments against its schema ─► validate_invoice: permission, rate limit,
-validator ─► the report, as the route's
+POST /mcp ─► LimitBodies (1 MiB) ─► RequireCredential: Origin? POST? API key? ─► SDK: parse,
+find the tool, check the arguments against its schema ─► validate_invoice: permission, rate
+limit, validator ─► the report, as the route's
 ```
 
 **Three ideas worth keeping.**

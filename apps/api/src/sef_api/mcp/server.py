@@ -4,8 +4,8 @@ The server lives in the API's process and answers over Streamable HTTP without s
 message is a POST answered with JSON, so any instance answers any message, a restart loses
 nothing, and a client of an earlier revision of the protocol is answered too. The endpoint is a
 route of the API's application, behind its middleware (the limit on bodies, the answers to
-unexpected failures), and :class:`~sef_api.mcp.access.RequireKey` admits callers in front of the
-server as the routes' dependencies do.
+unexpected failures), and :class:`~sef_api.mcp.access.RequireCredential` admits callers in front
+of the server as the routes' dependencies do.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from starlette.routing import Route
 
 from sef_api import __version__
 from sef_api.mcp import tools
-from sef_api.mcp.access import RequireKey
+from sef_api.mcp.access import RequireCredential
 from sef_api.settings import Settings
 
 __all__ = ["INSTRUCTIONS", "PATH", "mount"]
@@ -49,13 +49,14 @@ def mount(app: FastAPI, settings: Settings) -> StreamableHTTPSessionManager:
         stateless_http=True,
         max_request_body_size=settings.max_body_bytes,
         # The SDK's guard against DNS rebinding checks the Host header against a list of hosts,
-        # which a server behind a platform's proxy does not know. RequireKey checks the origin
-        # of a page instead, and every request needs a key, which a page cannot send unasked.
+        # which a server behind a platform's proxy does not know. RequireCredential checks the
+        # origin of a page instead, and every request needs a credential, which a page cannot send
+        # unasked.
         transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
     )
     manager = server.session_manager
     app.router.routes.append(
-        Route(PATH, RequireKey(manager.handle_request, origins=settings.web_origins))
+        Route(PATH, RequireCredential(manager.handle_request, origins=settings.web_origins))
     )
     return manager
 

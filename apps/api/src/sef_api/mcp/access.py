@@ -17,6 +17,7 @@ from typing import Final, cast
 from fastapi import HTTPException, status
 from mcp.server.mcpserver import Context
 from mcp.server.mcpserver.exceptions import ToolError
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import Headers
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -27,7 +28,7 @@ from sef_api.auth.dependencies import Principal, current_role, invalid_key, no_l
 from sef_api.auth.permissions import Permission
 from sef_api.db import Database
 
-__all__ = ["METHOD", "RequireKey", "admitted", "as_tool_errors"]
+__all__ = ["METHOD", "RequireCredential", "admitted", "as_tool_errors"]
 
 #: The one method the endpoint answers. Every message of the protocol is posted; the server has
 #: no messages of its own to stream, so a GET that would open such a stream is refused.
@@ -37,11 +38,12 @@ METHOD: Final = "POST"
 _CALLER: Final = "mcp_caller"
 
 
-class RequireKey:
+class RequireCredential:
     """ASGI middleware in front of the MCP endpoint. A page of an origin other than the web
     application's is refused (403), as a guard against DNS rebinding; a method other than POST
-    too (405); and a request without a working API key (401, as the API's routes answer it).
-    The others go on, with the key's principal in the request's state."""
+    too (405); and a request without a working credential, an API key for now (401, as the
+    API's routes answer it). The others go on, with the caller's principal in the request's
+    state."""
 
     def __init__(self, app: ASGIApp, *, origins: Collection[str]) -> None:
         self.app = app
@@ -73,8 +75,8 @@ class RequireKey:
 
 
 async def _caller(database: Database, authorization: str | None) -> Principal:
-    """The principal of the request's API key, with the role its member holds now; the 401 the
-    API's routes answer otherwise."""
+    """The principal of the request's credential, with the role its member holds now; the 401
+    the API's routes answer otherwise."""
     scheme, _, credential = (authorization or "").partition(" ")
     if scheme.lower() != "bearer" or not credential:
         raise HTTPException(
@@ -87,14 +89,19 @@ async def _caller(database: Database, authorization: str | None) -> Principal:
             {"WWW-Authenticate": 'Bearer error="invalid_token"'},
         )
     async with database.sessions() as session:
-        holder = await api_keys.authenticate(session, credential)
-        if holder is None:
-            raise invalid_key()
-        principal = Principal(holder.user_id, holder.organization_id, holder.role, holder.grant)
+        principal = await _key_holder(session, credential)
         role = await current_role(session, principal)
     if role is None:
         raise no_longer_active()
     return replace(principal, role=role)
+
+
+async def _key_holder(session: AsyncSession, credential: str) -> Principal:
+    """The principal of an API key, as it was issued; 401 for one that does not work."""
+    holder = await api_keys.authenticate(session, credential)
+    if holder is None:
+        raise invalid_key()
+    return Principal(holder.user_id, holder.organization_id, holder.role, holder.grant)
 
 
 def admitted(context: Context, permission: Permission) -> tuple[Request, Principal]:
