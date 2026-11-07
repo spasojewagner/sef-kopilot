@@ -19,6 +19,7 @@ describe("The question of the API's health", () => {
       status: "ok",
       service: "sef-kopilot-api",
       version: "0.2.0",
+      public_demo: false,
     };
     vi.stubGlobal(
       "fetch",

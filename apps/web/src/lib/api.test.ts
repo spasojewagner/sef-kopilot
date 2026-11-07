@@ -13,7 +13,12 @@ import {
   WAKE,
 } from "./api";
 
-const HEALTH = { status: "ok", service: "sef-kopilot-api", version: "0.2.0" };
+const HEALTH = {
+  status: "ok",
+  service: "sef-kopilot-api",
+  version: "0.2.0",
+  public_demo: false,
+};
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {

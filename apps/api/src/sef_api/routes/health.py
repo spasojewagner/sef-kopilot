@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from sef_api import __version__
 from sef_api.db import Database, get_database
 from sef_api.invoices.validator import Validator
+from sef_api.settings import Settings
 
 SERVICE_NAME = "sef-kopilot-api"
 
@@ -31,6 +32,13 @@ class HealthResponse(BaseModel):
     status: Literal["ok"] = Field(description="Always `ok` when the process can answer.")
     service: str = Field(description="Service identifier, useful when several APIs share a host.")
     version: str = Field(description="Version of the running API, from the package metadata.")
+    public_demo: bool = Field(
+        description=(
+            "Whether this server is a public demonstration (`SEF_PUBLIC_DEMO`), where no real "
+            "invoice belongs: what is uploaded is stored here, and an explanation or a repair "
+            "sends violations and fields to the language model's provider."
+        )
+    )
 
 
 class ReadinessResponse(BaseModel):
@@ -49,10 +57,19 @@ class ReadinessResponse(BaseModel):
     "/health",
     response_model=HealthResponse,
     summary="Liveness probe",
-    description="Reports that the process is up. Never touches external dependencies.",
+    description=(
+        "Reports that the process is up, and whether it is a public demonstration. Never "
+        "touches external dependencies."
+    ),
 )
-async def health() -> HealthResponse:
-    return HealthResponse(status="ok", service=SERVICE_NAME, version=__version__)
+async def health(request: Request) -> HealthResponse:
+    settings = cast(Settings, request.app.state.settings)
+    return HealthResponse(
+        status="ok",
+        service=SERVICE_NAME,
+        version=__version__,
+        public_demo=settings.public_demo,
+    )
 
 
 @router.get(

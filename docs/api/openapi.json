@@ -16,7 +16,7 @@
           "health"
         ],
         "summary": "Liveness probe",
-        "description": "Reports that the process is up. Never touches external dependencies.",
+        "description": "Reports that the process is up, and whether it is a public demonstration. Never touches external dependencies.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -2682,13 +2682,19 @@
             "type": "string",
             "title": "Version",
             "description": "Version of the running API, from the package metadata."
+          },
+          "public_demo": {
+            "type": "boolean",
+            "title": "Public Demo",
+            "description": "Whether this server is a public demonstration (`SEF_PUBLIC_DEMO`), where no real invoice belongs: what is uploaded is stored here, and an explanation or a repair sends violations and fields to the language model's provider."
           }
         },
         "type": "object",
         "required": [
           "status",
           "service",
-          "version"
+          "version",
+          "public_demo"
         ],
         "title": "HealthResponse",
         "description": "Liveness report."

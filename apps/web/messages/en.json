@@ -95,7 +95,11 @@
     "missing": "Choose an invoice in XML.",
     "profile": "Profile",
     "submit": "Check and keep",
-    "pending": "Checking…"
+    "pending": "Checking…",
+    "demo": {
+      "title": "A public demo: synthetic invoices only",
+      "description": "What you upload is stored on this server, and explanations and repairs send the rules' messages and the invoice's fields to the language model's provider. Do not upload a real invoice: take <examples>one of the synthetic ones</examples>, with made-up companies and tax numbers."
+    }
   },
   "uploadErrors": {
     "signedOut": "The session has expired. Sign in again.",

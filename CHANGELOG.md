@@ -127,6 +127,11 @@ is tagged.
   demo's free instance wakes, and is then sent once. After three seconds of waiting, the footer
   says that the API is waking up, and a notice above the page says why, and that what the
   visitor sends will go as soon as the API answers.
+- The public demo asks for synthetic invoices only (ADR-0037). `SEF_PUBLIC_DEMO`, set in
+  `render.yaml`, makes `GET /health` report `public_demo`; the upload then says that what is
+  uploaded is stored there, and that explanations and repairs send the rules' messages and the
+  invoice's fields to the language model's provider, and links to the repository's synthetic
+  invoices.
 
 ### Changed
 

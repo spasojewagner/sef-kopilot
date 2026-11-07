@@ -4,8 +4,7 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
-
-const REPOSITORY_URL = "https://github.com/spasojewagner/sef-kopilot";
+import { REPOSITORY_URL } from "@/lib/links";
 
 export default function HomePage() {
   const t = useTranslations("home");

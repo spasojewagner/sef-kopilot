@@ -1625,3 +1625,27 @@ Verification: every hook on the changed files, the secret scan; the runbook's st
 against what was done on 2026-11-07.
 
 Next: the upload notice; the release of v0.3.0.
+
+## 2026-11-07 — `feat/web-demo-upload-notice` (5 commits, stacked on `docs/infra-first-deploy`)
+
+Outcome: the public demo asks for synthetic invoices only (ADR-0037). `SEF_PUBLIC_DEMO`, false by
+default and set in `render.yaml`, makes `GET /health` report `public_demo`; the upload reads the
+footer's answer and, on the demo, says that what is uploaded is stored there and that
+explanations and repairs send the rules' messages and the invoice's fields to the model's
+provider, with a link to the repository's synthetic invoices.
+
+Findings:
+
+- The fact belongs to the API, which stores the invoice and calls the model: a variable of the
+  web application's build would have been a dashboard setting outside the repository, and wrong
+  for any other client of the demo's API.
+- Reading the health answer with the query disabled keeps the upload's requests as they were:
+  the existing tests that count them did not change.
+
+Verification: the API's 973 tests, ruff, mypy; the OpenAPI document and the web application's
+types regenerated, and their test in step; 221 web tests (3 new), `tsc --noEmit`, ESLint and
+Prettier clean; seeded faults caught (see the pull request); screenshots of the note from a
+production build whose API answered as the demo, in Serbian and English, light and dark, and on a
+phone.
+
+Next: the release of v0.3.0.
