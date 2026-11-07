@@ -1691,3 +1691,23 @@ Verification: `einvoice --version` says 0.3.0; the versions match the packages' 
 tests); the lock file checked; every hook and the secret scan.
 
 Next: M4, beginning with retention.
+
+## 2026-11-07 — `feat/api-job-retention` (2 commits, stacked on `chore/release-0.3.0`)
+
+Outcome: the first item of M4. A finished job is deleted 30 days after it ends
+(`SEF_JOB_RETENTION_DAYS`, ADR-0038), with its parameters, progress and result or error; a job
+under way never is, since the deletion asks for an end it does not have. The deletion runs where
+the jobs run: the API's process with `SEF_JOBS=inline`, at its start and every six hours; each
+worker with `SEF_JOBS=arq`, at its start and every day at 03:17.
+
+Findings:
+
+- On the free plan the process starts many times a day, so its start alone keeps the table near
+  the period; the six-hour loop is for a process that runs for weeks.
+- `create_app` reached the linter's limit of statements: the deletion's task lives in a context
+  manager of its own, entered on an exit stack in the lifespan.
+
+Verification: the API's tests, the worker's with Redis among them; seven seeded faults, each
+caught (see the pull request); ruff, mypy.
+
+Next: the retention of stored invoices, with the page where an owner sets it.
