@@ -46,5 +46,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0038](0038-finished-jobs-are-deleted-after-thirty-days.md) | Finished jobs are deleted after thirty days, where they run | accepted | 2026-11-07 |
 | [0039](0039-an-organization-sets-how-long-it-keeps-its-invoices.md) | An organization sets how long it keeps its stored invoices | accepted | 2026-11-07 |
 | [0040](0040-explanations-are-kept-by-the-digest-of-their-report.md) | Explanations of a stored invoice are kept with it, by the digest of the report they explain | accepted | 2026-11-07 |
+| [0041](0041-what-the-rules-say-is-embedded-once.md) | What the rules say is embedded once an embedding model, and kept | accepted | 2026-11-07 |
 
 Planned (recorded when the work lands): OAuth 2.1 for MCP (M4), evaluation thresholds (M6).

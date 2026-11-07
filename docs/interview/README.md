@@ -66,3 +66,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-organization-settings` | [m4-web-organization-settings.md](m4-web-organization-settings.md) |
 | `feat/api-explanations-kept` | [m4-api-explanations-kept.md](m4-api-explanations-kept.md) |
 | `feat/web-explanations-kept` | [m4-web-explanations-kept.md](m4-web-explanations-kept.md) |
+| `perf/rag-rule-embeddings-kept` | [m4-rag-rule-embeddings-kept.md](m4-rag-rule-embeddings-kept.md) |
