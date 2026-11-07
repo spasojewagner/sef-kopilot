@@ -12,6 +12,7 @@ import {
   type Language,
 } from "@/lib/explanations";
 import { getInvoice, listInvoices } from "@/lib/invoices";
+import { getAuthorizationRequest } from "@/lib/oauth";
 import { getOrganization } from "@/lib/organization";
 import { getRepair, listRepairs } from "@/lib/repairs";
 import { authorized, type Identity } from "@/lib/session";
@@ -121,5 +122,13 @@ export function repairQuery(invoiceId: string, repairId: string) {
   return queryOptions({
     queryKey: ["invoices", "one", invoiceId, "repairs", repairId],
     queryFn: ({ signal }) => getRepair(invoiceId, repairId, signal),
+  });
+}
+
+/** What an MCP client asks to do for the visitor, while the request waits for their decision. */
+export function authorizationRequestQuery(id: string) {
+  return queryOptions({
+    queryKey: ["oauth", "requests", id],
+    queryFn: ({ signal }) => getAuthorizationRequest(id, signal),
   });
 }

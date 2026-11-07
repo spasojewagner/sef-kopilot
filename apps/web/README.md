@@ -125,6 +125,17 @@ one, or none, is saved at once. When the page cannot know whether the period was
 reads it again; when the API refuses an owner who is one no longer, the page says so and shows
 the role the API now reports.
 
+## A client's request
+
+An MCP client that asks to act for a person, an assistant say, sends them through the API's
+authorization server to `/oauth/consent?request=…` (ADR-0044), in their browser's language. A
+visitor who is not signed in signs in there, and stays. The page shows what the client asks, by
+scope; the name it gave itself, marked as unchecked; the address it takes the person back to, by
+host, and whether that is an application on their own computer (the loopback interface, or a
+scheme of its own); and the organization and the account it will work in, with a way to sign in
+with another. Allowing or denying takes the person back to the client with its answer
+(`src/lib/oauth.ts`); a request that expired or was decided says so, and what to do.
+
 ## Frames
 
 No other site may show a page of the application in a frame: every page is served with
@@ -211,13 +222,16 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 One Playwright test walks the golden path in Chromium (`e2e/golden-path.spec.ts`, ADR-0033): a
 person registers, uploads an invoice whose type code SEF does not accept, reads its report, has
 the language model suggest a repair, reads its diff, approves it, and finds the invoice valid on
-its report and in the list. On the way, it checks that no page may be framed by another site,
-that the pages load their typeface and their favicon, that a key leads past the header, and that
-the home page's example shows its end to a visitor who asks for less motion. It runs against the
-application's production build and the API as it runs, on ports of their own, 3100 and 8100, so
-that it runs beside `pnpm dev` and `make api`; `playwright.config.ts` starts both and stops them
-afterwards. The API starts on a database of its own, made anew each time, and a scripted model
-proposes the repair (`scripts/serve_e2e_api.py`): nothing is sent to a model's provider.
+its report and in the list; then an MCP client asks to act for the person, who allows it on the
+consent page, and the client gets its code. On the way, it checks that no page may be framed by
+another site, that the pages load their typeface and their favicon, that a key leads past the
+header, and that the home page's example shows its end to a visitor who asks for less motion. It
+runs against the application's production build and the API as it runs, on ports of their own,
+3100 and 8100, so that it runs beside `pnpm dev` and `make api`; `playwright.config.ts` starts
+both and stops them afterwards. The API starts on a database of its own, made anew each time,
+and a scripted model proposes the repair (`scripts/serve_e2e_api.py`): nothing is sent to a
+model's provider. The client's own page, where the person is taken back, is answered by the
+test.
 
 It needs PostgreSQL (`make up`), named by `SEF_TEST_DATABASE_URL` as in the root `.env.example`,
 the rule sets (`make rulesets`), and Chromium for Playwright, installed once:
@@ -242,7 +256,7 @@ playwright.config.ts  the end-to-end test's browser, and the API and the build i
 scripts/           renders the brand's raster icons from the favicon (`pnpm brand:images`)
 src/app/[locale]/  routes (App Router) under the language: the root layout, the home page,
                    `sign-in`, `register`, `invoices`, `invoices/[id]` and its
-                   `repairs/[repairId]`, `organization`, the 404;
+                   `repairs/[repairId]`, `organization`, `oauth/consent`, the 404;
                    `page.test.tsx` next to `page.tsx`
 src/app/globals.css  Tailwind, the brand's tokens under shadcn/ui's names, dark mode, the
                    navy surface and the page's width; `tokens.test.ts` measures their contrast

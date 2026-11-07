@@ -229,6 +229,10 @@ system are marked as such.
       grants at most what the person's role does, issues a code valid for two minutes, stored as
       a SHA-256, and is recorded in the audit log. Every answer to the client names the issuer
       (RFC 9207).
+- [x] The page where a person decides shows the name a client gave itself as unchecked, the host
+      it will take them back to and the organization it will work in, so that a request someone
+      else started, sent to them as a link, can be told for what it is; it cannot be framed
+      (V3), and it decides only on a press of its own.
 - [ ] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
       protected resource metadata (RFC 9728), authorization server metadata (RFC 8414), the
       issuer in authorization responses (RFC 9207) and client ID metadata documents, with scope

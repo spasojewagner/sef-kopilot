@@ -86,6 +86,18 @@ describe("Sign-in form", () => {
     expect(localStorage.getItem(STORAGE_KEY)).toContain("refresh-1");
   });
 
+  it("stays on the page that holds it, when that page says what follows", async () => {
+    router.replace.mockClear();
+    stubSignIn(() => json(200, TOKENS));
+    const onSignedIn = vi.fn();
+    renderIn("sr-Latn", <SignInForm onSignedIn={onSignedIn} />);
+
+    await signInAs("alice@primer.example", "a long passphrase");
+
+    await waitFor(() => expect(onSignedIn).toHaveBeenCalledOnce());
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
   it("says that the address or the password is wrong", async () => {
     stubSignIn(() =>
       json(401, { detail: "invalid e-mail address or password" }),

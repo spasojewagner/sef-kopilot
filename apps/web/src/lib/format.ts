@@ -47,3 +47,11 @@ export function formatMoment(locale: string, moment: string): string {
     timeZone: "Europe/Belgrade",
   }).format(new Date(moment));
 }
+
+/** The time of day of a moment, as the API sends it in ISO 8601, in Belgrade's time: `14:32`. */
+export function formatTime(locale: string, moment: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    timeStyle: "short",
+    timeZone: "Europe/Belgrade",
+  }).format(new Date(moment));
+}
