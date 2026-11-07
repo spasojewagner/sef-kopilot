@@ -515,9 +515,10 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   | Tool | Requires | Does what this route does |
   | --- | --- | --- |
   | `validate_invoice` | `invoices:validate` | `POST /invoices/validate`: the XML as text, a profile (`srb` by default); nothing is stored |
+  | `explain_errors` | `invoices:validate` | `POST /invoices/explain`: the same, and a language (`sr` by default); the report and the explanations of its rules, with their citations; nothing is stored |
 
 - **Its limits:** a message is a JSON body, at most `SEF_MAX_BODY_BYTES` (1 MiB): a larger
-  invoice is uploaded to `POST /invoices/validate`. Only POST is answered (405 otherwise),
+  invoice is uploaded to the tool's route instead. Only POST is answered (405 otherwise),
   since the server sends no messages of its own. A page of an origin other than the web
   application's is refused (403).
 

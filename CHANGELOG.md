@@ -50,6 +50,10 @@ is tagged.
   name, and the icons it gives a browser's tab and a phone's home screen.
 - `apps/web`: a shared link to the site shows the brand's image (`opengraph-image.png`), at the
   site's address, which a build outside Vercel reads from `SITE_URL`.
+- `apps/api`: the MCP tool `explain_errors` explains an invoice's errors as
+  `POST /invoices/explain` does: the report and an explanation of each rule it names, in
+  Serbian or English, with the passages it cites; counted as a validation and a request to the
+  language model, storing nothing.
 
 ### Changed
 
