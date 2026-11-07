@@ -135,6 +135,24 @@ version that `package.json` pins. Colours, radii and dark mode are CSS variables
 Class names are joined with `cn()` from `@/lib/utils`, which resolves Tailwind conflicts in
 favour of the last.
 
+## The brand
+
+The pages' look is a set of tokens in `src/app/globals.css` (ADR-0043), under the names the
+shadcn/ui components read, so that they take it unchanged:
+
+- **Colours**, in OKLCH: ink navy for text and the primary action, on a cool off-white with
+  white cards, every grey tinted towards the navy; one accent, a teal (`brand`), which also
+  marks what is valid (`success`), beside `warning` and `destructive`. Dark mode sets the same
+  names, deeper. `surface-ink` is the brand's navy in both modes: it sets the tokens again for
+  what it holds, so that a button inside it is light on navy with no variant of its own.
+  `src/app/tokens.test.ts` measures every pair of tokens a page sets together, text at 4.5:1
+  and the accent and the focus ring at 3:1, in light, in dark and on the navy; a new pairing
+  goes into its lists.
+- **Typefaces**: Onest for the text and JetBrains Mono for rule ids, paths and XML
+  (`font-mono`), imported from the `@fontsource-variable` packages in the root layout and served
+  with the pages. A browser loads only the ranges of characters a page has: Latin, Latin
+  Extended for č, ć, đ, š and ž, Cyrillic.
+
 ## Checks
 
 ```bash
@@ -182,7 +200,8 @@ src/app/[locale]/  routes (App Router) under the language: the root layout, the 
                    `sign-in`, `register`, `invoices`, `invoices/[id]` and its
                    `repairs/[repairId]`, `organization`, the 404;
                    `page.test.tsx` next to `page.tsx`
-src/app/globals.css  Tailwind, shadcn/ui's theme tokens, dark mode
+src/app/globals.css  Tailwind, the brand's tokens under shadcn/ui's names, dark mode, the
+                   navy surface; `tokens.test.ts` measures their contrast
 src/components/    components shared by the pages: the header and its account, the footer, the
                    language switcher, the API's status, the cache of the API's answers, the
                    sign-in and registration forms, the upload, the list, the report, the

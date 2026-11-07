@@ -8,6 +8,11 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { routing } from "@/i18n/routing";
 
+// The typefaces are served with the pages, from the packages' files (ADR-0043): Onest for the
+// text, JetBrains Mono for rule ids, paths and XML. Each file covers a range of characters, so
+// a browser loads Latin, Latin Extended (č, ć, đ, š, ž) or Cyrillic only when a page has them.
+import "@fontsource-variable/onest";
+import "@fontsource-variable/jetbrains-mono";
 import "../globals.css";
 
 /** Every page is rendered once for each language, when the application is built. */

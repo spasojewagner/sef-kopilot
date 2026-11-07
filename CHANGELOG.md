@@ -47,6 +47,13 @@ is tagged.
   requires its route's permission and counts against its limits; the first, `validate_invoice`,
   validates an invoice's XML as `POST /invoices/validate` does, storing nothing.
 
+### Changed
+
+- `apps/web`: the pages wear the brand's colours and typefaces (ADR-0043): ink navy and one
+  teal accent, in light and in dark; Onest for the text and JetBrains Mono for rule ids, paths
+  and XML, served with the pages. A test measures the contrast of every pair of colours the
+  pages set together against WCAG 2.2 AA.
+
 ## [0.3.0] - 2026-11-07
 
 The repair loop and the web application, live (milestone M3): patches `{xpath, op, value,
