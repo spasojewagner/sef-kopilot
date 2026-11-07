@@ -40,6 +40,7 @@ from sef_api.repairs import routes as repairs
 from sef_api.repairs.repairer import Repairer
 from sef_api.routes import health
 from sef_api.settings import Settings
+from sef_api.unexpected import AnswerUnexpectedErrors
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +174,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         },
         lifespan=lifespan,
     )
+    # Innermost: an unexpected failure is answered inside the middlewares added after it, so
+    # that its 500 is JSON in UTF-8 and carries the CORS headers a page needs to read it.
+    app.add_middleware(AnswerUnexpectedErrors)
     app.add_middleware(LimitBodies, limit=settings.max_body_bytes)
     app.add_middleware(DeclareUTF8)  # it declares the charset of a 413 too
     if settings.web_origins:

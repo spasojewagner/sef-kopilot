@@ -159,6 +159,10 @@ is tagged.
 
 ### Fixed
 
+- `apps/api`: an unexpected failure answers a 500 that a page can read. Starlette answered it
+  outside every middleware, so it had no CORS headers, and a page of the web application saw
+  only a network error and said that the API does not answer; it is now answered inside them,
+  with a JSON body in UTF-8, and the exception still reaches the server's log.
 - `apps/api`: the API's image builds from a clone of the repository, which holds no rule sets.
   The build then fetches them, three of them with git, which its stage lacked, so the first
   build on Render failed; CI had given its build the rule sets from its cache, and now gives it
