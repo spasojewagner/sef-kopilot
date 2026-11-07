@@ -20,10 +20,10 @@ Then open <http://localhost:3000>. The footer says whether the API answers: star
 ## Languages
 
 Every page is in Serbian in the Latin script and in English, with the language as the first
-segment of its path: `/sr-Latn/…` and `/en/…` (`next-intl`, ADR-0026). A path without one is sent
-to the language the browser asks for, or to Serbian (`src/proxy.ts`), and the language
-switcher links to the same page in the other language. The locale is a BCP 47 tag because
-`sr` alone means Cyrillic to the browser's date and number formats.
+segment of its path: `/sr-Latn/…` and `/en/…` (`next-intl`, ADR-0026). A path without one is
+sent to the language the browser asks for, or to Serbian (`src/proxy.ts`), and the language
+switcher links to the same page in the other language, with the query of its address. The locale
+is a BCP 47 tag because `sr` alone means Cyrillic to the browser's date and number formats.
 
 The texts are in `messages/sr-Latn.json` and `messages/en.json`, under the same keys; a test
 fails when a key, or an argument such as `{version}`, is in one file and not the other, and the

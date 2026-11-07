@@ -87,6 +87,8 @@ is tagged.
 - `apps/web`: signing in and registering stand beside the brand's navy on a wide screen; the
   upload's file field is drawn as the page's, the list of invoices is framed, an empty list
   shows where to begin, and a page that does not exist shows the mark off its course.
+- `apps/web`: the language links keep the query of the page's address, so that a page that
+  reads it is the same page in the other language.
 
 ### Security
 

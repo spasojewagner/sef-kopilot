@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Suspense } from "react";
+import { Suspense, useSyncExternalStore } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -28,18 +28,40 @@ export function Languages({ className }: { className?: string }) {
   );
 }
 
-/** The same page in each of the interface's languages. */
+function onHistory(change: () => void): () => void {
+  window.addEventListener("popstate", change);
+  return () => window.removeEventListener("popstate", change);
+}
+
+/**
+ * The query of the page's address, `?request=…`, which a page built ahead of time does not
+ * know: read in the browser once the page is there, and again whenever it renders.
+ */
+function useAddressQuery(): string {
+  return useSyncExternalStore(
+    onHistory,
+    () => window.location.search,
+    () => "",
+  );
+}
+
+/**
+ * The same page in each of the interface's languages, with the query of its address: a page
+ * that reads it, such as the one where a person decides on an MCP client's request, is still
+ * itself in the other language.
+ */
 export function LanguageSwitcher() {
   const t = useTranslations("header");
   const current = useLocale();
   const pathname = usePathname();
+  const query = useAddressQuery();
   return (
     <nav aria-label={t("language")}>
       <ul className="flex gap-1">
         {routing.locales.map((locale) => (
           <li key={locale}>
             <Link
-              href={pathname}
+              href={`${pathname}${query}`}
               locale={locale}
               lang={locale}
               hrefLang={locale}
