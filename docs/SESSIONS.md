@@ -1762,3 +1762,29 @@ caught (see the pull request); screenshots in Serbian and English, light and dar
 phone.
 
 Next: the explanations of a stored invoice, kept with its report.
+
+## 2026-11-07 — `feat/api-explanations-kept` (2 commits, stacked on `feat/web-organization-settings`)
+
+Outcome: the third item of M4. The explanations of a stored invoice's report are kept with it,
+one set a language, by the digest of the report and the day whose law they cite (ADR-0040,
+migration 0013). A later request reads the kept set without asking the model or counting a
+request, a server without a model included, until the invoice's report is another; `GET
+/invoices/{invoice_id}/explanations` reads it alone. Only whole sets are kept.
+
+Findings:
+
+- The backlog planned a job; the request already has a deadline and the visitor waits either way,
+  so the explanations are written in it, and the ADR records why.
+- Keying by the document's digest would miss a revalidation under new rule sets, and keying by
+  when the invoice was validated would discard good sets: the report's digest is what they
+  explain.
+- Finding the invoice now comes before counting a request to the model, so that reading a kept
+  set counts nothing.
+- `GET` answers 204 when none is kept, not 404: the report's page reads it as it opens, and a
+  browser logs a 404 as an error. The end-to-end test, which fails on any error in the console,
+  found it once the page was built on this branch.
+
+Verification: the API's tests, the migrations' included; the seeded faults, each caught (see the
+pull request); ruff, mypy; the OpenAPI document and the web application's types regenerated.
+
+Next: the report's page shows the kept explanations at once.

@@ -1,6 +1,8 @@
 # 29. Explanations of a stored invoice: its report explained, when the visitor asks
 
-- Status: accepted
+- Status: accepted; amended by [0040](0040-explanations-are-kept-by-the-digest-of-their-report.md),
+  under which the explanations it writes are kept with the invoice, one set a language, and read
+  again until the invoice's report is another
 - Date: 2026-11-06
 - Deciders: Marko Spasojević
 - Technical story: milestone M3, branch `feat/web-explanations`; the explanations and citations

@@ -64,3 +64,4 @@ per branch, to keep them with the code they describe.
 | `feat/api-job-retention` | [m4-api-job-retention.md](m4-api-job-retention.md) |
 | `feat/api-invoice-retention` | [m4-api-invoice-retention.md](m4-api-invoice-retention.md) |
 | `feat/web-organization-settings` | [m4-web-organization-settings.md](m4-web-organization-settings.md) |
+| `feat/api-explanations-kept` | [m4-api-explanations-kept.md](m4-api-explanations-kept.md) |
