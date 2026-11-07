@@ -94,6 +94,11 @@ reason, the difference it makes to the invoice and the validator's report on the
 difference is the API's, as it keeps it, and shows no line numbers: they would count the lines
 of the invoice indented anew, not those of the file sent (ADR-0030).
 
+The report of an invalid invoice offers to ask the language model for a repair. It says first
+what the model is sent, asks nothing until the visitor asks, and opens the repair it writes; a
+refusal says why, by the reason the API names, and offers to ask again only where that could
+help (ADR-0031).
+
 ## Components and styles
 
 The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:

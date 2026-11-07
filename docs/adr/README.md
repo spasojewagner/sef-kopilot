@@ -36,5 +36,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0028](0028-the-apis-contract-and-the-pages-of-invoices.md) | The API's contract in the repository, the web application's types generated from it, and an invoice's page as a static shell | accepted | 2026-11-06 |
 | [0029](0029-explanations-of-a-stored-invoice.md) | Explanations of a stored invoice: its report explained, when the visitor asks | accepted | 2026-11-06 |
 | [0030](0030-a-repairs-page.md) | A repair's page: the API's diff and report, read as it keeps them | accepted | 2026-11-07 |
+| [0031](0031-a-repair-asked-of-the-model-from-the-page.md) | A repair asked of the model from the page, and a reason in every conflict | accepted | 2026-11-07 |
 
 Planned (recorded when the work lands): OAuth 2.1 for MCP (M4), evaluation thresholds (M6).

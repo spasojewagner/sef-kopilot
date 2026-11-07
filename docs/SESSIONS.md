@@ -1339,3 +1339,40 @@ fix) and production build, and the Python suites at the tip, which the branches 
 
 Next: `feat/web-repair-suggestion`: ask the language model for a repair from the report's page,
 and open the repair it writes.
+
+## 2026-11-07 — `feat/web-repair-suggestion` (3 commits, stacked on `feat/web-repairs`)
+
+Outcome: the report of an invalid invoice offers a repair written by the language model; the
+page says first what the model is sent, asks nothing until the visitor asks, and opens the repair
+it writes, its reasons in the page's language. Every 409 of the repairs names its reason beside
+the English detail, so that the page, and any other client, tells the refusals apart
+(ADR-0031).
+
+Findings:
+
+- Three refusals of a suggestion share 409: a valid invoice, too many repairs waiting, an invoice
+  changed meanwhile. Only the last is worth asking again, and the body said which in prose. The
+  reason is now part of the contract, for all four routes, raised as one `ConflictError` and
+  answered by one handler, as the login answers its 409 with the organizations to choose from.
+- A suggestion creates a repair, so the page asks with a mutation, not a query: a query may run
+  again by itself, and each run would create another. The answer goes into the cache under the
+  repair's key, and the navigation runs only while the report is still on screen.
+- A server without a model and one without a validator both answer 503 without `Retry-After`;
+  the page names both rather than guess.
+- Every test that renders the report now needs a router, since the report may navigate to the
+  repair it asked for.
+- Checking in a browser, with a stand-in model that patches the type code of every invoice: on
+  SRB-009's mutation, whose type code is already 380, the repairer kept a repair whose only patch
+  rewrote 380 with 380. It changes nothing and waits for a decision that cannot approve it; the
+  backlog has the repairer drop such patches. The stand-in then answered no patch for other
+  rules, and the page showed the 422 with a new try.
+- Seeding faults: thirty-seven, twelve in the API (each conflict's reason, the handler and its
+  body, the OpenAPI document) and twenty-five in the web application (the request, reading the
+  reason, the XML check, the panel, where it is offered). All were caught the first time.
+
+Verification: each commit on its own, with ruff, mypy and the Python suites, and the web
+application's lint, types, tests (158 at the API's commit, 178 from the suggestion on) and
+production build.
+
+Next: `feat/web-diff-approve`: approve or reject a repair on its page, in person, and read the
+invoice, its report and its repairs again.

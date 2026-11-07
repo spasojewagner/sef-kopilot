@@ -94,6 +94,11 @@ is tagged.
   the invoice, as the API keeps it, and the validator's report on the copy. A removed or added
   line is marked for screen readers, not only by colour, and the diff shows no line numbers:
   they count the lines of the invoice indented anew, not of the file sent.
+- `apps/web`: a repair asked of the language model from an invalid invoice's report
+  (ADR-0031). The page says first what the model is sent, asks nothing until the visitor asks,
+  and opens the repair it writes, its reasons in the page's language. A refusal says why: the
+  conflict's reason, no patch a repair keeps, an unusable answer, the seconds to wait, or no
+  model on the server; asking again is offered only where it could help.
 
 ### Changed
 
