@@ -48,7 +48,8 @@ When the migrations run:
 development tools, first from the lock file alone, so that a change of the code keeps that
 layer, then installs the workspace's two packages where they are. The API then finds the rule
 sets and the corpus beside its code, as it does in the repository. The rule sets are checked
-against their pins and fetched from their official sources when the build is given none, and
+against their pins and fetched from their official sources when the build is given none, as
+from a clone of the repository, three of them with git, which only the build's stage has, and
 `warm_up()` compiles every profile's stylesheets into `third_party/_compiled`, which the core
 writes readable by any user. The corpus is copied in, for `python -m sef_api.rag.ingest`. The
 base images are build arguments, so that a build without their registries can name mirrors.
