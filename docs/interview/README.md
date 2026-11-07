@@ -61,3 +61,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-demo-upload-notice` | [m3-web-demo-upload-notice.md](m3-web-demo-upload-notice.md) |
 | `fix/api-unexpected-errors-readable` | [m3-api-unexpected-errors-readable.md](m3-api-unexpected-errors-readable.md) |
 | `chore/release-0.3.0` | [m3-release-0.3.0.md](m3-release-0.3.0.md) |
+| `feat/api-job-retention` | [m4-api-job-retention.md](m4-api-job-retention.md) |

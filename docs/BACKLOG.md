@@ -90,7 +90,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## M4 — MCP + OAuth 2.1 (week 7) · tag `v0.4.0`
 
-- [ ] Retention (moved from M2, then from M3 on 2026-11-07; decided 2026-11-06): finished jobs deleted 30 days after they end (`SEF_JOB_RETENTION_DAYS`, 30); stored invoices kept until their organization sets a retention period of its own, none by default (`SECURITY.md`, V14)
+- [x] `feat/api-job-retention` — finished jobs deleted 30 days after they end (`SEF_JOB_RETENTION_DAYS`, 30), never one under way; where the jobs run, at the start and then every six hours (the API's process) or every day (a worker) (ADR-0038; retention moved from M2, then from M3 on 2026-11-07; decided 2026-11-06)
+- [ ] Retention of stored invoices: kept until their organization sets a retention period of its own, none by default, which an owner sets on a page of the organization's settings (`SECURITY.md`, V14; decided 2026-11-06)
 - [ ] Explanations of a stored invoice kept with its report, written once by a job and read through `POST /invoices/{invoice_id}/explanations` (ADR-0029); the embeddings of what the rules say kept for reuse (moved from M3 on 2026-11-07)
 - [ ] Langfuse and Sentry wiring; structured JSON logs with security events (sign-in, API key use, and when each key was last used) — moved here from M2, after the public demo of M3
 - [ ] A local multilingual embedding model (BGE-M3, 1024 numbers) behind the `Embedder` adapter, for a self-hosted deployment that makes no call to embed
