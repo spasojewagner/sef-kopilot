@@ -17,17 +17,22 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { Link, useRouter } from "@/i18n/navigation";
 import { register } from "@/lib/session";
 
 /** The API's bounds on a new password (ADR-0012). */
 const PASSWORD = { min: 12, max: 128 };
 
-/** Creates an account, its organization with the visitor as owner, and signs in. */
+/**
+ * Creates an account, its organization with the visitor as owner, and signs in. As signing in
+ * is, the form is sent by the page's script only, never with its password in the address.
+ */
 export function RegisterForm() {
   const t = useTranslations("register");
   const messageFor = useAuthErrorMessage();
   const router = useRouter();
+  const hydrated = useHydrated();
   const registering = useMutation({
     mutationFn: register,
     onSuccess: () => router.replace("/"),
@@ -52,7 +57,7 @@ export function RegisterForm() {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-4" onSubmit={submit}>
+        <form method="post" className="grid gap-4" onSubmit={submit}>
           <div className="grid gap-2">
             <Label htmlFor="email">{t("email")}</Label>
             <Input
@@ -97,7 +102,7 @@ export function RegisterForm() {
               </AlertDescription>
             </Alert>
           )}
-          <Button type="submit" disabled={registering.isPending}>
+          <Button type="submit" disabled={!hydrated || registering.isPending}>
             {registering.isPending ? t("pending") : t("submit")}
           </Button>
         </form>

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useSession } from "@/hooks/use-session";
 import { Link, useRouter } from "@/i18n/navigation";
 import { organizationsToChoose, signIn, type Membership } from "@/lib/session";
@@ -30,13 +31,16 @@ interface Credentials {
  * Signs a visitor in with their address and password. A member of several organizations
  * chooses the one to work in, and the API is asked again for it. Signed in, the visitor goes to
  * the home page, unless ``onSignedIn`` says what follows: a page that holds the form and reads
- * the session goes on as it is.
+ * the session goes on as it is. The form is sent by the page's script only: until it has taken
+ * over, the button waits, and the form, were it sent anyway, would be posted, never put in the
+ * address with its password.
  */
 export function SignInForm({ onSignedIn }: { onSignedIn?: () => void }) {
   const t = useTranslations("signIn");
   const messageFor = useAuthErrorMessage();
   const router = useRouter();
   const session = useSession();
+  const hydrated = useHydrated();
   const [choice, setChoice] = useState<{
     credentials: Credentials;
     organizations: Membership[];
@@ -96,7 +100,7 @@ export function SignInForm({ onSignedIn }: { onSignedIn?: () => void }) {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6">
-        <form className="grid gap-4" onSubmit={submit}>
+        <form method="post" className="grid gap-4" onSubmit={submit}>
           <div className="grid gap-2">
             <Label htmlFor="email">{t("email")}</Label>
             <Input
@@ -124,7 +128,7 @@ export function SignInForm({ onSignedIn }: { onSignedIn?: () => void }) {
               <AlertDescription>{failure}</AlertDescription>
             </Alert>
           )}
-          <Button type="submit" disabled={signingIn.isPending}>
+          <Button type="submit" disabled={!hydrated || signingIn.isPending}>
             {signingIn.isPending ? t("pending") : t("submit")}
           </Button>
         </form>

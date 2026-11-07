@@ -2,6 +2,7 @@ import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderResult } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactElement } from "react";
+import { renderToString } from "react-dom/server";
 
 import { makeQueryClient } from "@/components/query-provider";
 import type { Locale } from "@/i18n/routing";
@@ -43,4 +44,23 @@ export function renderIn(
       <QueryClientProvider client={client}>{ui}</QueryClientProvider>
     </NextIntlClientProvider>,
   );
+}
+
+/**
+ * ``ui`` as the server sends it in ``locale``, before any script of the page has run: its
+ * markup, in an element of its own that no page holds.
+ */
+export function asSentIn(locale: Locale, ui: ReactElement): HTMLElement {
+  const html = renderToString(
+    <NextIntlClientProvider
+      locale={locale}
+      messages={MESSAGES[locale]}
+      timeZone="Europe/Belgrade"
+    >
+      <QueryClientProvider client={testQueryClient()}>{ui}</QueryClientProvider>
+    </NextIntlClientProvider>,
+  );
+  const sent = document.createElement("div");
+  sent.innerHTML = html;
+  return sent;
 }

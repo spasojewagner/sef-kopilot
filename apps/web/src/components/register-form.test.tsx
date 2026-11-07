@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { renderIn } from "@/test/render";
+import { asSentIn, renderIn } from "@/test/render";
 
 import { RegisterForm } from "./register-form";
 
@@ -57,6 +57,13 @@ async function registerAs(
 }
 
 describe("Registration form", () => {
+  it("as the server sends it, is sent by the page's script only, never in the address", () => {
+    const page = asSentIn("sr-Latn", <RegisterForm />);
+
+    expect(page.querySelector("form")).toHaveAttribute("method", "post");
+    expect(page.querySelector('button[type="submit"]')).toBeDisabled();
+  });
+
   it("creates the account with its organization, and goes home", async () => {
     router.replace.mockClear();
     const bodies = stubRegister(

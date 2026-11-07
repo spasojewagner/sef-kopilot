@@ -2048,3 +2048,23 @@ faults, each caught (see the pull request); each commit checked on its own.
 
 Next: `fix/web-credentials-post`, then the token endpoint and the metadata documents
 (`feat/mcp-oauth-tokens`).
+
+## 2026-11-07 — `fix/web-credentials-post` (2 commits, stacked on `feat/web-oauth-consent`)
+
+Outcome: a password never goes into a page's address. The sign-in and registration forms are
+sent by the page's script only: their button waits until it has taken over (`useHydrated()`),
+and the forms are posted, so that one sent anyway carries its password in the body.
+
+Findings:
+
+- The pages are built ahead of time, so their forms work before React attaches its handlers; a
+  form without a method is then the browser's own GET. A preview whose server held an older
+  build showed it: its script never loaded, and the registration's password was in the address.
+- A POST to a page built ahead of time is answered with the page (checked against
+  `next start`): posting the forms needs no route of its own.
+
+Verification: the web application's tests, the forms' markup as the server sends it among them;
+the seeded faults, each caught (see the pull request); the end-to-end test; each commit checked
+on its own.
+
+Next: the token endpoint and the metadata documents (`feat/mcp-oauth-tokens`).
