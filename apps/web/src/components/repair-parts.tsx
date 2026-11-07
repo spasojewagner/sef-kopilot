@@ -10,7 +10,7 @@ import type { ListedRepair, RepairStatus } from "@/lib/repairs";
 export function RepairStatusBadge({ status }: { status: RepairStatus }) {
   const t = useTranslations("repairs.states");
   return (
-    <Badge variant={status === "proposed" ? "default" : "outline"}>
+    <Badge variant={status === "proposed" ? "warning" : "outline"}>
       {t(status)}
     </Badge>
   );

@@ -148,9 +148,10 @@ shadcn/ui components read, so that they take it unchanged:
   names, deeper. `surface-ink` is the brand's navy in both modes: it sets the tokens again for
   what it holds, so that a button inside it is light on navy with no variant of its own, and
   paints nothing itself (`bg-background` inside it is the navy).
-  `src/app/tokens.test.ts` measures every pair of tokens a page sets together, text at 4.5:1
-  and the accent and the focus ring at 3:1, in light, in dark and on the navy; a new pairing
-  goes into its lists.
+  A state's badge is its colour's words on a tint of it (the `Badge` variants `error`,
+  `warning` and `success`). `src/app/tokens.test.ts` measures every pair of tokens a page sets
+  together, text at 4.5:1, the states on their tints too, and the accent and the focus ring at
+  3:1, in light, in dark and on the navy; a new pairing goes into its lists.
 - **Typefaces**: Onest for the text and JetBrains Mono for rule ids, paths and XML
   (`font-mono`), imported from the `@fontsource-variable` packages in the root layout and served
   with the pages. A browser loads only the ranges of characters a page has: Latin, Latin

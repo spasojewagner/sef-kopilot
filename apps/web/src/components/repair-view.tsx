@@ -166,9 +166,9 @@ function OutcomeItem({ outcome }: { outcome: Outcome }) {
         <Badge
           variant={
             outcome.status === "applied"
-              ? "secondary"
+              ? "success"
               : outcome.status === "failed"
-                ? "destructive"
+                ? "error"
                 : "outline"
           }
         >

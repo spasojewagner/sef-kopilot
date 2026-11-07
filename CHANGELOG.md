@@ -64,6 +64,9 @@ is tagged.
   that tells its story once (the error, the explanation, the approved repair, the verdict); how
   an invoice goes through the validator, the model and a person; the rules it is checked
   against; the HTTP API and the MCP server; and the synthetic invoices to try it on.
+- `apps/web`: a verdict, a rule's severity, a repair's state and a patch's outcome are each
+  their state's colour on a tint of it, and a diff's lines too; the light theme's error, warning
+  and success colours are a step deeper, so that their words stay at 4.5:1 on the tint.
 
 ## [0.3.0] - 2026-11-07
 

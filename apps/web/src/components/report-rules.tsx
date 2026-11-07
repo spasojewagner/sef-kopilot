@@ -32,9 +32,7 @@ export function RuleCard({
       <CardHeader className="px-5">
         <CardTitle className="flex flex-wrap items-center gap-2">
           <h3 className="font-mono text-base">{rule.ruleId}</h3>
-          <Badge
-            variant={rule.severity === "fatal" ? "destructive" : "outline"}
-          >
+          <Badge variant={rule.severity === "fatal" ? "error" : "warning"}>
             {t(`severity.${rule.severity}`)}
           </Badge>
           <Badge variant="outline">{t(`layers.${rule.layer}`)}</Badge>
