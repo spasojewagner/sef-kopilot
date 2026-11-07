@@ -89,6 +89,8 @@ export function InvoiceUpload() {
           name="invoice"
           type="file"
           accept=".xml,application/xml,text/xml"
+          // The browser's own button, drawn as the page's: a box with room to aim at.
+          className="h-auto cursor-pointer border-dashed bg-muted/40 py-2.5 file:mr-4 file:h-8 file:cursor-pointer file:rounded-md file:bg-primary file:px-3 file:text-primary-foreground hover:file:bg-primary/90 dark:bg-muted/40"
           aria-describedby="invoice-hint"
           aria-invalid={missing || undefined}
           onChange={() => setMissing(false)}

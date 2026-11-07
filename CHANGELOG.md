@@ -64,6 +64,15 @@ is tagged.
   that tells its story once (the error, the explanation, the approved repair, the verdict); how
   an invoice goes through the validator, the model and a person; the rules it is checked
   against; the HTTP API and the MCP server; and the synthetic invoices to try it on.
+- `apps/web`: a verdict, a rule's severity, a repair's state and a patch's outcome are each
+  their state's colour on a tint of it, and a diff's lines too; the light theme's error, warning
+  and success colours are a step deeper, so that their words stay at 4.5:1 on the tint.
+- `apps/web`: a report and a repair open with a summary of what they are, under the way back,
+  and the validator's layers are a checklist, beside the rules on a wide screen; shadows take
+  the navy's hue.
+- `apps/web`: signing in and registering stand beside the brand's navy on a wide screen; the
+  upload's file field is drawn as the page's, the list of invoices is framed, an empty list
+  shows where to begin, and a page that does not exist shows the mark off its course.
 
 ## [0.3.0] - 2026-11-07
 

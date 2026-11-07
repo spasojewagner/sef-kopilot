@@ -82,9 +82,15 @@ describe("Invoice list", () => {
 
     renderIn("en", <InvoiceList />);
 
-    expect(
-      await screen.findByText("No invoices yet. Send the first one above."),
-    ).toBeInTheDocument();
+    const none = await screen.findByText(
+      "No invoices yet. Send the first one above.",
+    );
+    // Beside a mark of its own, which is decoration, and with no table to read.
+    expect(none.parentElement?.querySelector("svg")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
   it("says when the list could not be loaded", async () => {

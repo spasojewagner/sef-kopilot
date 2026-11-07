@@ -51,16 +51,33 @@ function linear(colour: string): [number, number, number] {
   ];
 }
 
+type Linear = [number, number, number];
+
 /** WCAG 2's contrast ratio of two colours, from 1 to 21. */
-function contrast(first: string, second: string): number {
-  const luminance = (colour: string) => {
-    const [r, g, b] = linear(colour);
+function contrast(first: string | Linear, second: string | Linear): number {
+  const luminance = (colour: string | Linear) => {
+    const [r, g, b] = typeof colour === "string" ? linear(colour) : colour;
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
   const [high, low] = [luminance(first), luminance(second)].sort(
     (x, y) => y - x,
   );
   return (high + 0.05) / (low + 0.05);
+}
+
+/**
+ * `colour` at `share` over `surface`, as `bg-success/12` is drawn: a browser mixes the two in
+ * sRGB as it is stored, with its gamma, not in linear light.
+ */
+function tint(colour: string, share: number, surface: string): Linear {
+  const encode = (value: number) =>
+    value <= 0.0031308 ? 12.92 * value : 1.055 * value ** (1 / 2.4) - 0.055;
+  const decode = (value: number) =>
+    value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  const [top, bottom] = [linear(colour), linear(surface)];
+  return top.map((channel, index) =>
+    decode(share * encode(channel) + (1 - share) * encode(bottom[index])),
+  ) as Linear;
 }
 
 /** Text the pages set on a surface: WCAG 2.2's 4.5:1 for normal text (1.4.3, level AA). */
@@ -83,6 +100,16 @@ const TEXT: [string, string][] = [
   ["destructive", "card"],
 ];
 
+/** A state's words on a tint of its own colour, a badge's look: 4.5:1 as well. */
+const TINTED: [string, string][] = [
+  ["success", "card"],
+  ["success", "background"],
+  ["warning", "card"],
+  ["warning", "background"],
+  ["destructive", "card"],
+  ["destructive", "background"],
+];
+
 /** What must be seen beside the background, not read: 3:1 (1.4.11, non-text contrast). */
 const GRAPHICS: [string, string][] = [
   ["ring", "background"],
@@ -100,6 +127,15 @@ describe.each([
     expect(contrast(tokens[text], tokens[surface])).toBeGreaterThanOrEqual(4.5);
   });
 
+  it.each(TINTED)(
+    "set %s on its 12 % tint over %s at 4.5:1 or more",
+    (state, surface) => {
+      expect(
+        contrast(tokens[state], tint(tokens[state], 0.12, tokens[surface])),
+      ).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
   it.each(GRAPHICS)("set %s beside %s at 3:1 or more", (mark, surface) => {
     expect(contrast(tokens[mark], tokens[surface])).toBeGreaterThanOrEqual(3);
   });
@@ -111,5 +147,9 @@ describe("Contrast", () => {
     expect(contrast("oklch(0.5 0 0)", "oklch(0.5 0 0)")).toBe(1);
     // #767676, the darkest grey that still passes on white, at 4.54:1.
     expect(contrast("oklch(0.5658 0 0)", "oklch(1 0 0)")).toBeCloseTo(4.54, 1);
+    // Black at half over white is #808080 as stored, not the grey of half the light.
+    expect(
+      contrast(tint("oklch(0 0 0)", 0.5, "oklch(1 0 0)"), "oklch(1 0 0)"),
+    ).toBeCloseTo(3.95, 1);
   });
 });

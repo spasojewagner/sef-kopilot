@@ -30,10 +30,8 @@ export function DiffView({ diff, label }: { diff: string; label: string }) {
             className={cn(
               "px-3 whitespace-pre",
               line.kind === "gap" && "bg-muted text-muted-foreground",
-              line.kind === "added" &&
-                "bg-emerald-50 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-50",
-              line.kind === "removed" &&
-                "bg-red-50 text-red-950 dark:bg-red-950 dark:text-red-50",
+              line.kind === "added" && "bg-success/12",
+              line.kind === "removed" && "bg-destructive/12",
             )}
           >
             {line.kind === "gap" ? (

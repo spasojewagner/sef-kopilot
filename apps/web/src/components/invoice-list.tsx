@@ -1,6 +1,7 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { FileCheck2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Verdict } from "@/components/verdict";
@@ -37,27 +38,36 @@ export function InvoiceList() {
   }
   const all = invoices.data.pages.flatMap((page) => page.invoices);
   if (all.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t("none")}</p>;
+    return (
+      <div className="grid justify-items-center gap-3 rounded-xl border border-dashed px-6 py-10 text-center">
+        <span className="grid size-10 place-items-center rounded-full bg-brand/15 text-foreground">
+          <FileCheck2 aria-hidden="true" className="size-5" />
+        </span>
+        <p className="max-w-sm text-sm text-muted-foreground">{t("none")}</p>
+      </div>
+    );
   }
   return (
     <div className="grid gap-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("number")}</TableHead>
-            <TableHead>{t("parties")}</TableHead>
-            <TableHead>{t("issued")}</TableHead>
-            <TableHead className="text-right">{t("amount")}</TableHead>
-            <TableHead>{t("verdict")}</TableHead>
-            <TableHead>{t("submitted")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {all.map((invoice) => (
-            <InvoiceRow key={invoice.id} invoice={invoice} locale={locale} />
-          ))}
-        </TableBody>
-      </Table>
+      <div className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
+        <Table>
+          <TableHeader className="bg-muted/50">
+            <TableRow>
+              <TableHead>{t("number")}</TableHead>
+              <TableHead>{t("parties")}</TableHead>
+              <TableHead>{t("issued")}</TableHead>
+              <TableHead className="text-right">{t("amount")}</TableHead>
+              <TableHead>{t("verdict")}</TableHead>
+              <TableHead>{t("submitted")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {all.map((invoice) => (
+              <InvoiceRow key={invoice.id} invoice={invoice} locale={locale} />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
       {invoices.hasNextPage && (
         <div>
           <Button

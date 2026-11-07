@@ -54,6 +54,14 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Shadows in the navy's hue rather than black, so that a card sits on the page, not above it. */
+@theme {
+  --shadow-xs: 0 1px 2px 0 oklch(0.234 0.047 250.5 / 0.05);
+  --shadow-sm:
+    0 1px 3px 0 oklch(0.234 0.047 250.5 / 0.07),
+    0 1px 2px -1px oklch(0.234 0.047 250.5 / 0.07);
+}
+
 /*
  * Light: ink navy on a cool off-white, white cards, one accent. Every grey is tinted towards
  * the navy's hue (250°). `tokens.test.ts` checks the contrast of each pair a page puts
@@ -78,14 +86,14 @@
   --muted-foreground: oklch(0.5 0.033 250);
   --accent: oklch(0.945 0.012 248);
   --accent-foreground: oklch(0.234 0.047 250.5);
-  --destructive: oklch(0.555 0.21 27);
+  --destructive: oklch(0.52 0.21 27);
   --border: oklch(0.915 0.012 250);
   --input: oklch(0.89 0.014 250);
   --ring: oklch(0.631 0.111 181.6);
   --brand: oklch(0.631 0.111 181.6);
   --brand-foreground: oklch(0.234 0.047 250.5);
-  --success: oklch(0.52 0.09 183);
-  --warning: oklch(0.555 0.12 70);
+  --success: oklch(0.48 0.09 183);
+  --warning: oklch(0.5 0.12 70);
 }
 
 /* Dark: the same navy, deeper, under light text; the accent brightens to keep its contrast. */

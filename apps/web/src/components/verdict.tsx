@@ -7,12 +7,12 @@ import { Badge } from "@/components/ui/badge";
 export function Verdict({ valid }: { valid: boolean }) {
   const t = useTranslations("verdict");
   return valid ? (
-    <Badge variant="secondary">
+    <Badge variant="success">
       <CircleCheck />
       {t("valid")}
     </Badge>
   ) : (
-    <Badge variant="destructive">
+    <Badge variant="error">
       <CircleAlert />
       {t("invalid")}
     </Badge>

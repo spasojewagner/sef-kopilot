@@ -1916,3 +1916,24 @@ which now fetches the image a shared link shows; the seeded faults, each caught 
 request); screenshots in light and dark, on a desktop and a phone.
 
 Next: the application's pages in the brand's look (`feat/web-app-restyle`).
+
+## 2026-11-07 — `feat/web-app-restyle` (4 commits, stacked on `feat/web-landing`)
+
+Outcome: the application's pages wear the brand. States are their colour on a tint of it; a
+report and a repair open with a summary under the way back, and the validator's layers are a
+checklist beside the rules; the upload's field and the list of invoices are drawn as the
+page's, with an empty state; signing in and registering stand beside the navy; the 404 shows
+the mark off its course.
+
+Findings:
+
+- The token test, given the states' tints, failed all six light pairs (4.0:1 to 4.45:1): the
+  light theme's error, warning and success colours are a step deeper, and the learning note on
+  colour says how a tint is mixed.
+- The way back to the list was at a report's foot; it is above the summary, and once only.
+
+Verification: the web application's tests, ESLint, TypeScript, the build; the end-to-end test;
+the seeded faults, each caught (see the pull request); screenshots of every page in light and
+dark.
+
+Next: a short film of the golden path, then M4's OAuth 2.1 steps, rebased on these.

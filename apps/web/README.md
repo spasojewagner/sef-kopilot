@@ -75,8 +75,9 @@ A signed-in visitor sends an invoice at `/sr-Latn/invoices`, under a profile (SE
 Peppol), and lands on its report at `/sr-Latn/invoices/{id}`; the same page lists the
 organization's invoices, the newest first, with their verdicts. The report shows what the
 validator read from the invoice, every rule it fails with the places it fails it, the errors
-first, and what each layer of the validator found. The rules' messages are their sources'
-own, in English, and are marked so. Amounts keep every decimal the invoice states. The report's
+first, and what each layer of the validator found, as a checklist beside the rules on a wide
+screen; the way back to the list is above it. The rules' messages are their sources' own, in
+English, and are marked so. Amounts keep every decimal the invoice states. The report's
 page is the same for every invoice and is built once; the id is read when the page is asked
 for, and the report is fetched in the browser (ADR-0028).
 
@@ -148,9 +149,10 @@ shadcn/ui components read, so that they take it unchanged:
   names, deeper. `surface-ink` is the brand's navy in both modes: it sets the tokens again for
   what it holds, so that a button inside it is light on navy with no variant of its own, and
   paints nothing itself (`bg-background` inside it is the navy).
-  `src/app/tokens.test.ts` measures every pair of tokens a page sets together, text at 4.5:1
-  and the accent and the focus ring at 3:1, in light, in dark and on the navy; a new pairing
-  goes into its lists.
+  A state's badge is its colour's words on a tint of it (the `Badge` variants `error`,
+  `warning` and `success`). `src/app/tokens.test.ts` measures every pair of tokens a page sets
+  together, text at 4.5:1, the states on their tints too, and the accent and the focus ring at
+  3:1, in light, in dark and on the navy; a new pairing goes into its lists.
 - **Typefaces**: Onest for the text and JetBrains Mono for rule ids, paths and XML
   (`font-mono`), imported from the `@fontsource-variable` packages in the root layout and served
   with the pages. A browser loads only the ranges of characters a page has: Latin, Latin
@@ -238,8 +240,9 @@ src/app/globals.css  Tailwind, the brand's tokens under shadcn/ui's names, dark 
 src/app/icon.svg   the favicon, and the icons rendered from it: `apple-icon.png`, `favicon.ico`
 src/components/    components shared by the pages: the logo, the header with its sections and
                    its account, the footer, the language switcher, the API's status, the cache
-                   of the API's answers, the sign-in and registration forms, the upload, the
-                   list, the report, the repairs and the diff, the organization's page
+                   of the API's answers, the sign-in and registration forms and their frame,
+                   the upload, the list, the report, the repairs and the diff, the way back
+                   to a page's parent, the organization's page
 src/components/landing/  the home page's sections, its example of a report and its backdrop
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps

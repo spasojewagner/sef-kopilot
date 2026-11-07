@@ -70,3 +70,4 @@ per branch, to keep them with the code they describe.
 | `feat/mcp-server` | [m4-mcp-server.md](m4-mcp-server.md) |
 | `feat/web-brand` | [m4-web-brand.md](m4-web-brand.md) |
 | `feat/web-landing` | [m4-web-landing.md](m4-web-landing.md) |
+| `feat/web-app-restyle` | [m4-web-app-restyle.md](m4-web-app-restyle.md) |

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 
+import { BackLink } from "@/components/back-link";
 import { DiffView } from "@/components/diff-view";
 import { Fact } from "@/components/fact";
 import { RepairDecision } from "@/components/repair-decision";
@@ -14,9 +15,7 @@ import {
 import { ReportLayers, RuleCard } from "@/components/report-rules";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Verdict } from "@/components/verdict";
-import { Link } from "@/i18n/navigation";
 import { ApiError } from "@/lib/api";
 import { formatMoment } from "@/lib/format";
 import { repairQuery } from "@/lib/queries";
@@ -60,13 +59,7 @@ export function RepairView({
 
 function BackToTheReport({ invoiceId }: { invoiceId: string }) {
   const t = useTranslations("repair");
-  return (
-    <div>
-      <Button asChild variant="outline">
-        <Link href={`/invoices/${invoiceId}`}>{t("back")}</Link>
-      </Button>
-    </div>
-  );
+  return <BackLink href={`/invoices/${invoiceId}`}>{t("back")}</BackLink>;
 }
 
 function Loaded({ repair }: { repair: Repair }) {
@@ -76,14 +69,15 @@ function Loaded({ repair }: { repair: Repair }) {
   const rules = byRule(repair.report);
   return (
     <article className="grid gap-8">
-      <header className="grid gap-4">
+      <BackToTheReport invoiceId={repair.invoice_id} />
+      <header className="grid gap-5 rounded-xl border bg-card p-5 text-card-foreground shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             {t("heading", { when: formatMoment(locale, repair.proposed_at) })}
           </h1>
           <RepairStatusBadge status={repair.status} />
         </div>
-        <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+        <dl className="grid gap-x-6 gap-y-4 border-t pt-5 text-sm sm:grid-cols-2">
           <Fact term={t("proposedBy")} value={proposer(repair)} />
           <Decision repair={repair} />
         </dl>
@@ -128,7 +122,6 @@ function Loaded({ repair }: { repair: Repair }) {
 
       <ReportLayers report={repair.report} />
       <RepairDecision repair={repair} />
-      <BackToTheReport invoiceId={repair.invoice_id} />
     </article>
   );
 }
@@ -166,9 +159,9 @@ function OutcomeItem({ outcome }: { outcome: Outcome }) {
         <Badge
           variant={
             outcome.status === "applied"
-              ? "secondary"
+              ? "success"
               : outcome.status === "failed"
-                ? "destructive"
+                ? "error"
                 : "outline"
           }
         >
