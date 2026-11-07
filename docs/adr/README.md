@@ -49,5 +49,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0041](0041-what-the-rules-say-is-embedded-once.md) | What the rules say is embedded once an embedding model, and kept | accepted | 2026-11-07 |
 | [0042](0042-the-mcp-server-lives-in-the-apis-process.md) | The MCP server lives in the API's process and answers without sessions | accepted | 2026-11-07 |
 | [0043](0043-the-web-applications-look-is-a-set-of-tested-tokens.md) | The web application's look is a set of tested tokens, on the brand's navy | accepted | 2026-11-07 |
+| [0044](0044-the-mcp-endpoints-authorization-server.md) | The MCP endpoint's authorization server is the API's own, for public clients | accepted | 2026-11-07 |
 
-Planned (recorded when the work lands): OAuth 2.1 for MCP (M4), evaluation thresholds (M6).
+Planned (recorded when the work lands): evaluation thresholds (M6).

@@ -214,9 +214,15 @@ system are marked as such.
 
 ### V10 OAuth and OIDC
 
+- [x] Clients of the authorization server register themselves (RFC 7591) as public clients:
+      no secret is issued or stored, whatever a client asks for, and PKCE will prove that a
+      client began the authorization it ends (ADR-0044). A redirect URI is `https`, `http` on
+      the loopback interface or an application's own scheme, never with a fragment or a
+      `javascript:` or `data:` scheme; registrations are counted by address.
 - [ ] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
-      protected resource metadata (RFC 9728), authorization server metadata (RFC 8414) and
-      dynamic client registration (RFC 7591) with scope checks per tool.
+      protected resource metadata (RFC 9728), authorization server metadata (RFC 8414), the
+      issuer in authorization responses (RFC 9207) and client ID metadata documents, with scope
+      checks per tool.
 
 ### V11 Cryptography
 
