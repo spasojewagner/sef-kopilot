@@ -2068,3 +2068,36 @@ the seeded faults, each caught (see the pull request); the end-to-end test; each
 on its own.
 
 Next: the token endpoint and the metadata documents (`feat/mcp-oauth-tokens`).
+
+## 2026-11-08 — `feat/mcp-oauth-tokens` (4 commits, stacked on `fix/web-credentials-post`)
+
+Outcome: the token endpoint of the MCP endpoint's authorization server (ADR-0044),
+`POST /oauth/token`. A consent's code is exchanged once, with the PKCE verifier that began the
+authorization, for an access token for the MCP endpoint alone, a JWT whose audience is the
+endpoint, signed with a key derived for these tokens; a client that registered the
+`refresh_token` grant also gets a refresh token, spent once for the next pair. A code or a
+refresh token presented again revokes the consent; the role is read again at each exchange
+(migration 0017). A fix first: the authorization endpoint answered a resource that is no URI
+with a 500, and repeated unknown scopes back.
+
+Findings:
+
+- The step had the review of its own ADR-0044 asked for, by a reader who had not written it.
+  It found the registered grant types ignored (a client that asked for codes only got refresh
+  tokens), no test of two exchanges or two refreshes at once (with the row locks removed, every
+  test still passed), a resource that is no URI answered 500, a duplicate parameter slipping
+  through when one was empty, and errors that repeated what the client sent. Each is fixed and
+  tested; the race tests run on committing sessions, where the locks do the work.
+- The redirect URI follows OAuth 2.1: optional at the exchange, since PKCE binds the code, and
+  the one the code was sent to when given; the first draft's rule, keyed to the number of
+  registered URIs, refused a client that OAuth 2.1 allows.
+- Revoking a consent stops its refresh tokens at once; its access tokens stop when the MCP
+  endpoint reads the consent on every request, which is the next step's.
+
+Verification: the API's tests, the token endpoint's against OAuth 2.1 §4.1.3 and §4.3, RFC 7636,
+RFC 8707 and RFC 9068, and two races on committing sessions; the seeded faults, each caught (see
+the pull request); ruff, mypy; the OpenAPI document and the web application's types
+regenerated; each commit checked on its own.
+
+Next: the MCP endpoint accepting these tokens, and the metadata documents
+(`feat/mcp-oauth-resource`).

@@ -76,3 +76,4 @@ per branch, to keep them with the code they describe.
 | `feat/mcp-oauth-authorization` | [m4-mcp-oauth-authorization.md](m4-mcp-oauth-authorization.md) |
 | `feat/web-oauth-consent` | [m4-web-oauth-consent.md](m4-web-oauth-consent.md) |
 | `fix/web-credentials-post` | [m4-web-credentials-post.md](m4-web-credentials-post.md) |
+| `feat/mcp-oauth-tokens` | [m4-mcp-oauth-tokens.md](m4-mcp-oauth-tokens.md) |

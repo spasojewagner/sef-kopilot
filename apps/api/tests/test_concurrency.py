@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-from httpx import AsyncClient, Response
+from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import delete, func, select, update
 
 from sef_api.auth import dependencies
@@ -25,22 +25,26 @@ from sef_api.auth.service import TokenSettings
 from sef_api.auth.tokens import new_opaque_token, opaque_token_digest
 from sef_api.db import Database
 from sef_api.locks import lock_organization
+from sef_api.main import create_app
 from sef_api.members import invitations
 from sef_api.members import service as members
 from sef_api.models import (
     AuditEvent,
     Invitation,
     Membership,
+    OAuthAuthorization,
     Organization,
     RefreshToken,
     Role,
     User,
 )
+from sef_api.oauth import tokens as oauth_tokens
 from sef_api.organization import service as organization_service
 from sef_api.rate_limits import Limit, PasswordAttempts, RateLimiter
 
-from .conftest import TEST_JWT_SECRET
+from .conftest import TEST_JWT_SECRET, settings_for
 from .factories import bearer
+from .test_oauth_authorization import CALLBACK, SERVER, VERIFIER, authorize, sent_to, sent_to_uri
 
 TOKENS = TokenSettings(
     secret=TEST_JWT_SECRET,
@@ -799,3 +803,109 @@ async def test_listing_the_invitations_takes_no_lock(
             await holder.rollback()
 
     assert listed.status_code == 200
+
+
+@pytest.fixture
+async def authorization_server(
+    committed_database: Database, database_url: str
+) -> AsyncIterator[AsyncClient]:
+    """A client of an application that is also an authorization server, as in production: each
+    request gets a session of its own and commits for real."""
+    app = create_app(settings_for(database_url, **SERVER))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+    await app.state.database.engine.dispose()
+
+
+async def a_consent(api: AsyncClient, organization: Organization, owner: User) -> tuple[str, str]:
+    """A client registered for codes and refresh tokens, and the code an owner's consent issued
+    it, committed."""
+    registered = await api.post(
+        "/oauth/register",
+        json={"redirect_uris": [CALLBACK], "grant_types": ["authorization_code", "refresh_token"]},
+    )
+    client = str(registered.json()["client_id"])
+    _, query = sent_to(await authorize(api, client))
+    approved = await api.post(
+        f"/oauth/requests/{query['request']}/approval",
+        headers=bearer(owner, organization, Role.OWNER),
+    )
+    _, answer = sent_to_uri(approved.json()["redirect_uri"])
+    return client, answer["code"]
+
+
+def an_exchange(client: str, code: str) -> dict[str, str]:
+    return {
+        "grant_type": "authorization_code",
+        "code": code,
+        "client_id": client,
+        "code_verifier": VERIFIER,
+        "redirect_uri": CALLBACK,
+    }
+
+
+async def revoked(database: Database, client: str) -> bool:
+    async with database.sessions() as check:
+        moment = await check.scalar(
+            select(OAuthAuthorization.revoked_at).where(OAuthAuthorization.client_id == client)
+        )
+    return moment is not None
+
+
+async def test_of_two_exchanges_of_one_code_at_once_the_second_revokes_the_consent(
+    authorization_server: AsyncClient,
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The first exchange holds the consent's row when it reads the member's role; the second
+    waits for it, then finds the code spent: someone else has it, and the consent ends."""
+    organization, ana, _ = primer
+    client, code = await a_consent(authorization_server, organization, ana)
+    held_at = gate(monkeypatch, oauth_tokens, "_role_of")
+
+    first, second = await while_held(
+        authorization_server.post("/oauth/token", data=an_exchange(client, code)),
+        lambda: authorization_server.post("/oauth/token", data=an_exchange(client, code)),
+        held_at,
+        then_waits=True,
+    )
+
+    assert (first.status_code, second.status_code) == (200, 400)
+    assert second.json()["error"] == "invalid_grant"
+    assert await revoked(committed_database, client)
+
+
+async def test_of_two_refreshes_with_one_token_at_once_the_second_revokes_the_consent(
+    authorization_server: AsyncClient,
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The first refresh holds the consent's row; the second waits for it, then finds the token
+    spent, and the consent ends: the token the first refresh issued is refused too."""
+    organization, ana, _ = primer
+    client, code = await a_consent(authorization_server, organization, ana)
+    issued = (
+        await authorization_server.post("/oauth/token", data=an_exchange(client, code))
+    ).json()
+    renewal = {
+        "grant_type": "refresh_token",
+        "refresh_token": issued["refresh_token"],
+        "client_id": client,
+    }
+    held_at = gate(monkeypatch, oauth_tokens, "_role_of")
+
+    first, second = await while_held(
+        authorization_server.post("/oauth/token", data=renewal),
+        lambda: authorization_server.post("/oauth/token", data=renewal),
+        held_at,
+        then_waits=True,
+    )
+    latest = await authorization_server.post(
+        "/oauth/token",
+        data=renewal | {"refresh_token": first.json()["refresh_token"]},
+    )
+
+    assert (first.status_code, second.status_code, latest.status_code) == (200, 400, 400)
+    assert await revoked(committed_database, client)

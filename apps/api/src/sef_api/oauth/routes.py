@@ -20,13 +20,16 @@ from sef_api.auth.dependencies import (
     Principal,
     current_principal,
     current_role,
+    get_token_settings,
     no_longer_active,
 )
 from sef_api.auth.routes import NO_STORE, Problem
+from sef_api.auth.service import TokenSettings
 from sef_api.db import get_session
 from sef_api.models import OAuthClient
 from sef_api.oauth import authorization as authorizations
 from sef_api.oauth import clients
+from sef_api.oauth import tokens as oauth_tokens
 from sef_api.oauth.authorization import AuthorizeError, UnredirectableError, issuer_of
 from sef_api.oauth.clients import ClientMetadata, RegisteredClient
 from sef_api.rate_limits import Counted, per_address
@@ -50,7 +53,11 @@ def require_authorization_server(request: Request) -> Settings:
     authorization server to speak of."""
     settings = cast(Settings, request.app.state.settings)
     if settings.public_url is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "this server has no authorization server")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            "this server has no authorization server",
+            {"Cache-Control": "no-store"},
+        )
     return settings
 
 
@@ -330,4 +337,130 @@ async def refuse_request(
             state=asked.state,
             iss=issuer_of(settings),
         )
+    )
+
+
+class TokenRequest(BaseModel):
+    """A token request's parameters, sent as a form (RFC 6749 §3.2): those of a code's exchange
+    or of a refresh, by its ``grant_type``."""
+
+    grant_type: Literal["authorization_code", "refresh_token"]
+    client_id: str = Field(description="The client's id, as it registered.")
+    code: str | None = Field(None, description="The code a consent issued (`authorization_code`).")
+    code_verifier: str | None = Field(
+        None, description="The PKCE verifier whose S256 challenge began the authorization."
+    )
+    redirect_uri: str | None = Field(
+        None,
+        description="Where the code was sent; required unless the client registered one only.",
+    )
+    refresh_token: str | None = Field(None, description="The refresh token to spend.")
+    scope: str | None = Field(
+        None, description="On a refresh, fewer of the consent's scopes, separated by spaces."
+    )
+    resource: str | None = Field(
+        None, description="The MCP endpoint, which the person consented to (RFC 8707)."
+    )
+
+
+class IssuedTokens(BaseModel):
+    """An MCP client's tokens (RFC 6749 §5.1)."""
+
+    access_token: str = Field(description="A JWT for the MCP endpoint alone (RFC 9068).")
+    token_type: Literal["Bearer"] = "Bearer"
+    expires_in: int = Field(description="Seconds until the access token expires.")
+    refresh_token: str | None = Field(
+        None,
+        description="Good once: spending it issues the next one. Only for a client that "
+        "registered the `refresh_token` grant.",
+    )
+    scope: str = Field(description="The scopes the access token carries, separated by spaces.")
+
+
+class TokenErrorAnswer(BaseModel):
+    """Why a token request will not do (RFC 6749 §5.2, RFC 8707 §2)."""
+
+    error: Literal[
+        "invalid_request",
+        "invalid_grant",
+        "invalid_scope",
+        "invalid_target",
+        "unauthorized_client",
+        "unsupported_grant_type",
+    ]
+    error_description: str
+
+
+_NO_STORE = {"Cache-Control": "no-store", "Pragma": "no-cache"}
+
+
+@router.post(
+    "/token",
+    summary="Exchange a code, or a refresh token, for tokens",
+    description=(
+        "The token endpoint (OAuth 2.1 §3.2), for public clients: the body is a form. "
+        "`authorization_code` exchanges the code a consent issued, once, with the PKCE verifier "
+        "that began it; `refresh_token` spends a refresh token for the next pair, with as many "
+        "of the consent's scopes or fewer, for a client that registered that grant. The access "
+        "token is for the MCP endpoint alone, for minutes; a code or a refresh token presented "
+        "a second time revokes the consent. The scopes are those the person's role still allows."
+    ),
+    response_model=IssuedTokens,
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/x-www-form-urlencoded": {"schema": TokenRequest.model_json_schema()}
+            },
+        }
+    },
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "model": TokenErrorAnswer,
+            "description": "The request, the code or the refresh token will not do.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": Problem,
+            "description": "This server has no authorization server (`SEF_PUBLIC_URL`).",
+        },
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "model": Problem,
+            "description": "Too many token requests from this address; try again after "
+            "`Retry-After` seconds.",
+        },
+    },
+    dependencies=[Depends(per_address(Counted.TOKEN_REQUEST))],
+)
+async def issue_tokens(
+    request: Request,
+    session: Session,
+    settings: Annotated[Settings, Depends(require_authorization_server)],
+    tokens: Annotated[TokenSettings, Depends(get_token_settings)],
+) -> JSONResponse:
+    try:
+        form = oauth_tokens.form_of(await request.body(), request.headers.get("content-type"))
+        grant = form.get("grant_type")
+        if grant == "authorization_code":
+            issued = await oauth_tokens.exchange_code(session, settings, tokens, form)
+        elif grant == "refresh_token":
+            issued = await oauth_tokens.refresh(session, settings, tokens, form)
+        elif grant is None:
+            raise oauth_tokens.TokenError("invalid_request", "the parameter grant_type is required")
+        else:
+            raise oauth_tokens.TokenError(
+                "unsupported_grant_type", "the grant_type is authorization_code or refresh_token"
+            )
+    except oauth_tokens.TokenError as refused:
+        answer = TokenErrorAnswer.model_validate(
+            {"error": refused.error, "error_description": refused.description}
+        )
+        return JSONResponse(answer.model_dump(), status.HTTP_400_BAD_REQUEST, headers=_NO_STORE)
+    return JSONResponse(
+        IssuedTokens(
+            access_token=issued.access_token,
+            expires_in=issued.expires_in,
+            refresh_token=issued.refresh_token,
+            scope=" ".join(issued.scopes),
+        ).model_dump(exclude_none=True),
+        headers=_NO_STORE,
     )

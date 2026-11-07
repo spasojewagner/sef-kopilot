@@ -33,6 +33,7 @@ TABLES = {
     "rule_embeddings",
     "oauth_clients",
     "oauth_authorizations",
+    "oauth_refresh_tokens",
 }
 
 

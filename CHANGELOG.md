@@ -64,6 +64,12 @@ is tagged.
   approves it, for the scopes their role grants, or refuses it (`/oauth/requests/{id}`,
   migration 0016). An approval issues a code valid for two minutes and is recorded in the
   audit log; every answer to the client names the issuer (RFC 9207).
+- `apps/api`: the token endpoint, `POST /oauth/token`: a code a consent issued is exchanged
+  once, with its PKCE verifier, for an access token for the MCP endpoint alone (a JWT whose
+  audience is the endpoint, signed with a key of its own) and, for a client that registered
+  the grant, a refresh token, spent once for the next pair; a code or a refresh token
+  presented again revokes the consent, and the role is read again at each exchange (migration
+  0017).
 - `apps/web`: the page where a person decides on an MCP client's request, `/oauth/consent`
   (ADR-0044): what the client asks, the name it gave itself (unchecked), the address it takes
   them back to and the organization it will work in; allowing or denying takes them back to
@@ -93,6 +99,12 @@ is tagged.
   shows where to begin, and a page that does not exist shows the mark off its course.
 - `apps/web`: the language links keep the query of the page's address, so that a page that
   reads it is the same page in the other language.
+
+### Fixed
+
+- `apps/api`: `GET /oauth/authorize` sends a resource that is no URI back to the client as
+  `invalid_target`, where it answered 500, and refuses an unknown scope without repeating
+  what the client asked for: an OAuth error's description may hold only some characters.
 
 ### Security
 

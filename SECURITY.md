@@ -232,6 +232,14 @@ system are marked as such.
       grants at most what the person's role does, issues a code valid for two minutes, stored as
       a SHA-256, and is recorded in the audit log. Every answer to the client names the issuer
       (RFC 9207).
+- [x] A code is exchanged once, by the client it was issued to, with the PKCE verifier that
+      began it (compared in constant time); the consent's row is locked meanwhile, so two
+      exchanges take turns. The access token is for the MCP endpoint alone (`aud`), for fifteen
+      minutes, signed with a key derived for it; a refresh token, only for a client that
+      registered the grant, is kept as its SHA-256 and spent once, one unspent per consent. A
+      code or a refresh token presented again revokes the consent; the role is read again at
+      every exchange. Errors repeat nothing the client sent (OAuth 2.1 §4.1.3, §4.3; RFC 9700
+      §4.14). Reviewed on its own before it was handed off.
 - [x] The page where a person decides shows the name a client gave itself as unchecked, the host
       it will take them back to and the organization it will work in, so that a request someone
       else started, sent to them as a link, can be told for what it is; it cannot be framed

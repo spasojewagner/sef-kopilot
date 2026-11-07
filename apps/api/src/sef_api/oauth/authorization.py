@@ -39,6 +39,7 @@ __all__ = [
     "UnredirectableError",
     "approve",
     "begin",
+    "canonical",
     "issuer_of",
     "pending",
     "redirect",
@@ -98,7 +99,7 @@ def redirect(uri: str, **params: str | None) -> str:
     return urlunsplit(parts._replace(query=query))
 
 
-def _canonical(uri: str) -> str:
+def canonical(uri: str) -> str:
     """``uri`` with its scheme and host in lower case and no trailing slash, as resources are
     compared."""
     parts = urlsplit(uri)
@@ -134,13 +135,16 @@ async def begin(
         raise refused("invalid_request", "the code_challenge is no S256 challenge")
     if state is not None and len(state) > MAX_STATE_LENGTH:
         raise refused("invalid_request", f"the state has more than {MAX_STATE_LENGTH} characters")
-    resource = params.get("resource", resource_of(settings))
-    if _canonical(resource) != resource_of(settings):
+    try:
+        resource = canonical(params.get("resource", resource_of(settings)))
+    except ValueError:  # no URI at all
+        resource = ""
+    if resource != resource_of(settings):
         raise refused("invalid_target", "the resource is not this server's MCP endpoint")
     asked = params.get("scope", "").split() or list(SCOPES)
-    unknown = sorted(set(asked) - set(SCOPES))
-    if unknown:
-        raise refused("invalid_scope", f"this server has no scope {', '.join(unknown)}")
+    if not set(asked) <= set(SCOPES):
+        # Named in general: what the client sent is not repeated back (RFC 6749 §4.1.2.1).
+        raise refused("invalid_scope", "a scope asked for is not one this server has")
     authorization = OAuthAuthorization(
         id=secrets.token_urlsafe(32),
         client_id=client.id,

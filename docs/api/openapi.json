@@ -2922,6 +2922,161 @@
           }
         }
       }
+    },
+    "/oauth/token": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Exchange a code, or a refresh token, for tokens",
+        "description": "The token endpoint (OAuth 2.1 §3.2), for public clients: the body is a form. `authorization_code` exchanges the code a consent issued, once, with the PKCE verifier that began it; `refresh_token` spends a refresh token for the next pair, with as many of the consent's scopes or fewer, for a client that registered that grant. The access token is for the MCP endpoint alone, for minutes; a code or a refresh token presented a second time revokes the consent. The scopes are those the person's role still allows.",
+        "operationId": "issue_tokens_oauth_token_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "properties": {
+                  "grant_type": {
+                    "type": "string",
+                    "enum": [
+                      "authorization_code",
+                      "refresh_token"
+                    ],
+                    "title": "Grant Type"
+                  },
+                  "client_id": {
+                    "type": "string",
+                    "title": "Client Id",
+                    "description": "The client's id, as it registered."
+                  },
+                  "code": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Code",
+                    "description": "The code a consent issued (`authorization_code`)."
+                  },
+                  "code_verifier": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Code Verifier",
+                    "description": "The PKCE verifier whose S256 challenge began the authorization."
+                  },
+                  "redirect_uri": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Redirect Uri",
+                    "description": "Where the code was sent; required unless the client registered one only."
+                  },
+                  "refresh_token": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Refresh Token",
+                    "description": "The refresh token to spend."
+                  },
+                  "scope": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Scope",
+                    "description": "On a refresh, fewer of the consent's scopes, separated by spaces."
+                  },
+                  "resource": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Resource",
+                    "description": "The MCP endpoint, which the person consented to (RFC 8707)."
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "grant_type",
+                  "client_id"
+                ],
+                "title": "TokenRequest",
+                "description": "A token request's parameters, sent as a form (RFC 6749 §3.2): those of a code's exchange\nor of a refresh, by its ``grant_type``."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedTokens"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request, the code or the refresh token will not do.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenErrorAnswer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server has no authorization server (`SEF_PUBLIC_URL`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many token requests from this address; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3646,6 +3801,51 @@
           "key"
         ],
         "title": "IssuedKey"
+      },
+      "IssuedTokens": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token",
+            "description": "A JWT for the MCP endpoint alone (RFC 9068)."
+          },
+          "token_type": {
+            "type": "string",
+            "const": "Bearer",
+            "title": "Token Type",
+            "default": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Seconds until the access token expires."
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token",
+            "description": "Good once: spending it issues the next one. Only for a client that registered the `refresh_token` grant."
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "description": "The scopes the access token carries, separated by spaces."
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_in",
+          "scope"
+        ],
+        "title": "IssuedTokens",
+        "description": "An MCP client's tokens (RFC 6749 §5.1)."
       },
       "JobKind": {
         "type": "string",
@@ -4873,6 +5073,33 @@
         ],
         "title": "StoredInvoiceOut",
         "description": "A stored invoice with the validator's latest report on it."
+      },
+      "TokenErrorAnswer": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_request",
+              "invalid_grant",
+              "invalid_scope",
+              "invalid_target",
+              "unauthorized_client",
+              "unsupported_grant_type"
+            ],
+            "title": "Error"
+          },
+          "error_description": {
+            "type": "string",
+            "title": "Error Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error",
+          "error_description"
+        ],
+        "title": "TokenErrorAnswer",
+        "description": "Why a token request will not do (RFC 6749 §5.2, RFC 8707 §2)."
       },
       "TokenResponse": {
         "properties": {

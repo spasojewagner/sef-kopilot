@@ -178,7 +178,8 @@ async def api(session: AsyncSession) -> AsyncIterator[AsyncClient]:
 async def committed_database(database_url: str) -> AsyncIterator[Database]:
     """The suite's database with sessions as the application makes them: every commit is real.
 
-    The tables are emptied afterwards, the corpus's too, so the next test starts from nothing.
+    The tables are emptied afterwards, the corpus's and the OAuth clients' too, so the next test
+    starts from nothing.
     """
     database = Database.connect(database_url, pooled=False)
     try:
@@ -188,7 +189,7 @@ async def committed_database(database_url: str) -> AsyncIterator[Database]:
         await _execute(
             make_url(database_url),
             "SET lock_timeout = '10s'",  # a test that left a transaction open fails, not hangs
-            "TRUNCATE organizations, users, corpus_documents CASCADE",
+            "TRUNCATE organizations, users, corpus_documents, oauth_clients CASCADE",
         )
 
 

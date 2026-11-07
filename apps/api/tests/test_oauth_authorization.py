@@ -165,7 +165,9 @@ async def test_with_two_redirect_uris_the_client_names_one(session: AsyncSession
         ({"code_challenge": "too-short"}, "invalid_request"),
         ({"resource": "https://other.example/mcp"}, "invalid_target"),
         ({"resource": f"{ISSUER}/api"}, "invalid_target"),
+        ({"resource": "http://["}, "invalid_target"),
         ({"scope": "invoices:validate members:manage"}, "invalid_scope"),
+        ({"scope": 'invoices:validate "quoted"\\'}, "invalid_scope"),
         ({"state": "s" * 501}, "invalid_request"),
     ],
 )
@@ -178,7 +180,11 @@ async def test_a_request_that_will_not_do_is_sent_back_with_its_error(
     back, query = sent_to(response)
     assert back == CALLBACK
     assert query["error"] == error
+    # Only the characters OAuth allows, and nothing the client sent (RFC 6749 §4.1.2.1).
     assert query["error_description"]
+    assert set(query["error_description"]) <= {
+        chr(c) for c in (0x20, 0x21, *range(0x23, 0x5C), *range(0x5D, 0x7F))
+    }
     # The server names itself, so the client knows whose error it reads (RFC 9207).
     assert query["iss"] == ISSUER
     assert query.get("state") == changes.get("state", "xyz")

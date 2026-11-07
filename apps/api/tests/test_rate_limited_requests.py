@@ -343,8 +343,8 @@ async def test_a_caller_held_back_is_answered_before_the_body_is_read(
 
 def test_the_default_limits() -> None:
     """Per address, generous enough for an office of people behind one address and tight
-    enough to stop a script, an MCP client's registration among them; per e-mail address, ten
-    wrong passwords in a quarter of an hour."""
+    enough to stop a script, an MCP client's registration and its tokens among them; per e-mail
+    address, ten wrong passwords in a quarter of an hour."""
     assert dict(DEFAULT_LIMITS) == {
         Counted.SIGN_IN: Limit(30, timedelta(minutes=1)),
         Counted.REGISTRATION: Limit(10, timedelta(hours=1)),
@@ -352,6 +352,7 @@ def test_the_default_limits() -> None:
         Counted.INVITATION: Limit(10, timedelta(minutes=1)),
         Counted.FAILED_PASSWORD: Limit(10, timedelta(minutes=15)),
         Counted.CLIENT_REGISTRATION: Limit(10, timedelta(hours=1)),
+        Counted.TOKEN_REQUEST: Limit(60, timedelta(minutes=1)),
     }
 
 

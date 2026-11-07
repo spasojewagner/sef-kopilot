@@ -66,10 +66,11 @@ PUBLIC: set[Endpoint] = {
     ("POST", "/auth/accept-invitation"),
     ("POST", "/auth/refresh"),
     ("POST", "/auth/logout"),
-    # How an MCP client registers itself with the authorization server (RFC 7591), and where
-    # it sends a person to be asked.
+    # How an MCP client registers itself with the authorization server (RFC 7591), where it
+    # sends a person to be asked, and where it exchanges what it was given for tokens.
     ("POST", "/oauth/register"),
     ("GET", "/oauth/authorize"),
+    ("POST", "/oauth/token"),
 }
 #: Endpoints for any signed-in caller, about the caller only.
 SIGNED_IN: set[Endpoint] = {
