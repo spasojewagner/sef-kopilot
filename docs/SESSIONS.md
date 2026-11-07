@@ -1548,3 +1548,28 @@ Verification: the Blueprint's fields checked against Render's specification, `ve
 
 Next: the first deploy with the maintainer, then `feat/web-api-waking-up`; then the release of
 v0.3.0.
+
+## 2026-11-07 — `fix/api-image-fetches-rule-sets` (3 commits)
+
+Outcome: the API's image builds from a clone of the repository. The first deploy, from Render's
+Blueprint, failed at the build's fetch of the rule sets: a clone holds none, so the build fetched
+them, and three of them need git, which the build's stage lacked. The stage now installs it; the
+image still copies `/app` alone from there. CI's container job no longer restores the rule sets
+from the cache before the build, and fails if the build would be given any untracked file under
+`third_party`.
+
+Findings:
+
+- CI had passed on every change because its build never took the fetch: a warm cache hid the
+  cold path (learning note 32).
+- The web application is live on Vercel at `sef-kopilot.vercel.app`, public, built in 28 s with
+  Node.js 22 from `apps/web`; previews are behind Vercel's sign-in.
+
+Verification: the failure reproduced from a fresh clone of `main` (no git); the fixed image built
+from a fresh clone whose `third_party` held the UBL schemas alone, which this environment's proxy
+cannot download, so its build fetched the other three with git; it then started on an empty
+database, answered `/ready` and validated the synthetic final invoice as valid. The guard passes
+in a clone and fails in a workspace with fetched rule sets. Hooks and the secret scan clean.
+
+Next: the maintainer merges; Render deploys once CI passes; the corpus is loaded; then
+`feat/web-api-waking-up`.
