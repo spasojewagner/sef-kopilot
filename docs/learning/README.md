@@ -40,5 +40,6 @@ just used. New notes are added in the pull request that introduces the concept.
 | 32 | [A warm cache hides a cold path: test the path the platform takes](32-a-warm-cache-hides-a-cold-path.md) | M3 |
 | 33 | [Waking or down: a cold start, seen from the browser](33-waking-or-down.md) | M3 |
 | 34 | [Where an error is answered decides what it carries: middleware as an onion](34-where-an-error-is-answered.md) | M3 |
+| 35 | [The Model Context Protocol: tools a model may call, over plain HTTP](35-the-model-context-protocol.md) | M4 |
 
 Planned: OAuth 2.1 flows for MCP.

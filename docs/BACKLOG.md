@@ -98,7 +98,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `perf/rag-rule-embeddings-kept` — what each rule says embedded once an embedding model and kept in `rule_embeddings`, keyed by the model and the text's digest, public and of no organization; two rules that say the same ask once; a failing or late embedder keeps nothing new (ADR-0041)
 - [ ] Langfuse and Sentry wiring; structured JSON logs with security events (sign-in, API key use, and when each key was last used) — moved here from M2, after the public demo of M3
 - [ ] A local multilingual embedding model (BGE-M3, 1024 numbers) behind the `Embedder` adapter, for a self-hosted deployment that makes no call to embed
-- [ ] `feat/mcp-server` — MCP server (Streamable HTTP at `/mcp`) with `validate_invoice`, `explain_errors`, `propose_fix`, `revalidate`, `search_rules`, `send_to_sef_demo`
+- [x] `feat/mcp-server` — the MCP server at `/mcp`, in the API's process (ADR-0042): Streamable HTTP without sessions, every message a POST answered with JSON, for clients of the protocol's 2026-07-28 revision and earlier ones; an API key admits a client until OAuth 2.1, an access token of the web application is refused, a page of another origin too, and only POST is answered; each tool requires its route's permission, pinned by a test, and counts against the route's limits; the first tool, `validate_invoice`, does what `POST /invoices/validate` does (split on 2026-11-07: the other tools follow, one reviewable change each)
+- [ ] `feat/mcp-invoice-tools` — tools on stored invoices, through the routes' services: storing one, `explain_errors` (the kept explanations first, ADR-0040) and `revalidate`
+- [ ] `feat/mcp-propose-fix` — `propose_fix`: a repair the model proposes for a stored invoice, which a person decides on the repair's page (ADR-0024), whose address the tool answers
+- [ ] `feat/mcp-search-rules` — `search_rules`: the rules of a profile and the passages of the corpus, by a rule's id or by words
 - [ ] `feat/mcp-oauth21` — OAuth 2.1 with PKCE, RFC 9728, RFC 8414, RFC 8707, RFC 7591; scopes per tool
 - [ ] Demo from Claude and ChatGPT documented with screenshots
 - [ ] Learning note: OAuth 2.1 flows for MCP
@@ -106,7 +109,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## M5 — SEF demo round trip (week 8) · tag `v0.5.0`
 
-- [ ] `feat/sef-demo-client` — SEF demo client, encrypted per-tenant key, send + status polling
+- [ ] `feat/sef-demo-client` — SEF demo client, encrypted per-tenant key, send + status polling, and the MCP tool `send_to_sef_demo` over it (moved from `feat/mcp-server`, which had no client to call)
 - [ ] `feat/sef-error-mapping` — SEF error codes mapped into the explanation pipeline; Peppol profile polish
 - [ ] The SEF internal technical instruction (Interno tehničko uputstvo) in the corpus, once its official text can be pinned like the others (moved from M2)
 - [ ] Confirm against the SEF demo what the published documents leave open: the warning-level SRB rules (SRB-013, SRB-017, SRB-023, SRB-029), the set-asides that rest on the Ministry's examples (ADR-0008), and whether SEF requires a due date or payment terms when an amount is due (EN 16931 BR-CO-25, absent from CEN's UBL Schematron; ADR-0010)
