@@ -95,7 +95,8 @@ can run any number of times; run it again when `corpus/` changes.
    the one entered in step 2, change the variable in Render (**Environment**), which redeploys.
 
 `NEXT_PUBLIC_API_URL` is written into the code the browser loads when the application is built:
-after changing it, redeploy.
+after changing it, redeploy. On Vercel, Next.js knows the site's own address, which the image a
+shared link shows needs whole; a build elsewhere reads it from `SITE_URL`.
 
 Preview deployments have addresses of their own, which the API does not allow, so their pages
 cannot call it; Vercel's own sign-in protects them, as it does each deployment's own address

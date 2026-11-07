@@ -1,35 +1,21 @@
-import { ArrowUpRight } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { Closing } from "@/components/landing/closing";
+import { Developers } from "@/components/landing/developers";
+import { Hero } from "@/components/landing/hero";
+import { Route } from "@/components/landing/route";
+import { Standards } from "@/components/landing/standards";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Link } from "@/i18n/navigation";
-import { REPOSITORY_URL } from "@/lib/links";
-
+/**
+ * The product's page: what it does and the way to try it, how an invoice goes through it, the
+ * rules it checks against, the same checks for programs, and the invoices to try it on.
+ */
 export default function HomePage() {
-  const t = useTranslations("home");
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center">
-      <Badge variant="outline" className="tracking-wide uppercase">
-        {t("status")}
-      </Badge>
-      <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-        {t("title")}
-      </h1>
-      <p className="max-w-xl text-lg text-balance text-muted-foreground">
-        {t("tagline")}
-      </p>
-      <div className="flex flex-wrap justify-center gap-3">
-        <Button asChild>
-          <Link href="/invoices">{t("check")}</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
-            {t("source")}
-            <ArrowUpRight />
-          </a>
-        </Button>
-      </div>
+    <div className="flex flex-1 flex-col">
+      <Hero />
+      <Route />
+      <Standards />
+      <Developers />
+      <Closing />
     </div>
   );
 }

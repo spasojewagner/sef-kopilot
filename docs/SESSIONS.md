@@ -1887,3 +1887,32 @@ the pages load, the favicon and the link past the header; the seeded faults, eac
 the pull request).
 
 Next: the home page as the product's page (`feat/web-landing`).
+
+## 2026-11-07 — `feat/web-landing` (4 commits, stacked on `feat/web-brand`)
+
+Outcome: the home page is the product's page. Its first screen, on the brand's navy, says what
+the product does beside an example of a report that tells its story once as the page opens,
+with its end shown without motion; below it, the course an invoice takes, the rule sets, the
+HTTP API and the MCP server, and the synthetic invoices to try it on. A shared link shows the
+brand's image.
+
+Findings:
+
+- A CSS module was compiled as global CSS, its class names unscoped: the Turbopack rule that
+  runs Tailwind on every stylesheet gives it the plain type. The story's styles are in the global
+  stylesheet, under a prefix; the README says so.
+- The phone's page was wider than its screen: a grid's implicit column took the width of the
+  example's longest line of XML. The columns are `minmax(0, 1fr)`, and a phone shows the one
+  line that matters.
+- A shared link's image is named by its whole address, which a page rendered at build time
+  takes from Vercel or, elsewhere, from `localhost:3000`: `SITE_URL` gives it. Next.js serves
+  the image of a dynamic segment at `/-/opengraph-image.png`.
+- Next.js reads an image's alt text whole, final newline included: the end-of-file hook and the
+  editor settings leave `*.alt.txt` alone.
+- The headline broke after "e-" and the tagline after "SRB-": such names stay whole.
+
+Verification: the web application's tests, ESLint, TypeScript, the build; the end-to-end test,
+which now fetches the image a shared link shows; the seeded faults, each caught (see the pull
+request); screenshots in light and dark, on a desktop and a phone.
+
+Next: the application's pages in the brand's look (`feat/web-app-restyle`).

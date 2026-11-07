@@ -23,8 +23,10 @@ function tokensOf(opening: string): Tokens {
   );
 }
 
-const LIGHT = tokensOf(":root {\n  --radius");
-const DARK = tokensOf("@media (prefers-color-scheme: dark) {\n  :root {");
+const LIGHT = tokensOf(":root,\n.surface-page {");
+const DARK = tokensOf(
+  "@media (prefers-color-scheme: dark) {\n  :root,\n  .surface-page {",
+);
 /** The navy surface sets only what it changes; the rest comes from the page around it. */
 const INK = (page: Tokens): Tokens => ({
   ...page,

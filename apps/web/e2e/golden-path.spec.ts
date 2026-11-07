@@ -49,12 +49,31 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
         .getAttribute("href"))!,
     );
     expect(icon.headers()["content-type"]).toContain("image/svg+xml");
+    // A shared link's image, at the address the site is served at.
+    const shared = await page
+      .locator('meta[property="og:image"]')
+      .getAttribute("content");
+    expect(shared).toMatch(/^http:\/\/localhost:3100\/.*opengraph-image/);
+    const image = await page.request.get(shared!);
+    expect(image.headers()["content-type"]).toBe("image/png");
 
     await page.keyboard.press("Tab");
     const skip = page.getByRole("link", { name: "Pređi na sadržaj" });
     await expect(skip).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("main")).toBeFocused();
+  });
+
+  await test.step("the home page's example shows its end to a visitor who asks for less motion", async () => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/sr-Latn");
+
+    const opacity = (selector: string) =>
+      page.locator(selector).evaluate((node) => getComputedStyle(node).opacity);
+    expect(await opacity(".story-valid")).toBe("1");
+    expect(await opacity(".story-invalid")).toBe("0");
+    expect(await opacity(".story-patch")).toBe("1");
+    await page.emulateMedia({ reducedMotion: null });
   });
 
   await test.step("a person registers, with an organization of their own", async () => {

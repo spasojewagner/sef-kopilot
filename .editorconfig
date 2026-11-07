@@ -20,5 +20,9 @@ trim_trailing_whitespace = false
 [Makefile]
 indent_style = tab
 
+[*.alt.txt]
+# Next.js reads an image's alt text whole: a final newline would be part of it.
+insert_final_newline = false
+
 [*.{xml,xsd,sch,xslt}]
 indent_size = 2

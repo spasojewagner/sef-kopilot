@@ -133,7 +133,9 @@ settings, and `pnpm exec shadcn add dialog`, run from `apps/web`, adds a compone
 version that `package.json` pins. Colours, radii and dark mode are CSS variables in
 `src/app/globals.css`; dark mode follows the operating system, with no switch and no script.
 Class names are joined with `cn()` from `@/lib/utils`, which resolves Tailwind conflicts in
-favour of the last.
+favour of the last. Stylesheets are global: the Turbopack rule that runs Tailwind on every `.css`
+file gives a CSS module the plain CSS type, whose class names would not be scoped, so a
+component's own styles go into `globals.css` under a prefix of their own (`story-*`).
 
 ## The brand
 
@@ -144,7 +146,8 @@ shadcn/ui components read, so that they take it unchanged:
   white cards, every grey tinted towards the navy; one accent, a teal (`brand`), which also
   marks what is valid (`success`), beside `warning` and `destructive`. Dark mode sets the same
   names, deeper. `surface-ink` is the brand's navy in both modes: it sets the tokens again for
-  what it holds, so that a button inside it is light on navy with no variant of its own.
+  what it holds, so that a button inside it is light on navy with no variant of its own, and
+  paints nothing itself (`bg-background` inside it is the navy).
   `src/app/tokens.test.ts` measures every pair of tokens a page sets together, text at 4.5:1
   and the accent and the focus ring at 3:1, in light, in dark and on the navy; a new pairing
   goes into its lists.
@@ -163,6 +166,23 @@ shadcn/ui components read, so that they take it unchanged:
   one `main` of the root layout. `page-width` is the width of the content of the header, of
   every page and of the footer, so that they line up.
 
+## The home page
+
+The home page is the product's page (`src/components/landing`): what it does and the way to try
+it, on the brand's navy beside an example of an invoice's report; the course an invoice takes,
+in four steps; the rules it is checked against; the same checks through the HTTP API and the MCP
+server, at the address of the API the build talks to; and the synthetic invoices to try it on.
+The example tells its story once as the page opens, with CSS alone (`story-*` in
+`globals.css`): the error, the explanation, the repair and the verdict. Its end is what shows
+without motion, so that a visitor who asks for less motion, or a page whose animations have not
+run, shows all of it, and a screen reader reads its caption. It is drawn in the page's tokens on
+the navy (`surface-page`). Behind it, `backdrop.svg` draws a chart: contour lines, the bezel of
+the mark and a route that leaves it through the north-east gap.
+
+A shared link shows `src/app/[locale]/opengraph-image.png`, which `pnpm brand:images` renders
+from the mark and the backdrop. The link's image needs the site's whole address, which Vercel
+gives Next.js; elsewhere the build reads it from `SITE_URL` (see `.env.example`).
+
 ## Checks
 
 ```bash
@@ -180,10 +200,12 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 One Playwright test walks the golden path in Chromium (`e2e/golden-path.spec.ts`, ADR-0033): a
 person registers, uploads an invoice whose type code SEF does not accept, reads its report, has
 the language model suggest a repair, reads its diff, approves it, and finds the invoice valid on
-its report and in the list. It runs against the application's production build and the API as
-it runs, on ports of their own, 3100 and 8100, so that it runs beside `pnpm dev` and `make api`;
-`playwright.config.ts` starts both and stops them afterwards. The API starts on a database of
-its own, made anew each time, and a scripted model proposes the repair
+its report and in the list. On the way, it checks that the pages load their typeface and their
+favicon, that a key leads past the header, and that the home page's example shows its end to a
+visitor who asks for less motion. It runs against the application's production build and the
+API as it runs, on ports of their own, 3100 and 8100, so that it runs beside `pnpm dev` and
+`make api`; `playwright.config.ts` starts both and stops them afterwards. The API starts on a
+database of its own, made anew each time, and a scripted model proposes the repair
 (`scripts/serve_e2e_api.py`): nothing is sent to a model's provider.
 
 It needs PostgreSQL (`make up`), named by `SEF_TEST_DATABASE_URL` as in the root `.env.example`,
@@ -218,6 +240,7 @@ src/components/    components shared by the pages: the logo, the header with its
                    its account, the footer, the language switcher, the API's status, the cache
                    of the API's answers, the sign-in and registration forms, the upload, the
                    list, the report, the repairs and the diff, the organization's page
+src/components/landing/  the home page's sections, its example of a report and its backdrop
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types

@@ -42,5 +42,6 @@ just used. New notes are added in the pull request that introduces the concept.
 | 34 | [Where an error is answered decides what it carries: middleware as an onion](34-where-an-error-is-answered.md) | M3 |
 | 35 | [The Model Context Protocol: tools a model may call, over plain HTTP](35-the-model-context-protocol.md) | M4 |
 | 36 | [Colour you can read: OKLCH and the contrast ratio](36-colour-you-can-read.md) | M4 |
+| 37 | [Motion with its end first: an animation that hides nothing](37-motion-with-its-end-first.md) | M4 |
 
 Planned: OAuth 2.1 flows for MCP.
