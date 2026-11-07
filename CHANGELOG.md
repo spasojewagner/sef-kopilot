@@ -100,6 +100,10 @@ is tagged.
   (`frame-ancestors 'none'`, `X-Frame-Options: DENY`), where it could be laid under one of its
   own that has a person press a button unawares (clickjacking), as the page where a person lets
   an MCP client act for them requires (RFC 9700 §4.16).
+- `apps/web`: signing in and registering are sent by the page's script only: until it has
+  taken over, the button waits, and a form sent anyway is posted. The pages are built ahead of
+  time, so a form could be sent before the script had loaded, and the browser sent it as a
+  GET, with the password in the address, the history and the host's logs.
 
 ## [0.3.0] - 2026-11-07
 

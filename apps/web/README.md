@@ -65,9 +65,12 @@ in, the visitor's cached answers are forgotten: a query key that starts with `ap
 the API says about itself, and every other key a visitor's data.
 
 A visitor registers at `/sr-Latn/register`, which creates the account and its organization, or
-signs in at `/sr-Latn/sign-in`; a member of several organizations chooses one there. The
-header shows who is signed in, as the API confirms it, and signs out. An error is said in the
-visitor's language (`authErrors` in the messages); the API's own reasons are for developers.
+signs in at `/sr-Latn/sign-in`; a member of several organizations chooses one there. The header
+shows who is signed in, as the API confirms it, and signs out. An error is said in the visitor's
+language (`authErrors` in the messages); the API's own reasons are for developers. Both forms
+are sent by the page's script only: until it has taken over, their button waits
+(`useHydrated()`), and a form sent anyway is posted, so that a password never goes into the
+address, the browser's history or the host's logs.
 
 ## Invoices
 

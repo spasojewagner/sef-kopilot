@@ -121,6 +121,9 @@ system are marked as such.
       `X-Frame-Options: DENY`, checked by the end-to-end test), so none can be laid under a page
       that has a person press a button unawares: the consent an MCP client asks for least of all
       (RFC 9700 §4.16).
+- [x] A form with a password is sent by the page's script only, its button waiting until the
+      script has taken over, and is posted if it is sent anyway: a password never goes into
+      an address (tested on the markup the server sends).
 - [ ] Content Security Policy, `X-Content-Type-Options`, `Referrer-Policy` and
       `Permissions-Policy` headers set by the web app and the API.
 - [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`. The web application sets none:

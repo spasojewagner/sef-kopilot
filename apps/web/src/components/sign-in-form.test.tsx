@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { STORAGE_KEY } from "@/lib/session";
-import { renderIn } from "@/test/render";
+import { asSentIn, renderIn } from "@/test/render";
 
 import { SignInForm } from "./sign-in-form";
 
@@ -67,6 +67,14 @@ async function signInAs(email: string, password: string) {
 }
 
 describe("Sign-in form", () => {
+  it("as the server sends it, is sent by the page's script only, never in the address", () => {
+    const page = asSentIn("sr-Latn", <SignInForm />);
+
+    // Were it sent before the script has taken over, the password would go in the body.
+    expect(page.querySelector("form")).toHaveAttribute("method", "post");
+    expect(page.querySelector('button[type="submit"]')).toBeDisabled();
+  });
+
   it("signs in with the address and the password, and goes home", async () => {
     router.replace.mockClear();
     const bodies = stubSignIn(() => json(200, TOKENS));
