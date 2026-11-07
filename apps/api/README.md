@@ -187,7 +187,9 @@ curl -s "localhost:8000/invoices?limit=20" -H "Authorization: Bearer $ACCESS_TOK
 | `GET /invoices?limit=&after=&valid=` | the newest invoices first, up to 100 a page (50 by default), without their reports; `next` is the `after` of the next page; `valid=false` lists only those whose latest report is invalid, `valid=true` only the valid ones |
 | `GET /invoices/{id}` | one invoice with its report |
 | `GET /invoices/{id}/content` | the document byte for byte, as an attachment |
-| `DELETE /invoices/{id}` | 204; the document and its report are gone |
+| `POST /invoices/{id}/explanations?language=` | the explanations of the invoice's report (below), kept with it once every rule asked about is explained |
+| `GET /invoices/{id}/explanations?language=` | the explanations kept for the invoice's report in that language; 204 when none are |
+| `DELETE /invoices/{id}` | 204; the document, its report and its kept explanations are gone |
 
 Owners and accountants see every invoice of the organization; a client sees the ones they
 submitted, and anything else is not found (404). An organization stores at most
@@ -480,6 +482,17 @@ The answers are those of a validation, and:
 Without the model's answers, a request for a synthetic invoice takes 100 to 170 ms. With Groq's
 free tier and `openai/gpt-oss-120b`, the whole request for an invoice with one rule to explain
 took 1.5 s (measured on 6 November 2026), within the budget of 6 s an explanation.
+
+`POST /invoices/{id}/explanations` explains a stored invoice's latest report in the same way,
+without validating it again (ADR-0029), and keeps the explanations with the invoice, one set a
+language, when every rule asked about is explained (ADR-0040). Later requests in that language,
+by any member who may see the invoice, read the kept set: the model is not asked, nothing is
+counted, and a server without a model answers too. `written_at` says when they were written. A
+set explains the report whose digest it keeps, on the day whose law it cites: once the
+invoice's report is another, after a repair is approved or the invoice validated again, the
+next request writes a new set in its place. `GET /invoices/{id}/explanations` reads the kept
+set alone, and never asks the model; it answers 204 when none is kept, which a browser does not
+log as an error, as it would a 404.
 
 ## Database and migrations
 

@@ -299,11 +299,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read the kept explanations of a stored invoice
+         * @description The explanations `POST /invoices/{invoice_id}/explanations` kept for the invoice's latest report, in the language asked for; 204, with no content, when none are kept for that report in that language. Nothing is asked of the language model and nothing is counted.
+         */
+        get: operations["read_explanations_invoices__invoice_id__explanations_get"];
         put?: never;
         /**
          * Explain a stored invoice's violations
-         * @description Explains each rule the stored invoice's latest report names, as `POST /invoices/explain` does for a document in the request body: what the rule requires, why the invoice fails it and what to change, citing the passages of the official documents that apply on the invoice's issue date. The invoice is not validated again: the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the answer. Nothing is stored. The language model is sent each rule's first violation, whose message may quote the invoice, and the passages; nothing else of the invoice. Counted as a request to the language model, not as a validation.
+         * @description Explains each rule the stored invoice's latest report names, as `POST /invoices/explain` does for a document in the request body: what the rule requires, why the invoice fails it and what to change, citing the passages of the official documents that apply on the invoice's issue date. The invoice is not validated again: the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the answer. The language model is sent each rule's first violation, whose message may quote the invoice, and the passages; nothing else of the invoice. Counted as a request to the language model, not as a validation. The explanations are kept with the invoice when every rule asked about is explained, and later requests in the same language read them, asking the model nothing and counting nothing, until the invoice's report is another (`GET /invoices/{invoice_id}/explanations` reads them alone).
          */
         post: operations["explain_stored_invoice_invoices__invoice_id__explanations_post"];
         delete?: never;
@@ -703,6 +707,12 @@ export interface components {
              * @description Rules of the report beyond the most one request explains; ask again for them once the others are fixed.
              */
             unexplained: string[];
+            /**
+             * Written At
+             * Format: date-time
+             * @description When the explanations were written: during the request, or earlier when they were kept with a stored invoice's report.
+             */
+            written_at: string;
         };
         /**
          * Explanation
@@ -2483,6 +2493,56 @@ export interface operations {
             };
         };
     };
+    read_explanations_invoices__invoice_id__explanations_get: {
+        parameters: {
+            query?: {
+                /** @description The language of the explanations: `sr` (Serbian, Latin script) or `en`. */
+                language?: "sr" | "en";
+            };
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Explained"];
+                };
+            };
+            /** @description No explanations are kept for the invoice's report in that language: `POST` writes them. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such invoice among those the caller may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     explain_stored_invoice_invoices__invoice_id__explanations_post: {
         parameters: {
             query?: {
@@ -2533,7 +2593,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description No language model is configured on this server. */
+            /** @description No language model is configured on this server, and no explanations are kept. */
             503: {
                 headers: {
                     [name: string]: unknown;

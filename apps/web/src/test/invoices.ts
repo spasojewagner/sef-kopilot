@@ -136,6 +136,7 @@ export function explained(changes: Partial<Explained> = {}): Explained {
       },
     ],
     unexplained: [],
+    written_at: "2026-11-07T12:00:00Z",
     ...changes,
   };
 }

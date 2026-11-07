@@ -267,6 +267,9 @@ system are marked as such.
       ADR-0039), none by default; an invoice stored longer ago is deleted with its document, its
       report and its repairs, and no other organization's (tested). The audit log keeps its
       events, which name the invoice by id only, and records who set each period.
+- [x] Kept explanations: the explanations of a stored invoice's report, which quote the rules'
+      messages and so may quote the invoice, are kept with it for the members who may see it,
+      and deleted with it, by a member or by the retention period (tested; ADR-0040).
 - [x] The corpus holds public text only and belongs to no organization: its tables have no
       `organization_id` by design, and only the ingest command writes them (ADR-0020).
 

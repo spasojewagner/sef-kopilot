@@ -1132,7 +1132,7 @@
           "invoices"
         ],
         "summary": "Explain a stored invoice's violations",
-        "description": "Explains each rule the stored invoice's latest report names, as `POST /invoices/explain` does for a document in the request body: what the rule requires, why the invoice fails it and what to change, citing the passages of the official documents that apply on the invoice's issue date. The invoice is not validated again: the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the answer. Nothing is stored. The language model is sent each rule's first violation, whose message may quote the invoice, and the passages; nothing else of the invoice. Counted as a request to the language model, not as a validation.",
+        "description": "Explains each rule the stored invoice's latest report names, as `POST /invoices/explain` does for a document in the request body: what the rule requires, why the invoice fails it and what to change, citing the passages of the official documents that apply on the invoice's issue date. The invoice is not validated again: the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the answer. The language model is sent each rule's first violation, whose message may quote the invoice, and the passages; nothing else of the invoice. Counted as a request to the language model, not as a validation. The explanations are kept with the invoice when every rule asked about is explained, and later requests in the same language read them, asking the model nothing and counting nothing, until the invoice's report is another (`GET /invoices/{invoice_id}/explanations` reads them alone).",
         "operationId": "explain_stored_invoice_invoices__invoice_id__explanations_post",
         "security": [
           {
@@ -1199,7 +1199,7 @@
             }
           },
           "503": {
-            "description": "No language model is configured on this server.",
+            "description": "No language model is configured on this server, and no explanations are kept.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1207,6 +1207,82 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Read the kept explanations of a stored invoice",
+        "description": "The explanations `POST /invoices/{invoice_id}/explanations` kept for the invoice's latest report, in the language asked for; 204, with no content, when none are kept for that report in that language. Nothing is asked of the language model and nothing is counted.",
+        "operationId": "read_explanations_invoices__invoice_id__explanations_get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "sr",
+                "en"
+              ],
+              "type": "string",
+              "description": "The language of the explanations: `sr` (Serbian, Latin script) or `en`.",
+              "default": "sr",
+              "title": "Language"
+            },
+            "description": "The language of the explanations: `sr` (Serbian, Latin script) or `en`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Explained"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice among those the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No explanations are kept for the invoice's report in that language: `POST` writes them."
           },
           "422": {
             "description": "Validation Error",
@@ -2644,6 +2720,12 @@
             "type": "array",
             "title": "Unexplained",
             "description": "Rules of the report beyond the most one request explains; ask again for them once the others are fixed."
+          },
+          "written_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Written At",
+            "description": "When the explanations were written: during the request, or earlier when they were kept with a stored invoice's report."
           }
         },
         "type": "object",
@@ -2653,7 +2735,8 @@
           "language",
           "model",
           "explanations",
-          "unexplained"
+          "unexplained",
+          "written_at"
         ],
         "title": "Explained",
         "description": "The validator's report on an invoice, and the explanations of the rules it names."

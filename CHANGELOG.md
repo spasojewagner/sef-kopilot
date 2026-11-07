@@ -29,6 +29,11 @@ is tagged.
   sees the organization's name, their role and how long it keeps its stored invoices, and an
   owner sets the period. A period that deletes invoices is saved only after a second press that
   names the day up to which stored invoices go.
+- `apps/api`: the explanations of a stored invoice's report are kept with it, one set a language,
+  once every rule asked about is explained (ADR-0040, migration 0013). Later requests read them
+  without asking the language model or counting a request, until the invoice's report is
+  another; `GET /invoices/{invoice_id}/explanations` reads them alone, or answers 204 when none
+  are kept, and every answer with explanations says when they were written (`written_at`).
 
 ## [0.3.0] - 2026-11-07
 

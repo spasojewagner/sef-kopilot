@@ -470,6 +470,13 @@ GUARDED: dict[Endpoint, Guarded] = {
         None,
         _primers_invoice_is_not_found,
     ),
+    ("GET", "/invoices/{invoice_id}/explanations"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/explanations",
+        None,
+        _primers_invoice_is_not_found,
+    ),
     ("POST", "/invoices/{invoice_id}/repairs"): Guarded(
         Permission.INVOICES_SUBMIT,
         False,
