@@ -5,8 +5,9 @@ import { expect, test } from "@playwright/test";
 /**
  * The golden path, in a browser: a person registers, uploads an invoice the validator finds
  * invalid, reads its report, has the language model suggest a repair, approves it, and finds
- * the invoice valid. Every request goes to the API as it runs, with its database, its validator
- * and its repairer; only the model's answer is scripted (`scripts/serve_e2e_api.py`).
+ * the invoice valid; then an MCP client asks to act for them, and they allow it. Every request
+ * goes to the API as it runs, with its database, its validator, its repairer and its
+ * authorization server; only the model's answer is scripted (`scripts/serve_e2e_api.py`).
  */
 
 /** An invoice whose type code, 393, is not one SEF accepts (SRB-001). */
@@ -16,6 +17,13 @@ const INVOICE = path.join(
 );
 const NUMBER = "RF-2026-000123";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
+/** The API, where `playwright.config.ts` starts it: the MCP endpoint's authorization server. */
+const API = "http://127.0.0.1:8100";
+/** Where an MCP client, the MCP Inspector, takes the person back: an application of theirs. */
+const CALLBACK = "http://127.0.0.1:6274/oauth/callback";
+/** The SHA-256 of the client's secret verifier, as PKCE has it (RFC 7636's example). */
+const CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 
 test("an invalid invoice, repaired by the model and approved by a person, is valid", async ({
   page,
@@ -28,6 +36,15 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
     }
   });
   page.on("pageerror", (error) => errors.push(error.message));
+
+  await test.step("no page lets another site show it in a frame", async () => {
+    const response = await page.goto("/sr-Latn/register");
+
+    expect(response?.headers()["content-security-policy"]).toBe(
+      "frame-ancestors 'none'",
+    );
+    expect(response?.headers()["x-frame-options"]).toBe("DENY");
+  });
 
   await test.step("the pages wear the brand, and a key leads past the header", async () => {
     await page.goto("/sr-Latn/register");
@@ -192,6 +209,56 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
     await expect(
       listed.getByRole("cell", { name: "Ispravna", exact: true }),
     ).toBeVisible();
+  });
+
+  await test.step("an MCP client asks to act for the person, who allows it, and it gets a code", async () => {
+    const registered = await page.request.post(`${API}/oauth/register`, {
+      data: { client_name: "Inspektor", redirect_uris: [CALLBACK] },
+    });
+    expect(registered.status()).toBe(201);
+    const { client_id } = (await registered.json()) as { client_id: string };
+    // The client's own page, where the person is taken back, answers in the test's place.
+    await page.route(
+      (url) => url.origin === new URL(CALLBACK).origin,
+      (route) => route.fulfill({ contentType: "text/html", body: "Inspektor" }),
+    );
+    const authorize = new URLSearchParams({
+      response_type: "code",
+      client_id,
+      redirect_uri: CALLBACK,
+      state: "xyz",
+      code_challenge: CHALLENGE,
+      code_challenge_method: "S256",
+    });
+
+    // The API sends the person to the web application's page, in their browser's language.
+    const consent = await page.goto(`${API}/oauth/authorize?${authorize}`);
+
+    await expect(page).toHaveURL(/\/en\/oauth\/consent\?request=[\w-]{43}$/);
+    expect(consent?.headers()["content-security-policy"]).toBe(
+      "frame-ancestors 'none'",
+    );
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: "An app asks for permission",
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("Inspektor", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("127.0.0.1:6274", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Primer d.o.o.", { exact: true }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Allow" }).click();
+
+    await page.waitForURL((url) => url.origin === new URL(CALLBACK).origin);
+    const answer = new URL(page.url()).searchParams;
+    expect(answer.get("code")).toMatch(/^[\w-]{43}$/);
+    expect(answer.get("state")).toBe("xyz");
+    expect(answer.get("iss")).toBe(API);
   });
 
   expect(errors).toEqual([]);

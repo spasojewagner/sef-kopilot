@@ -396,6 +396,39 @@
       }
     }
   },
+  "consent": {
+    "pageTitle": "Dozvola za aplikaciju",
+    "title": "Aplikacija traži dozvolu",
+    "description": "Želi da u vaše ime radi u SEF Kopilotu. Dozvolite samo ako ste je vi upravo povezali.",
+    "signInFirst": "Aplikacija traži da u vaše ime radi u SEF Kopilotu. Prijavite se da vidite šta traži i da odlučite.",
+    "loading": "Učitavanje zahteva…",
+    "notLoaded": "Zahtev nije učitan. Pokušajte ponovo malo kasnije.",
+    "retry": "Pokušaj ponovo",
+    "app": "Aplikacija",
+    "unnamed": "Bez imena",
+    "unchecked": "Ime koje je aplikacija sama sebi dala; SEF Kopilot ga nije proverio.",
+    "returnsTo": "Posle odluke vraća vas na",
+    "local": "Aplikacija na ovom računaru, ne sajt.",
+    "worksIn": "Radiće u organizaciji",
+    "as": "Kao {email}",
+    "may": "Moći će da",
+    "scopes": {
+      "invoicesValidate": "proverava fakture i objašnjava njihove greške"
+    },
+    "waits": "Zahtev čeka vašu odluku do {time}.",
+    "allow": "Dozvoli",
+    "allowing": "Dozvoljavanje…",
+    "deny": "Odbij",
+    "denying": "Odbijanje…",
+    "otherAccount": "Prijavi se drugim nalogom",
+    "returning": "Vraćamo vas na {address}…",
+    "forbidden": "Vaša uloga u organizaciji ne dozvoljava ništa od onoga što aplikacija traži.",
+    "failed": "Odluka nije poslata. Pokušajte ponovo.",
+    "missingTitle": "Nema zahteva",
+    "missing": "Ovu stranicu otvara aplikacija koja traži dozvolu. Pokrenite povezivanje ponovo u toj aplikaciji.",
+    "goneTitle": "Zahtev više ne čeka odluku",
+    "gone": "Istekao je ili je već odlučen. Pokrenite povezivanje ponovo u aplikaciji."
+  },
   "apiWaking": {
     "title": "API se budi",
     "description": "Server koji je neko vreme mirovao budi se za oko minut. Ono što pošaljete sačekaće i otići čim odgovori."

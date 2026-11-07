@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatAmount, formatDate, formatDay, formatMoment } from "./format";
+import {
+  formatAmount,
+  formatDate,
+  formatDay,
+  formatMoment,
+  formatTime,
+} from "./format";
 
 describe("Amounts", () => {
   it("keep every digit the API sends, in the invoice's currency", () => {
@@ -42,6 +48,12 @@ describe("Days and moments", () => {
     expect(formatMoment("sr-Latn", "2026-11-06T23:30:00Z")).toBe(
       "7. 11. 2026. 00:30",
     );
+  });
+
+  it("write the time of a moment as it is in Belgrade, wherever the visitor is", () => {
+    expect(formatTime("sr-Latn", "2026-11-07T21:32:00Z")).toBe("22:32");
+    // Before "PM", a space or a narrow one, as the version of the locale data (CLDR) has it.
+    expect(formatTime("en", "2026-11-07T21:32:00Z")).toMatch(/^10:32\sPM$/);
   });
 
   it("write the day of a moment as it is in Belgrade, wherever the visitor is", () => {

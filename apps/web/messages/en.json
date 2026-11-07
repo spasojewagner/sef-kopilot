@@ -396,6 +396,39 @@
       }
     }
   },
+  "consent": {
+    "pageTitle": "Permission for an app",
+    "title": "An app asks for permission",
+    "description": "It wants to work in SEF Kopilot for you. Allow it only if you have just connected it yourself.",
+    "signInFirst": "An app asks to work in SEF Kopilot for you. Sign in to see what it asks and to decide.",
+    "loading": "Loading the request…",
+    "notLoaded": "The request was not loaded. Try again a little later.",
+    "retry": "Try again",
+    "app": "App",
+    "unnamed": "No name",
+    "unchecked": "The name the app gave itself; SEF Kopilot has not checked it.",
+    "returnsTo": "Once you decide, it takes you back to",
+    "local": "An app on this computer, not a site.",
+    "worksIn": "It will work in",
+    "as": "As {email}",
+    "may": "It will be able to",
+    "scopes": {
+      "invoicesValidate": "validate invoices and explain their errors"
+    },
+    "waits": "The request waits for your decision until {time}.",
+    "allow": "Allow",
+    "allowing": "Allowing…",
+    "deny": "Deny",
+    "denying": "Denying…",
+    "otherAccount": "Sign in with another account",
+    "returning": "Taking you back to {address}…",
+    "forbidden": "Your role in the organization allows none of what the app asks.",
+    "failed": "The decision was not sent. Try again.",
+    "missingTitle": "No request",
+    "missing": "This page is opened by an app that asks for permission. Start connecting again in that app.",
+    "goneTitle": "The request no longer waits",
+    "gone": "It expired, or was already decided. Start connecting again in the app."
+  },
   "apiWaking": {
     "title": "The API is waking up",
     "description": "A server that has been idle for a while takes about a minute to wake. Whatever you send waits, and goes as soon as it answers."

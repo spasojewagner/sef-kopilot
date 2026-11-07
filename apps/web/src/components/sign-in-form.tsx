@@ -28,9 +28,11 @@ interface Credentials {
 
 /**
  * Signs a visitor in with their address and password. A member of several organizations
- * chooses the one to work in, and the API is asked again for it.
+ * chooses the one to work in, and the API is asked again for it. Signed in, the visitor goes to
+ * the home page, unless ``onSignedIn`` says what follows: a page that holds the form and reads
+ * the session goes on as it is.
  */
-export function SignInForm() {
+export function SignInForm({ onSignedIn }: { onSignedIn?: () => void }) {
   const t = useTranslations("signIn");
   const messageFor = useAuthErrorMessage();
   const router = useRouter();
@@ -41,7 +43,7 @@ export function SignInForm() {
   } | null>(null);
   const signingIn = useMutation({
     mutationFn: signIn,
-    onSuccess: () => router.replace("/"),
+    onSuccess: () => (onSignedIn ? onSignedIn() : router.replace("/")),
     onError: (error, credentials) => {
       const organizations = organizationsToChoose(error);
       if (organizations !== null) {

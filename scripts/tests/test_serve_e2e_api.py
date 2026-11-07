@@ -109,7 +109,8 @@ def test_the_settings_are_the_launchers_whatever_the_environment(
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".env").write_text(
         "DATABASE_URL=postgresql+asyncpg://other:other@db.example:5432/other\n"
-        "SEF_WEB_ORIGINS=https://elsewhere.example\n",
+        "SEF_WEB_ORIGINS=https://elsewhere.example\n"
+        "SEF_PUBLIC_URL=https://api.elsewhere.example\n",
         encoding="utf-8",
     )
     monkeypatch.setenv("LLM_PROVIDER", "groq")
@@ -118,10 +119,16 @@ def test_the_settings_are_the_launchers_whatever_the_environment(
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("SEF_VALIDATOR", "thread")
 
-    settings = serve_e2e_api.settings_for(DATABASE_URL, "http://localhost:3100")
+    settings = serve_e2e_api.settings_for(
+        DATABASE_URL, "http://localhost:3100", "http://127.0.0.1:8100"
+    )
 
     assert settings.database_url.get_secret_value() == DATABASE_URL
     assert settings.web_origins == ("http://localhost:3100",)
+    assert (settings.public_url, settings.web_url) == (
+        "http://127.0.0.1:8100",
+        "http://localhost:3100",
+    )
     assert (settings.environment, settings.validator, settings.jobs) == (
         "test",
         "process",
@@ -160,6 +167,10 @@ def test_it_serves_the_api_with_the_scripted_model_on_a_fresh_database(
     assert served == {"host": "127.0.0.1", "port": 8100, "log_level": "warning"}
     assert app.state.settings.database_url.get_secret_value() == DATABASE_URL
     assert app.state.settings.web_origins == ("http://localhost:3123",)
+    assert (app.state.settings.public_url, app.state.settings.web_url) == (
+        "http://127.0.0.1:8100",
+        "http://localhost:3123",
+    )
     assert app.state.repairer.model == "e2e/scripted"
     assert app.state.explainer is None
     asyncio.run(app.state.database.engine.dispose())

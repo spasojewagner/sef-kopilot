@@ -64,6 +64,10 @@ is tagged.
   approves it, for the scopes their role grants, or refuses it (`/oauth/requests/{id}`,
   migration 0016). An approval issues a code valid for two minutes and is recorded in the
   audit log; every answer to the client names the issuer (RFC 9207).
+- `apps/web`: the page where a person decides on an MCP client's request, `/oauth/consent`
+  (ADR-0044): what the client asks, the name it gave itself (unchecked), the address it takes
+  them back to and the organization it will work in; allowing or denying takes them back to
+  the client with its answer. A visitor who is not signed in signs in there, and stays.
 
 ### Changed
 
@@ -87,6 +91,15 @@ is tagged.
 - `apps/web`: signing in and registering stand beside the brand's navy on a wide screen; the
   upload's file field is drawn as the page's, the list of invoices is framed, an empty list
   shows where to begin, and a page that does not exist shows the mark off its course.
+- `apps/web`: the language links keep the query of the page's address, so that a page that
+  reads it is the same page in the other language.
+
+### Security
+
+- `apps/web`: no other site may show a page of the application in a frame
+  (`frame-ancestors 'none'`, `X-Frame-Options: DENY`), where it could be laid under one of its
+  own that has a person press a button unawares (clickjacking), as the page where a person lets
+  an MCP client act for them requires (RFC 9700 §4.16).
 
 ## [0.3.0] - 2026-11-07
 

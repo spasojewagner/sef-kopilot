@@ -117,6 +117,10 @@ system are marked as such.
 
 ### V3 Web frontend security
 
+- [x] No other site may frame a page of the web application (`frame-ancestors 'none'`,
+      `X-Frame-Options: DENY`, checked by the end-to-end test), so none can be laid under a page
+      that has a person press a button unawares: the consent an MCP client asks for least of all
+      (RFC 9700 §4.16).
 - [ ] Content Security Policy, `X-Content-Type-Options`, `Referrer-Policy` and
       `Permissions-Policy` headers set by the web app and the API.
 - [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`. The web application sets none:
@@ -225,6 +229,10 @@ system are marked as such.
       grants at most what the person's role does, issues a code valid for two minutes, stored as
       a SHA-256, and is recorded in the audit log. Every answer to the client names the issuer
       (RFC 9207).
+- [x] The page where a person decides shows the name a client gave itself as unchecked, the host
+      it will take them back to and the organization it will work in, so that a request someone
+      else started, sent to them as a link, can be told for what it is; it cannot be framed
+      (V3), and it decides only on a press of its own.
 - [ ] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
       protected resource metadata (RFC 9728), authorization server metadata (RFC 8414), the
       issuer in authorization responses (RFC 9207) and client ID metadata documents, with scope

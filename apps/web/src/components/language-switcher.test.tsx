@@ -22,6 +22,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
 describe("Language switcher", () => {
   beforeEach(() => {
     pathname.current = "/sr-Latn";
+    window.history.replaceState(null, "", "/");
   });
 
   it("links to the same page in each language, each named in its own", () => {
@@ -41,6 +42,18 @@ describe("Language switcher", () => {
       "sr-Latn",
       "en",
     ]);
+  });
+
+  it("keeps the query of the page's address", () => {
+    pathname.current = "/sr-Latn/oauth/consent";
+    window.history.pushState(null, "", "/sr-Latn/oauth/consent?request=r-1");
+
+    renderIn("sr-Latn", <LanguageSwitcher />);
+
+    expect(screen.getByRole("link", { name: "English" })).toHaveAttribute(
+      "href",
+      "/en/oauth/consent?request=r-1",
+    );
   });
 
   it("marks the language of the page", () => {

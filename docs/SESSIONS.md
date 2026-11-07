@@ -2018,3 +2018,33 @@ Verification: the API's tests, the authorization's against OAuth 2.1 §4.1, RFC 
 and the web application's types regenerated.
 
 Next: the web application's page where a person decides.
+
+## 2026-11-07 — `feat/web-oauth-consent` (5 commits, stacked on `feat/mcp-oauth-authorization`)
+
+Outcome: the web application's page where a person decides on an MCP client's request,
+`/oauth/consent?request=…`: what the client asks, the name it gave itself marked as unchecked,
+the host it takes them back to (an application on their own computer said as such), and the
+organization and account it will work in; Allow or Deny takes them back to the client with its
+answer. A visitor who is not signed in signs in on the page and stays. Before it: no page of the
+application may be framed by another site (RFC 9700 §4.16), the end-to-end test's API is its own
+authorization server, and the language links keep the address's query. The golden path ends
+with a client registering, the person allowing it, and the client's code, state and issuer.
+
+Findings:
+
+- The language links dropped the query, so switching language on the consent page would have
+  lost the request. `useSearchParams` would have taken the links out of every page built ahead
+  of time; the query is read in the browser instead, empty on the server.
+- A preview whose server still held an older build sent a registration as the browser's own GET
+  of the form, with the password in the address. Any visitor who submits before the script has
+  loaded would do the same; `fix/web-credentials-post` is in the backlog.
+- Running every commit's suite again caught a test the registration commit of
+  `feat/mcp-oauth-clients` had left behind, the limits by default; the commit now counts the
+  clients' registrations there too, before the stack is handed off.
+
+Verification: the web application's tests, the consent page's in both languages, signed in and
+not, with each answer the API may give; the end-to-end test with the new step; the seeded
+faults, each caught (see the pull request); each commit checked on its own.
+
+Next: `fix/web-credentials-post`, then the token endpoint and the metadata documents
+(`feat/mcp-oauth-tokens`).
