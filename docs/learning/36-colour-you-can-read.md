@@ -25,8 +25,13 @@ lightness steps, and contrast follows lightness:
 --muted-fg    oklch(0.5   0.033 250)     tinted grey      5.7:1  (at L 0.58 it would fail: 4.1)
 --brand       oklch(0.631 0.111 181.6)   teal             3.2:1  beside it: enough for a mark,
                                                                  not for text, so text that
---success     oklch(0.52  0.09  183)     a darker teal    5.0:1  says "valid" uses this one
+--success     oklch(0.48  0.09  183)     a darker teal    5.9:1  says "valid" uses this one
 ```
+
+A badge sets a state's words on a 12 % tint of the same colour, which the test measures as a
+browser draws it: mixed with the surface in sRGB as stored, gamma and all, not in linear light
+(half black over white is `#808080`, 3.95:1). At `oklch(0.52 …)` the teal read at 4.3:1 on its
+tint over the page, so it is a step deeper.
 
 **The test, not the eye.** `tokens.test.ts` reads `globals.css`, converts each `oklch()` to
 linear sRGB (the OKLab matrices), computes the ratio for every pair a page sets together, in
