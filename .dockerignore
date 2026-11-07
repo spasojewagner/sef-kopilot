@@ -1,0 +1,20 @@
+# What an image is built from: the API's image (apps/api/Dockerfile) takes the Python workspace,
+# the rule-set fetcher, the rule sets' pins and the corpus, and nothing else of the repository.
+*
+!pyproject.toml
+!uv.lock
+!apps/api/
+!packages/einvoice_core/
+!scripts/fetch_rulesets.py
+!third_party/
+!corpus/
+
+# Not even of those: the tests, caches, and the stylesheets compiled outside the image.
+apps/api/tests
+packages/einvoice_core/tests
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+third_party/_compiled
