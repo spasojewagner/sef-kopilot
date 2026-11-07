@@ -7,12 +7,13 @@ Variable names are the ones in ``.env.example``. Values that carry credentials a
 from __future__ import annotations
 
 import secrets
+from collections.abc import Mapping
 from datetime import timedelta
 from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, PydanticBaseSettingsSource, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
@@ -272,6 +273,13 @@ class Settings(BaseSettings):
             return tuple(part.strip() for part in value.split(",") if part.strip())
         return value
 
+    @classmethod
+    def from_values(cls, values: Mapping[str, object]) -> Settings:
+        """Settings read from ``values`` alone, by the variables' names
+        (``{"SEF_ENVIRONMENT": "test"}``), and from neither the environment nor ``.env``: for the
+        tools and tests whose settings must not depend on the machine they run on."""
+        return _Given.model_validate(dict(values))
+
     @property
     def access_token_lifetime(self) -> timedelta:
         return timedelta(minutes=self.access_token_minutes)
@@ -336,3 +344,19 @@ class Settings(BaseSettings):
                 f"DATABASE_URL must use the {DRIVER}:// scheme, for example {LOCAL_DATABASE_URL}"
             )
         return self
+
+
+class _Given(Settings):
+    """:class:`Settings` read from the values given alone (:meth:`Settings.from_values`)."""
+
+    # pydantic-settings passes every source by name; only the values given are kept.
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],  # noqa: ARG003
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+        dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+        file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (init_settings,)

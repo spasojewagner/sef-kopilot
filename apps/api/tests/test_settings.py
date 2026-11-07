@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from sef_api.settings import LOCAL_DATABASE_URL, Settings
 
-from .conftest import REPOSITORY_ROOT
+from .conftest import REPOSITORY_ROOT, settings_for
 
 PASSWORD = "hunter2-not-a-real-one"
 
@@ -287,3 +287,37 @@ def test_in_production_a_web_origin_is_https(monkeypatch: pytest.MonkeyPatch) ->
         Settings()
     monkeypatch.setenv("SEF_WEB_ORIGINS", "https://sef-kopilot.pages.dev")
     assert Settings().web_origins == ("https://sef-kopilot.pages.dev",)
+
+
+def test_settings_from_given_values_read_neither_the_environment_nor_env_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / ".env").write_text("SEF_MAX_EXPLANATIONS=9\nSEF_JOBS=arq\n", encoding="utf-8")
+    monkeypatch.setenv("SEF_VALIDATOR", "thread")
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+
+    settings = Settings.from_values({"SEF_ENVIRONMENT": "test", "SEF_MAX_INVOICE_BYTES": "4096"})
+
+    assert (settings.environment, settings.max_invoice_bytes) == ("test", 4096)
+    assert (settings.validator, settings.jobs, settings.llm_provider) == (
+        "process",
+        "inline",
+        "none",
+    )
+    assert settings.max_explanations == 5
+    # What is given is checked as ever.
+    with pytest.raises(ValidationError, match="SEF_JWT_SECRET must be set in production"):
+        Settings.from_values({"SEF_ENVIRONMENT": "production"})
+
+
+def test_a_test_applications_settings_read_nothing_from_the_machine(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / ".env").write_text("SEF_MAX_EXPLANATIONS=9\n", encoding="utf-8")
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    monkeypatch.setenv("GROQ_API_KEY", "unused")
+
+    settings = settings_for(SEF_REPAIR_SECONDS="5")
+
+    assert (settings.llm_provider, settings.groq_api_key) == ("none", None)
+    assert (settings.max_explanations, settings.repair_seconds) == (5, 5.0)

@@ -12,10 +12,10 @@ The patches are applied by the validator's process (``apply``) to the invoice as
 after those kept from the rounds before, and what they leave is validated. While fatal
 violations remain, the model is sent what became of each of its patches, the violations that
 remain and the fields around them, for up to :data:`ROUNDS` rounds, all within the time
-allowed. A patch that failed changed nothing and is not kept; one that a person decides is
-kept, for the person to see. A round that leaves more fatal violations than the invoice had,
-or than the round kept before it, is not kept. What the rounds leave is a repair like any
-other: a person decides on it.
+allowed. A patch that failed changed nothing and is not kept, nor is one that wrote at its
+place the value already there; one that a person decides is kept, for the person to see. A
+round that leaves more fatal violations than the invoice had, or than the round kept before
+it, is not kept. What the rounds leave is a repair like any other: a person decides on it.
 
 What the model is sent quotes the invoice, and so may what it answers: neither is ever logged.
 """
@@ -272,8 +272,19 @@ def _shown(patch: Patch) -> str:
     return _data(json.dumps(written, ensure_ascii=False))
 
 
+def _changes(outcome: Outcome) -> bool:
+    """Whether the patch of ``outcome`` is one a repair keeps: one that changed the invoice, or
+    one a person decides. A patch that failed changed nothing; nor did one that applied and
+    wrote at its place the value already there."""
+    if outcome.status == "applied":
+        return outcome.before != outcome.after
+    return outcome.status == "needs-decision"
+
+
 def _result(outcome: Outcome) -> str:
     if outcome.status == "applied":
+        if not _changes(outcome):
+            return "applied, but it changed nothing: its place held this value already"
         return "applied"
     if outcome.status == "needs-decision":
         return f"not applied: {outcome.problem}"
@@ -322,10 +333,11 @@ def _fatal(patched: Patched) -> int:
     )
 
 
-def _without_failed(patched: Patched) -> Patched:
-    """``patched`` without the patches that failed, which changed nothing: the document, the
-    report and the difference are what the others leave."""
-    kept = tuple(outcome for outcome in patched.outcomes if outcome.status != "failed")
+def _without_futile(patched: Patched) -> Patched:
+    """``patched`` without the patches that changed nothing, those that failed and those that
+    wrote the value already there: the document, the report and the difference are what the
+    others leave."""
+    kept = tuple(outcome for outcome in patched.outcomes if _changes(outcome))
     return patched.model_copy(update={"outcomes": kept, "fields": ()})
 
 
@@ -357,11 +369,11 @@ class _Rounds:
         """Round ``number``'s patches applied after those kept: keep what they leave unless it
         has more fatal violations than the best before it, or the invoice had."""
         self.last = state.outcomes[len(self.kept) :]
-        self.kept = [outcome.patch for outcome in state.outcomes if outcome.status != "failed"]
+        self.kept = [outcome.patch for outcome in state.outcomes if _changes(outcome)]
         self.state = state
         if _fatal(state) <= self.least:
             self.least = _fatal(state)
-            self.best = Suggestion(_without_failed(state), rounds=number, answers=self.answers)
+            self.best = Suggestion(_without_futile(state), rounds=number, answers=self.answers)
 
     def why_none(self) -> str:
         if not self.proposed_any:
@@ -371,7 +383,7 @@ class _Rounds:
                 "the patches the language model proposes leave more fatal violations than the "
                 "invoice has: none is kept"
             )
-        return "none of the patches the language model proposes applies"
+        return "none of the patches the language model proposes changes the invoice"
 
 
 async def _applied(

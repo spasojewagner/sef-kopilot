@@ -32,7 +32,7 @@ from typing import Any, Final
 import uvicorn
 from alembic import command
 from pydantic import SecretStr
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -108,28 +108,12 @@ class ScriptedModel:
         pass
 
 
-class _Given(Settings):
-    """The API's settings read from the values given alone: never from the environment or
-    ``.env``."""
-
-    # pydantic-settings passes every source by name; only the values given are kept.
-    @classmethod
-    def settings_customise_sources(
-        cls,
-        settings_cls: type[BaseSettings],  # noqa: ARG003
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,  # noqa: ARG003
-        dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
-        file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
-    ) -> tuple[PydanticBaseSettingsSource, ...]:
-        return (init_settings,)
-
-
 def settings_for(database_url: str, web_origin: str) -> Settings:
     """The API's settings for the test: its database, the origin of the web application's pages,
     and the rest as a deployment of one process has them by default, with neither a language
-    model nor embeddings. The key that signs tokens is made anew for the process."""
-    return _Given.model_validate(
+    model nor embeddings. The key that signs tokens is made anew for the process. Nothing is
+    read from the environment or ``.env``."""
+    return Settings.from_values(
         {
             "SEF_ENVIRONMENT": "test",
             "DATABASE_URL": database_url,

@@ -58,12 +58,13 @@ TEST_REDIS_URL = _TestServer().sef_test_redis_url
 
 
 def settings_for(database_url: str = UNREACHABLE_DATABASE, **variables: str) -> Settings:
-    """Settings for a test application, independent of the environment and of ``.env``;
-    ``variables`` set or override environment variables (``SEF_MAX_INVOICE_BYTES="1024"``).
+    """Settings for a test application, independent of the environment and of ``.env``, which a
+    developer's machine may hold (a model's provider and its key, say); ``variables`` set the
+    variables they name (``SEF_MAX_INVOICE_BYTES="1024"``).
 
     Invoices are validated in a thread of the test's process: the child process of the API is
     tested on its own (``test_validator.py``)."""
-    return Settings.model_validate(
+    return Settings.from_values(
         {
             "SEF_ENVIRONMENT": "test",
             "DATABASE_URL": database_url,

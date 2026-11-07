@@ -344,6 +344,33 @@ async def test_patches_that_all_fail_are_no_repair() -> None:
         await suggested(model, CITY)
 
 
+async def test_a_patch_that_writes_the_value_already_there_is_not_kept() -> None:
+    same = patch("/ubl:Invoice/cbc:BuyerReference", value="NAB-77", reason="Kupac to traži.")
+    model = ScriptedModel(answer(same, FIX_TYPE))
+
+    suggestion, apply = await suggested(model, TYPE_CODE)
+
+    assert apply.applied[1] == [Patch.model_validate(same), Patch.model_validate(FIX_TYPE)]
+    # It applied and changed nothing, and the repair does not hold it.
+    assert [outcome.patch for outcome in suggestion.patched.outcomes] == [
+        Patch.model_validate(FIX_TYPE)
+    ]
+    assert suggestion.patched.validation.report.valid
+
+
+async def test_patches_that_change_nothing_are_no_repair_and_the_model_is_told() -> None:
+    same = {**FIX_TYPE, "value": "393", "reason": "Kod tipa je 393."}
+    model = ScriptedModel(answer(same), answer(same))
+
+    with pytest.raises(
+        NoPatchError, match="none of the patches the language model proposes changes the invoice"
+    ):
+        await suggested(model, TYPE_CODE)
+
+    lines = model.asked[1][1].content.splitlines()
+    assert lines[3] == "result: applied, but it changed nothing: its place held this value already"
+
+
 async def test_patches_that_leave_more_fatal_violations_than_there_were_are_no_repair() -> None:
     model = ScriptedModel(answer(SPECIFICATION), answer())
 
