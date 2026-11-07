@@ -68,3 +68,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-explanations-kept` | [m4-web-explanations-kept.md](m4-web-explanations-kept.md) |
 | `perf/rag-rule-embeddings-kept` | [m4-rag-rule-embeddings-kept.md](m4-rag-rule-embeddings-kept.md) |
 | `feat/mcp-server` | [m4-mcp-server.md](m4-mcp-server.md) |
+| `feat/web-brand` | [m4-web-brand.md](m4-web-brand.md) |

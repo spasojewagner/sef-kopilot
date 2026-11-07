@@ -1859,3 +1859,31 @@ Verification: the API's tests, the MCP server's compared with the routes they st
 seeded faults, each caught (see the pull request); ruff, mypy; the lock file.
 
 Next: the MCP tools on stored invoices.
+
+## 2026-11-07 — `feat/web-brand` (4 commits)
+
+Outcome: at the maintainer's request, the web application has a visual identity (ADR-0043):
+ink navy and one teal accent as tokens under shadcn/ui's names, in light and dark, with their
+contrast measured by a test; Onest and JetBrains Mono, served with the pages; a mark of its own,
+a compass bezel whose needle is a check, with the favicon and the home-screen icon; and a header
+on the navy, with a member's sections beside the logo and a link past it to the content.
+
+Findings:
+
+- Reading the path in a client component stopped the production build: with
+  `cacheComponents`, a page whose path is known only when asked for (an invoice's report)
+  cannot read it while it is rendered at build time. The section links read it only once a
+  member is signed in, which such a page never knows, and under `Suspense`, as the languages do.
+- `next/font/local` declares no character ranges, so it could not serve the packages' files
+  split by range; the packages' own CSS does.
+- Every page rendered its own `main`; a link to the content needs one target on every page, so
+  the root layout renders it now and the pages are its content.
+- Listing the pairs to measure on the navy showed that it inherited the light theme's warning
+  and error colours, which read there at 3.4:1 and 3.2:1: the surface sets them again.
+
+Verification: the web application's tests, the contrast of every pair of tokens in each mode
+among them; ESLint, TypeScript, the build; the end-to-end test, which now checks the typeface
+the pages load, the favicon and the link past the header; the seeded faults, each caught (see
+the pull request).
+
+Next: the home page as the product's page (`feat/web-landing`).
