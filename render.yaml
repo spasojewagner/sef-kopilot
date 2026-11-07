@@ -42,3 +42,6 @@ services:
       # whom the rate limits count (ADR-0018).
       - key: FORWARDED_ALLOW_IPS
         value: "*"
+      # A public demonstration: the web application asks for synthetic invoices only (ADR-0037).
+      - key: SEF_PUBLIC_DEMO
+        value: "true"
