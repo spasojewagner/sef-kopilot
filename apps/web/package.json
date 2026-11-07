@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "api:types": "openapi-typescript ../../docs/api/openapi.json -o src/lib/api-schema.d.ts"
+    "api:types": "openapi-typescript ../../docs/api/openapi.json -o src/lib/api-schema.d.ts",
+    "brand:images": "node scripts/brand-images.mjs"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "5.3.0",

@@ -46,6 +46,8 @@ is tagged.
   web application, a page of another origin and a method other than POST are refused. Each tool
   requires its route's permission and counts against its limits; the first, `validate_invoice`,
   validates an invoice's XML as `POST /invoices/validate` does, storing nothing.
+- `apps/web`: the brand's mark, a compass bezel whose needle is a check, beside the product's
+  name, and the icons it gives a browser's tab and a phone's home screen.
 
 ### Changed
 
