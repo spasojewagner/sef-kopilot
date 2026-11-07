@@ -112,6 +112,11 @@ is tagged.
   build and the API, which `scripts/serve_e2e_api.py` starts on a database made anew for each
   run, with a scripted model, so that no key is needed. `make e2e` runs it, and a CI job on
   every pull request, which keeps the report and the trace of a failure.
+- `apps/api/Dockerfile`: the API as an image (ADR-0034). It holds the lock file's dependencies of
+  the API alone, the rule sets checked against their pins with every profile's stylesheets
+  compiled, and the corpus; a container applies the migrations, then serves on `PORT` as a user
+  that owns no file, trusting a proxy's `X-Forwarded-For` only from `FORWARDED_ALLOW_IPS`. A CI
+  job builds it, starts it on an empty database and validates an invoice through it.
 
 ### Changed
 

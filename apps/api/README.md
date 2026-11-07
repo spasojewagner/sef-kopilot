@@ -36,6 +36,34 @@ whose pages may (CORS), separated by commas: `http://localhost:3000` in `.env.ex
 send `Authorization`, `Content-Type` and `Last-Event-ID`, and read `Location` and `Retry-After`;
 it sends its token in a header, so no credentials are allowed.
 
+## The image
+
+`apps/api/Dockerfile` builds the API into an image (ADR-0034), from the repository's root:
+
+```bash
+docker build -f apps/api/Dockerfile -t sef-kopilot-api .
+docker run -p 8000:8000 \
+  -e DATABASE_URL=postgresql+asyncpg://user:password@host:5432/database \
+  -e SEF_JWT_SECRET="$(openssl rand -hex 32)" \
+  sef-kopilot-api
+```
+
+The build installs the locked dependencies of the API alone, without the tools of development,
+checks the rule sets against their pins (fetching them when the build is given none), and
+compiles every profile's stylesheets, so that a container does not compile them when it starts.
+A container applies the migrations to its database and then serves on `PORT` (8000), as the
+user `sef`, which owns no file; `SEF_ENVIRONMENT` is `production`, so the database and the
+signing key must be given. It keeps nothing on its disk. `python -m sef_api.rag.ingest` loads
+the corpus the image holds into the database.
+
+Behind a platform's proxy, set `FORWARDED_ALLOW_IPS` to the proxy's addresses, or to `*` where
+the proxy is the only way to the container: the rate limits count by the client's address,
+which the server then takes from the proxy's `X-Forwarded-For` (ADR-0018).
+
+In 512 MB and a tenth of a CPU, about what a small free instance has, the image is ready about
+40 s after it starts on an empty database, validates a typical invoice in 0.1 to 0.4 s and one of
+11 800 elements in about 5 s, and uses at most about 330 MB (measured on 7 November 2026).
+
 ## Accounts and tokens
 
 `/auth` signs people up and in (ADR-0012). Registration creates an account, its organization and
@@ -495,5 +523,6 @@ src/sef_api/
   migrations/    Alembic environment and revisions (`versions/`)
   routes/        one router module per resource
 alembic.ini      command-line configuration of the migrations
+Dockerfile       the API's image; `docker/start.sh` applies the migrations, then serves
 tests/           httpx-based tests against the ASGI app; database tests on PostgreSQL
 ```

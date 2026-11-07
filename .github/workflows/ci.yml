@@ -301,6 +301,72 @@ jobs:
             apps/web/test-results/
           retention-days: 14
 
+  # The API's image (ADR-0034), built as a deployment builds it, then started on an empty
+  # database, which its migrations fill, and asked whether it is ready and to validate an invoice.
+  container:
+    name: API image (build, start, validate)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sef
+          POSTGRES_PASSWORD: sef
+          POSTGRES_DB: sef_kopilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sef -d sef_kopilot"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The rule sets the other jobs cache, which the build checks against their pins and keeps;
+      # on a miss the build fetches them from their official sources itself.
+      - name: Cache fetched rule sets
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            third_party/*
+            !third_party/README.md
+            !third_party/manifest.json
+            !third_party/_compiled
+          key: rulesets-${{ hashFiles('third_party/manifest.json') }}
+
+      - name: Build the image
+        run: docker build -f apps/api/Dockerfile -t sef-kopilot-api:ci .
+
+      - name: Start it as a deployment does, and wait until it is ready
+        run: |
+          docker run -d --name api --network host \
+            -e DATABASE_URL=postgresql+asyncpg://sef:sef@localhost:5432/sef_kopilot \
+            -e SEF_JWT_SECRET="$(openssl rand -hex 32)" \
+            sef-kopilot-api:ci
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/ready; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Register, and validate an invoice through it
+        run: |
+          token=$(curl -fsS -X POST http://127.0.0.1:8000/auth/register \
+            -H 'Content-Type: application/json' \
+            -d '{"email": "ci@primer.example", "password": "a long passphrase for CI", "organization_name": "Primer d.o.o."}' \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["access_token"])')
+          curl -fsS -X POST 'http://127.0.0.1:8000/invoices/validate?profile=srb' \
+            -H "Authorization: Bearer ${token}" -H 'Content-Type: application/xml' \
+            --data-binary @fixtures/invoices/synthetic/srb-final-invoice.xml \
+            | python3 -c 'import json, sys; report = json.load(sys.stdin); assert report["valid"], report'
+
+      - name: The container's log and the image's size
+        if: always()
+        run: |
+          docker logs api || true
+          docker image ls sef-kopilot-api:ci
+
   # Full-history secret scan, independent of pre-commit: a secret that slipped into an old
   # commit is still a leak even if the current tree is clean.
   gitleaks:
