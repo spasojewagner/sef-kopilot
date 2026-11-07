@@ -39,7 +39,7 @@ from sef_api.rag.explainer import Explainer
 from sef_api.rate_limits import RateLimiter, limits
 from sef_api.repairs import routes as repairs
 from sef_api.repairs.repairer import Repairer
-from sef_api.retention import keep_forgetting_old_jobs
+from sef_api.retention import keep_forgetting
 from sef_api.routes import health
 from sef_api.settings import Settings
 from sef_api.unexpected import AnswerUnexpectedErrors
@@ -119,10 +119,11 @@ def _model_users(settings: Settings) -> tuple[Explainer | None, Repairer | None]
 
 
 @asynccontextmanager
-async def _deleting_old_jobs(database: Database, retention_days: int) -> AsyncIterator[None]:
-    """Delete the jobs that finished longer ago than the retention period now, then every few
-    hours, while the application runs (ADR-0038)."""
-    deleting = asyncio.create_task(keep_forgetting_old_jobs(database, retention_days))
+async def _deleting_old_data(database: Database, job_retention_days: int) -> AsyncIterator[None]:
+    """Delete what is past its retention now, then every few hours, while the application runs:
+    the old finished jobs (ADR-0038) and the invoices kept past their organization's period
+    (ADR-0039)."""
+    deleting = asyncio.create_task(keep_forgetting(database, job_retention_days))
     try:
         yield
     finally:
@@ -168,9 +169,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         async with AsyncExitStack() as running:
             if settings.jobs == "inline":
                 await _resume(application)
-                # The jobs run here, so here their old ends are deleted.
+                # The jobs run here, so here old data is deleted.
                 await running.enter_async_context(
-                    _deleting_old_jobs(database, settings.job_retention_days)
+                    _deleting_old_data(database, settings.job_retention_days)
                 )
             yield
         await application.state.jobs.stop()

@@ -148,6 +148,39 @@ def test_undoing_0009_drops_the_index_of_the_invalid_invoices(empty_database_url
     assert asyncio.run(run(empty_database_url, indexes)) == []
 
 
+def test_undoing_0012_forgets_the_periods_and_the_events_that_recorded_them(
+    empty_database_url: str,
+) -> None:
+    """The audit log's list of actions loses the one for a period, so its events go; the other
+    events stay."""
+    config = alembic_config(empty_database_url)
+    command.upgrade(config, "0012")
+    asyncio.run(
+        run(
+            empty_database_url,
+            "INSERT INTO organizations (name, invoice_retention_days) VALUES ('Primer', 30)",
+            "INSERT INTO audit_events (organization_id, actor, action)"
+            " SELECT id, gen_random_uuid(), 'organization.retention_set' FROM organizations",
+            "INSERT INTO audit_events (organization_id, actor, action, invoice_id, repair_id)"
+            " SELECT id, gen_random_uuid(), 'repair.rejected', gen_random_uuid(),"
+            " gen_random_uuid() FROM organizations",
+        )
+    )
+
+    command.downgrade(config, "0011")
+
+    assert asyncio.run(run(empty_database_url, "SELECT action FROM audit_events")) == [
+        "repair.rejected"
+    ]
+    columns = asyncio.run(
+        run(
+            empty_database_url,
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'organizations'",
+        )
+    )
+    assert "invoice_retention_days" not in columns
+
+
 def test_the_revision_ids_are_sequence_numbers() -> None:
     config = alembic_config("postgresql+asyncpg://reviewer@localhost/sef")
     revisions = [script.revision for script in ScriptDirectory.from_config(config).walk_revisions()]

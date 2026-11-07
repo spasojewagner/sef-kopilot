@@ -24,12 +24,22 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final, Literal
 
-from sqlalchemy import ColumnElement, Select, delete, func, select, tuple_, update
+from sqlalchemy import (
+    ColumnElement,
+    DateTime,
+    Select,
+    delete,
+    func,
+    literal,
+    select,
+    tuple_,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.invoices.validation import InvoiceSummary, ProfileName, Validation
 from sef_api.locks import lock_invoice_storage
-from sef_api.models import StoredInvoice
+from sef_api.models import Organization, StoredInvoice
 
 __all__ = [
     "MAX_PAGE",
@@ -42,6 +52,7 @@ __all__ = [
     "cursor_after",
     "find",
     "forget",
+    "forget_past_retention",
     "page_of",
     "replace_document",
     "replace_report",
@@ -317,3 +328,27 @@ async def forget(session: AsyncSession, scope: Scope, invoice_id: uuid.UUID) -> 
     )
     await session.commit()
     return deleted is not None
+
+
+async def forget_past_retention(session: AsyncSession, *, now: datetime) -> int:
+    """Delete, and commit, every invoice of every organization that set a retention period and
+    stored it longer ago than that period, before ``now``; how many. With the invoice go its
+    document, its report and its repairs; the audit log keeps what it named, by id. An
+    organization without a period keeps every invoice."""
+    # The time of storing alone on one side, so that the index of an organization's invoices by
+    # that time finds the old ones without reading the others.
+    stored_before = literal(now, DateTime(timezone=True)) - func.make_interval(
+        0, 0, 0, Organization.invoice_retention_days
+    )
+    deleted = await session.scalars(
+        delete(StoredInvoice)
+        .where(
+            StoredInvoice.organization_id == Organization.id,
+            Organization.invoice_retention_days.is_not(None),
+            StoredInvoice.created_at < stored_before,
+        )
+        .returning(StoredInvoice.id)
+    )
+    count = len(deleted.all())
+    await session.commit()
+    return count
