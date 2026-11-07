@@ -8,7 +8,12 @@ import { ApiStatus } from "./api-status";
 
 function health(version: string): Response {
   return new Response(
-    JSON.stringify({ status: "ok", service: "sef-kopilot-api", version }),
+    JSON.stringify({
+      status: "ok",
+      service: "sef-kopilot-api",
+      version,
+      public_demo: false,
+    }),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
 }

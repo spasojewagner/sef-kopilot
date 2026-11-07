@@ -266,6 +266,16 @@ class Settings(BaseSettings):
         ),
     )
 
+    public_demo: bool = Field(
+        default=False,
+        validation_alias="SEF_PUBLIC_DEMO",
+        description=(
+            "Whether this server is a public demonstration, where no real invoice belongs: "
+            "`GET /health` says so, and the web application then asks for synthetic invoices "
+            "only on its upload."
+        ),
+    )
+
     @field_validator("web_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:

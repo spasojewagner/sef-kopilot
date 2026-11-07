@@ -85,6 +85,7 @@ function cacheWithAnswers() {
     status: "ok",
     service: "sef-kopilot-api",
     version: "0.2.0",
+    public_demo: false,
   });
   return client;
 }

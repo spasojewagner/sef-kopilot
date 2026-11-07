@@ -6,7 +6,12 @@ import { renderIn } from "@/test/render";
 
 import { ApiWakingNotice } from "./api-waking-notice";
 
-const HEALTH = { status: "ok", service: "sef-kopilot-api", version: "0.2.0" };
+const HEALTH = {
+  status: "ok",
+  service: "sef-kopilot-api",
+  version: "0.2.0",
+  public_demo: false,
+};
 
 /** The API answers `/health` ``ms`` after it is asked. */
 function answerAfter(ms: number): void {

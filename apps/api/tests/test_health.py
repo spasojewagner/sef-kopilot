@@ -25,7 +25,17 @@ async def test_health_reports_ok_with_service_and_version(client: AsyncClient) -
         "status": "ok",
         "service": "sef-kopilot-api",
         "version": sef_api.__version__,
+        "public_demo": False,
     }
+
+
+async def test_health_says_when_the_server_is_a_public_demo() -> None:
+    app = create_app(settings_for(SEF_PUBLIC_DEMO="true"))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/health")
+    await app.state.database.engine.dispose()
+
+    assert response.json()["public_demo"] is True
 
 
 async def test_ready_is_503_while_the_database_does_not_answer(client: AsyncClient) -> None:

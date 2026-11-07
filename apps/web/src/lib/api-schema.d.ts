@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Liveness probe
-         * @description Reports that the process is up. Never touches external dependencies.
+         * @description Reports that the process is up, and whether it is a public demonstration. Never touches external dependencies.
          */
         get: operations["health_health_get"];
         put?: never;
@@ -737,6 +737,11 @@ export interface components {
              * @description Version of the running API, from the package metadata.
              */
             version: string;
+            /**
+             * Public Demo
+             * @description Whether this server is a public demonstration (`SEF_PUBLIC_DEMO`), where no real invoice belongs: what is uploaded is stored here, and an explanation or a repair sends violations and fields to the language model's provider.
+             */
+            public_demo: boolean;
         };
         /** InvitationOut */
         InvitationOut: {
