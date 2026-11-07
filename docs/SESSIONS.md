@@ -1522,3 +1522,29 @@ check healthy, and stopped cleanly by SIGTERM.
 
 Next: `chore/infra-deploy`: the Render blueprint, the web application on Vercel, the steps for
 the maintainer's accounts; then the API's waking-up state on the pages.
+
+## 2026-11-07 — `chore/infra-deploy` (3 commits, stacked on `build/api-container`)
+
+Outcome: the public demo's configuration and runbook (ADR-0035, `docs/DEPLOY.md`). The API runs on
+Render's free plan from `render.yaml`, the image of ADR-0034 in Frankfurt, deployed from `main`
+once CI has passed and only when the image changes; its database is Neon's free plan in the same
+region, through the direct connection; the web application runs on Vercel's Hobby plan, with
+Node.js 22 and no build for a commit that changes nothing of it. No secret is in the repository.
+
+Findings:
+
+- The maintainer chose Vercel over the brief's Cloudflare Pages: the report's page needs a server
+  for its id, which on Cloudflare means the OpenNext adapter, whose Worker the free plan limits to
+  3 MiB compressed. Vercel's Hobby plan is non-commercial, which a portfolio demo is.
+- Render's free plan has no pre-deploy step, no shell and no one-off jobs: the image's start
+  migrates, and the corpus is loaded from a developer's machine.
+- asyncpg takes `ssl=require`, not Neon's `sslmode` and `channel_binding`, and needs the direct
+  connection: the runbook says how to rewrite the URL Neon gives.
+- Render's 750 free hours a month are shared by every free service of the workspace, where the
+  maintainer has others.
+
+Verification: the Blueprint's fields checked against Render's specification, `vercel.json` and
+`package.json` formatted and parsed, the frozen install unchanged, every hook and the secret scan.
+
+Next: the first deploy with the maintainer, then `feat/web-api-waking-up`; then the release of
+v0.3.0.

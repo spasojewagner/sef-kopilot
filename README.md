@@ -115,6 +115,7 @@ engineering charter is [`docs/BRIEF.md`](docs/BRIEF.md).
 | Integration | MCP (official Python SDK, Streamable HTTP) with OAuth 2.1 via Authlib |
 | Web | Next.js (App Router), TypeScript strict, Tailwind CSS v4, shadcn/ui, TanStack Query, `next-intl` |
 | Quality | `ruff`, `mypy --strict`, `pytest` + `hypothesis`, Vitest + Testing Library, Playwright, `gitleaks`, GitHub Actions |
+| Hosting | Vercel (web), Render (API, Docker), Neon (PostgreSQL), Groq (language model), all on free plans |
 
 ## Repository layout
 
@@ -188,6 +189,7 @@ Chromium for Playwright, installed once with
 - [`docs/BRIEF.md`](docs/BRIEF.md) — product and engineering charter (the source of truth for scope and decisions)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system map: layers, request flow, repository map, cross-cutting concerns
 - [`docs/adr/`](docs/adr/README.md) — architecture decision records (MADR)
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — the public demo: what runs where, and the steps to deploy it
 - [`docs/learning/`](docs/learning/README.md) — one-page notes on the concepts the project is built on
 - [`docs/interview/`](docs/interview/README.md) — the questions each pull request should survive
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how the repository is worked on: branches, commits, pull requests, releases

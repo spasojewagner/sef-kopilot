@@ -1,0 +1,44 @@
+# The public demo's API on Render (ADR-0035): the image of apps/api/Dockerfile on a free instance
+# in Frankfurt, deployed from main once CI has passed on the commit, and only when the commit
+# changes what the image is built from. Applied as a Blueprint (New > Blueprint > this
+# repository); docs/DEPLOY.md has the steps. The values marked `sync: false` are asked for when
+# the Blueprint is applied, and are never written here.
+services:
+  - type: web
+    name: sef-kopilot-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /ready
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - apps/api/**
+        - packages/einvoice_core/**
+        - corpus/**
+        - scripts/fetch_rulesets.py
+        - third_party/manifest.json
+        - pyproject.toml
+        - uv.lock
+        - .dockerignore
+    envVars:
+      # PostgreSQL on Neon: the direct (not pooled) connection, with the asyncpg driver and TLS,
+      # postgresql+asyncpg://USER:PASSWORD@HOST/neondb?ssl=require.
+      - key: DATABASE_URL
+        sync: false
+      - key: SEF_JWT_SECRET
+        generateValue: true
+      # The web application's origin on Vercel, https://NAME.vercel.app, without a slash.
+      - key: SEF_WEB_ORIGINS
+        sync: false
+      - key: LLM_PROVIDER
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false
+      # Render's proxy is the only way to the container: its X-Forwarded-For names the client,
+      # whom the rate limits count (ADR-0018).
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"

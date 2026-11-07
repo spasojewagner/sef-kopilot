@@ -4,6 +4,9 @@
   "private": true,
   "description": "SEF Kopilot web application: upload, validation report, explanations, repairs and approval.",
   "license": "Apache-2.0",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

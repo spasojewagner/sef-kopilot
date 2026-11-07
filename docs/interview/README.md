@@ -54,3 +54,4 @@ per branch, to keep them with the code they describe.
 | `fix/repair-patches-that-change-nothing` | [m3-repair-patches-that-change-nothing.md](m3-repair-patches-that-change-nothing.md) |
 | `test/api-settings-without-the-environment` | [m3-api-settings-without-the-environment.md](m3-api-settings-without-the-environment.md) |
 | `build/api-container` | [m3-api-container.md](m3-api-container.md) |
+| `chore/infra-deploy` | [m3-infra-deploy.md](m3-infra-deploy.md) |

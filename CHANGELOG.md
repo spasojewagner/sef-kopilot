@@ -117,6 +117,11 @@ is tagged.
   compiled, and the corpus; a container applies the migrations, then serves on `PORT` as a user
   that owns no file, trusting a proxy's `X-Forwarded-For` only from `FORWARDED_ALLOW_IPS`. A CI
   job builds it, starts it on an empty database and validates an invoice through it.
+- The public demo's hosting (ADR-0035), with its runbook in `docs/DEPLOY.md`: the API on Render's
+  free plan from `render.yaml`, deployed from `main` once CI has passed and only when its image
+  changes; its database on Neon; the web application on Vercel's Hobby plan, with Node.js 22 and a
+  build only when it changes (`apps/web/vercel.json`). No secret is in the repository: Render
+  generates the signing key and asks for the others when the Blueprint is applied.
 
 ### Changed
 
