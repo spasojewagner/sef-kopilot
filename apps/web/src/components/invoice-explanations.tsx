@@ -1,8 +1,11 @@
 "use client";
 
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,27 +18,32 @@ import {
   languageOf,
 } from "@/lib/explanations";
 import { formatDay } from "@/lib/format";
-import { explanationsQuery } from "@/lib/queries";
+import { askForExplanations, explanationsQuery } from "@/lib/queries";
 
-/** The explanations of a stored invoice's report, and how the visitor asks for them. */
+/**
+ * The explanations of a stored invoice's report, null while none are kept or written, and how
+ * the visitor asks for them.
+ */
 export interface Explaining {
-  explained: UseQueryResult<Explained>;
+  explained: UseQueryResult<Explained | null>;
   ask: () => void;
 }
 
 /**
- * The explanations of the stored invoice ``id``'s report, in the page's language. Nothing is
- * asked of the language model until the visitor asks; explanations written earlier in the
- * visit are shown at once.
+ * The explanations of the stored invoice ``id``'s report, in the page's language. Those the API
+ * keeps for the report are shown at once, and reading them asks the language model nothing
+ * (ADR-0040); otherwise nothing is asked of the model until the visitor asks. Explanations the
+ * visit already has are shown at once.
  */
 export function useExplanations(id: string): Explaining {
   const language = languageOf(useLocale());
-  const [asked, setAsked] = useState(false);
-  const explained = useQuery({
-    ...explanationsQuery(id, language),
-    enabled: asked,
-  });
-  return { explained, ask: () => setAsked(true) };
+  const client = useQueryClient();
+  const explained = useQuery(explanationsQuery(id, language));
+  return {
+    explained,
+    // A failure is the query's to show, under the same key.
+    ask: () => void askForExplanations(client, id, language).catch(() => {}),
+  };
 }
 
 /** What the language model may do for the visitor, what it is doing, or what it wrote. */
@@ -44,6 +52,10 @@ export function ExplanationsPanel({ explained, ask }: Explaining) {
   const locale = useLocale();
   const why = useExplanationErrorMessage();
 
+  if (explained.isPending) {
+    // Reading what the API keeps: nothing to offer yet, so nothing flashes by.
+    return null;
+  }
   if (explained.data) {
     const { model, day, unexplained } = explained.data;
     return (
@@ -72,11 +84,7 @@ export function ExplanationsPanel({ explained, ask }: Explaining) {
           <p>{why(explained.error)}</p>
           {!noModel && (
             <div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void explained.refetch()}
-              >
+              <Button variant="outline" size="sm" onClick={ask}>
                 {t("again")}
               </Button>
             </div>

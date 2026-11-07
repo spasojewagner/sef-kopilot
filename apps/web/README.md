@@ -88,8 +88,10 @@ On the report, the visitor may ask for the rules to be explained, in the page's 
 rule's card then says what the rule requires, why the invoice fails it and what to change,
 with the passages of the regulations it cites, dated and linked to their sources. They come
 from `POST /invoices/{id}/explanations`, which the language model answers on the API's side;
-nothing is asked of it until the visitor asks, and explanations once written are kept until
-the page is reloaded. A server without a language model says so.
+nothing is asked of it until the visitor asks. The API keeps the explanations of a report
+(ADR-0040), and the page reads those at once with `GET`, which asks the model nothing: a
+report another member had explained shows its explanations without a press. A server without a
+language model says so.
 
 Below the rules, the report lists the invoice's repairs, the latest first: who proposed each,
 where it stands, whether the copy it leaves is valid, and what became of its patches. Each one

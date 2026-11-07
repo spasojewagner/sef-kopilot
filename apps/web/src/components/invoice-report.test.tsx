@@ -40,10 +40,14 @@ describe("Invoice report", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "1 greška, 1 upozorenje" }),
     ).toBeInTheDocument();
-    expect(asked.map((request) => request.path)).toEqual([
-      `/invoices/${ID}`,
-      `/invoices/${ID}/repairs`,
-    ]);
+    // The explanations the API keeps are read too, which asks the language model nothing.
+    expect(asked.map((request) => `${request.method} ${request.path}`)).toEqual(
+      [
+        `GET /invoices/${ID}`,
+        `GET /invoices/${ID}/repairs`,
+        `GET /invoices/${ID}/explanations`,
+      ],
+    );
   });
 
   it("offers the model's repair only of an invalid invoice that patches apply to", async () => {
@@ -252,6 +256,7 @@ describe("Invoice report", () => {
     ).toBeInTheDocument();
     expect(asked.map((request) => request.path)).toEqual([
       `/invoices/${ID}/repairs`,
+      `/invoices/${ID}/explanations`,
     ]);
   });
 });
