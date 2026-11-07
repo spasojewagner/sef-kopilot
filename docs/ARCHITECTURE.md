@@ -116,6 +116,6 @@ the system without a green validator.
 - **Quality gates:** `pre-commit` locally and in CI (ADR-0001); coverage gates (core ≥ 90 %,
   API ≥ 80 %); one end-to-end test of the golden path in a browser, against the API with a
   scripted model, on every pull request (ADR-0033); evaluation thresholds gate CI from M6.
-- **Deployment:** free tiers only — Render (API), Neon (PostgreSQL), Upstash (Redis),
-  Cloudflare Pages (web), GitHub Actions and GHCR. Cold starts are expected and shown in the UI.
-  *(planned, M3)*
+- **Deployment:** free tiers only (ADR-0035) — Vercel (web), Render (API, the image of
+  ADR-0034), Neon (PostgreSQL), GitHub Actions; Upstash (Redis) once there are workers. The free
+  API sleeps after 15 minutes and wakes in about a minute. `docs/DEPLOY.md` is the runbook.
