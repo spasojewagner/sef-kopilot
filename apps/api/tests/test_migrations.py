@@ -31,6 +31,7 @@ TABLES = {
     "audit_events",
     "explanations",
     "rule_embeddings",
+    "oauth_clients",
 }
 
 

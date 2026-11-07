@@ -35,6 +35,7 @@ from sef_api.jobs.runs import JobContext, run_job
 from sef_api.llm import llm_for
 from sef_api.mcp import server as mcp
 from sef_api.members import routes as members
+from sef_api.oauth import routes as oauth
 from sef_api.organization import routes as organization
 from sef_api.rag.embeddings import Embedder, embedder_for
 from sef_api.rag.explainer import Explainer
@@ -98,6 +99,11 @@ OPENAPI_TAGS = [
         "name": "organization",
         "description": "The caller's organization: its name, and how long it keeps its stored "
         "invoices before they are deleted.",
+    },
+    {
+        "name": "oauth",
+        "description": "The OAuth 2.1 authorization server of the MCP endpoint, once "
+        "`SEF_PUBLIC_URL` names the API's address: the clients that register themselves.",
     },
 ]
 
@@ -241,6 +247,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         members.invitations_router,
         organization.router,
         api_keys.router,
+        oauth.router,
     ):
         app.include_router(router)
     app.add_exception_handler(repairs.ConflictError, repairs.answer_conflict)

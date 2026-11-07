@@ -47,6 +47,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "SEF_EXPLANATIONS_PER_MINUTE",
         "SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE",
         "SEF_WEB_ORIGINS",
+        "SEF_PUBLIC_URL",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)
@@ -331,3 +332,30 @@ def test_a_test_applications_settings_read_nothing_from_the_machine(
 
     assert (settings.llm_provider, settings.groq_api_key) == ("none", None)
     assert (settings.max_explanations, settings.repair_seconds) == (5, 5.0)
+
+
+def test_without_a_public_url_there_is_no_authorization_server() -> None:
+    assert Settings().public_url is None
+
+
+@pytest.mark.parametrize(
+    "address",
+    ["sef-kopilot-api.onrender.com", "https://api.example/mcp", "https://api.example/", "*"],
+)
+def test_the_public_url_is_an_origin(monkeypatch: pytest.MonkeyPatch, address: str) -> None:
+    monkeypatch.setenv("SEF_PUBLIC_URL", address)
+
+    with pytest.raises(ValidationError, match=r"SEF_PUBLIC_URL is .*, which is no origin"):
+        Settings()
+
+
+def test_in_production_the_public_url_is_https(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SEF_ENVIRONMENT", "production")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://api:secret@db.example:5432/sef")
+    monkeypatch.setenv("SEF_JWT_SECRET", "k" * 48)
+    monkeypatch.setenv("SEF_PUBLIC_URL", "http://api.example")
+
+    with pytest.raises(ValidationError, match=r"which is no origin: a scheme \(https\)"):
+        Settings()
+    monkeypatch.setenv("SEF_PUBLIC_URL", "https://api.example")
+    assert Settings().public_url == "https://api.example"

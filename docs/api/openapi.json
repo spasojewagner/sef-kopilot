@@ -2577,6 +2577,122 @@
           }
         }
       }
+    },
+    "/oauth/register": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Register an OAuth client",
+        "description": "Dynamic client registration (RFC 7591), for an MCP client that connects for the first time. Every client is registered as public, `token_endpoint_auth_method: none`, whatever it asks for: it gets no secret, and proves with PKCE that it began the authorization it ends. A redirect URI is `https`, `http` on the loopback interface, or a scheme of the application's own; it has no fragment. Registering grants nothing: a person decides what the client may do when it first asks.",
+        "operationId": "register_client_oauth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "redirect_uris": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "maxItems": 10,
+                    "minItems": 1,
+                    "title": "Redirect Uris"
+                  },
+                  "client_name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Client Name"
+                  },
+                  "grant_types": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "title": "Grant Types"
+                  },
+                  "response_types": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "title": "Response Types"
+                  },
+                  "token_endpoint_auth_method": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Token Endpoint Auth Method"
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "redirect_uris"
+                ],
+                "title": "ClientMetadata",
+                "description": "What a client says of itself when it registers (RFC 7591 §2); what this server does not\nuse is ignored."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisteredClient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The client's metadata or a redirect URI is not acceptable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server has no authorization server (`SEF_PUBLIC_URL`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many registrations from this address; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3906,6 +4022,95 @@
         ],
         "title": "RegisterRequest"
       },
+      "RegisteredClient": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "client_id_issued_at": {
+            "type": "integer",
+            "title": "Client Id Issued At",
+            "description": "When it was registered, in Unix seconds."
+          },
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Name"
+          },
+          "redirect_uris": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Redirect Uris"
+          },
+          "grant_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Grant Types"
+          },
+          "response_types": {
+            "items": {
+              "type": "string",
+              "const": "code"
+            },
+            "type": "array",
+            "title": "Response Types",
+            "default": [
+              "code"
+            ]
+          },
+          "token_endpoint_auth_method": {
+            "type": "string",
+            "const": "none",
+            "title": "Token Endpoint Auth Method",
+            "description": "Every client is public, and proves itself with PKCE.",
+            "default": "none"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "client_id_issued_at",
+          "client_name",
+          "redirect_uris",
+          "grant_types"
+        ],
+        "title": "RegisteredClient",
+        "description": "What a client is told it is registered as (RFC 7591 §3.2.1)."
+      },
+      "RegistrationError": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_redirect_uri",
+              "invalid_client_metadata"
+            ],
+            "title": "Error"
+          },
+          "error_description": {
+            "type": "string",
+            "title": "Error Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error",
+          "error_description"
+        ],
+        "title": "RegistrationError",
+        "description": "Why a client could not register (RFC 7591 §3.2.2)."
+      },
       "RepairConflict": {
         "properties": {
           "detail": {
@@ -4651,6 +4856,10 @@
     {
       "name": "organization",
       "description": "The caller's organization: its name, and how long it keeps its stored invoices before they are deleted."
+    },
+    {
+      "name": "oauth",
+      "description": "The OAuth 2.1 authorization server of the MCP endpoint, once `SEF_PUBLIC_URL` names the API's address: the clients that register themselves."
     }
   ]
 }
