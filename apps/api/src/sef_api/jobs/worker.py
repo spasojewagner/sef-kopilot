@@ -6,7 +6,8 @@ minute, it sweeps: it puts every unfinished job on the queue. The jobs that wait
 stay as they are; a job that never reached the queue, or was lost with it, runs after all. An
 attempt that runs longer than :data:`ATTEMPT_SECONDS` is cut short and swept back onto the
 queue, and the next attempt continues where it stopped. When it starts, and then once a day, it
-deletes the jobs that finished longer ago than the retention period (ADR-0038).
+deletes what is past its retention: the old finished jobs (ADR-0038) and the invoices kept past
+their organization's period (ADR-0039).
 """
 
 from __future__ import annotations
@@ -23,8 +24,8 @@ from sef_api.invoices.validator import validator_for
 from sef_api.jobs import store
 from sef_api.jobs.kinds import HANDLERS
 from sef_api.jobs.queue import TASK, put, redis_settings
-from sef_api.jobs.retention import forget_old_jobs
 from sef_api.jobs.runs import JobContext, run_job
+from sef_api.retention import forget_what_is_past_retention
 from sef_api.settings import Settings
 
 __all__ = ["ATTEMPT_SECONDS", "forget", "main", "options", "run", "shutdown", "startup", "sweep"]
@@ -68,10 +69,11 @@ async def sweep(ctx: dict[str, Any]) -> int:
     return len(swept)
 
 
-async def forget(ctx: dict[str, Any]) -> int:
-    """Delete the jobs that finished longer ago than the retention period; how many."""
+async def forget(ctx: dict[str, Any]) -> None:
+    """Delete what is past its retention: the old finished jobs, and the invoices kept past
+    their organization's period."""
     context: JobContext = ctx["context"]
-    return await forget_old_jobs(context.database, context.settings.job_retention_days)
+    await forget_what_is_past_retention(context.database, context.settings.job_retention_days)
 
 
 def options(settings: Settings, redis_url: str) -> dict[str, Any]:

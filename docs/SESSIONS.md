@@ -1711,3 +1711,29 @@ Verification: the API's tests, the worker's with Redis among them; seven seeded 
 caught (see the pull request); ruff, mypy.
 
 Next: the retention of stored invoices, with the page where an owner sets it.
+
+## 2026-11-07 — `feat/api-invoice-retention` (4 commits, stacked on `feat/api-job-retention`)
+
+Outcome: the second item of M4. An organization keeps its stored invoices until it sets a
+retention period, none by default (ADR-0039). An owner sets it with `PATCH /organization`, from
+1 to 3 650 days, or removes it with `null`; every member sees it with `GET /organization`. A
+change is checked again under the organization's lock and recorded in the audit log with what
+the period was. One statement deletes, for every organization, the invoices past their period,
+in the processes that delete old jobs, which moved into one module first.
+
+Findings:
+
+- The law keeps e-invoices in SEF, or with an intermediary engaged to keep them (Article 15 of
+  the Law on Electronic Invoicing, in the corpus); what SEF Kopilot stores are working copies,
+  which is what lets an organization delete them.
+- Written as `created_at + period < now`, the deletion read every invoice of an organization;
+  with the time of storing alone on one side, the existing index finds the old ones (the plans
+  compared on 200 000 invoices).
+- Undoing migration 0012 has to delete the audit events of the new action before the audit
+  log's list of actions can shrink again; a test undoes it with such an event in place.
+
+Verification: the API's tests, the migrations' and the worker's among them; the seeded faults,
+each caught (see the pull request); ruff, mypy; the OpenAPI document and the web application's
+types regenerated.
+
+Next: the page of the organization's settings, where an owner sets the period.

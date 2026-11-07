@@ -541,6 +541,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * See the organization
+         * @description The caller's organization: its name and how long it keeps its stored invoices.
+         */
+        get: operations["show_organization_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the organization's settings
+         * @description With `invoice_retention_days`, each stored invoice is kept that many days after it was stored: once it is older, it is deleted, with its report and its repairs, when the API next deletes what is past its retention, which it does when it starts and every six hours, or each worker when it starts and every day (ADR-0038). That cannot be undone. Null keeps every invoice until a member deletes it. The audit log records each change of the period, with what it was.
+         */
+        patch: operations["change_organization_patch"];
+        trace?: never;
+    };
     "/api-keys": {
         parameters: {
             query?: never;
@@ -1127,6 +1151,17 @@ export interface components {
             organization: components["schemas"]["OrganizationOut"];
             role: components["schemas"]["Role"];
         };
+        /**
+         * OrganizationChange
+         * @description What to change; what is left out stays as it is.
+         */
+        OrganizationChange: {
+            /**
+             * Invoice Retention Days
+             * @description Keep each stored invoice this many days after it was stored, from 1 to 3 650; null to keep every invoice until a member deletes it.
+             */
+            invoice_retention_days?: number | null;
+        };
         /** OrganizationChoice */
         OrganizationChoice: {
             /** Detail */
@@ -1143,6 +1178,21 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** OrganizationSettings */
+        OrganizationSettings: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Invoice Retention Days
+             * @description How many days after it was stored an invoice is kept before it is deleted, with its report and its repairs; null when every invoice is kept until a member deletes it.
+             */
+            invoice_retention_days: number | null;
         };
         /**
          * Outcome
@@ -1185,7 +1235,7 @@ export interface components {
          * @description Something a member may be allowed to do in their organization.
          * @enum {string}
          */
-        Permission: "members:read" | "members:manage" | "invoices:validate" | "invoices:submit" | "invoices:manage" | "api_keys:issue" | "api_keys:manage";
+        Permission: "members:read" | "members:manage" | "invoices:validate" | "invoices:submit" | "invoices:manage" | "api_keys:issue" | "api_keys:manage" | "organization:read" | "organization:manage";
         /** Problem */
         Problem: {
             /** Detail */
@@ -3205,6 +3255,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_organization_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationSettings"];
+                };
+            };
+        };
+    };
+    change_organization_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationSettings"];
                 };
             };
             /** @description Validation Error */

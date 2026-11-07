@@ -379,6 +379,20 @@ async def _primers_key_still_works(response: Response, session: AsyncSession, w:
     assert await session.scalar(select(ApiKey.revoked_at).where(ApiKey.id == w.key.row.id)) is None
 
 
+async def _shows_ogled(response: Response, session: AsyncSession, w: World) -> None:
+    assert response.status_code == 200
+    assert response.json()["id"] == str(w.ogled.organization.id)
+
+
+async def _primer_keeps_its_invoices(response: Response, session: AsyncSession, w: World) -> None:
+    """Ogled's owner sets Ogled's period; Primer keeps its invoices as it did."""
+    assert (response.status_code, response.json()["id"]) == (200, str(w.ogled.organization.id))
+    periods = dict(
+        (await session.execute(select(Organization.id, Organization.invoice_retention_days))).all()
+    )
+    assert periods == {w.primer.organization.id: None, w.ogled.organization.id: 1}
+
+
 GUARDED: dict[Endpoint, Guarded] = {
     ("GET", "/jobs/{job_id}"): Guarded(
         Permission.INVOICES_SUBMIT,
@@ -545,6 +559,16 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda w: f"/invitations/{w.invitation.id}",
         None,
         _primers_invitation_is_not_found,
+    ),
+    ("GET", "/organization"): Guarded(
+        Permission.ORGANIZATION_READ, False, lambda _: "/organization", None, _shows_ogled
+    ),
+    ("PATCH", "/organization"): Guarded(
+        Permission.ORGANIZATION_MANAGE,
+        False,
+        lambda _: "/organization",
+        {"invoice_retention_days": 1},
+        _primer_keeps_its_invoices,
     ),
 }
 

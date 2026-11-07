@@ -27,7 +27,16 @@ from sef_api.db import Database
 from sef_api.locks import lock_organization
 from sef_api.members import invitations
 from sef_api.members import service as members
-from sef_api.models import Invitation, Membership, Organization, RefreshToken, Role, User
+from sef_api.models import (
+    AuditEvent,
+    Invitation,
+    Membership,
+    Organization,
+    RefreshToken,
+    Role,
+    User,
+)
+from sef_api.organization import service as organization_service
 from sef_api.rate_limits import Limit, PasswordAttempts, RateLimiter
 
 from .conftest import TEST_JWT_SECRET
@@ -527,6 +536,43 @@ async def test_a_demoted_owners_change_in_flight_is_refused(
     async with committed_database.sessions() as check:
         role = await check.scalar(select(Membership.role).where(Membership.user_id == ana.id))
     assert role is Role.OWNER
+
+
+async def test_a_period_set_in_flight_by_a_demoted_owner_is_refused(
+    committed_api: AsyncClient,
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Milan passes the first check as an owner and asks for a period that would delete Primer's
+    invoices; Ana demotes him before his change takes the lock; the check under the lock refuses
+    it, and Primer keeps every invoice."""
+    organization, ana, milan = primer
+    held_at = gate(monkeypatch, organization_service, "lock_organization")
+
+    milans_period = committed_api.patch(
+        "/organization",
+        json={"invoice_retention_days": 1},
+        headers=bearer(milan, organization, Role.OWNER),
+    )
+
+    async def demote_milan() -> Response:
+        return await committed_api.patch(
+            f"/members/{milan.id}",
+            json={"role": "accountant"},
+            headers=bearer(ana, organization, Role.OWNER),
+        )
+
+    refused, demotion = await while_held(milans_period, demote_milan, held_at, then_waits=False)
+
+    assert demotion.status_code == 200
+    assert refused.status_code == 403
+    async with committed_database.sessions() as check:
+        kept = await check.scalar(
+            select(Organization.invoice_retention_days).where(Organization.id == organization.id)
+        )
+        recorded = await check.scalar(select(func.count()).select_from(AuditEvent))
+    assert (kept, recorded) == (None, 0)
 
 
 async def test_the_lock_is_not_taken_by_a_caller_without_the_permission(

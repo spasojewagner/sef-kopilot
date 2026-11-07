@@ -260,10 +260,13 @@ system are marked as such.
 - [x] Responses that carry a credential send `Cache-Control: no-store` as well (RFC 6749): the
       tokens of registration, sign-in, accepting an invitation and refreshing, an invitation's
       code and a new API key, each checked by a test.
-- [~] Deletion: `DELETE /invoices/{id}` removes the invoice, its document and its report. A
+- [x] Deletion: `DELETE /invoices/{id}` removes the invoice, its document and its report. A
       finished job, with its parameters, progress and result, is deleted 30 days after it ends
-      (`SEF_JOB_RETENTION_DAYS`, ADR-0038), and never while it is under way (tested). A retention
-      period for stored invoices, set by each organization, is still to come.
+      (`SEF_JOB_RETENTION_DAYS`, ADR-0038), and never while it is under way (tested). An owner
+      sets how long the organization keeps its stored invoices (`PATCH /organization`,
+      ADR-0039), none by default; an invoice stored longer ago is deleted with its document, its
+      report and its repairs, and no other organization's (tested). The audit log keeps its
+      events, which name the invoice by id only, and records who set each period.
 - [x] The corpus holds public text only and belongs to no organization: its tables have no
       `organization_id` by design, and only the ingest command writes them (ADR-0020).
 

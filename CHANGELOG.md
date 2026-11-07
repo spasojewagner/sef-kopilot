@@ -15,6 +15,16 @@ is tagged.
   ADR-0038), with their parameters, progress and result or error; a job under way never is.
   The API's process deletes them when it starts and every six hours with `SEF_JOBS=inline`, and
   each worker when it starts and every day at 03:17 with `SEF_JOBS=arq`.
+- `apps/api`: an organization's stored invoices are deleted once they were stored longer ago
+  than the retention period it set (ADR-0039), with their documents, reports and repairs; the
+  audit log keeps what it named of them, by id. An organization without a period, as every one
+  is until an owner sets it, keeps its invoices until a member deletes them. The same processes
+  delete them, at the same times, as the old finished jobs.
+- `apps/api`: `GET /organization` shows every member the organization's name and how long it
+  keeps its stored invoices, and `PATCH /organization` lets an owner set that period, from 1 to
+  3 650 days, or none with `null` (the permissions `organization:read` and
+  `organization:manage`, which no API key holds). A change checks the owner's role again under
+  the organization's lock, and the audit log records it with what the period was.
 
 ## [0.3.0] - 2026-11-07
 

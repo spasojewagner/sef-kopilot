@@ -100,16 +100,24 @@ def _role() -> Enum:
 
 
 class Organization(Base):
-    """A tenant: an accounting office, a company, an ERP vendor's customer."""
+    """A tenant: an accounting office, a company, an ERP vendor's customer.
+
+    ``invoice_retention_days`` is how long, after it was stored, the organization keeps an
+    invoice before it is deleted; none keeps every invoice until it is deleted (ADR-0039).
+    """
 
     __tablename__ = "organizations"
     __table_args__ = (
         CheckConstraint("char_length(btrim(name)) BETWEEN 1 AND 200", name="name_length"),
+        CheckConstraint(
+            "invoice_retention_days BETWEEN 1 AND 3650", name="invoice_retention_days_range"
+        ),
     )
 
     id: Mapped[uuid.UUID] = _id()
     name: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
+    invoice_retention_days: Mapped[int | None]
 
 
 class User(Base):
@@ -472,6 +480,7 @@ class AuditAction(StrEnum):
     REPAIR_PROPOSED = "repair.proposed"
     REPAIR_APPROVED = "repair.approved"
     REPAIR_REJECTED = "repair.rejected"
+    ORGANIZATION_RETENTION_SET = "organization.retention_set"
 
 
 class AuditEvent(Base):
@@ -489,7 +498,8 @@ class AuditEvent(Base):
     __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
     __table_args__ = (
         CheckConstraint(
-            "action IN ('repair.proposed', 'repair.approved', 'repair.rejected')",
+            "action IN ('repair.proposed', 'repair.approved', 'repair.rejected', "
+            "'organization.retention_set')",
             name="action_known",
         ),
         Index("ix_audit_events_organization_id_at_id", "organization_id", "at", "id"),

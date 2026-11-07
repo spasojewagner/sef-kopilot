@@ -2282,6 +2282,78 @@
         }
       }
     },
+    "/organization": {
+      "get": {
+        "tags": [
+          "organization"
+        ],
+        "summary": "See the organization",
+        "description": "The caller's organization: its name and how long it keeps its stored invoices.",
+        "operationId": "show_organization_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSettings"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "organization"
+        ],
+        "summary": "Change the organization's settings",
+        "description": "With `invoice_retention_days`, each stored invoice is kept that many days after it was stored: once it is older, it is deleted, with its report and its repairs, when the API next deletes what is past its retention, which it does when it starts and every six hours, or each worker when it starts and every day (ADR-0038). That cannot be undone. Null keeps every invoice until a member deletes it. The audit log records each change of the period, with what it was.",
+        "operationId": "change_organization_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
     "/api-keys": {
       "get": {
         "tags": [
@@ -3448,6 +3520,28 @@
         ],
         "title": "MembershipOut"
       },
+      "OrganizationChange": {
+        "properties": {
+          "invoice_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3650.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Retention Days",
+            "description": "Keep each stored invoice this many days after it was stored, from 1 to 3 650; null to keep every invoice until a member deletes it."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OrganizationChange",
+        "description": "What to change; what is left out stays as it is."
+      },
       "OrganizationChoice": {
         "properties": {
           "detail": {
@@ -3487,6 +3581,38 @@
           "name"
         ],
         "title": "OrganizationOut"
+      },
+      "OrganizationSettings": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "invoice_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Retention Days",
+            "description": "How many days after it was stored an invoice is kept before it is deleted, with its report and its repairs; null when every invoice is kept until a member deletes it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "invoice_retention_days"
+        ],
+        "title": "OrganizationSettings"
       },
       "Outcome": {
         "properties": {
@@ -3600,7 +3726,9 @@
           "invoices:submit",
           "invoices:manage",
           "api_keys:issue",
-          "api_keys:manage"
+          "api_keys:manage",
+          "organization:read",
+          "organization:manage"
         ],
         "title": "Permission",
         "description": "Something a member may be allowed to do in their organization."
@@ -4436,6 +4564,10 @@
     {
       "name": "members",
       "description": "The people of the caller's organization, their roles (owner, accountant, client) and the invitations to join it."
+    },
+    {
+      "name": "organization",
+      "description": "The caller's organization: its name, and how long it keeps its stored invoices before they are deleted."
     }
   ]
 }

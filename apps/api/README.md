@@ -97,6 +97,8 @@ Endpoints ask for a permission; a member's role grants permissions (ADR-0013):
 | `invoices:manage`: read and delete every invoice the organization stores | yes | yes | no |
 | `api_keys:issue`: issue API keys that act for oneself, see and revoke one's own | yes | yes | yes |
 | `api_keys:manage`: see and revoke every API key of the organization | yes | no | no |
+| `organization:read`: see the organization and how long it keeps its invoices | yes | yes | yes |
+| `organization:manage`: set how long the organization keeps its invoices | yes | no | no |
 
 `GET /members`, `PATCH /members/{user_id}` and `DELETE /members/{user_id}` work in the
 organization of the caller's access token. The role is read from the membership on every
@@ -112,6 +114,24 @@ otherwise asks for its password, then signs them in to the organization. Only th
 is stored; `GET /invitations` lists the open ones and `DELETE /invitations/{id}` revokes one. An
 invitation stops working when the owner who issued it is removed, demoted or deactivated, so a
 departing owner cannot return through it.
+
+## How long data is kept
+
+A finished job is deleted, with its parameters, progress and result or error, 30 days after it
+ends (`SEF_JOB_RETENTION_DAYS`, ADR-0038); a job under way never is. A stored invoice is kept
+until a member deletes it, unless its organization sets a retention period (ADR-0039): an owner
+sets it with `PATCH /organization`, from 1 to 3 650 days, and `null` removes it.
+
+```bash
+curl -s -X PATCH localhost:8000/organization -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' -d '{"invoice_retention_days": 365}'
+```
+
+An invoice stored longer ago than the period is then deleted, with its document, its report and
+its repairs, and that cannot be undone. The deletions run where the jobs run: in the API's
+process when it starts and every six hours, or in each worker when it starts and every day at
+03:17 UTC. `GET /organization` shows every member the period, and the audit log records each
+change of it with what it was.
 
 ## Validating an invoice
 
@@ -518,6 +538,8 @@ src/sef_api/
   jobs/          running a job, the inline runner, the Redis queue and its worker, `/jobs`
                  routes with the event stream
   members/       members and invitations, `/members` and `/invitations` routes
+  organization/  the caller's organization and its retention period, `/organization` routes
+  retention.py   deleting finished jobs and stored invoices once they are past their retention
   rag/           the corpus: text in two scripts, editions and dated passages, embeddings,
                  ingesting (`python -m sef_api.rag.ingest`), the passages each rule cites
   migrations/    Alembic environment and revisions (`versions/`)
