@@ -10,10 +10,10 @@ UV      ?= uv
 PNPM    ?= pnpm
 COMPOSE ?= docker compose --project-directory . -f infra/docker-compose.yml
 
-.PHONY: help setup sync lint format typecheck test test-core test-api test-web api worker web build-web rulesets rulesets-check fixtures openapi corpus corpus-check ingest migrate up down logs psql clean
+.PHONY: help setup sync lint format typecheck test test-core test-api test-web e2e api worker web build-web rulesets rulesets-check fixtures openapi corpus corpus-check ingest migrate up down logs psql clean
 
 help: ## List targets
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 setup: sync ## Install everything a fresh clone needs (Python and Node deps, git hooks)
 	$(PNPM) install --frozen-lockfile
@@ -51,6 +51,13 @@ test-api: ## Tests for apps/api with the coverage gate (>= 80 %)
 
 test-web: ## Vitest suite for apps/web
 	$(PNPM) --filter @sef-kopilot/web test
+
+# The golden path in Chromium, against the web application's production build and the API on a
+# database of its own with a scripted model (ADR-0033). It needs PostgreSQL (`make up`), named by
+# SEF_TEST_DATABASE_URL, the rule sets, and Chromium for Playwright, installed once with
+# `pnpm --filter @sef-kopilot/web exec playwright install chromium`; so `make test` leaves it out.
+e2e: ## End-to-end smoke test of the golden path in a browser (Playwright)
+	$(PNPM) --filter @sef-kopilot/web e2e
 
 api: ## Run the API locally with auto-reload (http://127.0.0.1:8000/docs)
 	$(UV) run uvicorn sef_api.main:create_app --factory --reload

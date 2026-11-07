@@ -35,5 +35,6 @@ just used. New notes are added in the pull request that introduces the concept.
 | 27 | [Reading a unified diff, and what its numbers count](27-reading-a-unified-diff.md) | M3 |
 | 28 | [A request that creates: a mutation, and what the cache learns from its answer](28-a-request-that-creates.md) | M3 |
 | 29 | [A write whose outcome is unknown: read before you write again](29-a-write-whose-outcome-is-unknown.md) | M3 |
+| 30 | [An end-to-end test for the seams: what only it can catch, and how it stays steady](30-an-end-to-end-test-for-the-seams.md) | M3 |
 
 Planned: OAuth 2.1 flows for MCP.

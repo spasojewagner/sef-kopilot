@@ -147,6 +147,7 @@ make up           # PostgreSQL 16 + pgvector and Redis in Docker (needs a runnin
 make migrate      # apply the database migrations (Alembic) to the database of `make up`
 make ingest       # load the regulation corpus (corpus/) into that database
 make test         # core, api and web test suites with their coverage gates
+make e2e          # the golden path in Chromium (Playwright), against the API and a build
 make lint         # ruff, Prettier, ESLint — no changes
 make typecheck    # mypy --strict and tsc --noEmit
 make api          # FastAPI with auto-reload → http://127.0.0.1:8000/docs
@@ -178,7 +179,9 @@ explanations (`POST /invoices/explain`) need a language model: `LLM_PROVIDER=gro
 The API's database tests run when `SEF_TEST_DATABASE_URL` names a PostgreSQL server (with
 `make up`: `postgresql+asyncpg://sef:sef@localhost:5432/postgres`), and its worker tests when
 `SEF_TEST_REDIS_URL` names a Redis database they may empty (`redis://localhost:6379/15`);
-otherwise they are skipped.
+otherwise they are skipped. The end-to-end test makes its database on the same server, and needs
+Chromium for Playwright, installed once with
+`pnpm --filter @sef-kopilot/web exec playwright install chromium` (`apps/web/README.md`).
 
 ## Documentation
 

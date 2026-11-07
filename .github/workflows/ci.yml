@@ -219,6 +219,88 @@ jobs:
       - name: Production build
         run: pnpm --filter @sef-kopilot/web build
 
+  # The golden path in a browser (ADR-0033): the web application's production build against the
+  # API, which starts on a database of its own with a scripted language model, so that no key is
+  # needed. One test, in Chromium; when it fails, its report and its trace are kept.
+  e2e:
+    name: end-to-end smoke test (Playwright)
+    runs-on: ubuntu-latest
+    # The PostgreSQL server of the api job, on which the API makes its database, sef_e2e; its
+    # jobs run in its own process, so it needs no Redis.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sef
+          POSTGRES_PASSWORD: sef
+          POSTGRES_DB: sef_kopilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sef -d sef_kopilot"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      SEF_TEST_DATABASE_URL: postgresql+asyncpg://sef:sef@localhost:5432/postgres
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install Python workspace
+        run: uv sync --all-packages --locked
+
+      - name: Install Node workspace
+        run: pnpm install --frozen-lockfile
+
+      # The API's validator needs the UBL schemas and the rule sets, fetched as in the core job
+      # and from the same cache.
+      - name: Cache fetched rule sets
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            third_party/*
+            !third_party/README.md
+            !third_party/manifest.json
+            !third_party/_compiled
+          key: rulesets-${{ hashFiles('third_party/manifest.json') }}
+
+      - name: Fetch rule sets (UBL 2.1, EN 16931, Peppol BIS, ISO Schematron)
+        run: python scripts/fetch_rulesets.py
+
+      # The headless Chromium of the Playwright version the lock file pins, with the system
+      # libraries it needs.
+      - name: Install Chromium for Playwright
+        run: pnpm --filter @sef-kopilot/web exec playwright install --with-deps --only-shell chromium
+
+      - name: Walk the golden path (upload, report, repair, approval)
+        run: pnpm --filter @sef-kopilot/web e2e
+
+      - name: Keep the report and the trace of a failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 14
+
   # Full-history secret scan, independent of pre-commit: a secret that slipped into an old
   # commit is still a leak even if the current tree is clean.
   gitleaks:

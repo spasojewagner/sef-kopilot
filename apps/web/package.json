@@ -12,6 +12,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e": "playwright test",
     "api:types": "openapi-typescript ../../docs/api/openapi.json -o src/lib/api-schema.d.ts"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@tailwindcss/turbopack": "^4",
     "@tanstack/eslint-plugin-query": "^5.106.1",
     "@testing-library/dom": "^10.4.2",

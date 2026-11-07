@@ -105,6 +105,13 @@ is tagged.
   only its rejection. Afterwards the invoice, its report, its repairs and the list's verdicts are
   read again when shown. When the outcome is unknown (no answer in time, no API, a server's
   failure), the page reads the repair again and shows where it stands.
+- The golden path, tested end to end (ADR-0033): one Playwright test, in Chromium, registers,
+  uploads an invalid invoice, reads its report, also after a reload, finds it in the list, has
+  the language model suggest a repair, reads its diff, approves it, and finds the invoice valid
+  on its report and in the list, with no error in the console. It runs against the web application's production
+  build and the API, which `scripts/serve_e2e_api.py` starts on a database made anew for each
+  run, with a scripted model, so that no key is needed. `make e2e` runs it, and a CI job on
+  every pull request, which keeps the report and the trace of a failure.
 
 ### Changed
 
