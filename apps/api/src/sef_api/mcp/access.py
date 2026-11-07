@@ -1,28 +1,33 @@
-"""Who may use the MCP endpoint (ADR-0042).
+"""Who may use the MCP endpoint, and what each tool asks of the caller (ADR-0042).
 
 Until the server has an authorization server of its own (OAuth 2.1, the next step), the endpoint
 takes the credential machine clients already have: an API key, sent as a bearer token. An access
 token of the web application is refused, since it was issued for the API's routes and a token is
 used only where it is meant to be. A request is checked as a route's is, the key and the role of
-its member read again.
+its member read again; each tool then checks the permission it needs.
 """
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 from typing import Final, cast
 
 from fastapi import HTTPException, status
+from mcp.server.mcpserver import Context
+from mcp.server.mcpserver.exceptions import ToolError
 from starlette.datastructures import Headers
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from sef_api.api_keys import service as api_keys
 from sef_api.auth.dependencies import Principal, current_role, invalid_key, no_longer_active
+from sef_api.auth.permissions import Permission
 from sef_api.db import Database
 
-__all__ = ["METHOD", "RequireKey"]
+__all__ = ["METHOD", "RequireKey", "admitted", "as_tool_errors"]
 
 #: The one method the endpoint answers. Every message of the protocol is posted; the server has
 #: no messages of its own to stream, so a GET that would open such a stream is refused.
@@ -90,3 +95,25 @@ async def _caller(database: Database, authorization: str | None) -> Principal:
     if role is None:
         raise no_longer_active()
     return replace(principal, role=role)
+
+
+def admitted(context: Context, permission: Permission) -> tuple[Request, Principal]:
+    """The request a tool answers and its caller, when the caller may do what ``permission``
+    allows; a tool error that names the permission otherwise."""
+    request = context.request_context.request
+    if not isinstance(request, Request):
+        raise RuntimeError("a tool of the MCP server runs only behind the endpoint at /mcp")
+    caller = cast(Principal, getattr(request.state, _CALLER))
+    if not caller.may(permission):
+        raise ToolError(f"requires the permission {permission}")
+    return request, caller
+
+
+@contextmanager
+def as_tool_errors() -> Iterator[None]:
+    """What the API's routes would answer with an HTTP error becomes the tool's error, in the
+    same words: why, and when to try again."""
+    try:
+        yield
+    except HTTPException as error:
+        raise ToolError(str(error.detail)) from None

@@ -508,6 +508,14 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   does. An access token of the web application is refused (401): it was issued for the API's
   routes. A revoked or expired key, or one of a member who has left, is refused as the routes
   refuse it.
+- **What it may do:** each tool requires a permission, as the route it stands for does, and
+  counts against the same limits. A tool's error is the route's error, in the same words.
+- **Its tools:**
+
+  | Tool | Requires | Does what this route does |
+  | --- | --- | --- |
+  | `validate_invoice` | `invoices:validate` | `POST /invoices/validate`: the XML as text, a profile (`srb` by default); nothing is stored |
+
 - **Its limits:** a message is a JSON body, at most `SEF_MAX_BODY_BYTES` (1 MiB): a larger
   invoice is uploaded to `POST /invoices/validate`. Only POST is answered (405 otherwise),
   since the server sends no messages of its own. A page of an origin other than the web

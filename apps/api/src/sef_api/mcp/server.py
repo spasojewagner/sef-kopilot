@@ -20,6 +20,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.routing import Route
 
 from sef_api import __version__
+from sef_api.mcp import tools
 from sef_api.mcp.access import RequireKey
 from sef_api.settings import Settings
 
@@ -42,6 +43,7 @@ def mount(app: FastAPI, settings: Settings) -> StreamableHTTPSessionManager:
     """Add the MCP endpoint to ``app``; the session manager that answers it, which runs for as
     long as the application does (``run()``, in its lifespan)."""
     server = _server()
+    tools.register(server)
     server.streamable_http_app(
         json_response=True,
         stateless_http=True,

@@ -43,7 +43,9 @@ is tagged.
 - `apps/api`: an MCP server at `/mcp`, in the API's process (ADR-0042): Streamable HTTP
   without sessions, every message a POST answered with JSON, for clients of the protocol's
   current revision and earlier ones. A client connects with an API key; an access token of the
-  web application, a page of another origin and a method other than POST are refused.
+  web application, a page of another origin and a method other than POST are refused. Each tool
+  requires its route's permission and counts against its limits; the first, `validate_invoice`,
+  validates an invoice's XML as `POST /invoices/validate` does, storing nothing.
 
 ## [0.3.0] - 2026-11-07
 

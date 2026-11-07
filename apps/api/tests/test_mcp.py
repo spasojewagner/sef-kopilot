@@ -1,4 +1,5 @@
-"""The MCP server at ``/mcp`` (ADR-0042): whom it admits, and how it answers.
+"""The MCP server at ``/mcp`` (ADR-0042): whom it admits, which tools it offers and what each
+requires, and what they answer, compared with the routes they stand for.
 
 The endpoint opens database sessions of its own, as in production, so these tests run on the
 suite's database with real commits (``committed_database``).
@@ -20,19 +21,27 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
+from mcp.types import CallToolResult, TextContent
 from sqlalchemy import update
 
-from sef_api.auth.permissions import Permission
+from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
 from sef_api.db import Database
 from sef_api.main import create_app
 from sef_api.models import ApiKey, User
 
-from .conftest import settings_for
+from .conftest import REPOSITORY_ROOT, settings_for
 from .factories import Key, Office, api_key, office
+
+FIXTURES = REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic"
+VALID = (FIXTURES / "srb-final-invoice.xml").read_text()
+#: The seller's PIB has a wrong check digit, 100000025, which the violations quote.
+WRONG_PIB = (FIXTURES / "mutations" / "srb-009-pib-check-digit.xml").read_text()
 
 #: The tools the server offers, what each requires, and arguments it accepts: the audit that a
 #: tool cannot join the server without a permission of its own.
-TOOLS: dict[str, tuple[Permission, dict[str, Any]]] = {}
+TOOLS: dict[str, tuple[Permission, dict[str, Any]]] = {
+    "validate_invoice": (Permission.INVOICES_VALIDATE, {"xml": VALID}),
+}
 
 #: The headers a client sends with every message it posts.
 POSTED = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
@@ -130,6 +139,13 @@ def initialize(version: str = "2025-06-18") -> dict[str, Any]:
 def asking(method: str, **params: Any) -> dict[str, Any]:
     """A message that asks the server for ``method`` with ``params``."""
     return {"jsonrpc": "2.0", "id": 2, "method": method, "params": params}
+
+
+def text_of(result: CallToolResult) -> str:
+    """The text of a tool's answer, whose one content is text."""
+    (content,) = result.content
+    assert isinstance(content, TextContent)
+    return content.text
 
 
 # --- whom the endpoint admits ------------------------------------------------------------------
@@ -251,6 +267,167 @@ async def test_a_message_over_the_limit_on_bodies_is_refused(
         answered = await http.post("/mcp", json=padded)
 
     assert answered.status_code == 413
+
+
+# --- the tools and what they require --------------------------------------------------------
+
+
+async def test_the_server_offers_its_tools_with_what_each_does(served: Served) -> None:
+    async with connected(served.app, served.key) as client:
+        offered = {tool.name: tool for tool in (await client.list_tools()).tools}
+
+    assert set(offered) == set(TOOLS)
+    validating = offered["validate_invoice"]
+    assert validating.annotations is not None
+    assert (
+        validating.annotations.read_only_hint,
+        validating.annotations.destructive_hint,
+        validating.annotations.idempotent_hint,
+        validating.annotations.open_world_hint,
+    ) == (True, False, True, False)
+    assert validating.input_schema["required"] == ["xml"]
+    assert validating.output_schema is not None
+    assert validating.output_schema["title"] == "ValidationReport"
+
+
+@pytest.mark.parametrize("name", sorted(TOOLS))
+async def test_each_tool_requires_its_permission(
+    name: str, served: Served, committed_database: Database
+) -> None:
+    permission, arguments = TOOLS[name]
+    lacking = await key_with(committed_database, served, *sorted(KEY_PERMISSIONS - {permission}))
+    holding = await key_with(committed_database, served, permission)
+
+    async with connected(served.app, lacking) as client:
+        refused = await client.call_tool(name, arguments)
+    async with connected(served.app, holding) as client:
+        admitted = await client.call_tool(name, arguments)
+
+    assert refused.is_error
+    assert text_of(refused) == f"Error executing tool {name}: requires the permission {permission}"
+    assert not admitted.is_error
+
+
+# --- validate_invoice --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("document", "profile"),
+    [(VALID, "srb"), (WRONG_PIB, "srb"), (WRONG_PIB, "en16931")],
+    ids=["valid", "wrong PIB", "wrong PIB under EN 16931"],
+)
+async def test_an_invoice_is_validated_as_the_route_validates_it(
+    document: str, profile: str, served: Served
+) -> None:
+    async with connected(served.app, served.key) as client:
+        answered = await client.call_tool("validate_invoice", {"xml": document, "profile": profile})
+    async with served.http(served.key.header()) as http:
+        routed = await http.post(
+            "/invoices/validate",
+            params={"profile": profile},
+            content=document.encode(),
+            headers={"Content-Type": "application/xml"},
+        )
+
+    assert not answered.is_error
+    assert answered.structured_content == routed.json()
+
+
+async def test_a_wrong_pib_is_reported_by_its_rule(served: Served) -> None:
+    async with connected(served.app, served.key) as client:
+        answered = await client.call_tool("validate_invoice", {"xml": WRONG_PIB})
+
+    report = answered.structured_content
+    assert report is not None
+    assert report["valid"] is False
+    assert {violation["rule_id"] for violation in report["violations"]} == {"SRB-009"}
+
+
+async def test_validations_are_counted_with_the_routes(
+    committed_database: Database, database_url: str
+) -> None:
+    async with (
+        serving(committed_database, database_url, SEF_VALIDATIONS_PER_MINUTE="2") as served,
+        connected(served.app, served.key) as client,
+        served.http(served.key.header()) as http,
+    ):
+        first = await client.call_tool("validate_invoice", {"xml": VALID})
+        routed = await http.post(
+            "/invoices/validate",
+            content=VALID.encode(),
+            headers={"Content-Type": "application/xml"},
+        )
+        third = await client.call_tool("validate_invoice", {"xml": VALID})
+
+    # The key's two validations a minute are spent by the tool and the route together.
+    assert not first.is_error
+    assert routed.status_code == 200
+    assert third.is_error
+    assert text_of(third).startswith(
+        "Error executing tool validate_invoice: too many validations; try again in "
+    )
+
+
+async def test_an_invoice_over_the_limit_on_invoices_is_refused(
+    committed_database: Database, database_url: str
+) -> None:
+    async with (
+        serving(committed_database, database_url, SEF_MAX_INVOICE_BYTES="1024") as served,
+        connected(served.app, served.key) as client,
+    ):
+        answered = await client.call_tool("validate_invoice", {"xml": VALID})
+
+    assert answered.is_error
+    assert text_of(answered) == (
+        "Error executing tool validate_invoice: the invoice is larger than 1024 bytes"
+    )
+
+
+async def test_a_document_the_validator_refuses_is_refused_in_the_routes_words(
+    committed_database: Database, database_url: str
+) -> None:
+    async with (
+        serving(committed_database, database_url, SEF_MAX_INVOICE_ELEMENTS="100") as served,
+        connected(served.app, served.key) as client,
+        served.http(served.key.header()) as http,
+    ):
+        answered = await client.call_tool("validate_invoice", {"xml": VALID})
+        routed = await http.post(
+            "/invoices/validate",
+            content=VALID.encode(),
+            headers={"Content-Type": "application/xml"},
+        )
+
+    assert routed.status_code == 413
+    assert answered.is_error
+    assert text_of(answered) == f"Error executing tool validate_invoice: {routed.json()['detail']}"
+
+
+async def test_nothing_of_the_invoice_reaches_a_log(
+    served: Served, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG)
+
+    async with connected(served.app, served.key) as client:
+        answered = await client.call_tool("validate_invoice", {"xml": WRONG_PIB})
+    # A client of an earlier revision takes another path through the server, which logs more.
+    async with served.http(served.key.header() | POSTED) as http:
+        await http.post("/mcp", json=initialize())
+        earlier = await http.post(
+            "/mcp", json=asking("tools/call", name="validate_invoice", arguments={"xml": WRONG_PIB})
+        )
+
+    # The answers quote the wrong PIB; no line the server logs does, nor the invoice's number.
+    # The SDK's client logs what it sends, which is the test's to log, not the server's.
+    logged = [
+        record.getMessage()
+        for record in caplog.records
+        if not record.name.startswith(("mcp.client", "httpx"))
+    ]
+    assert "100000025" in str(answered.structured_content)
+    assert "100000025" in earlier.text
+    assert logged
+    assert not [line for line in logged if "100000025" in line or "RF-2026-000123" in line]
 
 
 # --- the process -------------------------------------------------------------------------------
