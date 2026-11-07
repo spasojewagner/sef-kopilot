@@ -29,6 +29,7 @@ TABLES = {
     "corpus_passages",
     "repairs",
     "audit_events",
+    "explanations",
 }
 
 

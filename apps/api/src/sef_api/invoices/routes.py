@@ -20,6 +20,7 @@ from sef_api.auth.dependencies import Principal, check_again, require
 from sef_api.auth.permissions import Permission
 from sef_api.auth.routes import Problem
 from sef_api.db import get_session
+from sef_api.invoices import explanations as kept_explanations
 from sef_api.invoices import store
 from sef_api.invoices.upload import XML_MEDIA_TYPES, read_invoice
 from sef_api.invoices.validation import InvoiceSummary, ProfileName, Validation
@@ -144,6 +145,10 @@ class Explained(BaseModel):
     unexplained: list[str] = Field(
         description="Rules of the report beyond the most one request explains; ask again for "
         "them once the others are fixed."
+    )
+    written_at: datetime = Field(
+        description="When the explanations were written: during the request, or earlier when "
+        "they were kept with a stored invoice's report."
     )
 
 
@@ -314,6 +319,7 @@ async def explain(
         model=explainer.model,
         explanations=explanations,
         unexplained=unexplained,
+        written_at=datetime.now(UTC),
     )
 
 
@@ -494,6 +500,28 @@ async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Se
     )
 
 
+def _explaining(invoice: StoredInvoice) -> tuple[StoredInvoiceOut, date, str]:
+    """The stored invoice with its report, the day whose law explains it (the issue date, or
+    today when the invoice cannot be read), and the report's digest."""
+    stored = _stored(invoice)
+    day = stored.summary.issue_date if stored.summary is not None else datetime.now(UTC).date()
+    return stored, day, kept_explanations.report_digest(stored.report)
+
+
+def _kept(
+    stored: StoredInvoiceOut, day: date, language: Language, kept: kept_explanations.Kept
+) -> Explained:
+    return Explained(
+        report=stored.report,
+        day=day,
+        language=language,
+        model=kept.model,
+        explanations=kept.explanations,
+        unexplained=kept.unexplained,
+        written_at=kept.written_at,
+    )
+
+
 @router.post(
     "/{invoice_id}/explanations",
     summary="Explain a stored invoice's violations",
@@ -503,9 +531,13 @@ async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Se
         "why the invoice fails it and what to change, citing the passages of the official "
         "documents that apply on the invoice's issue date. The invoice is not validated again: "
         "the report explained is the one `GET /invoices/{invoice_id}` reads, and comes with the "
-        "answer. Nothing is stored. The language model is sent each rule's first violation, "
-        "whose message may quote the invoice, and the passages; nothing else of the invoice. "
-        "Counted as a request to the language model, not as a validation."
+        "answer. The language model is sent each rule's first violation, whose message may "
+        "quote the invoice, and the passages; nothing else of the invoice. Counted as a "
+        "request to the language model, not as a validation. The explanations are kept with "
+        "the invoice when every rule asked about is explained, and later requests in the same "
+        "language read them, asking the model nothing and counting nothing, until the "
+        "invoice's report is another (`GET /invoices/{invoice_id}/explanations` reads them "
+        "alone)."
     ),
     responses=_NOT_FOUND
     | {
@@ -516,7 +548,8 @@ async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Se
         },
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": Problem,
-            "description": "No language model is configured on this server.",
+            "description": "No language model is configured on this server, and no "
+            "explanations are kept.",
         },
     },
 )
@@ -529,17 +562,22 @@ async def explain_stored_invoice(
     session: Session,
     language: Explaining = "sr",
 ) -> Explained:
+    invoice = await store.find(session, scope_of(caller), invoice_id)
+    if invoice is None:
+        raise _not_found()
+    stored, day, digest = _explaining(invoice)
+    response.headers["Cache-Control"] = "no-store"
+    kept = await kept_explanations.kept(
+        session, invoice.id, language, report_sha256=digest, day=day
+    )
+    if kept is not None:
+        return _kept(stored, day, language, kept)
     explainer = cast(Explainer | None, request.app.state.explainer)
     if explainer is None:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "no language model is configured on this server"
         )
     count(request, caller, MODEL_REQUEST)
-    invoice = await store.find(session, scope_of(caller), invoice_id)
-    if invoice is None:
-        raise _not_found()
-    stored = _stored(invoice)
-    day = stored.summary.issue_date if stored.summary is not None else datetime.now(UTC).date()
     settings = cast(Settings, request.app.state.settings)
     explanations, unexplained = await explain_report(
         session,
@@ -551,7 +589,21 @@ async def explain_stored_invoice(
         max_rules=settings.max_explanations,
         seconds=settings.explanation_seconds,
     )
-    response.headers["Cache-Control"] = "no-store"
+    written_at = datetime.now(UTC)
+    if all(explanation.problem is None for explanation in explanations):
+        written_at = (
+            await kept_explanations.keep(
+                session,
+                invoice.id,
+                language,
+                report_sha256=digest,
+                day=day,
+                model=explainer.model,
+                explanations=explanations,
+                unexplained=unexplained,
+            )
+            or written_at
+        )
     return Explained(
         report=stored.report,
         day=day,
@@ -559,7 +611,52 @@ async def explain_stored_invoice(
         model=explainer.model,
         explanations=explanations,
         unexplained=unexplained,
+        written_at=written_at,
     )
+
+
+@router.get(
+    "/{invoice_id}/explanations",
+    summary="Read the kept explanations of a stored invoice",
+    description=(
+        "The explanations `POST /invoices/{invoice_id}/explanations` kept for the invoice's "
+        "latest report, in the language asked for; 204, with no content, when none are kept "
+        "for that report in that language. Nothing is asked of the language model and nothing "
+        "is counted."
+    ),
+    response_model=Explained,
+    responses=_NOT_FOUND
+    | {
+        status.HTTP_204_NO_CONTENT: {
+            "description": "No explanations are kept for the invoice's report in that language: "
+            "`POST` writes them."
+        }
+    },
+)
+async def read_explanations(
+    invoice_id: uuid.UUID,
+    response: Response,
+    *,
+    caller: CanSubmit,
+    session: Session,
+    language: Explaining = "sr",
+) -> Explained | Response:
+    invoice = await store.find(session, scope_of(caller), invoice_id)
+    if invoice is None:
+        raise _not_found()
+    stored, day, digest = _explaining(invoice)
+    kept = await kept_explanations.kept(
+        session, invoice.id, language, report_sha256=digest, day=day
+    )
+    if kept is None:
+        # Not an error: a 404 would be logged as one by every browser that opens a report whose
+        # explanations nobody has asked for yet. Not kept by the browser either, since the next
+        # request may find them.
+        return Response(
+            status_code=status.HTTP_204_NO_CONTENT, headers={"Cache-Control": "no-store"}
+        )
+    response.headers["Cache-Control"] = "no-store"
+    return _kept(stored, day, language, kept)
 
 
 @router.delete(

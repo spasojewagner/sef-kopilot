@@ -9,7 +9,8 @@ join in a role (ADR-0013). A refresh token belongs to a person's session in one 
 (ADR-0016). An API key belongs to a membership, and acts for that member (ADR-0017). A job is
 work done in the background for an organization, such as validating its invoices again
 (ADR-0019). A repair is patches proposed for a stored invoice, kept with what they did to it until
-a person decides, and the audit log records who proposed and decided what (ADR-0024).
+a person decides, and the audit log records who proposed and decided what (ADR-0024). The
+explanations of a stored invoice's report are kept with it, one set a language (ADR-0040).
 
 The corpus, the official documents an explanation cites, is the same for every organization
 and belongs to none (ADR-0020): its passages are public text, written only by the command that
@@ -472,6 +473,39 @@ class Repair(Base):
     #: The language model that wrote the patches, which ``proposed_by`` asked it for; None for
     #: the patches a member or a machine client wrote.
     model: Mapped[str | None] = mapped_column(Text)
+
+
+class KeptExplanations(Base):
+    """The explanations of a stored invoice's report in one language, written once and read by
+    every member who may see the invoice (ADR-0040).
+
+    ``report_sha256`` is the digest of the report they explain, and ``day`` the day whose law
+    they cite: once the invoice's report is another, they explain a report it no longer has, and
+    the next explanation replaces them. They hold what the rules' messages say, which may quote
+    the invoice, so they are deleted with it.
+    """
+
+    __tablename__ = "explanations"
+    #: The time the database sets comes back with the insert.
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (
+        CheckConstraint("language IN ('sr', 'en')", name="language_known"),
+        CheckConstraint("report_sha256 ~ '^[0-9a-f]{64}$'", name="report_sha256_hex"),
+    )
+
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoices.id", ondelete="CASCADE"), primary_key=True
+    )
+    language: Mapped[str] = mapped_column(Text, primary_key=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    report_sha256: Mapped[str] = mapped_column(Text)
+    day: Mapped[date]
+    model: Mapped[str] = mapped_column(Text)
+    explanations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    unexplained: Mapped[list[str]] = mapped_column(JSONB)
+    written_at: Mapped[datetime] = _created_at()
 
 
 class AuditAction(StrEnum):
