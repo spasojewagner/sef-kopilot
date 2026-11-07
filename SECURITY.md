@@ -117,6 +117,10 @@ system are marked as such.
 
 ### V3 Web frontend security
 
+- [x] No other site may frame a page of the web application (`frame-ancestors 'none'`,
+      `X-Frame-Options: DENY`, checked by the end-to-end test), so none can be laid under a page
+      that has a person press a button unawares: the consent an MCP client asks for least of all
+      (RFC 9700 §4.16).
 - [ ] Content Security Policy, `X-Content-Type-Options`, `Referrer-Policy` and
       `Permissions-Policy` headers set by the web app and the API.
 - [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`. The web application sets none:

@@ -88,6 +88,13 @@ is tagged.
   upload's file field is drawn as the page's, the list of invoices is framed, an empty list
   shows where to begin, and a page that does not exist shows the mark off its course.
 
+### Security
+
+- `apps/web`: no other site may show a page of the application in a frame
+  (`frame-ancestors 'none'`, `X-Frame-Options: DENY`), where it could be laid under one of its
+  own that has a person press a button unawares (clickjacking), as the page where a person lets
+  an MCP client act for them requires (RFC 9700 §4.16).
+
 ## [0.3.0] - 2026-11-07
 
 The repair loop and the web application, live (milestone M3): patches `{xpath, op, value,

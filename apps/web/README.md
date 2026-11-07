@@ -125,6 +125,15 @@ one, or none, is saved at once. When the page cannot know whether the period was
 reads it again; when the API refuses an owner who is one no longer, the page says so and shows
 the role the API now reports.
 
+## Frames
+
+No other site may show a page of the application in a frame: every page is served with
+`Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`
+(`next.config.ts`). A framed page could be laid under one of the other site's, which has a person
+press a button unawares (clickjacking); the page where a person lets an MCP client act for them
+must never be framed (RFC 9700 §4.16). A policy for the pages' scripts comes with the hosting
+(`SECURITY.md`, V3).
+
 ## Components and styles
 
 The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:
@@ -202,13 +211,13 @@ Formatting is handled by Prettier from the repository root (`pnpm format`).
 One Playwright test walks the golden path in Chromium (`e2e/golden-path.spec.ts`, ADR-0033): a
 person registers, uploads an invoice whose type code SEF does not accept, reads its report, has
 the language model suggest a repair, reads its diff, approves it, and finds the invoice valid on
-its report and in the list. On the way, it checks that the pages load their typeface and their
-favicon, that a key leads past the header, and that the home page's example shows its end to a
-visitor who asks for less motion. It runs against the application's production build and the
-API as it runs, on ports of their own, 3100 and 8100, so that it runs beside `pnpm dev` and
-`make api`; `playwright.config.ts` starts both and stops them afterwards. The API starts on a
-database of its own, made anew each time, and a scripted model proposes the repair
-(`scripts/serve_e2e_api.py`): nothing is sent to a model's provider.
+its report and in the list. On the way, it checks that no page may be framed by another site,
+that the pages load their typeface and their favicon, that a key leads past the header, and that
+the home page's example shows its end to a visitor who asks for less motion. It runs against the
+application's production build and the API as it runs, on ports of their own, 3100 and 8100, so
+that it runs beside `pnpm dev` and `make api`; `playwright.config.ts` starts both and stops them
+afterwards. The API starts on a database of its own, made anew each time, and a scripted model
+proposes the repair (`scripts/serve_e2e_api.py`): nothing is sent to a model's provider.
 
 It needs PostgreSQL (`make up`), named by `SEF_TEST_DATABASE_URL` as in the root `.env.example`,
 the rule sets (`make rulesets`), and Chromium for Playwright, installed once:

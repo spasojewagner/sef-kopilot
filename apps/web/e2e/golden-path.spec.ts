@@ -29,6 +29,15 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
   });
   page.on("pageerror", (error) => errors.push(error.message));
 
+  await test.step("no page lets another site show it in a frame", async () => {
+    const response = await page.goto("/sr-Latn/register");
+
+    expect(response?.headers()["content-security-policy"]).toBe(
+      "frame-ancestors 'none'",
+    );
+    expect(response?.headers()["x-frame-options"]).toBe("DENY");
+  });
+
   await test.step("the pages wear the brand, and a key leads past the header", async () => {
     await page.goto("/sr-Latn/register");
 
