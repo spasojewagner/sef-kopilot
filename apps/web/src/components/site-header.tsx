@@ -16,7 +16,7 @@ import { Link } from "@/i18n/navigation";
 export function SiteHeader() {
   const t = useTranslations("header");
   return (
-    <header className="group/header sticky top-0 z-40 border-b surface-ink">
+    <header className="group/header sticky top-0 z-40 border-b bg-background surface-ink">
       <a
         href="#main"
         className="sr-only rounded-md bg-brand px-3 py-2 text-sm font-medium text-brand-foreground focus:not-sr-only focus:absolute focus:top-3 focus:left-4 focus:z-50"

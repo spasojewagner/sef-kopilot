@@ -1,7 +1,7 @@
 {
   "metadata": {
     "title": "SEF Kopilot",
-    "description": "Deterministic validation, explanations and reviewable repairs of electronic invoices (SEF, EN 16931, Peppol)."
+    "description": "Check an e-invoice before it goes to SEF: validation against SRB-CIUS, EN 16931 and Peppol, explanations that cite the law, and repairs you approve."
   },
   "header": {
     "home": "SEF Kopilot",
@@ -17,10 +17,22 @@
   },
   "home": {
     "status": "pre-alpha",
-    "title": "SEF Kopilot",
-    "tagline": "Deterministic validation, plain-language explanations and reviewable repairs of electronic invoices for SEF, EN 16931 and Peppol.",
+    "title": "Check an <whole>e-invoice</whole> before you send it to SEF",
+    "tagline": "SEF Kopilot checks a UBL invoice against <whole>SRB-CIUS</whole>, <whole>EN 16931</whole> and Peppol, explains every error with a citation from the law, and proposes repairs that you approve.",
     "check": "Check an invoice",
-    "source": "Source code on GitHub"
+    "source": "Source code on GitHub",
+    "small": "Open source under the Apache-2.0 licence, at the {status} stage.",
+    "preview": {
+      "caption": "An example: an invoice with type code 393 breaks rule SRB-001. The language model explains the rule, citing the specification, and proposes code 380; once approved, the validator finds the invoice valid.",
+      "profile": "Profile SEF (SRB-CIUS)",
+      "rule": "The invoice type code (BT-3) is 380, 381, 383 or 386.",
+      "error": "Error",
+      "explanation": "393 is not a code SEF accepts. A final invoice for goods and services delivered takes 380, a commercial invoice.",
+      "citation": "SRB-CIUS 1.3, Table 1, BT-3, in force from 6 June 2025.",
+      "replace": "replace",
+      "approved": "Approved",
+      "after": "Checked again: no errors"
+    }
   },
   "footer": {
     "notice": "An independent open-source project. It is not a certified validator, and it is not affiliated with the Serbian Ministry of Finance or the SEF platform.",

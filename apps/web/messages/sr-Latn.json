@@ -1,7 +1,7 @@
 {
   "metadata": {
     "title": "SEF Kopilot",
-    "description": "Deterministička validacija, objašnjenja i pregledne ispravke elektronskih faktura (SEF, EN 16931, Peppol)."
+    "description": "Proverite e-fakturu pre slanja na SEF: validacija po SRB-CIUS, EN 16931 i Peppol, objašnjenja uz citat iz propisa i ispravke koje vi odobravate."
   },
   "header": {
     "home": "SEF Kopilot",
@@ -17,10 +17,22 @@
   },
   "home": {
     "status": "pre-alpha",
-    "title": "SEF Kopilot",
-    "tagline": "Deterministička validacija, objašnjenja na običnom jeziku i pregledne ispravke elektronskih faktura za SEF, EN 16931 i Peppol.",
+    "title": "Proverite <whole>e-fakturu</whole> pre nego što je pošaljete na SEF",
+    "tagline": "SEF Kopilot proverava UBL fakturu po pravilima <whole>SRB-CIUS</whole>, <whole>EN 16931</whole> i Peppol, objašnjava svaku grešku uz citat iz propisa i predlaže ispravke koje vi odobravate.",
     "check": "Proverite fakturu",
-    "source": "Izvorni kod na GitHubu"
+    "source": "Izvorni kod na GitHubu",
+    "small": "Otvoreni kod pod licencom Apache-2.0, u fazi {status}.",
+    "preview": {
+      "caption": "Primer: faktura sa šifrom vrste 393 krši pravilo SRB-001. Jezički model objašnjava pravilo uz citat iz specifikacije i predlaže šifru 380; posle odobrenja validator nalazi fakturu ispravnom.",
+      "profile": "Profil SEF (SRB-CIUS)",
+      "rule": "Šifra vrste fakture (BT-3) je 380, 381, 383 ili 386.",
+      "error": "Greška",
+      "explanation": "393 nije šifra koju SEF prima. Za konačnu fakturu za isporučena dobra i usluge propisana je 380, komercijalna faktura.",
+      "citation": "SRB-CIUS 1.3, tabela 1, BT-3, važi od 6. 6. 2025.",
+      "replace": "zameni",
+      "approved": "Odobreno",
+      "after": "Ponovo provereno: bez grešaka"
+    }
   },
   "footer": {
     "notice": "Nezavisan projekat otvorenog koda. Nije sertifikovani validator i nije povezan sa Ministarstvom finansija ni sa SEF platformom.",

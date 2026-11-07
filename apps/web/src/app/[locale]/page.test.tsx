@@ -6,23 +6,29 @@ import { renderIn } from "@/test/render";
 import HomePage from "./page";
 
 describe("Home page", () => {
-  it("shows the product name, its status and what it does, in Serbian (Latin)", () => {
+  it("says what the product does, and that it is pre-alpha, in Serbian (Latin)", () => {
     renderIn("sr-Latn", <HomePage />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "SEF Kopilot" }),
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Proverite e-fakturu pre nego što je pošaljete na SEF",
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText("pre-alpha")).toBeInTheDocument();
-    expect(screen.getByText(/Deterministička validacija/)).toBeInTheDocument();
+    expect(screen.getByText(/proverava UBL fakturu/)).toBeInTheDocument();
+    expect(screen.getByText(/u fazi pre-alpha/)).toBeInTheDocument();
   });
 
   it("says the same in English", () => {
     renderIn("en", <HomePage />);
 
     expect(
-      screen.getByText(/Deterministic validation, plain-language/),
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Check an e-invoice before you send it to SEF",
+      }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Deterministička/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/proverava/)).not.toBeInTheDocument();
   });
 
   it("leads to checking an invoice", () => {
@@ -36,20 +42,25 @@ describe("Home page", () => {
   it("links to the public repository in a new tab", () => {
     renderIn("sr-Latn", <HomePage />);
 
-    const link = screen.getByRole("link", { name: "Izvorni kod na GitHubu" });
-    expect(link).toHaveAttribute(
+    const source = screen.getByRole("link", { name: "Izvorni kod na GitHubu" });
+    expect(source).toHaveAttribute(
       "href",
       "https://github.com/spasojewagner/sef-kopilot",
     );
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    expect(source).toHaveAttribute("target", "_blank");
+    expect(source).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    expect(source.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 
-  it("draws the link as a button, its arrow hidden from screen readers", () => {
-    renderIn("en", <HomePage />);
+  it("shows an example of a report, which a screen reader reads as its caption", () => {
+    renderIn("sr-Latn", <HomePage />);
 
-    const link = screen.getByRole("link", { name: "Source code on GitHub" });
-    expect(link).toHaveAttribute("data-slot", "button");
-    expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    const example = screen.getByRole("figure", {
+      name: /faktura sa šifrom vrste 393 krši pravilo SRB-001/,
+    });
+    const drawing = example.querySelector("[aria-hidden='true']");
+    expect(drawing).toHaveTextContent("RF-2026-000123");
+    expect(drawing).toHaveTextContent("SRB-001");
+    expect(drawing).toHaveTextContent("393 → 380");
   });
 });

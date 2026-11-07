@@ -57,6 +57,18 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
     await expect(page.getByRole("main")).toBeFocused();
   });
 
+  await test.step("the home page's example shows its end to a visitor who asks for less motion", async () => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/sr-Latn");
+
+    const opacity = (selector: string) =>
+      page.locator(selector).evaluate((node) => getComputedStyle(node).opacity);
+    expect(await opacity(".story-valid")).toBe("1");
+    expect(await opacity(".story-invalid")).toBe("0");
+    expect(await opacity(".story-patch")).toBe("1");
+    await page.emulateMedia({ reducedMotion: null });
+  });
+
   await test.step("a person registers, with an organization of their own", async () => {
     const email = `marija.${Date.now()}@primer.example`;
     await page.goto("/sr-Latn/register");

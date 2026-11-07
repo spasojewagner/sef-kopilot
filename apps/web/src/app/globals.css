@@ -58,8 +58,11 @@
  * Light: ink navy on a cool off-white, white cards, one accent. Every grey is tinted towards
  * the navy's hue (250°). `tokens.test.ts` checks the contrast of each pair a page puts
  * together: 4.5:1 for text, 3:1 for the accent and the focus ring beside the background.
+ * `surface-page` sets the page's tokens again inside the navy surface, for what is drawn on
+ * it as it would be on the page: the home page's example of a report.
  */
-:root {
+:root,
+.surface-page {
   --radius: 0.625rem;
   --background: oklch(0.985 0.003 248);
   --foreground: oklch(0.234 0.047 250.5);
@@ -87,7 +90,8 @@
 
 /* Dark: the same navy, deeper, under light text; the accent brightens to keep its contrast. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root,
+  .surface-page {
     --background: oklch(0.17 0.03 253);
     --foreground: oklch(0.943 0.011 243.7);
     --card: oklch(0.215 0.042 251);
@@ -113,10 +117,16 @@
   }
 }
 
+.surface-page {
+  color: var(--foreground);
+  color-scheme: light dark;
+}
+
 /*
- * The brand's navy surface, in both modes: the header and the home page's first screen. It
- * sets the tokens again for what it holds, so that a button or a link inside it takes the
- * light-on-navy look without variants of its own.
+ * The brand's navy surface, in both modes: the header, the home page's first screen and its
+ * code. It sets the tokens again for what it holds, so that a button or a link inside it takes
+ * the light-on-navy look without variants of its own, and sets its text in them; it paints
+ * nothing itself, so that an element paints the navy where it wants it (`bg-background`).
  */
 @utility surface-ink {
   --background: oklch(0.234 0.047 250.5);
@@ -141,7 +151,6 @@
   --brand-foreground: oklch(0.234 0.047 250.5);
   --success: oklch(0.785 0.133 181.9);
   --warning: oklch(0.82 0.14 80);
-  background-color: var(--background);
   color: var(--foreground);
   color-scheme: dark;
 }
@@ -154,6 +163,97 @@
   padding-inline: --spacing(4);
   @variant sm {
     padding-inline: --spacing(6);
+  }
+}
+
+/*
+ * The home page's example of a report tells its story once, as the page opens: the error (0 s),
+ * the model's explanation (0.9 s), the repair a person approved (1.8 s), the value replaced
+ * (2.2 s), the invoice checked again (2.9 s) and its verdict (3 s). Without motion, the end of
+ * the story is what shows, so that a visitor who asks for less motion sees all of it at once.
+ */
+@layer components {
+  .story-line {
+    background-color: color-mix(in oklch, var(--success) 12%, transparent);
+  }
+  .story-old {
+    color: var(--muted-foreground);
+    text-decoration-line: line-through;
+    text-decoration-color: currentColor;
+  }
+  .story-new {
+    margin-inline-start: 0.6ch;
+    color: var(--success);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  /* The verdict before the repair, gone by the end. */
+  .story-invalid {
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .story-line {
+      animation: story-line 3s both;
+    }
+    .story-old {
+      animation: story-old 2.5s both;
+    }
+    .story-new {
+      animation: story-appear 0.35s 2.3s both;
+    }
+    .story-explanation {
+      animation: story-rise 0.5s 0.9s both;
+    }
+    .story-patch {
+      animation: story-rise 0.5s 1.8s both;
+    }
+    .story-checked {
+      animation: story-rise 0.5s 2.9s both;
+    }
+    .story-invalid {
+      animation: story-invalid 3.3s both;
+    }
+    .story-valid {
+      animation: story-appear 0.35s 3s both;
+    }
+  }
+}
+
+@keyframes story-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@keyframes story-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes story-invalid {
+  0%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes story-old {
+  0%,
+  86% {
+    color: var(--destructive);
+    text-decoration-color: transparent;
+  }
+}
+
+@keyframes story-line {
+  0%,
+  73% {
+    background-color: color-mix(in oklch, var(--destructive) 12%, transparent);
   }
 }
 

@@ -58,6 +58,8 @@ is tagged.
 - `apps/web`: the header is on the brand's navy, with a member's sections beside the logo, the
   one the page is in marked, and a first link that leads a keyboard past it to the page's
   content; the footer says where the source code is.
+- `apps/web`: the home page is the product's page: what it does, beside an example of a report
+  that tells its story once (the error, the explanation, the approved repair, the verdict).
 
 ## [0.3.0] - 2026-11-07
 
