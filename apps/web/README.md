@@ -240,8 +240,9 @@ src/app/globals.css  Tailwind, the brand's tokens under shadcn/ui's names, dark 
 src/app/icon.svg   the favicon, and the icons rendered from it: `apple-icon.png`, `favicon.ico`
 src/components/    components shared by the pages: the logo, the header with its sections and
                    its account, the footer, the language switcher, the API's status, the cache
-                   of the API's answers, the sign-in and registration forms, the upload, the
-                   list, the report, the repairs and the diff, the organization's page
+                   of the API's answers, the sign-in and registration forms and their frame,
+                   the upload, the list, the report, the repairs and the diff, the way back
+                   to a page's parent, the organization's page
 src/components/landing/  the home page's sections, its example of a report and its backdrop
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps

@@ -70,6 +70,9 @@ is tagged.
 - `apps/web`: a report and a repair open with a summary of what they are, under the way back,
   and the validator's layers are a checklist, beside the rules on a wide screen; shadows take
   the navy's hue.
+- `apps/web`: signing in and registering stand beside the brand's navy on a wide screen; the
+  upload's file field is drawn as the page's, the list of invoices is framed, an empty list
+  shows where to begin, and a page that does not exist shows the mark off its course.
 
 ## [0.3.0] - 2026-11-07
 

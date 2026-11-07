@@ -1,14 +1,22 @@
 import { useTranslations } from "next-intl";
 
+import { LogoMark } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 
-/** A path of the interface that names no page, in the visitor's language. */
+/**
+ * A path of the interface that names no page, in the visitor's language: the mark, off its
+ * course, and the way home.
+ */
 export default function NotFound() {
   const t = useTranslations("notFound");
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+      <LogoMark className="size-14 -rotate-12 text-muted-foreground" />
+      <p className="font-mono text-sm text-muted-foreground">404</p>
+      <h1 className="text-3xl font-semibold tracking-tight text-balance">
+        {t("title")}
+      </h1>
       <Button asChild variant="outline">
         <Link href="/">{t("home")}</Link>
       </Button>
