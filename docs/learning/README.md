@@ -44,5 +44,4 @@ just used. New notes are added in the pull request that introduces the concept.
 | 36 | [Colour you can read: OKLCH and the contrast ratio](36-colour-you-can-read.md) | M4 |
 | 37 | [Motion with its end first: an animation that hides nothing](37-motion-with-its-end-first.md) | M4 |
 | 38 | [A consent a person can trust: what the page shows, and what it refuses](38-a-consent-a-person-can-trust.md) | M4 |
-
-Planned: OAuth 2.1 flows for MCP.
+| 39 | [OAuth 2.1 for an MCP server: from a 401 to a tool call](39-oauth-for-an-mcp-server.md) | M4 |
