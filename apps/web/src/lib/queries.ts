@@ -19,10 +19,14 @@ export function isAboutTheApi(key: readonly unknown[]): boolean {
   return key[0] === "api";
 }
 
-/** Whether the API answers, and which version it runs. */
+/**
+ * Whether the API answers, and which version it runs. Not asked again when it fails: a check of
+ * an API that may be asleep already waits for it, for up to two minutes.
+ */
 export const healthQuery = queryOptions({
   queryKey: ["api", "health"],
   queryFn: ({ signal }) => getHealth(signal),
+  retry: false,
 });
 
 /**

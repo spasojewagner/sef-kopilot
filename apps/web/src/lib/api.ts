@@ -1,8 +1,8 @@
 import type { components } from "@/lib/api-schema";
 
 /**
- * The browser's way to the API: the address it answers at, one request function, and the
- * error it throws when the API answers with an error.
+ * The browser's way to the API: the address it answers at, one request function, which waits
+ * while a sleeping API wakes, and the error it throws when the API answers with an error.
  *
  * The pages call the API directly, across origins (ADR-0026); the API allows it for the origins
  * in its `SEF_WEB_ORIGINS`.
@@ -14,8 +14,11 @@ const LOCAL_API_URL = "http://127.0.0.1:8000";
 /** How long a request may take, its answer read, before it is abandoned, unless it says. */
 export const REQUEST_TIMEOUT_MS = 10_000;
 
-/** A request, and how long it may take when that is not {@link REQUEST_TIMEOUT_MS}. */
-export type ApiRequest = RequestInit & { timeoutMs?: number };
+/**
+ * A request; how long it may take when that is not {@link REQUEST_TIMEOUT_MS}; and whether it
+ * waits first while a sleeping API wakes (`wake`, by default), as every request of a page does.
+ */
+export type ApiRequest = RequestInit & { timeoutMs?: number; wake?: boolean };
 
 /** The address of `path` on the API, as the build was given it in `NEXT_PUBLIC_API_URL`. */
 export function apiUrl(path: string): string {
@@ -97,14 +100,26 @@ async function bodyOf(response: Response): Promise<unknown> {
 /**
  * The API's JSON answer to a request for `path`, or nothing for a 204.
  *
+ * When the API has not answered for a while, the request waits until it does: see
+ * {@link whenAwake}. It is then sent once, and its `timeoutMs` counts from there.
+ *
  * Throws an {@link ApiError} when the API answers with an error, and the browser's own error
  * when it cannot reach the API, may not read its answer, or gives up after `timeoutMs`
  * ({@link REQUEST_TIMEOUT_MS} unless it says). `signal` cancels the request sooner.
  */
 export async function request<T>(
   path: string,
-  { signal, headers, timeoutMs = REQUEST_TIMEOUT_MS, ...init }: ApiRequest = {},
+  {
+    signal,
+    headers,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+    wake = true,
+    ...init
+  }: ApiRequest = {},
 ): Promise<T> {
+  if (wake) {
+    await whenAwake(signal);
+  }
   // A controller of its own rather than AbortSignal.any, which Safari has only since 17.4.
   const controller = new AbortController();
   const cancel = () => controller.abort(signal?.reason);
@@ -127,6 +142,11 @@ export async function request<T>(
       headers: sent,
       signal: controller.signal,
     });
+    if (response.status < 500) {
+      // An answer below 500 comes from the API itself, which is then awake; a 5xx may be its
+      // platform's, while it starts.
+      noteAnswer();
+    }
     if (!response.ok) {
       const body = await bodyOf(response);
       throw new ApiError(
@@ -152,6 +172,166 @@ export type Schemas = components["schemas"];
 /** `GET /health`: the API's process is up, and which version it runs. */
 export type Health = Schemas["HealthResponse"];
 
+/**
+ * Whether the API answers now, and which version it runs: one request while the API is taken to
+ * be awake; otherwise the API may be asleep, and this waits for it as {@link whenAwake} does.
+ */
 export function getHealth(signal?: AbortSignal): Promise<Health> {
-  return request<Health>("/health", { signal });
+  if (knownToBeAwake()) {
+    return request<Health>("/health", { signal, wake: false });
+  }
+  return untilSettled(wakeUp(), signal);
+}
+
+/*
+ * A sleeping API (ADR-0036). The public demo's API runs on a free instance, which sleeps after
+ * 15 minutes without a request and takes about a minute to wake, while its platform holds or
+ * fails the requests. A request that gave up after 10 s would tell the visitor that the API does
+ * not answer. So when the API has not answered for a while, a request first waits until it
+ * answers `/health`, asked again for up to two minutes, and is sent only then: once, so that no
+ * write is ever sent twice.
+ */
+
+/** How the browser waits for a sleeping API. */
+export const WAKE = {
+  /**
+   * The API is taken to be awake this long after its last answer: less than the 15 minutes
+   * after which the free instance sleeps.
+   */
+  awakeForMs: 10 * 60_000,
+  /** How long a sleeping API may take to answer before it is taken to be down. */
+  withinMs: 120_000,
+  /** How long a wake-up may go unanswered before the pages say that the API is waking up. */
+  wakingAfterMs: 3_000,
+  /** How long one request to `/health` may take during a wake-up. */
+  attemptMs: 30_000,
+  /** The pause after a request to `/health` that failed, before the next. */
+  pauseMs: 2_000,
+} as const;
+
+/** When the API last answered this tab, by `Date.now()`; never, when a visit begins. */
+let answeredAt: number | null = null;
+/** The wake-up under way, which every waiting request shares. */
+let wakingUp: Promise<Health> | null = null;
+/** Whether the wake-up under way has gone unanswered for {@link WAKE.wakingAfterMs}. */
+let waking = false;
+const wakingListeners = new Set<() => void>();
+
+/** The API answered just now. */
+export function noteAnswer(): void {
+  answeredAt = Date.now();
+}
+
+/** Forgets that the API ever answered, as a new visit does: for the tests. */
+export function forgetAnswers(): void {
+  answeredAt = null;
+  wakingUp = null;
+  setWaking(false);
+}
+
+/** Whether the API answered recently enough to be taken to be awake. */
+function knownToBeAwake(): boolean {
+  return answeredAt !== null && Date.now() - answeredAt < WAKE.awakeForMs;
+}
+
+function setWaking(value: boolean): void {
+  if (waking !== value) {
+    waking = value;
+    for (const listener of wakingListeners) {
+      listener();
+    }
+  }
+}
+
+/** Whether the API is waking up: a wake-up has gone unanswered for a few seconds. */
+export function isApiWaking(): boolean {
+  return waking;
+}
+
+/** Calls ``listener`` each time {@link isApiWaking} changes; returns how to stop. */
+export function subscribeToApiWaking(listener: () => void): () => void {
+  wakingListeners.add(listener);
+  return () => {
+    wakingListeners.delete(listener);
+  };
+}
+
+/**
+ * Resolves at once while the API is taken to be awake, and in a page rendered on the server;
+ * otherwise once the API answers `/health`, asked again until it does or {@link WAKE.withinMs}
+ * have passed. Rejects with the last request's error when the API never answers, and with
+ * ``signal``'s reason when it aborts, which ends this wait but not the wake-up, which the other
+ * requests share.
+ */
+export async function whenAwake(signal?: AbortSignal | null): Promise<void> {
+  if (typeof window === "undefined" || knownToBeAwake()) {
+    return;
+  }
+  try {
+    await untilSettled(wakeUp(), signal);
+  } catch (error) {
+    // A refusal is an answer: the API is awake, and the request may go.
+    if (!(error instanceof ApiError && error.status < 500)) {
+      throw error;
+    }
+  }
+}
+
+/** The wake-up under way, or a new one. */
+function wakeUp(): Promise<Health> {
+  if (wakingUp === null) {
+    wakingUp = askUntilAwake().finally(() => {
+      wakingUp = null;
+    });
+    // Each request that waits handles its failure; one that none waits for any more is no error.
+    wakingUp.catch(() => undefined);
+  }
+  return wakingUp;
+}
+
+async function askUntilAwake(): Promise<Health> {
+  const deadline = Date.now() + WAKE.withinMs;
+  const slow = setTimeout(() => setWaking(true), WAKE.wakingAfterMs);
+  try {
+    for (;;) {
+      try {
+        return await request<Health>("/health", {
+          wake: false,
+          timeoutMs: Math.max(
+            1,
+            Math.min(WAKE.attemptMs, deadline - Date.now()),
+          ),
+        });
+      } catch (error) {
+        const refused = error instanceof ApiError && error.status < 500;
+        if (refused || Date.now() + WAKE.pauseMs >= deadline) {
+          throw error;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, WAKE.pauseMs));
+    }
+  } finally {
+    clearTimeout(slow);
+    setWaking(false);
+  }
+}
+
+/** ``promise``'s outcome, or ``signal``'s reason as soon as it aborts. */
+function untilSettled<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal | null,
+): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+  if (signal.aborted) {
+    return Promise.reject(signal.reason);
+  }
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener("abort", abort, { once: true });
+    promise
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", abort));
+  });
 }

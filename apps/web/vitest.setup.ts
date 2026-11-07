@@ -4,7 +4,13 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 
+import { forgetAnswers, noteAnswer } from "@/lib/api";
+
 beforeEach(() => {
+  // Every test begins with an API that answered a moment ago, so that a request is sent at
+  // once; a test of a sleeping API forgets it (`forgetAnswers`).
+  forgetAnswers();
+  noteAnswer();
   // No test sees what another kept in the browser's storage: a signed-in session, say. A test
   // that runs in Node rather than in a browser has none.
   if (typeof window !== "undefined") {
