@@ -287,3 +287,24 @@ def test_in_production_a_web_origin_is_https(monkeypatch: pytest.MonkeyPatch) ->
         Settings()
     monkeypatch.setenv("SEF_WEB_ORIGINS", "https://sef-kopilot.pages.dev")
     assert Settings().web_origins == ("https://sef-kopilot.pages.dev",)
+
+
+def test_settings_from_given_values_read_neither_the_environment_nor_env_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / ".env").write_text("SEF_MAX_EXPLANATIONS=9\nSEF_JOBS=arq\n", encoding="utf-8")
+    monkeypatch.setenv("SEF_VALIDATOR", "thread")
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+
+    settings = Settings.from_values({"SEF_ENVIRONMENT": "test", "SEF_MAX_INVOICE_BYTES": "4096"})
+
+    assert (settings.environment, settings.max_invoice_bytes) == ("test", 4096)
+    assert (settings.validator, settings.jobs, settings.llm_provider) == (
+        "process",
+        "inline",
+        "none",
+    )
+    assert settings.max_explanations == 5
+    # What is given is checked as ever.
+    with pytest.raises(ValidationError, match="SEF_JWT_SECRET must be set in production"):
+        Settings.from_values({"SEF_ENVIRONMENT": "production"})

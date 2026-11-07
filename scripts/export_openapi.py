@@ -19,8 +19,6 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final
 
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
-
 from sef_api.main import create_app
 from sef_api.settings import Settings
 
@@ -36,25 +34,9 @@ _SETTINGS: Final = {
 }
 
 
-class _Fixed(Settings):
-    """Settings read from :data:`_SETTINGS` alone: never from the environment or ``.env``."""
-
-    # pydantic-settings passes every source by name; only the values given are kept.
-    @classmethod
-    def settings_customise_sources(
-        cls,
-        settings_cls: type[BaseSettings],  # noqa: ARG003
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,  # noqa: ARG003
-        dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
-        file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
-    ) -> tuple[PydanticBaseSettingsSource, ...]:
-        return (init_settings,)
-
-
 def openapi_document() -> dict[str, Any]:
     """The OpenAPI document of the API."""
-    return create_app(_Fixed.model_validate(_SETTINGS)).openapi()
+    return create_app(Settings.from_values(_SETTINGS)).openapi()
 
 
 def render(document: dict[str, Any]) -> str:
