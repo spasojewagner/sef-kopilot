@@ -1993,3 +1993,28 @@ faults, each caught (see the pull request); ruff, mypy; the OpenAPI document and
 application's types regenerated.
 
 Next: the authorization endpoint and the request a person decides on.
+
+## 2026-11-07 — `feat/mcp-oauth-authorization` (2 commits, stacked on `feat/mcp-oauth-clients`)
+
+Outcome: the second step of OAuth 2.1 for the MCP endpoint (ADR-0044). `GET /oauth/authorize`
+checks what a client asks before anyone is asked: PKCE with S256, a registered redirect URI, the
+MCP endpoint as the resource, known scopes. A request that will do waits ten minutes on the web
+application's page (`SEF_WEB_URL`) for a signed-in person, who approves it, for the scopes their
+role grants, or refuses it (migration 0016). An approval issues a code valid for two minutes,
+kept as its SHA-256, and is recorded in the audit log; every answer to the client names the
+issuer (RFC 9207).
+
+Findings:
+
+- An unknown client or redirect URI is answered where it asked, never redirected: otherwise the
+  endpoint is an open redirector with the server's name on it.
+- A decision is one conditional update, on a request still undecided and unexpired, so two
+  people deciding at once cannot both win, and an approval after a refusal issues nothing.
+- The audit log's list of actions is a check constraint, so a new action is a migration, whose
+  downgrade forgets the events it no longer has a place for, as 0012's does.
+
+Verification: the API's tests, the authorization's against OAuth 2.1 §4.1, RFC 8707 and RFC
+9207; the seeded faults, each caught (see the pull request); ruff, mypy; the OpenAPI document
+and the web application's types regenerated.
+
+Next: the web application's page where a person decides.
