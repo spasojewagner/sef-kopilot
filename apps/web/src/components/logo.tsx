@@ -52,9 +52,11 @@ export function LogoMark({
 export function Logo({
   name,
   className,
+  nameClassName,
 }: {
   name: string;
   className?: string;
+  nameClassName?: string;
 }) {
   return (
     <span
@@ -64,7 +66,7 @@ export function Logo({
       )}
     >
       <LogoMark className="size-7" />
-      <span>{name}</span>
+      <span className={nameClassName}>{name}</span>
     </span>
   );
 }

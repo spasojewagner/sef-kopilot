@@ -55,6 +55,9 @@ is tagged.
   teal accent, in light and in dark; Onest for the text and JetBrains Mono for rule ids, paths
   and XML, served with the pages. A test measures the contrast of every pair of colours the
   pages set together against WCAG 2.2 AA.
+- `apps/web`: the header is on the brand's navy, with a member's sections beside the logo, the
+  one the page is in marked, and a first link that leads a keyboard past it to the page's
+  content; the footer says where the source code is.
 
 ## [0.3.0] - 2026-11-07
 

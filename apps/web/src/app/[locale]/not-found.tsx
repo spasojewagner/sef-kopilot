@@ -7,11 +7,11 @@ import { Link } from "@/i18n/navigation";
 export default function NotFound() {
   const t = useTranslations("notFound");
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center">
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center">
       <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
       <Button asChild variant="outline">
         <Link href="/">{t("home")}</Link>
       </Button>
-    </main>
+    </div>
   );
 }

@@ -40,7 +40,14 @@ export default async function LocaleLayout({
           <QueryProvider>
             <SiteHeader />
             <ApiWakingNotice />
-            {children}
+            {/* The one main landmark of every page, where the header's first link leads. */}
+            <main
+              id="main"
+              tabIndex={-1}
+              className="flex flex-1 flex-col outline-none"
+            >
+              {children}
+            </main>
             <SiteFooter />
           </QueryProvider>
         </NextIntlClientProvider>

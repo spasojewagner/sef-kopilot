@@ -90,15 +90,6 @@ describe("Account in the header", () => {
     renderIn("sr-Latn", <Account />);
 
     expect(screen.getByText("alice@primer.example")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Fakture" })).toHaveAttribute(
-      "href",
-      "/sr-Latn/invoices",
-    );
-    // On a phone an icon, named for a screen reader by the text a wider screen shows.
-    expect(screen.getByRole("link", { name: "Organizacija" })).toHaveAttribute(
-      "href",
-      "/sr-Latn/organization",
-    );
     expect(await screen.findByText("alice@novo.example")).toBeInTheDocument();
     await userEvent
       .setup()

@@ -5,7 +5,9 @@
   },
   "header": {
     "home": "SEF Kopilot",
-    "language": "Language"
+    "language": "Language",
+    "skip": "Skip to content",
+    "sections": "Sections"
   },
   "account": {
     "signIn": "Sign in",
@@ -22,6 +24,7 @@
   },
   "footer": {
     "notice": "An independent open-source project. It is not a certified validator, and it is not affiliated with the Serbian Ministry of Finance or the SEF platform.",
+    "source": "Source code",
     "api": {
       "checking": "Checking the API…",
       "waking": "API is waking up…",

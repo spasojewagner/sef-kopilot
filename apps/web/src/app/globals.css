@@ -146,6 +146,17 @@
   color-scheme: dark;
 }
 
+/* The width of a page's content, so that the header, the page and the footer line up. */
+@utility page-width {
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--container-5xl);
+  padding-inline: --spacing(4);
+  @variant sm {
+    padding-inline: --spacing(6);
+  }
+}
+
 @layer base {
   :root {
     /* Form controls and scroll bars follow the operating system too. */

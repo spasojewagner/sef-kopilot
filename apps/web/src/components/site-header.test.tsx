@@ -21,6 +21,14 @@ describe("Site header", () => {
     ).toHaveAttribute("href", "/en");
   });
 
+  it("leads a keyboard to the page's content before anything else", () => {
+    renderIn("sr-Latn", <SiteHeader />);
+
+    const [first] = within(screen.getByRole("banner")).getAllByRole("link");
+    expect(first).toHaveAccessibleName("Pređi na sadržaj");
+    expect(first).toHaveAttribute("href", "#main");
+  });
+
   it("offers to sign in", () => {
     renderIn("sr-Latn", <SiteHeader />);
 

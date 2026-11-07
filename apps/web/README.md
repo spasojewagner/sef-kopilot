@@ -157,6 +157,12 @@ shadcn/ui components read, so that they take it unchanged:
   favicon, `src/app/icon.svg`, draws the same paths in fixed colours, and a test keeps the two
   equal. `apple-icon.png` and `favicon.ico`, beside it, are rendered from it in Chromium and
   committed: after changing the mark, run `pnpm --filter @sef-kopilot/web brand:images`.
+- **The header** is on the navy on every page: the logo, the sections of a member who is
+  signed in, the one the page is in marked (`aria-current`), the languages and the account.
+  Its first link, shown when a keyboard reaches it, leads past it to the page's content, the
+  one `main` of the root layout. `page-width` is the width of the content of the header, of
+  every page and of the footer, so that they line up.
+
 ## Checks
 
 ```bash
@@ -206,12 +212,12 @@ src/app/[locale]/  routes (App Router) under the language: the root layout, the 
                    `repairs/[repairId]`, `organization`, the 404;
                    `page.test.tsx` next to `page.tsx`
 src/app/globals.css  Tailwind, the brand's tokens under shadcn/ui's names, dark mode, the
-                   navy surface; `tokens.test.ts` measures their contrast
+                   navy surface and the page's width; `tokens.test.ts` measures their contrast
 src/app/icon.svg   the favicon, and the icons rendered from it: `apple-icon.png`, `favicon.ico`
-src/components/    components shared by the pages: the logo, the header and its account, the
-                   footer, the language switcher, the API's status, the cache of the API's
-                   answers, the sign-in and registration forms, the upload, the list, the
-                   report, the repairs and the diff, the organization's page
+src/components/    components shared by the pages: the logo, the header with its sections and
+                   its account, the footer, the language switcher, the API's status, the cache
+                   of the API's answers, the sign-in and registration forms, the upload, the
+                   list, the report, the repairs and the diff, the organization's page
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types
