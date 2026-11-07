@@ -17,6 +17,11 @@
 > responsible for what they submit. By default the project only ever talks to the public SEF
 > **demo** environment.
 
+**Try it:** <https://sef-kopilot.vercel.app>, a public demo on free plans (`docs/DEPLOY.md`).
+Upload only synthetic invoices, such as those in `fixtures/invoices/synthetic/`: the demo is
+public, and an explanation or a repair sends an invoice's violations and fields to the language
+model's provider. Its API sleeps after 15 minutes without a visitor and wakes in about a minute.
+
 ## The problem
 
 Every invoice between Serbian businesses has to pass through SEF as UBL 2.1 XML that satisfies

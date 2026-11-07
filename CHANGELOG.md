@@ -141,6 +141,10 @@ is tagged.
   (`RepairConflict`): `nothing-to-repair`, `too-many-waiting`, `invoice-changed`, `decided`,
   `changes-nothing`, `outcome-changed`, so that a client tells them apart without reading the
   English.
+- `docs/DEPLOY.md`: what the first deploy needed, in the steps where it was met: Vercel's and
+  Render's GitHub apps given access to the repository, Neon's pooled host told apart, and the
+  database's URL read for the corpus without being shown or kept in the shell's history. The
+  README links the live demo, <https://sef-kopilot.vercel.app>.
 
 ### Security
 

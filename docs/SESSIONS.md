@@ -1601,3 +1601,27 @@ held, in Serbian and English, light and dark, and on a phone.
 
 Next: `docs/infra-first-deploy` (what the first deploy needed, in the runbook); the upload
 notice; the release of v0.3.0.
+
+## 2026-11-07 — `docs/infra-first-deploy` (3 commits, stacked on `feat/web-api-waking-up`)
+
+Outcome: what the first deploy needed is in the runbook, in the steps where it was met, and the
+README links the live demo, <https://sef-kopilot.vercel.app>.
+
+Findings:
+
+- Vercel's and Render's GitHub apps had access to some of the maintainer's repositories only;
+  GitHub asked for a code by e-mail before either could be given this one, which only the
+  maintainer could enter. Connecting Render to GitHub opens GitHub's own window, which the
+  maintainer opened and authorised too.
+- Neon's Connect dialog offered the pooled host. The runbook now says how to tell it apart, and
+  rewrites the URL in three edits.
+- The corpus's step typed the database's URL into the command, where the shell's history and a
+  screenshot keep it; it is now read with `Read-Host -AsSecureString`.
+- The new Vercel project's default Node.js was 26; `engines.node` (22.x) decides, and the
+  project's setting says 22.x as well. Its production domain is public under the team's default
+  protection, checked from outside.
+
+Verification: every hook on the changed files, the secret scan; the runbook's steps checked
+against what was done on 2026-11-07.
+
+Next: the upload notice; the release of v0.3.0.
