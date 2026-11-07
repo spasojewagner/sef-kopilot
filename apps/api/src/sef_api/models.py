@@ -510,7 +510,8 @@ class OAuthAuthorization(Base):
     the scopes, the resource and its state. Its id, random, is the address of the page where a
     person decides; it expires ten minutes after it was made. Approved, it holds the member who
     approved and, by its SHA-256, the code the client will exchange, which expires within two
-    minutes; it goes with the membership, as an API key does.
+    minutes; it goes with the membership, as an API key does. The code is exchanged once
+    (``exchanged_at``); the consent's tokens all end when it is revoked (``revoked_at``).
     """
 
     __tablename__ = "oauth_authorizations"
@@ -529,6 +530,12 @@ class OAuthAuthorization(Base):
         ),
         CheckConstraint("(decision IS NULL) = (decided_at IS NULL)", name="decided_when"),
         CheckConstraint("code_sha256 ~ '^[0-9a-f]{64}$'", name="code_sha256_hex"),
+        CheckConstraint(
+            "exchanged_at IS NULL OR decision = 'approved'", name="exchanged_when_approved"
+        ),
+        CheckConstraint(
+            "revoked_at IS NULL OR decision = 'approved'", name="revoked_when_approved"
+        ),
         Index("ix_oauth_authorizations_organization_id_user_id", "organization_id", "user_id"),
     )
 
@@ -552,6 +559,42 @@ class OAuthAuthorization(Base):
     user_id: Mapped[uuid.UUID | None]
     code_sha256: Mapped[str | None] = mapped_column(Text, unique=True)
     code_expires_at: Mapped[datetime | None]
+    #: When the code was exchanged for tokens; a code is good once.
+    exchanged_at: Mapped[datetime | None]
+    #: When every token of the consent was revoked: a code or a refresh token came back.
+    revoked_at: Mapped[datetime | None]
+
+
+class OAuthRefreshToken(Base):
+    """A refresh token of an MCP client, for one consent, stored as the SHA-256 digest of the
+    token (ADR-0044).
+
+    The tokens of one consent share its authorization: each is spent once (``used_at``) and
+    replaced by the next. One presented again means someone else holds a copy, and revokes the
+    consent, as a code presented twice does. The tokens go with their consent, which goes with
+    the membership.
+    """
+
+    __tablename__ = "oauth_refresh_tokens"
+    __table_args__ = (
+        CheckConstraint("digest ~ '^[0-9a-f]{64}$'", name="digest_hex"),
+        # A consent has one unspent refresh token at most: the one its client holds now.
+        Index(
+            "uq_oauth_refresh_tokens_unspent",
+            "authorization_id",
+            unique=True,
+            postgresql_where=text("used_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _id()
+    authorization_id: Mapped[str] = mapped_column(
+        ForeignKey("oauth_authorizations.id", ondelete="CASCADE"), index=True
+    )
+    digest: Mapped[str] = mapped_column(Text, unique=True)
+    created_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime]
+    used_at: Mapped[datetime | None]
 
 
 class RuleEmbedding(Base):

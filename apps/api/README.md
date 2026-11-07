@@ -555,7 +555,19 @@ without it, they answer 404, and the MCP endpoint takes API keys alone.
   grants, records the consent in the audit log and answers where to send the browser, the
   client's redirect URI with a code valid for two minutes; `POST .../refusal` sends it back
   with `access_denied`. Every answer the client gets names this server (`iss`, RFC 9207).
-- **Next:** the web application's page, the token endpoint that exchanges a code, the metadata
+- **The client exchanges the code** at `POST /oauth/token`, a form (OAuth 2.1 §3.2), once,
+  with the PKCE verifier that began it and its client id; the redirect URI, if it names one,
+  must be the one the code was sent to. It gets an access token for the MCP endpoint alone, for
+  fifteen minutes (`SEF_ACCESS_TOKEN_MINUTES`): a JWT (RFC 9068) whose audience is
+  `SEF_PUBLIC_URL/mcp`, naming the person, their organization, the client, the scopes and the
+  consent, signed with a key derived from `SEF_JWT_SECRET` for these tokens alone, so that it
+  and the web application's never pass for each other. A client that registered the
+  `refresh_token` grant also gets a refresh token, kept as its SHA-256. A code presented a
+  second time revokes the consent: its access tokens will be refused at the MCP endpoint, which
+  is to read the consent on every request. The role is read again when the code is exchanged,
+  and a member who is no longer one takes the consent with them (migration 0017). Token
+  requests are counted by address: sixty a minute.
+- **Next:** spending a refresh token, the MCP endpoint accepting these tokens, the metadata
   documents that send clients here (RFC 8414, RFC 9728), and client ID metadata documents.
 
 ## Database and migrations

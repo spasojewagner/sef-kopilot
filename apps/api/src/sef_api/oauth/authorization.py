@@ -39,6 +39,7 @@ __all__ = [
     "UnredirectableError",
     "approve",
     "begin",
+    "canonical",
     "issuer_of",
     "pending",
     "redirect",
@@ -98,7 +99,7 @@ def redirect(uri: str, **params: str | None) -> str:
     return urlunsplit(parts._replace(query=query))
 
 
-def _canonical(uri: str) -> str:
+def canonical(uri: str) -> str:
     """``uri`` with its scheme and host in lower case and no trailing slash, as resources are
     compared."""
     parts = urlsplit(uri)
@@ -135,7 +136,7 @@ async def begin(
     if state is not None and len(state) > MAX_STATE_LENGTH:
         raise refused("invalid_request", f"the state has more than {MAX_STATE_LENGTH} characters")
     try:
-        resource = _canonical(params.get("resource", resource_of(settings)))
+        resource = canonical(params.get("resource", resource_of(settings)))
     except ValueError:  # no URI at all
         resource = ""
     if resource != resource_of(settings):

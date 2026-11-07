@@ -177,6 +177,7 @@ class Counted(StrEnum):
     MODEL_REQUEST = "requests to the language model"
     ORGANIZATION_MODEL_REQUEST = "requests to the language model in this organization"
     CLIENT_REGISTRATION = "registrations of OAuth clients"
+    TOKEN_REQUEST = "requests for OAuth tokens"
 
 
 #: The limits that settings do not change. Per address: what one client may try, generous
@@ -190,6 +191,7 @@ DEFAULT_LIMITS: Final[Mapping[Counted, Limit]] = MappingProxyType(
         Counted.INVITATION: Limit(10, timedelta(minutes=1)),
         Counted.FAILED_PASSWORD: Limit(10, timedelta(minutes=15)),
         Counted.CLIENT_REGISTRATION: Limit(10, timedelta(hours=1)),
+        Counted.TOKEN_REQUEST: Limit(60, timedelta(minutes=1)),
     }
 )
 
