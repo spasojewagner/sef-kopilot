@@ -44,5 +44,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0036](0036-the-pages-wait-for-a-sleeping-api.md) | The pages wait for a sleeping API, and say that it is waking up | accepted | 2026-11-07 |
 | [0037](0037-the-public-demo-asks-for-synthetic-invoices.md) | The public demo asks for synthetic invoices, by a setting of the API | accepted | 2026-11-07 |
 | [0038](0038-finished-jobs-are-deleted-after-thirty-days.md) | Finished jobs are deleted after thirty days, where they run | accepted | 2026-11-07 |
+| [0039](0039-an-organization-sets-how-long-it-keeps-its-invoices.md) | An organization sets how long it keeps its stored invoices | accepted | 2026-11-07 |
 
 Planned (recorded when the work lands): OAuth 2.1 for MCP (M4), evaluation thresholds (M6).
