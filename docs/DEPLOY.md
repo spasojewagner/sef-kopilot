@@ -19,23 +19,27 @@ the free plan runs one instance.
 
 1. Create a project: Postgres 16, region **AWS Europe Central 1 (Frankfurt)**, where the API runs.
 2. Open **Connect**, switch **Connection pooling** off, and copy the connection string. The direct
-   connection is the one the API's driver, asyncpg, works with; a pooled one would break its
-   prepared statements.
-3. Rewrite it for the API, which requires the asyncpg driver and takes TLS as `ssl`:
+   connection is the one the API's driver, asyncpg, works with; a pooled one, whose host ends in
+   `-pooler`, would break its prepared statements.
+3. Rewrite it for the API, which requires the asyncpg driver and takes TLS as `ssl`. In a text
+   editor, three edits: the scheme becomes `postgresql+asyncpg://`; `-pooler` goes from the host,
+   if it is there; and everything from `?` becomes `?ssl=require`:
 
    ```text
-   from: postgresql://USER:PASSWORD@HOST/neondb?sslmode=require&channel_binding=require
-   to:   postgresql+asyncpg://USER:PASSWORD@HOST/neondb?ssl=require
+   from: postgresql://USER:PASSWORD@ep-NAME-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+   to:   postgresql+asyncpg://USER:PASSWORD@ep-NAME.eu-central-1.aws.neon.tech/neondb?ssl=require
    ```
 
    This is `DATABASE_URL`. Keep it in a password manager; it goes into Render, and into your own
-   terminal for step 3.
+   terminal for step 3, never into a chat or a screenshot.
 
 `pgvector` and `pg_trgm`, which the corpus needs, are created by the migrations.
 
 ## 2. The API (Render)
 
-1. **New > Blueprint**, and choose this repository. Render reads `render.yaml`: one web service,
+1. **New > Blueprint**, and choose this repository. If Render lists no repository, connect it to
+   GitHub (**GitHub: Connect account**); if this one is not listed, **Configure account** gives
+   Render's GitHub app access to it. Render reads `render.yaml`: one web service,
    `sef-kopilot-api`, built from `apps/api/Dockerfile` on the free plan in Frankfurt, with
    `/ready` as its health check.
 2. Render asks for the values the Blueprint does not hold:
@@ -63,19 +67,25 @@ service has no shell, so load them from a clone, after the API's first deploy ha
 database:
 
 ```powershell
-$env:DATABASE_URL = "postgresql+asyncpg://USER:PASSWORD@HOST/neondb?ssl=require"
+$s = Read-Host "DATABASE_URL" -AsSecureString
+$env:DATABASE_URL = [pscredential]::new('x', $s).GetNetworkCredential().Password
 uv run python -m sef_api.rag.ingest
 Remove-Item Env:DATABASE_URL
 ```
 
-An ingest can run any number of times; run it again when `corpus/` changes.
+Paste the URL when it asks: it is shown as asterisks, and kept out of the shell's history and
+of the screen. The ingest prints how many documents and passages it added, changed or kept. It
+can run any number of times; run it again when `corpus/` changes.
 
 ## 4. The web application (Vercel)
 
-1. **Add New > Project**, and import this repository.
+1. **Add New > Project**, and import this repository. If Vercel does not list it, its GitHub app
+   has access to some repositories only: **Adjust GitHub App Permissions** (or GitHub >
+   **Settings > Applications > Vercel > Configure**) and add this one. GitHub first asks for a
+   code it sends by e-mail.
 2. **Root Directory**: `apps/web`. The framework, Next.js, is detected; `vercel.json` skips a
    build when a commit changes nothing of the web application, and `package.json` asks for
-   Node.js 22.
+   Node.js 22, which decides over the project's own setting, a newer version by default.
 3. **Environment Variables**, for every environment:
    - `NEXT_PUBLIC_API_URL`: the API's address from step 2, `https://sef-kopilot-api.onrender.com`;
    - `ENABLE_EXPERIMENTAL_COREPACK`: `1`, so that the build uses the pnpm version that
@@ -87,7 +97,8 @@ An ingest can run any number of times; run it again when `corpus/` changes.
 after changing it, redeploy.
 
 Preview deployments have addresses of their own, which the API does not allow, so their pages
-cannot call it; Vercel's own sign-in protects them.
+cannot call it; Vercel's own sign-in protects them, as it does each deployment's own address
+(the team's default Deployment Protection). The production domain stays public.
 
 ## 5. Check it
 
@@ -97,6 +108,9 @@ cannot call it; Vercel's own sign-in protects them.
    the demo is public), read its report, ask for an explanation and for a repair, approve it.
 3. `https://sef-kopilot-api.onrender.com/ready` answers `ready`, with the database and the
    validator `ok`.
+4. Ask for the explanations: each cites passages of the corpus. If every rule comes back
+   unexplained ("This rule was not explained this time"), the corpus is missing: run step 3
+   against this database.
 
 ## Rolling back
 
