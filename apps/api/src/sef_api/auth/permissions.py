@@ -37,6 +37,10 @@ class Permission(StrEnum):
     permissions, and see and revoke one's own."""
     API_KEYS_MANAGE = "api_keys:manage"
     """See and revoke every API key of the organization, whoever it acts for."""
+    ORGANIZATION_READ = "organization:read"
+    """See the organization's name and how long it keeps its stored invoices."""
+    ORGANIZATION_MANAGE = "organization:manage"
+    """Set how long the organization keeps its stored invoices, after which they are deleted."""
 
 
 #: What an API key may be allowed: the work on invoices that machine clients do. A key
@@ -57,10 +61,16 @@ ROLE_PERMISSIONS: Final[Mapping[Role, frozenset[Permission]]] = MappingProxyType
                 Permission.INVOICES_SUBMIT,
                 Permission.INVOICES_MANAGE,
                 Permission.API_KEYS_ISSUE,
+                Permission.ORGANIZATION_READ,
             }
         ),
         Role.CLIENT: frozenset(
-            {Permission.INVOICES_VALIDATE, Permission.INVOICES_SUBMIT, Permission.API_KEYS_ISSUE}
+            {
+                Permission.INVOICES_VALIDATE,
+                Permission.INVOICES_SUBMIT,
+                Permission.API_KEYS_ISSUE,
+                Permission.ORGANIZATION_READ,
+            }
         ),
     }
 )

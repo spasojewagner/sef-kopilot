@@ -34,6 +34,7 @@ from sef_api.jobs.runners import InlineRunner, JobRunner
 from sef_api.jobs.runs import JobContext, run_job
 from sef_api.llm import llm_for
 from sef_api.members import routes as members
+from sef_api.organization import routes as organization
 from sef_api.rag.embeddings import Embedder, embedder_for
 from sef_api.rag.explainer import Explainer
 from sef_api.rate_limits import RateLimiter, limits
@@ -91,6 +92,11 @@ OPENAPI_TAGS = [
         "name": "members",
         "description": "The people of the caller's organization, their roles (owner, "
         "accountant, client) and the invitations to join it.",
+    },
+    {
+        "name": "organization",
+        "description": "The caller's organization: its name, and how long it keeps its stored "
+        "invoices before they are deleted.",
     },
 ]
 
@@ -229,5 +235,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(jobs.router)
     app.include_router(members.router)
     app.include_router(members.invitations_router)
+    app.include_router(organization.router)
     app.include_router(api_keys.router)
     return app

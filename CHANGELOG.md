@@ -20,6 +20,11 @@ is tagged.
   audit log keeps what it named of them, by id. An organization without a period, as every one
   is until an owner sets it, keeps its invoices until a member deletes them. The same processes
   delete them, at the same times, as the old finished jobs.
+- `apps/api`: `GET /organization` shows every member the organization's name and how long it
+  keeps its stored invoices, and `PATCH /organization` lets an owner set that period, from 1 to
+  3 650 days, or none with `null` (the permissions `organization:read` and
+  `organization:manage`, which no API key holds). A change checks the owner's role again under
+  the organization's lock, and the audit log records it with what the period was.
 
 ## [0.3.0] - 2026-11-07
 

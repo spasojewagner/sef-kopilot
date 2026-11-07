@@ -33,6 +33,7 @@ def test_every_role_may_have_an_invoice_validated_and_store_invoices() -> None:
         Permission.INVOICES_VALIDATE,
         Permission.INVOICES_SUBMIT,
         Permission.API_KEYS_ISSUE,
+        Permission.ORGANIZATION_READ,
     }
 
 
@@ -56,6 +57,13 @@ def test_a_caller_may_do_what_their_role_grants(role: Role) -> None:
     assert {permission for permission in Permission if caller.may(permission)} == (
         ROLE_PERMISSIONS[role]
     )
+
+
+def test_every_member_sees_how_long_invoices_are_kept_and_only_owners_set_it() -> None:
+    assert all(Permission.ORGANIZATION_READ in ROLE_PERMISSIONS[role] for role in Role)
+    assert [role for role in Role if Permission.ORGANIZATION_MANAGE in ROLE_PERMISSIONS[role]] == [
+        Role.OWNER
+    ]
 
 
 def test_every_role_may_issue_api_keys_and_only_owners_see_everyones() -> None:
