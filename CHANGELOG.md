@@ -9,6 +9,13 @@ is tagged.
 
 ## [Unreleased]
 
+### Added
+
+- `apps/api`: finished jobs are deleted 30 days after they end (`SEF_JOB_RETENTION_DAYS`,
+  ADR-0038), with their parameters, progress and result or error; a job under way never is.
+  The API's process deletes them when it starts and every six hours with `SEF_JOBS=inline`, and
+  each worker when it starts and every day at 03:17 with `SEF_JOBS=arq`.
+
 ## [0.3.0] - 2026-11-07
 
 The repair loop and the web application, live (milestone M3): patches `{xpath, op, value,

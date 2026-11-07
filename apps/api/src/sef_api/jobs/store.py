@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, select, text
+from sqlalchemy import ColumnElement, delete, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.models import UNFINISHED, Job, JobKind
 
-__all__ = ["Scope", "find", "start", "under_way", "unfinished"]
+__all__ = ["Scope", "find", "forget_finished", "start", "under_way", "unfinished"]
 
 
 @dataclass(frozen=True)
@@ -89,3 +90,12 @@ async def find(session: AsyncSession, scope: Scope, job_id: uuid.UUID) -> Job | 
     scope and one that does not exist look the same."""
     found: Job | None = await session.scalar(select(Job).where(scope.holds(), Job.id == job_id))
     return found
+
+
+async def forget_finished(session: AsyncSession, *, before: datetime) -> int:
+    """Delete every job, of every organization, that finished before ``before``, and commit; how
+    many. A job under way has no end yet, so it is never deleted, however old it is."""
+    deleted = await session.scalars(delete(Job).where(Job.finished_at < before).returning(Job.id))
+    count = len(deleted.all())
+    await session.commit()
+    return count

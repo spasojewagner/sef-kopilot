@@ -281,10 +281,18 @@ def test_a_worker_serves_the_queue_of_its_settings(monkeypatch: pytest.MonkeyPat
     (options,) = served
     assert [function.name for function in options["functions"]] == [TASK]
     assert options["functions"][0].timeout_s == worker.ATTEMPT_SECONDS
-    (sweeping,) = options["cron_jobs"]
+    sweeping, forgetting = options["cron_jobs"]
     assert sweeping.name == "cron:sweep"
     # at startup, then at second 0 of every minute (the tests move the latter away)
     assert (sweeping.run_at_startup, sweeping.minute, sweeping.second) == (True, None, 0)
+    assert forgetting.name == "cron:forget"
+    # at startup, then at 03:17 every day (ADR-0038)
+    assert (forgetting.run_at_startup, forgetting.hour, forgetting.minute, forgetting.second) == (
+        True,
+        {3},
+        {17},
+        0,
+    )
     assert (options["redis_settings"].host, options["redis_settings"].port) == (
         "queue.example",
         6380,

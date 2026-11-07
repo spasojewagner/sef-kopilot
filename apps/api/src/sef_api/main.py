@@ -6,10 +6,11 @@ repository root (or ``make api``); the interactive OpenAPI documentation is serv
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from typing import Final, cast
 
 from fastapi import FastAPI
@@ -29,6 +30,7 @@ from sef_api.jobs import routes as jobs
 from sef_api.jobs import store as job_store
 from sef_api.jobs.kinds import HANDLERS
 from sef_api.jobs.queue import ArqRunner, redis_settings
+from sef_api.jobs.retention import keep_forgetting_old_jobs
 from sef_api.jobs.runners import InlineRunner, JobRunner
 from sef_api.jobs.runs import JobContext, run_job
 from sef_api.llm import llm_for
@@ -116,6 +118,19 @@ def _model_users(settings: Settings) -> tuple[Explainer | None, Repairer | None]
     return Explainer(llm), Repairer(llm)
 
 
+@asynccontextmanager
+async def _deleting_old_jobs(database: Database, retention_days: int) -> AsyncIterator[None]:
+    """Delete the jobs that finished longer ago than the retention period now, then every few
+    hours, while the application runs (ADR-0038)."""
+    deleting = asyncio.create_task(keep_forgetting_old_jobs(database, retention_days))
+    try:
+        yield
+    finally:
+        deleting.cancel()
+        with suppress(asyncio.CancelledError):
+            await deleting
+
+
 async def _resume(app: FastAPI) -> None:
     """Have the jobs that the process before this one left unfinished run again. Without its
     database the application still starts, as /ready tells, and they wait for the next start."""
@@ -150,9 +165,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await validator.start()
         if validator.problem is not None:
             logger.warning("the validator cannot run: %s", validator.problem)
-        if settings.jobs == "inline":
-            await _resume(application)
-        yield
+        async with AsyncExitStack() as running:
+            if settings.jobs == "inline":
+                await _resume(application)
+                # The jobs run here, so here their old ends are deleted.
+                await running.enter_async_context(
+                    _deleting_old_jobs(database, settings.job_retention_days)
+                )
+            yield
         await application.state.jobs.stop()
         await validator.stop()
         explainer: Explainer | None = application.state.explainer

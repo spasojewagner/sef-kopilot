@@ -175,6 +175,16 @@ class Settings(BaseSettings):
             "a Redis queue, beside any number of API processes."
         ),
     )
+    job_retention_days: int = Field(
+        default=30,
+        ge=1,
+        le=3650,
+        validation_alias="SEF_JOB_RETENTION_DAYS",
+        description=(
+            "Days a finished job is kept, with its result or its error, before it is deleted; "
+            "a job under way is never deleted (ADR-0038)."
+        ),
+    )
     redis_url: SecretStr | None = Field(
         default=None,
         validation_alias="REDIS_URL",
