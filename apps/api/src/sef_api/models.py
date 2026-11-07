@@ -14,7 +14,7 @@ explanations of a stored invoice's report are kept with it, one set a language (
 
 The corpus, the official documents an explanation cites, is the same for every organization
 and belongs to none (ADR-0020): its passages are public text, written only by the command that
-ingests the corpus.
+ingests the corpus. So do the vectors of what the rules say, kept once a model (ADR-0041).
 """
 
 from __future__ import annotations
@@ -473,6 +473,26 @@ class Repair(Base):
     #: The language model that wrote the patches, which ``proposed_by`` asked it for; None for
     #: the patches a member or a machine client wrote.
     model: Mapped[str | None] = mapped_column(Text)
+
+
+class RuleEmbedding(Base):
+    """The vector of what a rule says, as one embedding model made it, kept so that each text is
+    asked of the embedder once (ADR-0041).
+
+    The text is public, the rule's own words (``meaning_text``), never an invoice's, so the row
+    belongs to no organization, as the corpus does (ADR-0020). A vector is only compared with
+    vectors of its model, so the model is half of its key; the other half is the text's digest.
+    """
+
+    __tablename__ = "rule_embeddings"
+    #: The time the database sets comes back with the insert.
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (CheckConstraint("text_sha256 ~ '^[0-9a-f]{64}$'", name="text_sha256_hex"),)
+
+    model: Mapped[str] = mapped_column(Text, primary_key=True)
+    text_sha256: Mapped[str] = mapped_column(Text, primary_key=True)
+    embedding: Mapped[list[float]] = mapped_column(Vector(DIMENSIONS))
+    created_at: Mapped[datetime] = _created_at()
 
 
 class KeptExplanations(Base):

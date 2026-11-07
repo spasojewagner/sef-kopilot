@@ -470,8 +470,10 @@ The model is sent the rule's first violation (its rule, place and message, which
 value of the invoice) and the passages; nothing else of the invoice. With
 `EMBEDDINGS_PROVIDER=jina`, what each rule says (its title, its statement or its rule set's
 message, never the violation's message) is embedded too, to find passages by meaning in a
-corpus embedded by the same model; the embedder is still sent public text only. All of a
-request's explanations have `SEF_EXPLANATION_SECONDS` (30), the embeddings a fifth of them.
+corpus embedded by the same model; the embedder is still sent public text only. Each text is
+embedded once a model, and its vector kept in `rule_embeddings` for every later explanation
+(ADR-0041). All of a request's explanations have `SEF_EXPLANATION_SECONDS` (30), the
+embeddings a fifth of them.
 The answers are those of a validation, and:
 
 | Answer | When | Setting (default) |

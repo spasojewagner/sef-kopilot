@@ -4,16 +4,19 @@ it, and how a report's rules are explained within the limits."""
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from datetime import date
 from typing import Any
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from einvoice_core.pipeline import ValidationReport
 from einvoice_core.violations import Severity, Violation
 from sef_api.llm import LLMError
+from sef_api.models import RuleEmbedding
 from sef_api.rag.embeddings import DIMENSIONS, EmbeddingError
 from sef_api.rag.explainer import (
     ATTEMPTS,
@@ -23,6 +26,8 @@ from sef_api.rag.explainer import (
     Citation,
     Explainer,
     ExplanationError,
+    _rules,
+    _vectors,
     explain_report,
     schema_for,
 )
@@ -462,6 +467,53 @@ async def test_an_embedder_that_is_late_leaves_the_words_and_the_time_to_the_res
     assert explanations[0].problem is None
     assert explanations[0].citations[0].id == "pib-rulebook/article-2/2018-10-01"
     assert f"explaining without embeddings: none within {EMBEDDING_SHARE:.1f} s" in caplog.text
+
+
+async def test_what_a_rule_says_is_embedded_once_a_model(stored: AsyncSession) -> None:
+    said = "Every nine-digit PIB has a serial number in range and a valid check digit"
+    embedder, another = FakeEmbedder(), FakeEmbedder()
+    another.model = "test/another-embedder"
+
+    await explained(stored, report(PIB), embedder=embedder)
+    explanations, _ = await explained(stored, report(PIB), embedder=embedder)
+    await explained(stored, report(PIB), embedder=another)
+
+    assert embedder.queries == another.queries == [said]
+    assert explanations[0].citations[0].id == "pib-rulebook/article-2/2018-10-01"
+    kept = await stored.execute(
+        select(RuleEmbedding.model, RuleEmbedding.text_sha256).order_by(RuleEmbedding.model)
+    )
+    digest = hashlib.sha256(said.encode()).hexdigest()
+    assert [tuple(row) for row in kept] == [
+        ("test/another-embedder", digest),
+        ("test/embedder", digest),
+    ]
+
+
+async def test_rules_that_say_the_same_ask_the_embedder_once(stored: AsyncSession) -> None:
+    embedder = FakeEmbedder()
+    same = "[BR-CO-25]-Nothing the words would find."
+
+    await explained(stored, report(rule("BR-CO-25", same), rule("BR-25", same)), embedder=embedder)
+
+    assert embedder.queries == ["Nothing the words would find."]
+
+
+async def test_the_vectors_kept_serve_when_the_embedder_fails(stored: AsyncSession) -> None:
+    await explained(stored, report(PIB), embedder=FakeEmbedder())
+    unseen = rule("BR-CO-25", "[BR-CO-25]-Nothing the words would find.")
+
+    vectors = await _vectors(
+        stored, FakeEmbedder(failing=True), _rules(report(PIB, unseen)), seconds=1.0
+    )
+
+    assert list(vectors) == ["SRB-009"]
+
+
+async def test_an_embedder_that_fails_leaves_nothing_kept(stored: AsyncSession) -> None:
+    await explained(stored, report(PIB), embedder=FakeEmbedder(failing=True))
+
+    assert await stored.scalar(select(func.count()).select_from(RuleEmbedding)) == 0
 
 
 async def test_an_embedder_that_fails_leaves_the_words_to_find_passages(
