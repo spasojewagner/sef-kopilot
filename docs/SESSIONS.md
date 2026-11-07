@@ -1492,3 +1492,33 @@ changes no web code.
 
 Next: `chore/infra-deploy`, once the maintainer has said whether the web application goes to
 Vercel; then the release of v0.3.0.
+
+## 2026-11-07 — `build/api-container` (3 commits, stacked on `test/api-settings-without-the-environment`)
+
+Outcome: the API as an image (ADR-0034), the first part of the public demo. The build installs
+the lock file's dependencies of the API alone, checks the rule sets against their pins (fetching
+them when it is given none), compiles every profile's stylesheets and copies the corpus in; a
+container applies the migrations and then serves on `PORT`, as a user that owns no file. A CI
+job builds the image, starts it on an empty database and validates an invoice through it.
+
+Findings:
+
+- The free instance the demo will run on has 512 MB. Started with `--memory 512m --cpus 0.1`,
+  the image was ready in about 40 s on an empty database and 35 s on a migrated one, validated a
+  typical invoice in 0.1 to 0.4 s and one of 11 800 elements in about 5 s, and peaked at about
+  330 MB with the validator in its child process. Compiling the stylesheets at start would add
+  about 11 s to each wake; the migrations' check, a second interpreter's start, takes about 10 s.
+- The build environment reaches neither Docker Hub nor GHCR, so the image was built from mirrors
+  of the base images: an Ubuntu 24.04 root with Python 3.12, and the uv binary. Both bases are
+  build arguments; CI builds from the official images.
+- gitleaks took an example signing key in the README for a secret: the example now generates one
+  (`openssl rand -hex 32`).
+- Behind Render's proxy the rate limits would have counted the proxy, not the clients:
+  `FORWARDED_ALLOW_IPS` names whom uvicorn trusts for `X-Forwarded-For`.
+
+Verification: each commit on its own, with the Python suites, the web application's checks and
+the end-to-end test; the image built, started on an empty and on a migrated database, its health
+check healthy, and stopped cleanly by SIGTERM.
+
+Next: `chore/infra-deploy`: the Render blueprint, the web application on Vercel, the steps for
+the maintainer's accounts; then the API's waking-up state on the pages.
