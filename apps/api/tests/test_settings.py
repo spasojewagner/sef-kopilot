@@ -48,6 +48,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         "SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE",
         "SEF_WEB_ORIGINS",
         "SEF_PUBLIC_URL",
+        "SEF_WEB_URL",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)
@@ -359,3 +360,13 @@ def test_in_production_the_public_url_is_https(monkeypatch: pytest.MonkeyPatch) 
         Settings()
     monkeypatch.setenv("SEF_PUBLIC_URL", "https://api.example")
     assert Settings().public_url == "https://api.example"
+
+
+def test_the_web_url_is_one_of_the_web_origins(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SEF_WEB_ORIGINS", "https://app.example")
+    monkeypatch.setenv("SEF_WEB_URL", "https://elsewhere.example")
+
+    with pytest.raises(ValidationError, match="which is not among SEF_WEB_ORIGINS"):
+        Settings()
+    monkeypatch.setenv("SEF_WEB_URL", "https://app.example")
+    assert Settings().web_url == "https://app.example"

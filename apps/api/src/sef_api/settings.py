@@ -287,6 +287,16 @@ class Settings(BaseSettings):
         ),
     )
 
+    web_url: str | None = Field(
+        default=None,
+        validation_alias="SEF_WEB_URL",
+        description=(
+            "The web application's origin, one of `SEF_WEB_ORIGINS`, whose page lets a signed-in "
+            "person decide what an MCP client may do for them. None by default: the "
+            "authorization server, if any, cannot ask anyone, and refuses to authorize."
+        ),
+    )
+
     public_demo: bool = Field(
         default=False,
         validation_alias="SEF_PUBLIC_DEMO",
@@ -369,6 +379,15 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"SEF_PUBLIC_URL is {self.public_url!r}, which is no origin: a scheme "
                 f"({' or '.join(sorted(schemes))}), a host and a port if any, nothing more"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _check_web_url(self) -> Self:
+        if self.web_url is not None and self.web_url not in self.web_origins:
+            raise ValueError(
+                f"SEF_WEB_URL is {self.web_url!r}, which is not among SEF_WEB_ORIGINS: its page "
+                "calls the API from a browser"
             )
         return self
 

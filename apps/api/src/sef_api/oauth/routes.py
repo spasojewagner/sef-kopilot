@@ -7,16 +7,27 @@ tokens are issued from; before that, 404. Their errors are OAuth's (``error`` an
 
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import datetime
 from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ValidationError
+from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.auth.dependencies import (
+    Principal,
+    current_principal,
+    current_role,
+    no_longer_active,
+)
 from sef_api.auth.routes import NO_STORE, Problem
 from sef_api.db import get_session
+from sef_api.models import OAuthClient
+from sef_api.oauth import authorization as authorizations
 from sef_api.oauth import clients
+from sef_api.oauth.authorization import AuthorizeError, UnredirectableError, issuer_of
 from sef_api.oauth.clients import ClientMetadata, RegisteredClient
 from sef_api.rate_limits import Counted, per_address
 from sef_api.settings import Settings
@@ -113,4 +124,210 @@ def _refused(error: ValueError) -> JSONResponse:
         )
     return JSONResponse(
         answer.model_dump(), status.HTTP_400_BAD_REQUEST, headers={"Cache-Control": "no-store"}
+    )
+
+
+async def in_person(
+    principal: Annotated[Principal, Depends(current_principal)], session: Session
+) -> Principal:
+    """The caller, signed in with the role they hold now: a person, not an API key, since a
+    person decides what a client may do for them."""
+    if principal.key is not None:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "a person decides what a client may do: sign in to decide, an API key cannot",
+        )
+    role = await current_role(session, principal)
+    if role is None:
+        raise no_longer_active()
+    return replace(principal, role=role)
+
+
+InPerson = Annotated[Principal, Depends(in_person)]
+
+
+class AuthorizationRequest(BaseModel):
+    """What a client asks to do for the person deciding."""
+
+    id: str
+    client_id: str
+    client_name: str | None = Field(description="The name the client registered, unchecked.")
+    redirect_uri: str = Field(description="Where the person is sent back once they decide.")
+    scopes: list[str] = Field(description="What the client asks to do, by scope.")
+    expires_at: datetime = Field(description="Until when the request waits for a decision.")
+
+
+class Decision(BaseModel):
+    """Where to send the person once they have decided."""
+
+    redirect_uri: str = Field(
+        description="The client's redirect URI, with the code or the error `access_denied`, "
+        "the client's state and this server's identifier (`iss`)."
+    )
+
+
+_GONE = HTTPException(
+    status.HTTP_404_NOT_FOUND, "no such request waits for a decision: it expired or was decided"
+)
+_REQUESTS_RESPONSES: dict[int | str, dict[str, object]] = {
+    status.HTTP_404_NOT_FOUND: {
+        "model": Problem,
+        "description": "No such request waits for a decision: it expired or was decided, or "
+        "this server has no authorization server.",
+    },
+}
+
+
+@router.get(
+    "/authorize",
+    summary="Ask a person to let a client act for them",
+    description=(
+        "The authorization endpoint (OAuth 2.1 §4.1), where an MCP client sends the person's "
+        "browser. It requires `response_type=code`, PKCE (`code_challenge` with "
+        "`code_challenge_method=S256`), a `redirect_uri` the client registered, the MCP "
+        "endpoint as the `resource` (RFC 8707; the default) and scopes this server has "
+        "(`invoices:validate`; the default). A request that will do is sent to the web "
+        "application's page, where a signed-in person decides on it within ten minutes; one "
+        "that will not is sent back to the client with an error, its state and this server's "
+        "identifier (`iss`, RFC 9207). An unknown client or redirect URI is answered here."
+    ),
+    status_code=status.HTTP_302_FOUND,
+    response_class=RedirectResponse,
+    responses={
+        status.HTTP_302_FOUND: {"description": "To the page where a person decides, or back."},
+        status.HTTP_400_BAD_REQUEST: {
+            "model": Problem,
+            "description": "The client is not registered, or the redirect URI is not one it "
+            "registered.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": Problem,
+            "description": "This server has no authorization server (`SEF_PUBLIC_URL`).",
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": Problem,
+            "description": "This server has no page where a person decides (`SEF_WEB_URL`).",
+        },
+    },
+    dependencies=[NO_STORE],
+)
+async def authorize(
+    request: Request,
+    session: Session,
+    settings: Annotated[Settings, Depends(require_authorization_server)],
+) -> RedirectResponse:
+    if settings.web_url is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "this server has no page where a person decides what a client may do",
+        )
+    try:
+        asked = await authorizations.begin(session, settings, request.query_params)
+    except UnredirectableError as refused:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, refused.description) from None
+    except AuthorizeError as refused:
+        back = authorizations.redirect(
+            refused.redirect_uri,
+            error=refused.error,
+            error_description=refused.description,
+            state=refused.state,
+            iss=issuer_of(settings),
+        )
+        return RedirectResponse(back, status.HTTP_302_FOUND, headers={"Cache-Control": "no-store"})
+    page = authorizations.redirect(f"{settings.web_url}/oauth/consent", request=asked.id)
+    return RedirectResponse(page, status.HTTP_302_FOUND, headers={"Cache-Control": "no-store"})
+
+
+@router.get(
+    "/requests/{request_id}",
+    summary="Read a client's request",
+    description="What the client asks to do, for the page where a signed-in person decides.",
+    responses=_REQUESTS_RESPONSES,
+    dependencies=[NO_STORE, Depends(require_authorization_server)],
+)
+async def read_request(request_id: str, caller: InPerson, session: Session) -> AuthorizationRequest:
+    del caller  # anyone signed in may decide whether to let a client act for them
+    asked = await authorizations.pending(session, request_id)
+    if asked is None:
+        raise _GONE
+    client = await session.get(OAuthClient, asked.client_id)
+    return AuthorizationRequest(
+        id=asked.id,
+        client_id=asked.client_id,
+        client_name=None if client is None else client.name,
+        redirect_uri=asked.redirect_uri,
+        scopes=list(asked.scopes),
+        expires_at=asked.expires_at,
+    )
+
+
+@router.post(
+    "/requests/{request_id}/approval",
+    summary="Let a client act for the caller",
+    description=(
+        "The caller lets the client do what it asked, within what their role grants them in "
+        "their organization; the consent is recorded in the audit log. The answer is where to "
+        "send the person: the client's redirect URI with a code, valid for two minutes."
+    ),
+    responses=_REQUESTS_RESPONSES
+    | {
+        status.HTTP_403_FORBIDDEN: {
+            "model": Problem,
+            "description": "An API key cannot decide, or the caller's role grants none of the "
+            "scopes asked for.",
+        }
+    },
+    dependencies=[NO_STORE],
+)
+async def approve_request(
+    request_id: str,
+    caller: InPerson,
+    session: Session,
+    settings: Annotated[Settings, Depends(require_authorization_server)],
+) -> Decision:
+    asked = await authorizations.pending(session, request_id)
+    if asked is None:
+        raise _GONE
+    if not any(caller.may(authorizations.SCOPES[scope]) for scope in asked.scopes):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "your role grants none of the scopes the client asks for"
+        )
+    code = await authorizations.approve(session, asked, caller)
+    if code is None:
+        raise _GONE
+    return Decision(
+        redirect_uri=authorizations.redirect(
+            asked.redirect_uri, code=code, state=asked.state, iss=issuer_of(settings)
+        )
+    )
+
+
+@router.post(
+    "/requests/{request_id}/refusal",
+    summary="Refuse a client's request",
+    description=(
+        "The caller does not let the client act for them. The answer is where to send the "
+        "person: the client's redirect URI with the error `access_denied`."
+    ),
+    responses=_REQUESTS_RESPONSES,
+    dependencies=[NO_STORE],
+)
+async def refuse_request(
+    request_id: str,
+    caller: InPerson,
+    session: Session,
+    settings: Annotated[Settings, Depends(require_authorization_server)],
+) -> Decision:
+    del caller  # anyone signed in may refuse a request made of them
+    asked = await authorizations.pending(session, request_id)
+    if asked is None or not await authorizations.refuse(session, asked):
+        raise _GONE
+    return Decision(
+        redirect_uri=authorizations.redirect(
+            asked.redirect_uri,
+            error="access_denied",
+            error_description="the person did not let the client act for them",
+            state=asked.state,
+            iss=issuer_of(settings),
+        )
     )

@@ -502,6 +502,58 @@ class OAuthClient(Base):
     created_at: Mapped[datetime] = _created_at()
 
 
+class OAuthAuthorization(Base):
+    """A client's request to act for a person, from the moment it asks (``/oauth/authorize``) to
+    the person's decision and the code it issues (ADR-0044).
+
+    The request names what the client asked: where to send the person back, the PKCE challenge,
+    the scopes, the resource and its state. Its id, random, is the address of the page where a
+    person decides; it expires ten minutes after it was made. Approved, it holds the member who
+    approved and, by its SHA-256, the code the client will exchange, which expires within two
+    minutes; it goes with the membership, as an API key does.
+    """
+
+    __tablename__ = "oauth_authorizations"
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "user_id"],
+            ["memberships.organization_id", "memberships.user_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("decision IN ('approved', 'refused')", name="decision_known"),
+        CheckConstraint(
+            "(decision = 'approved') = (organization_id IS NOT NULL AND user_id IS NOT NULL "
+            "AND code_sha256 IS NOT NULL AND code_expires_at IS NOT NULL)",
+            name="approved_with_a_member_and_a_code",
+        ),
+        CheckConstraint("(decision IS NULL) = (decided_at IS NULL)", name="decided_when"),
+        CheckConstraint("code_sha256 ~ '^[0-9a-f]{64}$'", name="code_sha256_hex"),
+        Index("ix_oauth_authorizations_organization_id_user_id", "organization_id", "user_id"),
+    )
+
+    #: The request's id: random, the address of the page where a person decides on it.
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    client_id: Mapped[str] = mapped_column(
+        ForeignKey("oauth_clients.id", ondelete="CASCADE"), index=True
+    )
+    redirect_uri: Mapped[str] = mapped_column(Text)
+    #: The PKCE challenge, S256: the SHA-256 of the client's verifier, base64url.
+    code_challenge: Mapped[str] = mapped_column(Text)
+    scopes: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    #: The resource the token will be for (RFC 8707): the MCP endpoint.
+    resource: Mapped[str] = mapped_column(Text)
+    state: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime]
+    decision: Mapped[str | None] = mapped_column(Text)
+    decided_at: Mapped[datetime | None]
+    organization_id: Mapped[uuid.UUID | None]
+    user_id: Mapped[uuid.UUID | None]
+    code_sha256: Mapped[str | None] = mapped_column(Text, unique=True)
+    code_expires_at: Mapped[datetime | None]
+
+
 class RuleEmbedding(Base):
     """The vector of what a rule says, as one embedding model made it, kept so that each text is
     asked of the embedder once (ADR-0041).
@@ -562,6 +614,7 @@ class AuditAction(StrEnum):
     REPAIR_APPROVED = "repair.approved"
     REPAIR_REJECTED = "repair.rejected"
     ORGANIZATION_RETENTION_SET = "organization.retention_set"
+    OAUTH_CLIENT_AUTHORIZED = "oauth.client_authorized"
 
 
 class AuditEvent(Base):
@@ -580,7 +633,7 @@ class AuditEvent(Base):
     __table_args__ = (
         CheckConstraint(
             "action IN ('repair.proposed', 'repair.approved', 'repair.rejected', "
-            "'organization.retention_set')",
+            "'organization.retention_set', 'oauth.client_authorized')",
             name="action_known",
         ),
         Index("ix_audit_events_organization_id_at_id", "organization_id", "at", "id"),

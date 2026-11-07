@@ -58,6 +58,12 @@ is tagged.
   (ADR-0044), which answers once `SEF_PUBLIC_URL` names the API's address: MCP clients
   register themselves with `POST /oauth/register` (RFC 7591, migration 0015), always as public
   clients without a secret, with the redirect URIs OAuth 2.1 allows; counted by address.
+- `apps/api`: the authorization endpoint, `GET /oauth/authorize`, requiring PKCE with S256, a
+  registered redirect URI, the MCP endpoint as the resource and known scopes; a request waits
+  ten minutes on the web application's page (`SEF_WEB_URL`) for a signed-in person, who
+  approves it, for the scopes their role grants, or refuses it (`/oauth/requests/{id}`,
+  migration 0016). An approval issues a code valid for two minutes and is recorded in the
+  audit log; every answer to the client names the issuer (RFC 9207).
 
 ### Changed
 
