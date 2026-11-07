@@ -261,5 +261,36 @@
     "added": "dodato",
     "removed": "uklonjeno",
     "reportAfter": "Izveštaj posle izmena"
+  },
+  "decision": {
+    "title": "Odluka",
+    "whatApprovalDoes": "Odobrena popravka menja fakturu: ona postaje kopija sa ovim izmenama, sa izveštajem iznad, a ostale popravke koje čekaju odluku zastarevaju. Odbijena popravka ne menja ništa.",
+    "stillInvalid": "Kopija posle ovih izmena još nije ispravna.",
+    "nothingToApprove": "Ove izmene ne menjaju fakturu, pa nema šta da se odobri. Ono što čeka odluku čoveka ispravite u fakturi sami, a popravku odbijte.",
+    "approve": "Odobri",
+    "confirm": "Faktura će biti zamenjena kopijom sa ovim izmenama. Odobravate popravku?",
+    "confirmApproval": "Da, odobri",
+    "cancel": "Odustani",
+    "reject": "Odbij",
+    "approving": "Izmene se ponovo primenjuju i proveravaju…",
+    "rejecting": "Popravka se odbija…",
+    "approved": "Popravka je odobrena: faktura je sada kopija sa ovim izmenama.",
+    "rejected": "Popravka je odbijena, a faktura je ostala kakva je bila.",
+    "errors": {
+      "decided": "O ovoj popravci je već odlučeno.",
+      "changesNothing": "Ove izmene ne menjaju fakturu, pa nema šta da se odobri.",
+      "invoiceChanged": "Faktura se promenila otkad je popravka predložena. Zatražite novu popravku.",
+      "outcomeChanged": "Izmene više ne daju dokument koji su davale kad su predložene. Zatražite novu popravku.",
+      "inPerson": "O popravci odlučuje osoba prijavljena svojim nalogom.",
+      "notFound": "Ova popravka ne postoji, ili faktura nije vaša.",
+      "tooMany": "Previše zahteva. Pokušajte ponovo za {seconds} s.",
+      "busy": "Validator je zauzet. Pokušajte ponovo za {seconds} s.",
+      "unavailable": "Validator trenutno ne radi. Pokušajte ponovo malo kasnije.",
+      "storageFull": "Organizacija već čuva onoliko faktura koliko sme. Obrišite neku, pa pokušajte ponovo.",
+      "tooSlow": "Odgovor nije stigao na vreme. Stanje popravke je ponovo učitano iznad: proverite ga pre nego što pokušate ponovo.",
+      "unreachable": "API ne odgovara. Stanje popravke se ponovo učitava: proverite ga pre nego što pokušate ponovo.",
+      "uncertain": "API nije jasno odgovorio. Stanje popravke je ponovo učitano: proverite ga pre nego što pokušate ponovo.",
+      "failed": "Odluka nije zabeležena. Pokušajte ponovo malo kasnije."
+    }
   }
 }

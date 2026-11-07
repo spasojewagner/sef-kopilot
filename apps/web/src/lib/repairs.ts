@@ -58,6 +58,32 @@ export function suggestRepair(
   });
 }
 
+/** A person's decision on a repair: its approval, or its rejection. */
+export type Decision = "approval" | "rejection";
+
+/**
+ * How long the page waits for a decision. An approval applies the patches again and validates
+ * what they leave, as an upload does; a rejection only records it.
+ */
+export const DECISION_TIMEOUT_MS = 60_000;
+
+/**
+ * Records the visitor's ``decision`` on the repair ``repairId`` of the stored invoice
+ * ``invoiceId``, which the API takes only in person, never from an API key. An approval makes
+ * the invoice the patched document, with its report, and supersedes the other repairs that
+ * waited for it; a rejection leaves the invoice as it is. The answer is the decided repair.
+ */
+export function decideRepair(
+  invoiceId: string,
+  repairId: string,
+  decision: Decision,
+): Promise<Repair> {
+  return authorized<Repair>(
+    `${repairsOf(invoiceId)}/${encodeURIComponent(repairId)}/${decision}`,
+    { method: "POST", timeoutMs: DECISION_TIMEOUT_MS },
+  );
+}
+
 /** The reason the API gave for refusing a request about repairs with 409; none otherwise. */
 export function conflictOf(error: unknown): ConflictReason | null {
   if (!(error instanceof ApiError) || error.status !== 409) {

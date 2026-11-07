@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { DiffView } from "@/components/diff-view";
 import { Fact } from "@/components/fact";
+import { RepairDecision } from "@/components/repair-decision";
 import {
   RepairStatusBadge,
   usePerson,
@@ -126,6 +127,7 @@ function Loaded({ repair }: { repair: Repair }) {
       </section>
 
       <ReportLayers report={repair.report} />
+      <RepairDecision repair={repair} />
       <BackToTheReport invoiceId={repair.invoice_id} />
     </article>
   );
