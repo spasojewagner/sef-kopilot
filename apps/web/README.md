@@ -179,6 +179,10 @@ run, shows all of it, and a screen reader reads its caption. It is drawn in the 
 the navy (`surface-page`). Behind it, `backdrop.svg` draws a chart: contour lines, the bezel of
 the mark and a route that leaves it through the north-east gap.
 
+A shared link shows `src/app/[locale]/opengraph-image.png`, which `pnpm brand:images` renders
+from the mark and the backdrop. The link's image needs the site's whole address, which Vercel
+gives Next.js; elsewhere the build reads it from `SITE_URL` (see `.env.example`).
+
 ## Checks
 
 ```bash

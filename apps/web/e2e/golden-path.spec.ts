@@ -49,6 +49,13 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
         .getAttribute("href"))!,
     );
     expect(icon.headers()["content-type"]).toContain("image/svg+xml");
+    // A shared link's image, at the address the site is served at.
+    const shared = await page
+      .locator('meta[property="og:image"]')
+      .getAttribute("content");
+    expect(shared).toMatch(/^http:\/\/localhost:3100\/.*opengraph-image/);
+    const image = await page.request.get(shared!);
+    expect(image.headers()["content-type"]).toBe("image/png");
 
     await page.keyboard.press("Tab");
     const skip = page.getByRole("link", { name: "Pređi na sadržaj" });

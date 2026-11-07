@@ -7,6 +7,7 @@ import { QueryProvider } from "@/components/query-provider";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { routing } from "@/i18n/routing";
+import { siteUrl } from "@/lib/links";
 
 // The typefaces are served with the pages, from the packages' files (ADR-0043): Onest for the
 // text, JetBrains Mono for rule ids, paths and XML. Each file covers a range of characters, so
@@ -23,9 +24,12 @@ export function generateStaticParams() {
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("metadata");
   return {
+    metadataBase: siteUrl(),
     // A page that names itself is "Prijava · SEF Kopilot".
     title: { default: t("title"), template: `%s · ${t("title")}` },
     description: t("description"),
+    // A shared link shows `opengraph-image.png`, large.
+    twitter: { card: "summary_large_image" },
   };
 }
 

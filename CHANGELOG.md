@@ -48,6 +48,8 @@ is tagged.
   validates an invoice's XML as `POST /invoices/validate` does, storing nothing.
 - `apps/web`: the brand's mark, a compass bezel whose needle is a check, beside the product's
   name, and the icons it gives a browser's tab and a phone's home screen.
+- `apps/web`: a shared link to the site shows the brand's image (`opengraph-image.png`), at the
+  site's address, which a build outside Vercel reads from `SITE_URL`.
 
 ### Changed
 

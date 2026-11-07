@@ -49,9 +49,14 @@ export default defineConfig({
     },
     {
       name: "web",
-      // The build writes the API's address into the code the browser loads.
+      // The build writes the API's address into the code the browser loads, and the site's
+      // into the address of the image a shared link shows.
       command: "pnpm build && pnpm start --port 3100",
-      env: { NEXT_PUBLIC_API_URL: API, NEXT_TELEMETRY_DISABLED: "1" },
+      env: {
+        NEXT_PUBLIC_API_URL: API,
+        SITE_URL: WEB,
+        NEXT_TELEMETRY_DISABLED: "1",
+      },
       url: WEB,
       timeout: 300_000,
       reuseExistingServer: false,
