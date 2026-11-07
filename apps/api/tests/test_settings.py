@@ -3,6 +3,7 @@ of sight."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -85,6 +86,15 @@ def test_a_copy_of_env_example_starts_the_api_as_it_is() -> None:
 
     assert settings.environment == "development"
     assert len(settings.jwt_secret.get_secret_value()) >= 32
+
+
+def test_every_variable_the_settings_read_is_listed_in_env_example() -> None:
+    example = (REPOSITORY_ROOT / ".env.example").read_text(encoding="utf-8")
+    listed = set(re.findall(r"^([A-Z][A-Z0-9_]*)=", example, re.MULTILINE))
+
+    read = [str(field.validation_alias) for field in Settings.model_fields.values()]
+
+    assert [name for name in read if name not in listed] == []
 
 
 def test_production_needs_an_explicit_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
