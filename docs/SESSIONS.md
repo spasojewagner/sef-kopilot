@@ -1649,3 +1649,25 @@ production build whose API answered as the demo, in Serbian and English, light a
 phone.
 
 Next: the release of v0.3.0.
+
+## 2026-11-07 — `fix/api-unexpected-errors-readable` (2 commits, stacked on `feat/web-demo-upload-notice`)
+
+Outcome: an unexpected failure answers a 500 that a page can read. A middleware inside every
+other one answers an exception that no handler took with a JSON 500, which the charset and CORS
+middlewares then dress like any other answer, and raises it again for the server's log; an
+answer that had begun is not replaced.
+
+Findings:
+
+- Starlette gives a handler of `Exception` to its outermost layer, so registering one would not
+  have helped: where the answer is made decides what it carries (learning note 34).
+- The web application's error messages already said "failed" for a 500 it could read; until now
+  it never could, and said that the API does not answer.
+
+Verification: four tests (the readable 500, the exception still raised, an answer that had begun,
+a 404 as before), each fault seeded against them caught: no middleware, one that swallows the
+exception, one that replaces an answer that had begun, one outside the CORS middleware; the API's
+suites, ruff, mypy.
+
+Next: the release of v0.3.0, with what remains of M3 decided by the maintainer: retention, and
+explanations kept with a stored invoice's report.
