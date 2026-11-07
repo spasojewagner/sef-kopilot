@@ -633,6 +633,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ask a person to let a client act for them
+         * @description The authorization endpoint (OAuth 2.1 §4.1), where an MCP client sends the person's browser. It requires `response_type=code`, PKCE (`code_challenge` with `code_challenge_method=S256`), a `redirect_uri` the client registered, the MCP endpoint as the `resource` (RFC 8707; the default) and scopes this server has (`invoices:validate`; the default). A request that will do is sent to the web application's page, where a signed-in person decides on it within ten minutes; one that will not is sent back to the client with an error, its state and this server's identifier (`iss`, RFC 9207). An unknown client or redirect URI is answered here.
+         */
+        get: operations["authorize_oauth_authorize_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/requests/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a client's request
+         * @description What the client asks to do, for the page where a signed-in person decides.
+         */
+        get: operations["read_request_oauth_requests__request_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/requests/{request_id}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Let a client act for the caller
+         * @description The caller lets the client do what it asked, within what their role grants them in their organization; the consent is recorded in the audit log. The answer is where to send the person: the client's redirect URI with a code, valid for two minutes.
+         */
+        post: operations["approve_request_oauth_requests__request_id__approval_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/requests/{request_id}/refusal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refuse a client's request
+         * @description The caller does not let the client act for them. The answer is where to send the person: the client's redirect URI with the error `access_denied`.
+         */
+        post: operations["refuse_request_oauth_requests__request_id__refusal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -649,6 +729,37 @@ export interface components {
              * @description The password of the invited address's account; when the address has no account yet, the password of the new account (12 to 128 characters).
              */
             password: string;
+        };
+        /**
+         * AuthorizationRequest
+         * @description What a client asks to do for the person deciding.
+         */
+        AuthorizationRequest: {
+            /** Id */
+            id: string;
+            /** Client Id */
+            client_id: string;
+            /**
+             * Client Name
+             * @description The name the client registered, unchecked.
+             */
+            client_name: string | null;
+            /**
+             * Redirect Uri
+             * @description Where the person is sent back once they decide.
+             */
+            redirect_uri: string;
+            /**
+             * Scopes
+             * @description What the client asks to do, by scope.
+             */
+            scopes: string[];
+            /**
+             * Expires At
+             * Format: date-time
+             * @description Until when the request waits for a decision.
+             */
+            expires_at: string;
         };
         /**
          * Citation
@@ -694,6 +805,17 @@ export interface components {
             valid_to: string | null;
             /** Source Url */
             source_url: string;
+        };
+        /**
+         * Decision
+         * @description Where to send the person once they have decided.
+         */
+        Decision: {
+            /**
+             * Redirect Uri
+             * @description The client's redirect URI, with the code or the error `access_denied`, the client's state and this server's identifier (`iss`).
+             */
+            redirect_uri: string;
         };
         /**
          * Explained
@@ -3614,6 +3736,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    authorize_oauth_authorize_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the page where a person decides, or back. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The client is not registered, or the redirect URI is not one it registered. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description This server has no authorization server (`SEF_PUBLIC_URL`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description This server has no page where a person decides (`SEF_WEB_URL`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    read_request_oauth_requests__request_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationRequest"];
+                };
+            };
+            /** @description No such request waits for a decision: it expired or was decided, or this server has no authorization server. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_request_oauth_requests__request_id__approval_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Decision"];
+                };
+            };
+            /** @description An API key cannot decide, or the caller's role grants none of the scopes asked for. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such request waits for a decision: it expired or was decided, or this server has no authorization server. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refuse_request_oauth_requests__request_id__refusal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Decision"];
+                };
+            };
+            /** @description No such request waits for a decision: it expired or was decided, or this server has no authorization server. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

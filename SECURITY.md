@@ -219,6 +219,12 @@ system are marked as such.
       client began the authorization it ends (ADR-0044). A redirect URI is `https`, `http` on
       the loopback interface or an application's own scheme, never with a fragment or a
       `javascript:` or `data:` scheme; registrations are counted by address.
+- [x] An authorization requires PKCE with S256, a redirect URI the client registered
+      (compared exactly; an unknown one is never redirected to), the MCP endpoint as the
+      resource and known scopes. Only a person, signed in, decides, never an API key; a consent
+      grants at most what the person's role does, issues a code valid for two minutes, stored as
+      a SHA-256, and is recorded in the audit log. Every answer to the client names the issuer
+      (RFC 9207).
 - [ ] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
       protected resource metadata (RFC 9728), authorization server metadata (RFC 8414), the
       issuer in authorization responses (RFC 9207) and client ID metadata documents, with scope

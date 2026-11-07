@@ -73,3 +73,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-app-restyle` | [m4-web-app-restyle.md](m4-web-app-restyle.md) |
 | `feat/mcp-explain-errors` | [m4-mcp-explain-errors.md](m4-mcp-explain-errors.md) |
 | `feat/mcp-oauth-clients` | [m4-mcp-oauth-clients.md](m4-mcp-oauth-clients.md) |
+| `feat/mcp-oauth-authorization` | [m4-mcp-oauth-authorization.md](m4-mcp-oauth-authorization.md) |

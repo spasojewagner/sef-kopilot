@@ -32,6 +32,7 @@ TABLES = {
     "explanations",
     "rule_embeddings",
     "oauth_clients",
+    "oauth_authorizations",
 }
 
 

@@ -543,9 +543,20 @@ without it, they answer 404, and the MCP endpoint takes API keys alone.
   no secret, and will prove with PKCE that it began the authorization it ends. A redirect URI
   is `https`, `http` on the loopback interface, or a scheme of the application's own, with no
   fragment; ten at most. Registering grants nothing, and is counted by address: ten an hour.
-- **Next:** a person's consent in the web application, the codes and tokens it grants, the
-  metadata documents that send clients here (RFC 8414, RFC 9728), and client ID metadata
-  documents.
+- **A client asks** by sending the person's browser to `GET /oauth/authorize` (OAuth 2.1
+  §4.1), with `response_type=code`, PKCE (`code_challenge_method=S256`), a redirect URI it
+  registered, the MCP endpoint as the `resource` (RFC 8707) and the scopes it wants
+  (`invoices:validate`, the scope of the tools that validate). An unknown client or redirect
+  URI is answered there (400); any other fault sends the browser back to the client with the
+  error. A request that will do waits ten minutes for a person, on the web application's page
+  at `SEF_WEB_URL` (`/oauth/consent?request=...`), which must be one of `SEF_WEB_ORIGINS`.
+- **A person decides**, signed in, never with an API key: `GET /oauth/requests/{id}` says
+  what the client asks; `POST .../approval` lets it act for them, for the scopes their role
+  grants, records the consent in the audit log and answers where to send the browser, the
+  client's redirect URI with a code valid for two minutes; `POST .../refusal` sends it back
+  with `access_denied`. Every answer the client gets names this server (`iss`, RFC 9207).
+- **Next:** the web application's page, the token endpoint that exchanges a code, the metadata
+  documents that send clients here (RFC 8414, RFC 9728), and client ID metadata documents.
 
 ## Database and migrations
 
@@ -611,7 +622,7 @@ src/sef_api/
                  ingesting (`python -m sef_api.rag.ingest`), the passages each rule cites
   mcp/           the MCP server at `/mcp`: who may connect, its tools, the endpoint
   oauth/         the authorization server of the MCP endpoint: clients registering
-                 themselves, `/oauth` routes
+                 themselves, their requests and a person's decision, `/oauth` routes
   migrations/    Alembic environment and revisions (`versions/`)
   routes/        one router module per resource
 alembic.ini      command-line configuration of the migrations

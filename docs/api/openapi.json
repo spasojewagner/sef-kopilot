@@ -2693,6 +2693,235 @@
           }
         }
       }
+    },
+    "/oauth/authorize": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Ask a person to let a client act for them",
+        "description": "The authorization endpoint (OAuth 2.1 §4.1), where an MCP client sends the person's browser. It requires `response_type=code`, PKCE (`code_challenge` with `code_challenge_method=S256`), a `redirect_uri` the client registered, the MCP endpoint as the `resource` (RFC 8707; the default) and scopes this server has (`invoices:validate`; the default). A request that will do is sent to the web application's page, where a signed-in person decides on it within ten minutes; one that will not is sent back to the client with an error, its state and this server's identifier (`iss`, RFC 9207). An unknown client or redirect URI is answered here.",
+        "operationId": "authorize_oauth_authorize_get",
+        "responses": {
+          "302": {
+            "description": "To the page where a person decides, or back."
+          },
+          "400": {
+            "description": "The client is not registered, or the redirect URI is not one it registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server has no authorization server (`SEF_PUBLIC_URL`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "This server has no page where a person decides (`SEF_WEB_URL`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/requests/{request_id}": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Read a client's request",
+        "description": "What the client asks to do, for the page where a signed-in person decides.",
+        "operationId": "read_request_oauth_requests__request_id__get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRequest"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such request waits for a decision: it expired or was decided, or this server has no authorization server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/requests/{request_id}/approval": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Let a client act for the caller",
+        "description": "The caller lets the client do what it asked, within what their role grants them in their organization; the consent is recorded in the audit log. The answer is where to send the person: the client's redirect URI with a code, valid for two minutes.",
+        "operationId": "approve_request_oauth_requests__request_id__approval_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such request waits for a decision: it expired or was decided, or this server has no authorization server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "An API key cannot decide, or the caller's role grants none of the scopes asked for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/requests/{request_id}/refusal": {
+      "post": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "Refuse a client's request",
+        "description": "The caller does not let the client act for them. The answer is where to send the person: the client's redirect URI with the error `access_denied`.",
+        "operationId": "refuse_request_oauth_requests__request_id__refusal_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such request waits for a decision: it expired or was decided, or this server has no authorization server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2720,6 +2949,60 @@
           "password"
         ],
         "title": "AcceptInvitationRequest"
+      },
+      "AuthorizationRequest": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Name",
+            "description": "The name the client registered, unchecked."
+          },
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri",
+            "description": "Where the person is sent back once they decide."
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes",
+            "description": "What the client asks to do, by scope."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At",
+            "description": "Until when the request waits for a decision."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "client_id",
+          "client_name",
+          "redirect_uri",
+          "scopes",
+          "expires_at"
+        ],
+        "title": "AuthorizationRequest",
+        "description": "What a client asks to do for the person deciding."
       },
       "Citation": {
         "properties": {
@@ -2796,6 +3079,21 @@
         ],
         "title": "Citation",
         "description": "A stored passage of the corpus that an explanation cites."
+      },
+      "Decision": {
+        "properties": {
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri",
+            "description": "The client's redirect URI, with the code or the error `access_denied`, the client's state and this server's identifier (`iss`)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "redirect_uri"
+        ],
+        "title": "Decision",
+        "description": "Where to send the person once they have decided."
       },
       "Explained": {
         "properties": {
