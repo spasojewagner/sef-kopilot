@@ -67,6 +67,9 @@ is tagged.
 - `apps/web`: a verdict, a rule's severity, a repair's state and a patch's outcome are each
   their state's colour on a tint of it, and a diff's lines too; the light theme's error, warning
   and success colours are a step deeper, so that their words stay at 4.5:1 on the tint.
+- `apps/web`: a report and a repair open with a summary of what they are, under the way back,
+  and the validator's layers are a checklist, beside the rules on a wide screen; shadows take
+  the navy's hue.
 
 ## [0.3.0] - 2026-11-07
 

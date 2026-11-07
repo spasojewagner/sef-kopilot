@@ -75,8 +75,9 @@ A signed-in visitor sends an invoice at `/sr-Latn/invoices`, under a profile (SE
 Peppol), and lands on its report at `/sr-Latn/invoices/{id}`; the same page lists the
 organization's invoices, the newest first, with their verdicts. The report shows what the
 validator read from the invoice, every rule it fails with the places it fails it, the errors
-first, and what each layer of the validator found. The rules' messages are their sources'
-own, in English, and are marked so. Amounts keep every decimal the invoice states. The report's
+first, and what each layer of the validator found, as a checklist beside the rules on a wide
+screen; the way back to the list is above it. The rules' messages are their sources' own, in
+English, and are marked so. Amounts keep every decimal the invoice states. The report's
 page is the same for every invoice and is built once; the id is read when the page is asked
 for, and the report is fetched in the browser (ADR-0028).
 

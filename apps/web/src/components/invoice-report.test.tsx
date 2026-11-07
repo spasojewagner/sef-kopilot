@@ -131,6 +131,47 @@ describe("Invoice report", () => {
     expect(within(layers).getAllByText("1 violation")).toHaveLength(2);
   });
 
+  it("marks each layer as a checklist, the words saying what the marks do", async () => {
+    keepSession();
+    stubReportApi();
+
+    renderIn("en", <InvoiceReport id={ID} />);
+
+    const layers = await screen.findByRole("region", {
+      name: "Layers of the check",
+    });
+    const items = within(layers).getAllByRole("listitem");
+    expect(items[0].closest("ol")).not.toBeNull();
+    for (const item of items) {
+      // A mark per layer, hidden from screen readers, which read the words beside it.
+      expect(item.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    }
+    const found = items.filter((item) =>
+      within(item).queryByText("1 violation"),
+    );
+    expect(found).toHaveLength(2);
+    for (const item of found) {
+      expect(item.querySelector("svg")).toHaveClass("text-destructive");
+    }
+  });
+
+  it("leads back to the list above the summary of the invoice", async () => {
+    keepSession();
+    stubReportApi();
+
+    renderIn("sr-Latn", <InvoiceReport id={ID} />);
+
+    const heading = await screen.findByRole("heading", { level: 1 });
+    const back = screen.getByRole("link", { name: "Nazad na fakture" });
+    expect(back).toHaveAttribute("href", "/sr-Latn/invoices");
+    expect(
+      back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.getAllByRole("link", { name: "Nazad na fakture" }),
+    ).toHaveLength(1);
+  });
+
   it("says when the invoice does not exist, or is not the visitor's", async () => {
     keepSession();
     stubApi(() => json(404, { detail: "no such invoice" }));

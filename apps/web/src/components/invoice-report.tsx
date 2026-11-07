@@ -12,8 +12,7 @@ import { RepairHistory } from "@/components/repair-history";
 import { ReportLayers, RuleCard } from "@/components/report-rules";
 import { Verdict } from "@/components/verdict";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 import { ApiError } from "@/lib/api";
 import { formatAmount, formatDay, formatMoment } from "@/lib/format";
 import type { StoredInvoice } from "@/lib/invoices";
@@ -48,13 +47,7 @@ export function InvoiceReport({ id }: { id: string }) {
 
 function BackToTheList() {
   const t = useTranslations("report");
-  return (
-    <div>
-      <Button asChild variant="outline">
-        <Link href="/invoices">{t("back")}</Link>
-      </Button>
-    </div>
-  );
+  return <BackLink href="/invoices">{t("back")}</BackLink>;
 }
 
 function Loaded({ invoice }: { invoice: StoredInvoice }) {
@@ -74,15 +67,16 @@ function Loaded({ invoice }: { invoice: StoredInvoice }) {
   const warnings = report.violations.length - fatal;
   return (
     <article className="grid gap-8">
-      <header className="grid gap-4">
+      <BackToTheList />
+      <header className="grid gap-5 rounded-xl border bg-card p-5 text-card-foreground shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
             {summary?.number ?? t("unreadable")}
           </h1>
           <Verdict valid={report.valid} />
         </div>
         {summary && (
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-t pt-5 text-sm sm:grid-cols-4">
             <Fact term={t("seller")} value={summary.seller ?? "—"} />
             <Fact term={t("buyer")} value={summary.buyer ?? "—"} />
             <Fact
@@ -107,40 +101,49 @@ function Loaded({ invoice }: { invoice: StoredInvoice }) {
         </p>
       </header>
 
-      <section className="grid gap-4" aria-labelledby="violations">
-        <h2 id="violations" className="text-lg font-semibold tracking-tight">
-          {t("violations", { fatal, warnings })}
-        </h2>
-        {rules.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t("none")}</p>
-        )}
-        {rules.length > 0 && <ExplanationsPanel {...explaining} />}
-        {rules.map((rule) => (
-          <RuleCard
-            key={`${rule.severity} ${rule.ruleId}`}
-            rule={rule}
-            explanation={explanations.get(rule.ruleId)}
-          />
-        ))}
-        {report.omitted > 0 && (
-          <p className="text-sm text-muted-foreground">
-            {t("omitted", { count: report.omitted })}
-          </p>
-        )}
-        {report.set_aside.length > 0 && (
-          <p className="text-sm text-muted-foreground">
-            {t("setAside", { count: report.set_aside.length })}
-          </p>
-        )}
-      </section>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start">
+        <div className="grid min-w-0 gap-8">
+          <section className="grid gap-4" aria-labelledby="violations">
+            <h2
+              id="violations"
+              className="text-lg font-semibold tracking-tight"
+            >
+              {t("violations", { fatal, warnings })}
+            </h2>
+            {rules.length === 0 && (
+              <p className="text-sm text-muted-foreground">{t("none")}</p>
+            )}
+            {rules.length > 0 && <ExplanationsPanel {...explaining} />}
+            {rules.map((rule) => (
+              <RuleCard
+                key={`${rule.severity} ${rule.ruleId}`}
+                rule={rule}
+                explanation={explanations.get(rule.ruleId)}
+              />
+            ))}
+            {report.omitted > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {t("omitted", { count: report.omitted })}
+              </p>
+            )}
+            {report.set_aside.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {t("setAside", { count: report.set_aside.length })}
+              </p>
+            )}
+          </section>
 
-      <RepairHistory
-        invoiceId={invoice.id}
-        // A valid invoice has nothing to repair, and patches apply only to XML.
-        offer={!report.valid && isXml(report)}
-      />
-      <ReportLayers report={report} />
-      <BackToTheList />
+          <RepairHistory
+            invoiceId={invoice.id}
+            // A valid invoice has nothing to repair, and patches apply only to XML.
+            offer={!report.valid && isXml(report)}
+          />
+        </div>
+        {/* On a wide screen the validator's layers stand beside the rules, as a checklist. */}
+        <aside className="lg:sticky lg:top-24">
+          <ReportLayers report={report} />
+        </aside>
+      </div>
     </article>
   );
 }
