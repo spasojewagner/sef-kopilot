@@ -3077,6 +3077,102 @@
           }
         }
       }
+    },
+    "/.well-known/oauth-protected-resource/mcp": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "The MCP endpoint's protected resource metadata",
+        "description": "Where a client refused at `/mcp` learns who issues the endpoint's access tokens (RFC 9728); the endpoint's `WWW-Authenticate` names this address.",
+        "operationId": "protected_resource__well_known_oauth_protected_resource_mcp_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtectedResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server has no authorization server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-protected-resource": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "The API's protected resource metadata",
+        "description": "The same document at the address a client tries when it was not told the endpoint's own: the MCP endpoint is the API's one protected resource.",
+        "operationId": "protected_resource_at_the_root__well_known_oauth_protected_resource_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtectedResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server has no authorization server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "tags": [
+          "oauth"
+        ],
+        "summary": "The authorization server's metadata",
+        "description": "The authorization server's endpoints and what they support (RFC 8414): public clients registering themselves, codes with PKCE (S256), refresh tokens, the issuer in every answer.",
+        "operationId": "authorization_server__well_known_oauth_authorization_server_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationServer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This server has no authorization server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3158,6 +3254,94 @@
         ],
         "title": "AuthorizationRequest",
         "description": "What a client asks to do for the person deciding."
+      },
+      "AuthorizationServer": {
+        "properties": {
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "authorization_endpoint": {
+            "type": "string",
+            "title": "Authorization Endpoint"
+          },
+          "token_endpoint": {
+            "type": "string",
+            "title": "Token Endpoint"
+          },
+          "registration_endpoint": {
+            "type": "string",
+            "title": "Registration Endpoint"
+          },
+          "scopes_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes Supported"
+          },
+          "response_types_supported": {
+            "items": {
+              "type": "string",
+              "const": "code"
+            },
+            "type": "array",
+            "title": "Response Types Supported",
+            "default": [
+              "code"
+            ]
+          },
+          "grant_types_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Grant Types Supported",
+            "default": [
+              "authorization_code",
+              "refresh_token"
+            ]
+          },
+          "token_endpoint_auth_methods_supported": {
+            "items": {
+              "type": "string",
+              "const": "none"
+            },
+            "type": "array",
+            "title": "Token Endpoint Auth Methods Supported",
+            "description": "Every client is public, and proves itself with PKCE.",
+            "default": [
+              "none"
+            ]
+          },
+          "code_challenge_methods_supported": {
+            "items": {
+              "type": "string",
+              "const": "S256"
+            },
+            "type": "array",
+            "title": "Code Challenge Methods Supported",
+            "default": [
+              "S256"
+            ]
+          },
+          "authorization_response_iss_parameter_supported": {
+            "type": "boolean",
+            "title": "Authorization Response Iss Parameter Supported",
+            "description": "Every answer to the client names the issuer (RFC 9207).",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "issuer",
+          "authorization_endpoint",
+          "token_endpoint",
+          "registration_endpoint",
+          "scopes_supported"
+        ],
+        "title": "AuthorizationServer",
+        "description": "The authorization server, as RFC 8414 §2 describes it."
       },
       "Citation": {
         "properties": {
@@ -4442,6 +4626,54 @@
           "detail"
         ],
         "title": "Problem"
+      },
+      "ProtectedResource": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource",
+            "description": "The MCP endpoint, the audience of its access tokens."
+          },
+          "authorization_servers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authorization Servers",
+            "description": "The issuer of its access tokens."
+          },
+          "scopes_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes Supported"
+          },
+          "bearer_methods_supported": {
+            "items": {
+              "type": "string",
+              "const": "header"
+            },
+            "type": "array",
+            "title": "Bearer Methods Supported",
+            "default": [
+              "header"
+            ]
+          },
+          "resource_name": {
+            "type": "string",
+            "title": "Resource Name",
+            "default": "SEF Kopilot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resource",
+          "authorization_servers",
+          "scopes_supported"
+        ],
+        "title": "ProtectedResource",
+        "description": "The MCP endpoint, as a protected resource (RFC 9728 §2)."
       },
       "ReadinessResponse": {
         "properties": {

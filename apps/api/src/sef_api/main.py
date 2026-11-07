@@ -35,6 +35,7 @@ from sef_api.jobs.runs import JobContext, run_job
 from sef_api.llm import llm_for
 from sef_api.mcp import server as mcp
 from sef_api.members import routes as members
+from sef_api.oauth import metadata as oauth_metadata
 from sef_api.oauth import routes as oauth
 from sef_api.organization import routes as organization
 from sef_api.rag.embeddings import Embedder, embedder_for
@@ -248,6 +249,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         organization.router,
         api_keys.router,
         oauth.router,
+        oauth_metadata.router,
     ):
         app.include_router(router)
     app.add_exception_handler(repairs.ConflictError, repairs.answer_conflict)

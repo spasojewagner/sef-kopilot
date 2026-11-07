@@ -71,6 +71,10 @@ PUBLIC: set[Endpoint] = {
     ("POST", "/oauth/register"),
     ("GET", "/oauth/authorize"),
     ("POST", "/oauth/token"),
+    # The documents that send a client there (RFC 9728, RFC 8414).
+    ("GET", "/.well-known/oauth-protected-resource/mcp"),
+    ("GET", "/.well-known/oauth-protected-resource"),
+    ("GET", "/.well-known/oauth-authorization-server"),
 }
 #: Endpoints for any signed-in caller, about the caller only.
 SIGNED_IN: set[Endpoint] = {

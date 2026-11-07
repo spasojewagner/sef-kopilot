@@ -569,8 +569,13 @@ without it, they answer 404, and the MCP endpoint takes API keys alone.
   consent on every request. The role is read again at every exchange, and a member who is no
   longer one takes the consent with them (migration 0017). Token requests are counted by
   address: sixty a minute.
-- **Next:** the MCP endpoint accepting these tokens, the metadata documents that send clients
-  here (RFC 8414, RFC 9728), and client ID metadata documents.
+- **The documents that send a client here** are public, and a page of any origin may read them:
+  `/.well-known/oauth-protected-resource/mcp` (RFC 9728), the MCP endpoint's, names this server
+  as the issuer of its access tokens, and is at `/.well-known/oauth-protected-resource` too;
+  `/.well-known/oauth-authorization-server` (RFC 8414) names this server's endpoints and what
+  they support.
+- **Next:** the MCP endpoint accepting these tokens and naming its metadata when it refuses a
+  request, then client ID metadata documents.
 
 ## Database and migrations
 
