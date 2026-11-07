@@ -78,3 +78,4 @@ per branch, to keep them with the code they describe.
 | `fix/web-credentials-post` | [m4-web-credentials-post.md](m4-web-credentials-post.md) |
 | `feat/mcp-oauth-tokens` | [m4-mcp-oauth-tokens.md](m4-mcp-oauth-tokens.md) |
 | `feat/mcp-oauth-resource` | [m4-mcp-oauth-resource.md](m4-mcp-oauth-resource.md) |
+| `feat/web-upload-picture-or-pdf` | [m4-web-upload-picture-or-pdf.md](m4-web-upload-picture-or-pdf.md) |

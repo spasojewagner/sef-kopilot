@@ -2139,3 +2139,22 @@ commit checked on its own.
 
 Next: turning it on in the demo and connecting Claude, then client ID metadata documents
 (`feat/mcp-oauth-client-metadata`) and the tools on stored invoices.
+
+## 2026-11-08 — `feat/web-upload-picture-or-pdf` (2 commits, stacked on `feat/mcp-oauth-resource`)
+
+Outcome: a picture or a PDF chosen on the upload page is not sent; the page says that SEF
+Kopilot checks the e-invoice itself, the XML that is sent to SEF, and where to get it. Asked for
+after the maintainer tried a picture of an invoice on the demo.
+
+Findings:
+
+- The file picker's filter only suggests: a person may choose any file. Sent as XML, a picture
+  would have been stored only to be reported as not well-formed, and on the public demo it might
+  be a real invoice.
+- Turning a PDF or a picture into an e-invoice stays a step of its own, in M7, after the
+  evaluations that can measure it; the maintainer agreed, and pictures join PDFs there.
+
+Verification: the web application's tests, lint, types and build; the seeded faults, each caught
+(see the pull request); each commit checked on its own.
+
+Next: client ID metadata documents (`feat/mcp-oauth-client-metadata`).
