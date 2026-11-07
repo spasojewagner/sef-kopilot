@@ -54,6 +54,10 @@ is tagged.
   `POST /invoices/explain` does: the report and an explanation of each rule it names, in
   Serbian or English, with the passages it cites; counted as a validation and a request to the
   language model, storing nothing.
+- `apps/api`: the first step of the MCP endpoint's OAuth 2.1 authorization server
+  (ADR-0044), which answers once `SEF_PUBLIC_URL` names the API's address: MCP clients
+  register themselves with `POST /oauth/register` (RFC 7591, migration 0015), always as public
+  clients without a secret, with the redirect URIs OAuth 2.1 allows; counted by address.
 
 ### Changed
 

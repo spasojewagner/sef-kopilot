@@ -35,6 +35,7 @@ from sef_api.jobs.runs import JobContext, run_job
 from sef_api.llm import llm_for
 from sef_api.mcp import server as mcp
 from sef_api.members import routes as members
+from sef_api.oauth import routes as oauth
 from sef_api.organization import routes as organization
 from sef_api.rag.embeddings import Embedder, embedder_for
 from sef_api.rag.explainer import Explainer
@@ -98,6 +99,11 @@ OPENAPI_TAGS = [
         "name": "organization",
         "description": "The caller's organization: its name, and how long it keeps its stored "
         "invoices before they are deleted.",
+    },
+    {
+        "name": "oauth",
+        "description": "The OAuth 2.1 authorization server of the MCP endpoint, once "
+        "`SEF_PUBLIC_URL` names the API's address: the clients that register themselves.",
     },
 ]
 
@@ -231,15 +237,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.jobs = _runner(app, settings)
     app.state.explainer, app.state.repairer = _model_users(settings)
     app.state.embedder = embedder_for(settings)
-    app.include_router(health.router)
-    app.include_router(auth.router)
-    app.include_router(invoices.router)
-    app.include_router(repairs.router)
+    for router in (
+        health.router,
+        auth.router,
+        invoices.router,
+        repairs.router,
+        jobs.router,
+        members.router,
+        members.invitations_router,
+        organization.router,
+        api_keys.router,
+        oauth.router,
+    ):
+        app.include_router(router)
     app.add_exception_handler(repairs.ConflictError, repairs.answer_conflict)
-    app.include_router(jobs.router)
-    app.include_router(members.router)
-    app.include_router(members.invitations_router)
-    app.include_router(organization.router)
-    app.include_router(api_keys.router)
     app.state.mcp = mcp.mount(app, settings)
     return app

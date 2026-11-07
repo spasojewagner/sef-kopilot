@@ -1961,3 +1961,35 @@ Verification: the API's tests, the tool's answer compared with the route's in bo
 the seeded faults, each caught (see the pull request); ruff, mypy.
 
 Next: OAuth 2.1 for the MCP server.
+
+## 2026-11-07 — `feat/mcp-oauth-clients` (4 commits, stacked on `feat/mcp-explain-errors`)
+
+Outcome: the first step of the MCP endpoint's OAuth 2.1 authorization server (ADR-0044), which
+answers once `SEF_PUBLIC_URL` names the API's address. MCP clients register themselves with
+`POST /oauth/register` (RFC 7591, migration 0015), always as public clients, with the redirect
+URIs OAuth 2.1 allows, counted by address. Two preparations come first: a test that every
+variable the settings read is listed in `.env.example`, and the application's routers
+included from one list.
+
+Findings:
+
+- Neither Authlib (synchronous, Flask and Django) nor the MCP SDK's authorization server fits:
+  the SDK's registration mints a secret and compares the stored one, so secrets would be kept
+  in clear, and neither has client ID metadata documents or the issuer in the authorization
+  response. The server is the API's own, for public clients only; the ADR records the
+  departure from the brief.
+- The protocol's 2026-07-28 revision prefers client ID metadata documents and keeps dynamic
+  registration for compatibility; clients still use it, so it comes first, and the documents
+  come last.
+- `create_app` had one statement too many for the linter once the authorization server's
+  routes joined; the routers became one list, in a commit of its own.
+- The pre-commit hook's type check reads files not yet added, so a commit of part of the work
+  was made with the rest set aside.
+- The settings say their variables are the ones in `.env.example`, and nothing checked it;
+  `SEF_PUBLIC_URL` was missing from it until a test compared the two.
+
+Verification: the API's tests, registration's against the RFC's requirements; the seeded
+faults, each caught (see the pull request); ruff, mypy; the OpenAPI document and the web
+application's types regenerated.
+
+Next: the authorization endpoint and the request a person decides on.

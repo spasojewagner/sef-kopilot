@@ -531,6 +531,22 @@ curl -s localhost:8000/mcp -H "Authorization: Bearer $API_KEY" \
   -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
 ```
 
+## The authorization server (OAuth 2.1)
+
+For the assistants that sign their users in, the MCP endpoint gets an OAuth 2.1 authorization
+server of its own, step by step (ADR-0044). Its routes, under `/oauth`, answer once
+`SEF_PUBLIC_URL` names the API's address, such as `https://sef-kopilot-api.onrender.com`;
+without it, they answer 404, and the MCP endpoint takes API keys alone.
+
+- **Clients register themselves** with `POST /oauth/register` (RFC 7591). Every client is
+  public: it is registered with `token_endpoint_auth_method: none`, whatever it asks for, gets
+  no secret, and will prove with PKCE that it began the authorization it ends. A redirect URI
+  is `https`, `http` on the loopback interface, or a scheme of the application's own, with no
+  fragment; ten at most. Registering grants nothing, and is counted by address: ten an hour.
+- **Next:** a person's consent in the web application, the codes and tokens it grants, the
+  metadata documents that send clients here (RFC 8414, RFC 9728), and client ID metadata
+  documents.
+
 ## Database and migrations
 
 PostgreSQL through SQLAlchemy 2 (async, asyncpg); the schema is versioned with Alembic
@@ -594,6 +610,8 @@ src/sef_api/
   rag/           the corpus: text in two scripts, editions and dated passages, embeddings,
                  ingesting (`python -m sef_api.rag.ingest`), the passages each rule cites
   mcp/           the MCP server at `/mcp`: who may connect, its tools, the endpoint
+  oauth/         the authorization server of the MCP endpoint: clients registering
+                 themselves, `/oauth` routes
   migrations/    Alembic environment and revisions (`versions/`)
   routes/        one router module per resource
 alembic.ini      command-line configuration of the migrations

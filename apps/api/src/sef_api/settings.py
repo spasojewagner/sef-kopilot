@@ -276,6 +276,17 @@ class Settings(BaseSettings):
         ),
     )
 
+    public_url: str | None = Field(
+        default=None,
+        validation_alias="SEF_PUBLIC_URL",
+        description=(
+            "The API's own origin, as its clients reach it, such as "
+            "`https://sef-kopilot-api.onrender.com`: the issuer of its OAuth 2.1 authorization "
+            "server, and the base of the MCP endpoint's address. None by default: the "
+            "authorization server does not answer, and the MCP endpoint takes API keys alone."
+        ),
+    )
+
     public_demo: bool = Field(
         default=False,
         validation_alias="SEF_PUBLIC_DEMO",
@@ -349,6 +360,16 @@ class Settings(BaseSettings):
                     f"SEF_WEB_ORIGINS holds {origin!r}, which is no origin: a scheme "
                     f"({' or '.join(sorted(schemes))}), a host and a port if any, nothing more"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _check_public_url(self) -> Self:
+        schemes = {"https"} if self.environment == "production" else {"http", "https"}
+        if self.public_url is not None and not _is_origin(self.public_url, schemes):
+            raise ValueError(
+                f"SEF_PUBLIC_URL is {self.public_url!r}, which is no origin: a scheme "
+                f"({' or '.join(sorted(schemes))}), a host and a port if any, nothing more"
+            )
         return self
 
     @model_validator(mode="after")

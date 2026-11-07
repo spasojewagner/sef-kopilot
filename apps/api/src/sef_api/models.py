@@ -475,6 +475,33 @@ class Repair(Base):
     model: Mapped[str | None] = mapped_column(Text)
 
 
+class OAuthClient(Base):
+    """A client of the OAuth 2.1 authorization server that registered itself (RFC 7591, ADR-0044):
+    an assistant, say, that will ask a person to let it use the MCP server.
+
+    Every client is public: it authenticates with no secret, and proves with PKCE that it is the
+    one that began an authorization. Registering grants nothing; a person does, once the client
+    asks. The row belongs to no organization, since a client is not anyone's until a person lets
+    it act for them.
+    """
+
+    __tablename__ = "oauth_clients"
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (
+        CheckConstraint("cardinality(redirect_uris) BETWEEN 1 AND 10", name="redirect_uris_count"),
+        CheckConstraint("char_length(name) BETWEEN 1 AND 100", name="name_length"),
+    )
+
+    #: The ``client_id``, random, which the client sends with every request.
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str | None] = mapped_column(Text)
+    #: Where an authorization may send the person back, compared exactly.
+    redirect_uris: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    #: ``authorization_code``, and ``refresh_token`` if the client asked for it.
+    grant_types: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    created_at: Mapped[datetime] = _created_at()
+
+
 class RuleEmbedding(Base):
     """The vector of what a rule says, as one embedding model made it, kept so that each text is
     asked of the embedder once (ADR-0041).

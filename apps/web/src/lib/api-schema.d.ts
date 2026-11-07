@@ -613,6 +613,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register an OAuth client
+         * @description Dynamic client registration (RFC 7591), for an MCP client that connects for the first time. Every client is registered as public, `token_endpoint_auth_method: none`, whatever it asks for: it gets no secret, and proves with PKCE that it began the authorization it ends. A redirect URI is `https`, `http` on the loopback interface, or a scheme of the application's own; it has no fragment. Registering grants nothing: a person decides what the client may do when it first asks.
+         */
+        post: operations["register_client_oauth_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1293,6 +1313,52 @@ export interface components {
              * @description The organization this account starts with; the person becomes its owner.
              */
             organization_name: string;
+        };
+        /**
+         * RegisteredClient
+         * @description What a client is told it is registered as (RFC 7591 §3.2.1).
+         */
+        RegisteredClient: {
+            /** Client Id */
+            client_id: string;
+            /**
+             * Client Id Issued At
+             * @description When it was registered, in Unix seconds.
+             */
+            client_id_issued_at: number;
+            /** Client Name */
+            client_name: string | null;
+            /** Redirect Uris */
+            redirect_uris: string[];
+            /** Grant Types */
+            grant_types: string[];
+            /**
+             * Response Types
+             * @default [
+             *       "code"
+             *     ]
+             */
+            response_types: "code"[];
+            /**
+             * Token Endpoint Auth Method
+             * @description Every client is public, and proves itself with PKCE.
+             * @default none
+             * @constant
+             */
+            token_endpoint_auth_method: "none";
+        };
+        /**
+         * RegistrationError
+         * @description Why a client could not register (RFC 7591 §3.2.2).
+         */
+        RegistrationError: {
+            /**
+             * Error
+             * @enum {string}
+             */
+            error: "invalid_redirect_uri" | "invalid_client_metadata";
+            /** Error Description */
+            error_description: string;
         };
         /**
          * RepairConflict
@@ -3486,6 +3552,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_client_oauth_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Redirect Uris */
+                    redirect_uris: string[];
+                    /** Client Name */
+                    client_name?: string | null;
+                    /** Grant Types */
+                    grant_types?: string[];
+                    /** Response Types */
+                    response_types?: string[];
+                    /** Token Endpoint Auth Method */
+                    token_endpoint_auth_method?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisteredClient"];
+                };
+            };
+            /** @description The client's metadata or a redirect URI is not acceptable. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationError"];
+                };
+            };
+            /** @description This server has no authorization server (`SEF_PUBLIC_URL`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many registrations from this address; try again after `Retry-After` seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };
