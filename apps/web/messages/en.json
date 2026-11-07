@@ -10,7 +10,8 @@
   "account": {
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "invoices": "Invoices"
+    "invoices": "Invoices",
+    "organization": "Organization"
   },
   "home": {
     "status": "pre-alpha",
@@ -296,6 +297,44 @@
       "unreachable": "The API does not answer. The repair's state is being read again: check it before you try again.",
       "uncertain": "The API gave no clear answer. The repair's state has been read again: check it before you try again.",
       "failed": "The decision was not recorded. Try again a little later."
+    }
+  },
+  "organization": {
+    "title": "Organization",
+    "loading": "Loading the organization…",
+    "notLoaded": "The organization did not load. Try again a little later.",
+    "name": "Name",
+    "you": "Your account",
+    "role": "Your role",
+    "roles": {
+      "owner": "owner",
+      "accountant": "accountant",
+      "client": "client"
+    },
+    "retention": {
+      "title": "Keeping invoices",
+      "description": "How long the invoices the organization stores are kept here, with their reports and repairs.",
+      "none": "Invoices are kept until someone deletes them.",
+      "period": "Each invoice is kept for {period} after the day it was stored, then deleted with its report and repairs.",
+      "ownersOnly": "The organization's owner sets how long invoices are kept.",
+      "label": "Keep invoices",
+      "keep": "Until someone deletes them",
+      "days": "{days, plural, one {# day} other {# days}}",
+      "years": "{years, plural, one {# year} other {# years}}",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "The period is saved.",
+      "confirm": "Invoices stored on or before {date} will be deleted at the next deletion, within a day, with their reports and repairs, and that cannot be undone. Change the period?",
+      "confirmChange": "Yes, change it",
+      "cancel": "Cancel",
+      "errors": {
+        "signedOut": "The session has expired. Sign in again.",
+        "forbidden": "The period was not changed: you are no longer the organization's owner.",
+        "tooMany": "Too many requests. Try again in {seconds} s.",
+        "unreachable": "The API does not answer. The period is being read again: check it before you try again.",
+        "uncertain": "The API gave no clear answer. The period has been read again: check it before you try again.",
+        "failed": "The period was not changed. Try again a little later."
+      }
     }
   },
   "apiWaking": {

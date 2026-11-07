@@ -108,6 +108,20 @@ and supersedes the other waiting repairs, asked a second time; or a rejection, w
 nothing. When the page cannot know whether a decision was recorded, it reads the repair again
 and shows where it stands rather than sending the decision again (ADR-0032).
 
+## The organization
+
+`/sr-Latn/organization`, linked from the header (an icon on a phone), shows a member the
+organization's name, their account and role, and how long the organization keeps its stored
+invoices (ADR-0039). The role is the one the API reports now, not the one the session began
+with.
+
+The owner sets the period there, from a month to ten years, or keeps every invoice until
+someone deletes it. A period that deletes invoices, where there was none or a shorter one, is
+saved only after a second press that names the day up to which stored invoices go; a longer
+one, or none, is saved at once. When the page cannot know whether the period was changed, it
+reads it again; when the API refuses an owner who is one no longer, the page says so and shows
+the role the API now reports.
+
 ## Components and styles
 
 The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:
@@ -164,13 +178,13 @@ messages/          the interface's texts, one file per language
 playwright.config.ts  the end-to-end test's browser, and the API and the build it starts
 src/app/[locale]/  routes (App Router) under the language: the root layout, the home page,
                    `sign-in`, `register`, `invoices`, `invoices/[id]` and its
-                   `repairs/[repairId]`, the 404;
+                   `repairs/[repairId]`, `organization`, the 404;
                    `page.test.tsx` next to `page.tsx`
 src/app/globals.css  Tailwind, shadcn/ui's theme tokens, dark mode
 src/components/    components shared by the pages: the header and its account, the footer, the
                    language switcher, the API's status, the cache of the API's answers, the
                    sign-in and registration forms, the upload, the list, the report, the
-                   repairs and the diff
+                   repairs and the diff, the organization's page
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types

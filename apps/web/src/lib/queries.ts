@@ -3,6 +3,7 @@ import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { getHealth } from "@/lib/api";
 import { explainInvoice, type Language } from "@/lib/explanations";
 import { getInvoice, listInvoices } from "@/lib/invoices";
+import { getOrganization } from "@/lib/organization";
 import { getRepair, listRepairs } from "@/lib/repairs";
 import { authorized, type Identity } from "@/lib/session";
 
@@ -36,6 +37,12 @@ export const healthQuery = queryOptions({
 export const meQuery = queryOptions({
   queryKey: ["visitor", "me"],
   queryFn: ({ signal }) => authorized<Identity>("/auth/me", { signal }),
+});
+
+/** The visitor's organization, and how long it keeps its stored invoices. */
+export const organizationQuery = queryOptions({
+  queryKey: ["organization"],
+  queryFn: ({ signal }) => getOrganization(signal),
 });
 
 /** The organization's invoices, the newest first, a page at a time. */

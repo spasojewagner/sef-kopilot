@@ -63,3 +63,4 @@ per branch, to keep them with the code they describe.
 | `chore/release-0.3.0` | [m3-release-0.3.0.md](m3-release-0.3.0.md) |
 | `feat/api-job-retention` | [m4-api-job-retention.md](m4-api-job-retention.md) |
 | `feat/api-invoice-retention` | [m4-api-invoice-retention.md](m4-api-invoice-retention.md) |
+| `feat/web-organization-settings` | [m4-web-organization-settings.md](m4-web-organization-settings.md) |

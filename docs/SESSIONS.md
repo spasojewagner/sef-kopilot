@@ -1737,3 +1737,28 @@ each caught (see the pull request); ruff, mypy; the OpenAPI document and the web
 types regenerated.
 
 Next: the page of the organization's settings, where an owner sets the period.
+
+## 2026-11-07 — `feat/web-organization-settings` (3 commits, stacked on `feat/api-invoice-retention`)
+
+Outcome: the page where an owner sets the retention period of ADR-0039. `/organization`, linked
+from the header, shows every member the organization's name, their account, the role the API
+reports and how long invoices are kept. The owner chooses a period from a month to ten years,
+or none; a choice that deletes invoices is saved only after a second press that names the day
+up to which stored invoices go.
+
+Findings:
+
+- The phone's header had no room for another word: the way to the organization is an icon
+  there, with the word kept for screen readers. The icon still took the header past 320 px, so
+  its gaps and the account's buttons narrow on a phone; at 320 px in English the last button
+  ends 16 px from the edge rather than 24, and nothing scrolls.
+- A form that remounted when the period changed lost the outcome of its own save; the card
+  holds the change, so its outcome outlives the form, a refusal included.
+- The page's guard that a choice is a period hid a fault in the rule that says which changes
+  delete; the rule has tests of its own.
+
+Verification: the web application's tests, lint, types and build; the seeded faults, each
+caught (see the pull request); screenshots in Serbian and English, light and dark, and on a
+phone.
+
+Next: the explanations of a stored invoice, kept with its report.

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatAmount, formatDay, formatMoment } from "./format";
+import { formatAmount, formatDate, formatDay, formatMoment } from "./format";
 
 describe("Amounts", () => {
   it("keep every digit the API sends, in the invoice's currency", () => {
@@ -42,5 +42,12 @@ describe("Days and moments", () => {
     expect(formatMoment("sr-Latn", "2026-11-06T23:30:00Z")).toBe(
       "7. 11. 2026. 00:30",
     );
+  });
+
+  it("write the day of a moment as it is in Belgrade, wherever the visitor is", () => {
+    const moment = new Date("2026-10-08T22:30:00Z");
+
+    expect(formatDate("sr-Latn", moment)).toBe("9. 10. 2026.");
+    expect(formatDate("en", moment)).toBe("Oct 9, 2026");
   });
 });
