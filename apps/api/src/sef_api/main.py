@@ -231,15 +231,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.jobs = _runner(app, settings)
     app.state.explainer, app.state.repairer = _model_users(settings)
     app.state.embedder = embedder_for(settings)
-    app.include_router(health.router)
-    app.include_router(auth.router)
-    app.include_router(invoices.router)
-    app.include_router(repairs.router)
+    for router in (
+        health.router,
+        auth.router,
+        invoices.router,
+        repairs.router,
+        jobs.router,
+        members.router,
+        members.invitations_router,
+        organization.router,
+        api_keys.router,
+    ):
+        app.include_router(router)
     app.add_exception_handler(repairs.ConflictError, repairs.answer_conflict)
-    app.include_router(jobs.router)
-    app.include_router(members.router)
-    app.include_router(members.invitations_router)
-    app.include_router(organization.router)
-    app.include_router(api_keys.router)
     app.state.mcp = mcp.mount(app, settings)
     return app
