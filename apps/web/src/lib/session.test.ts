@@ -98,6 +98,9 @@ beforeEach(async () => {
   localStorage.clear();
   vi.resetModules();
   session = await import("./session");
+  // The session's own copy of the API's module, new like the session's: the API answered a
+  // moment ago, as in every test, so that a request is sent at once.
+  (await import("./api")).noteAnswer();
 });
 
 describe("Signing in", () => {

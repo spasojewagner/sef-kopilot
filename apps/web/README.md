@@ -36,12 +36,16 @@ compiler refuses a key that the Serbian file does not have. A page reads them wi
 The pages call the API from the browser, at `NEXT_PUBLIC_API_URL` (see `.env.example`;
 `http://127.0.0.1:8000` when it is not set), and the API allows it for the origins in its
 `SEF_WEB_ORIGINS` (ADR-0026). `src/lib/api.ts` sends a request, gives up after ten seconds,
-and turns an error into an `ApiError` with the API's status and reason. `src/lib/queries.ts`
-holds the questions the pages ask, such as `healthQuery`, each with the key TanStack Query
-keeps its answer under; `src/components/query-provider.tsx` sets how long an answer stays
-fresh (a minute) and when a failed request is tried again (once, unless the API refused it).
-In the tests no request leaves the machine: `vitest.setup.ts` makes each one fail as if the
-API could not be reached, unless the test answers it with `vi.stubGlobal("fetch", …)`.
+and turns an error into an `ApiError` with the API's status and reason. When the API has not
+answered for ten minutes, a request first waits until it answers `/health`, for up to two
+minutes, since the demo's free instance sleeps; the footer and a notice above the page say that
+it is waking up (ADR-0036). `src/lib/queries.ts` holds the questions the pages ask, such as
+`healthQuery`, each with the key TanStack Query keeps its answer under;
+`src/components/query-provider.tsx` sets how long an answer stays fresh (a minute) and when a
+failed request is tried again (once, unless the API refused it). In the tests no request leaves
+the machine: `vitest.setup.ts` makes each one fail as if the API could not be reached, unless
+the test answers it with `vi.stubGlobal("fetch", …)`, and has the API answer a moment before
+each test, so that a request is sent at once.
 
 The answers' types come from the API's own OpenAPI document, `docs/api/openapi.json`:
 `src/lib/api-schema.d.ts` is generated from it (`pnpm api:types`, or `make openapi` from the

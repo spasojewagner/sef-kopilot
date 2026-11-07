@@ -53,7 +53,8 @@ the free plan runs one instance.
 
 A deploy then follows every push to `main` whose checks pass and which changes what the image is
 built from (`buildFilter` in `render.yaml`). A free service sleeps after 15 minutes without a
-request; the next one wakes it, which takes about a minute.
+request; the next one wakes it, which takes about a minute, while the pages say that the API is
+waking up and wait for it (ADR-0036).
 
 ## 3. The corpus (once, from your machine)
 
@@ -91,7 +92,7 @@ cannot call it; Vercel's own sign-in protects them.
 ## 5. Check it
 
 1. Open the web application. The footer says whether the API answers; after a sleep, the first
-   visit wakes it.
+   visit wakes it, and the page says that it is waking up until it answers.
 2. Register, upload a synthetic invoice from `fixtures/invoices/synthetic/` (never a real one:
    the demo is public), read its report, ask for an explanation and for a repair, approve it.
 3. `https://sef-kopilot-api.onrender.com/ready` answers `ready`, with the database and the

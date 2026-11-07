@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { ApiWakingNotice } from "@/components/api-waking-notice";
 import { QueryProvider } from "@/components/query-provider";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -33,6 +34,7 @@ export default async function LocaleLayout({
         <NextIntlClientProvider>
           <QueryProvider>
             <SiteHeader />
+            <ApiWakingNotice />
             {children}
             <SiteFooter />
           </QueryProvider>

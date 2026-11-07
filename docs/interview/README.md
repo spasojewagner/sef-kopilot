@@ -56,3 +56,4 @@ per branch, to keep them with the code they describe.
 | `build/api-container` | [m3-api-container.md](m3-api-container.md) |
 | `chore/infra-deploy` | [m3-infra-deploy.md](m3-infra-deploy.md) |
 | `fix/api-image-fetches-rule-sets` | [m3-api-image-from-a-clone.md](m3-api-image-from-a-clone.md) |
+| `feat/web-api-waking-up` | [m3-web-api-waking-up.md](m3-web-api-waking-up.md) |

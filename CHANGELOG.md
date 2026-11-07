@@ -122,6 +122,11 @@ is tagged.
   changes; its database on Neon; the web application on Vercel's Hobby plan, with Node.js 22 and a
   build only when it changes (`apps/web/vercel.json`). No secret is in the repository: Render
   generates the signing key and asks for the others when the Blueprint is applied.
+- `apps/web`: the pages wait for a sleeping API (ADR-0036). When the API has not answered for
+  ten minutes, a request first waits until it answers `/health`, for up to two minutes, as the
+  demo's free instance wakes, and is then sent once. After three seconds of waiting, the footer
+  says that the API is waking up, and a notice above the page says why, and that what the
+  visitor sends will go as soon as the API answers.
 
 ### Changed
 
