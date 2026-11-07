@@ -60,3 +60,4 @@ per branch, to keep them with the code they describe.
 | `docs/infra-first-deploy` | [m3-infra-first-deploy.md](m3-infra-first-deploy.md) |
 | `feat/web-demo-upload-notice` | [m3-web-demo-upload-notice.md](m3-web-demo-upload-notice.md) |
 | `fix/api-unexpected-errors-readable` | [m3-api-unexpected-errors-readable.md](m3-api-unexpected-errors-readable.md) |
+| `chore/release-0.3.0` | [m3-release-0.3.0.md](m3-release-0.3.0.md) |

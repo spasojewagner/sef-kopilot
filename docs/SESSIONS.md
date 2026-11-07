@@ -1671,3 +1671,23 @@ suites, ruff, mypy.
 
 Next: the release of v0.3.0, with what remains of M3 decided by the maintainer: retention, and
 explanations kept with a stored invoice's report.
+
+## 2026-11-07 — `chore/release-0.3.0` (2 commits, stacked on `fix/api-unexpected-errors-readable`)
+
+Outcome: release preparation for milestone M3. Every package moves from 0.2.0 to 0.3.0; the
+changelog's Unreleased section becomes `[0.3.0] - 2026-11-07`, opened by a summary of the
+milestone, with a link that compares it with 0.2.0; the README's roadmap marks M3 done and M4
+next, and the architecture's status follows. After the merge, the maintainer tags `v0.3.0` on
+the merge commit and publishes the release notes.
+
+Findings:
+
+- The maintainer chose to release now, and to move retention and the explanations kept with a
+  stored invoice's report to M4, as its first items: the milestone's goal is met and live, and
+  neither shows on the demo.
+- The OpenAPI document names the API's version, so the bump regenerates it.
+
+Verification: `einvoice --version` says 0.3.0; the versions match the packages' metadata (their
+tests); the lock file checked; every hook and the secret scan.
+
+Next: M4, beginning with retention.

@@ -9,6 +9,19 @@ is tagged.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-07
+
+The repair loop and the web application, live (milestone M3): patches `{xpath, op, value,
+reason}` applied to a copy of a stored invoice in the validator's child process, with a guard
+that leaves amounts, VAT, tax and company identifiers, dates and the document's number to a
+person; repairs proposed by a member, an API key or the language model, which the validator
+judges, and approved or rejected by a person only, in an audit log without invoice content; the
+web application in Serbian (Latin) and English, to register, upload an invoice and read its
+report, ask for the rules' explanations with their citations, ask the model for a repair and
+decide it on a diff of the invoice; the golden path walked in a browser on every change; the API
+as an image; and the public demo on free plans, whose pages wait for its sleeping API and ask
+for synthetic invoices only.
+
 ### Added
 
 - `einvoice_core`: the patch engine (ADR-0023). A patch `{xpath, op, value, reason}` names its
@@ -467,6 +480,7 @@ whose verdicts the tests pin.
 - Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
   backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
-[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/spasojewagner/sef-kopilot/releases/tag/v0.1.0
