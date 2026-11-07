@@ -6,6 +6,8 @@ import { listedRepair, repair } from "@/test/repairs";
 
 import {
   conflictOf,
+  DECISION_TIMEOUT_MS,
+  decideRepair,
   getRepair,
   listRepairs,
   SUGGEST_TIMEOUT_MS,
@@ -87,6 +89,54 @@ describe("A repair the language model suggests", () => {
       );
 
       expect(await suggesting).toMatchObject({ name: "TimeoutError" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("A person's decision on a repair", () => {
+  it("is sent to the repair's approval or rejection, with nothing in the body", async () => {
+    keepSession();
+    const asked = stubApi(() => json(200, repair({ status: "approved" })));
+
+    await decideRepair("../members", "../keys", "approval");
+    await decideRepair("i-1", "r-1", "rejection");
+
+    expect(
+      asked.map(({ method, path, body }) => ({ method, path, body })),
+    ).toEqual([
+      {
+        method: "POST",
+        path: "/invoices/..%2Fmembers/repairs/..%2Fkeys/approval",
+        body: undefined,
+      },
+      {
+        method: "POST",
+        path: "/invoices/i-1/repairs/r-1/rejection",
+        body: undefined,
+      },
+    ]);
+  });
+
+  it("has a minute, as an approval validates the invoice again", async () => {
+    vi.useFakeTimers();
+    try {
+      keepSession();
+      const asked = stubApi(({ signal }) => silence(signal));
+
+      const deciding = decideRepair("i-1", "r-1", "approval").catch(
+        (thrown: unknown) => thrown,
+      );
+      await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+
+      expect(asked[0].signal?.aborted).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(
+        DECISION_TIMEOUT_MS - REQUEST_TIMEOUT_MS,
+      );
+
+      expect(await deciding).toMatchObject({ name: "TimeoutError" });
     } finally {
       vi.useRealTimers();
     }

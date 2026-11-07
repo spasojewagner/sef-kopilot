@@ -261,5 +261,36 @@
     "added": "added",
     "removed": "removed",
     "reportAfter": "Report after the changes"
+  },
+  "decision": {
+    "title": "Decision",
+    "whatApprovalDoes": "An approved repair changes the invoice: it becomes the copy with these changes, with the report above, and the other repairs awaiting a decision are superseded. A rejected repair changes nothing.",
+    "stillInvalid": "The copy is not valid yet after these changes.",
+    "nothingToApprove": "These changes do not change the invoice, so there is nothing to approve. Correct what awaits a person's decision in the invoice yourself, and reject the repair.",
+    "approve": "Approve",
+    "confirm": "The invoice will be replaced by the copy with these changes. Approve the repair?",
+    "confirmApproval": "Yes, approve",
+    "cancel": "Cancel",
+    "reject": "Reject",
+    "approving": "The changes are being applied and checked again…",
+    "rejecting": "Rejecting the repair…",
+    "approved": "The repair is approved: the invoice is now the copy with these changes.",
+    "rejected": "The repair is rejected, and the invoice stays as it was.",
+    "errors": {
+      "decided": "This repair has been decided on already.",
+      "changesNothing": "These changes do not change the invoice, so there is nothing to approve.",
+      "invoiceChanged": "The invoice has changed since the repair was proposed. Ask for a new repair.",
+      "outcomeChanged": "The changes no longer give the document they gave when they were proposed. Ask for a new repair.",
+      "inPerson": "A repair is decided on by a person signed in with their own account.",
+      "notFound": "This repair does not exist, or the invoice is not yours.",
+      "tooMany": "Too many requests. Try again in {seconds} s.",
+      "busy": "The validator is busy. Try again in {seconds} s.",
+      "unavailable": "The validator is not running at the moment. Try again a little later.",
+      "storageFull": "The organization already stores as many invoices as it may. Delete one, then try again.",
+      "tooSlow": "The answer did not arrive in time. The repair's state has been read again above: check it before you try again.",
+      "unreachable": "The API does not answer. The repair's state is being read again: check it before you try again.",
+      "uncertain": "The API gave no clear answer. The repair's state has been read again: check it before you try again.",
+      "failed": "The decision was not recorded. Try again a little later."
+    }
   }
 }
