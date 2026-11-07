@@ -31,6 +31,14 @@ export function formatDay(locale: string, day: string): string {
   }).format(new Date(`${day}T00:00:00Z`));
 }
 
+/** The day of a moment in Belgrade, `9. 10. 2026.` */
+export function formatDate(locale: string, moment: Date): string {
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeZone: "Europe/Belgrade",
+  }).format(moment);
+}
+
 /** A moment, as the API sends it in ISO 8601, in Belgrade's time. */
 export function formatMoment(locale: string, moment: string): string {
   return new Intl.DateTimeFormat(locale, {

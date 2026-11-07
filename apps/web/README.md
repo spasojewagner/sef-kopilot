@@ -115,6 +115,13 @@ organization's name, their account and role, and how long the organization keeps
 invoices (ADR-0039). The role is the one the API reports now, not the one the session began
 with.
 
+The owner sets the period there, from a month to ten years, or keeps every invoice until
+someone deletes it. A period that deletes invoices, where there was none or a shorter one, is
+saved only after a second press that names the day up to which stored invoices go; a longer
+one, or none, is saved at once. When the page cannot know whether the period was changed, it
+reads it again; when the API refuses an owner who is one no longer, the page says so and shows
+the role the API now reports.
+
 ## Components and styles
 
 The building blocks are [shadcn/ui](https://ui.shadcn.com) components in `src/components/ui`:

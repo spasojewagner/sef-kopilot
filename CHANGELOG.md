@@ -26,7 +26,9 @@ is tagged.
   `organization:manage`, which no API key holds). A change checks the owner's role again under
   the organization's lock, and the audit log records it with what the period was.
 - `apps/web`: the organization's page, `/organization`, linked from the header: every member
-  sees the organization's name, their role and how long it keeps its stored invoices.
+  sees the organization's name, their role and how long it keeps its stored invoices, and an
+  owner sets the period. A period that deletes invoices is saved only after a second press that
+  names the day up to which stored invoices go.
 
 ## [0.3.0] - 2026-11-07
 
