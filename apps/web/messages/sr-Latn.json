@@ -23,6 +23,7 @@
     "notice": "Nezavisan projekat otvorenog koda. Nije sertifikovani validator i nije povezan sa Ministarstvom finansija ni sa SEF platformom.",
     "api": {
       "checking": "Proveravam API…",
+      "waking": "API se budi…",
       "available": "API radi, verzija {version}",
       "unavailable": "API ne odgovara"
     }
@@ -292,5 +293,9 @@
       "uncertain": "API nije jasno odgovorio. Stanje popravke je ponovo učitano: proverite ga pre nego što pokušate ponovo.",
       "failed": "Odluka nije zabeležena. Pokušajte ponovo malo kasnije."
     }
+  },
+  "apiWaking": {
+    "title": "API se budi",
+    "description": "Server koji je neko vreme mirovao budi se za oko minut. Ono što pošaljete sačekaće i otići čim odgovori."
   }
 }

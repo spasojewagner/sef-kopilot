@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
+import { useApiWaking } from "@/hooks/use-api-waking";
 import { healthQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
@@ -14,12 +15,14 @@ const DOT = {
 } as const;
 
 /**
- * Whether the API answers, and which version it runs. Asked when the page opens, and again when
- * the visitor comes back to it a minute or more later.
+ * Whether the API answers, and which version it runs, or that it is waking up while the pages
+ * wait for it. Asked when the page opens, and again when the visitor comes back to it a minute
+ * or more later.
  */
 export function ApiStatus() {
   const t = useTranslations("footer.api");
   const health = useQuery(healthQuery);
+  const waking = useApiWaking();
   return (
     <p role="status" className="flex shrink-0 items-center gap-2">
       <span
@@ -27,7 +30,9 @@ export function ApiStatus() {
         className={cn("size-2 rounded-full", DOT[health.status])}
       />
       {health.status === "pending"
-        ? t("checking")
+        ? waking
+          ? t("waking")
+          : t("checking")
         : health.status === "error"
           ? t("unavailable")
           : t("available", { version: health.data.version })}

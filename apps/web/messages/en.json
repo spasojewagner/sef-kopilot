@@ -23,6 +23,7 @@
     "notice": "An independent open-source project. It is not a certified validator, and it is not affiliated with the Serbian Ministry of Finance or the SEF platform.",
     "api": {
       "checking": "Checking the API…",
+      "waking": "API is waking up…",
       "available": "API is up, version {version}",
       "unavailable": "API is not answering"
     }
@@ -292,5 +293,9 @@
       "uncertain": "The API gave no clear answer. The repair's state has been read again: check it before you try again.",
       "failed": "The decision was not recorded. Try again a little later."
     }
+  },
+  "apiWaking": {
+    "title": "The API is waking up",
+    "description": "A server that has been idle for a while takes about a minute to wake. Whatever you send waits, and goes as soon as it answers."
   }
 }

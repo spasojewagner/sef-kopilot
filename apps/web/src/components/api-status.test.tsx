@@ -1,6 +1,7 @@
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { forgetAnswers, WAKE } from "@/lib/api";
 import { renderIn } from "@/test/render";
 
 import { ApiStatus } from "./api-status";
@@ -47,6 +48,34 @@ describe("API status", () => {
     renderIn("en", <ApiStatus />);
 
     expect(await screen.findByText("API is not answering")).toBeInTheDocument();
+  });
+
+  it("says that the API is waking up while it waits for one that had not answered", async () => {
+    vi.useFakeTimers();
+    try {
+      forgetAnswers();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          () =>
+            new Promise<Response>((resolve) =>
+              setTimeout(() => resolve(health("0.2.0")), 20_000),
+            ),
+        ),
+      );
+
+      renderIn("sr-Latn", <ApiStatus />);
+      expect(screen.getByRole("status")).toHaveTextContent("Proveravam API…");
+      await act(() => vi.advanceTimersByTimeAsync(WAKE.wakingAfterMs));
+      expect(screen.getByRole("status")).toHaveTextContent("API se budi…");
+      await act(() => vi.advanceTimersByTimeAsync(20_000));
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "API radi, verzija 0.2.0",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps its coloured dot from screen readers, which read the words", () => {
