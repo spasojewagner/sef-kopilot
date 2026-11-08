@@ -23,8 +23,17 @@ from sef_api.auth.dependencies import (
 from sef_api.auth.passwords import MAXIMUM_LENGTH, MINIMUM_LENGTH
 from sef_api.auth.service import SignedIn, TokenSettings
 from sef_api.db import get_session
+from sef_api.logs import security_event
 from sef_api.models import Membership, Organization, Role, User
-from sef_api.rate_limits import Counted, Limit, PasswordAttempts, RateLimiter, per_address, too_many
+from sef_api.rate_limits import (
+    Counted,
+    Limit,
+    PasswordAttempts,
+    RateLimiter,
+    client_address,
+    per_address,
+    too_many,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -205,8 +214,9 @@ async def register(body: RegisterRequest, session: Session, tokens: Tokens) -> T
     },
 )
 async def login(
-    body: LoginRequest, session: Session, tokens: Tokens, attempts: Attempts
+    body: LoginRequest, request: Request, session: Session, tokens: Tokens, attempts: Attempts
 ) -> TokenResponse | Response:
+    address = client_address(request)
     try:
         signed_in = await service.login(
             session,
@@ -217,14 +227,18 @@ async def login(
             organization_id=body.organization_id,
         )
     except service.TooManyAttemptsError as refused:
+        security_event("sign-in.refused", reason="too-many-attempts", address=address)
         raise too_many(Counted.FAILED_PASSWORD, refused.wait) from None
     except service.AuthenticationError:
+        # Not the address it was tried for: a password typed into the wrong field is one.
+        security_event("sign-in.refused", reason="credentials", address=address)
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             "invalid e-mail address or password",
             headers=_UNAUTHORIZED,
         ) from None
     except service.NotAMemberError:
+        security_event("sign-in.refused", reason="not-a-member", address=address)
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "not a member of this organization"
         ) from None
@@ -242,6 +256,12 @@ async def login(
                 ],
             ).model_dump(mode="json"),
         )
+    security_event(
+        "sign-in.succeeded",
+        user=str(signed_in.user.id),
+        organization=str(signed_in.organization.id),
+        address=address,
+    )
     return _tokens(signed_in)
 
 

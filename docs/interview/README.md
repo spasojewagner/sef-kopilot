@@ -89,3 +89,4 @@ per branch, to keep them with the code they describe.
 | `feat/mcp-propose-fix` | [m4-mcp-propose-fix.md](m4-mcp-propose-fix.md) |
 | `feat/core-rule-catalogue` | [m4-core-rule-catalogue.md](m4-core-rule-catalogue.md) |
 | `feat/mcp-search-rules` | [m4-mcp-search-rules.md](m4-mcp-search-rules.md) |
+| `feat/api-security-events` | [m4-api-security-events.md](m4-api-security-events.md) |

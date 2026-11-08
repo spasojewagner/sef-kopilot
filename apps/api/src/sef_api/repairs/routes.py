@@ -29,6 +29,7 @@ from sef_api.invoices.routes import count_validation, judged, refuse_when_busy, 
 from sef_api.invoices.store import StorageFullError
 from sef_api.invoices.validation import Patched, ProfileName
 from sef_api.llm import Language
+from sef_api.logs import security_event
 from sef_api.models import Repair, RepairStatus
 from sef_api.repairs import store
 from sef_api.repairs.repairer import (
@@ -591,6 +592,13 @@ async def approve_repair(
         ) from None
     if approved is None:
         raise _not_found("repair of this invoice")
+    security_event(
+        "repair.approved",
+        user=str(caller.user_id),
+        organization=str(caller.organization_id),
+        invoice=str(invoice_id),
+        repair=str(repair_id),
+    )
     return repair_out(approved)
 
 
@@ -612,4 +620,11 @@ async def reject_repair(
         raise _decided(error) from None
     if rejected is None:
         raise _not_found("repair of this invoice")
+    security_event(
+        "repair.rejected",
+        user=str(caller.user_id),
+        organization=str(caller.organization_id),
+        invoice=str(invoice_id),
+        repair=str(repair_id),
+    )
     return repair_out(rejected)

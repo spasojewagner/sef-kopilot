@@ -26,6 +26,7 @@ from sef_api.auth.dependencies import (
 from sef_api.auth.routes import NO_STORE, Problem
 from sef_api.auth.service import TokenSettings
 from sef_api.db import get_session
+from sef_api.logs import security_event
 from sef_api.models import OAuthClient
 from sef_api.oauth import authorization as authorizations
 from sef_api.oauth import clients
@@ -311,6 +312,13 @@ async def approve_request(
     code = await authorizations.approve(session, asked, caller)
     if code is None:
         raise _GONE
+    security_event(
+        "oauth.consent-approved",
+        user=str(caller.user_id),
+        organization=str(caller.organization_id),
+        client=asked.client_id,
+        consent=asked.id,
+    )
     return Decision(
         redirect_uri=authorizations.redirect(
             asked.redirect_uri, code=code, state=asked.state, iss=issuer_of(settings)
@@ -334,10 +342,12 @@ async def refuse_request(
     session: Session,
     settings: Annotated[Settings, Depends(require_authorization_server)],
 ) -> Decision:
-    del caller  # anyone signed in may refuse a request made of them
     asked = await authorizations.pending(session, request_id)
     if asked is None or not await authorizations.refuse(session, asked):
         raise _GONE
+    security_event(
+        "oauth.consent-refused", user=str(caller.user_id), client=asked.client_id, consent=asked.id
+    )
     return Decision(
         redirect_uri=authorizations.redirect(
             asked.redirect_uri,

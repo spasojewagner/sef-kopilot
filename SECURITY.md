@@ -352,8 +352,15 @@ system are marked as such.
 
 ### V16 Security logging and error handling
 
-- [ ] Structured JSON logs with request ids; security-relevant events (login, key use,
-      approval, send-to-SEF) are logged without payloads.
+- [x] In a deployment every log line is one JSON object (`apps/api/docker/logging.json`), the
+      server's own included, and every line written while a request is answered names it
+      (`request_id`), as its answer's `X-Request-ID` does.
+- [x] Security events are logged under `sef_api.security`, each with fields that identify and
+      nothing a person wrote: a sign-in, succeeded or refused and why (never the address or
+      password tried), a refresh token or a code presented again, an API key refused, a
+      consent approved or refused, a repair approved or rejected (tested).
+- [ ] Security events for an API key's use, and the time each key was last used.
+- [ ] Security events for sending to SEF (M5).
 - [x] An audit log in the database records what an organization must account for, committed
       with the change itself: who proposed, approved or rejected a repair, with which key, to
       which invoice, the digests before and after and each patch's place and outcome, never a

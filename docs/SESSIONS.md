@@ -2371,3 +2371,22 @@ baseline (see the pull request); ruff, mypy; the OpenAPI document and the web ap
 types regenerated; each commit checked on its own.
 
 Next: the demo from Claude and ChatGPT, documented with screenshots, then `v0.4.0`.
+
+## 2026-11-08 — `feat/api-security-events` (2 commits, stacked on `feat/mcp-search-rules`)
+
+Outcome: a deployment's log lines are JSON, each request's lines named by its id, and the
+decisions about who may do what are logged as security events, without what a person wrote:
+sign-ins, refused keys, reused tokens, consents and repairs decided.
+
+Findings:
+
+- Until now uvicorn configured its own loggers only, so the application's lines below warning
+  never reached a deployment's log; the log configuration fixes that as well.
+- A refused sign-in logs why and from where, not the address tried: a password typed into the
+  wrong field would otherwise be logged.
+- A key's use, and when each key was last used, were split off: they need a column and a page.
+
+Verification: the API's tests, the whole suite; the seeded faults, each caught after a clean
+baseline (see the pull request); ruff, mypy; each commit checked on its own.
+
+Next: when each API key was last used (`feat/api-key-last-used`).

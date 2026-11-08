@@ -27,7 +27,9 @@ from sef_api.auth.service import TokenSettings
 from sef_api.auth.tokens import InvalidTokenError, decode_access_token
 from sef_api.db import get_session
 from sef_api.locks import lock_organization
+from sef_api.logs import security_event
 from sef_api.models import Membership, OAuthAuthorization, Role, User
+from sef_api.rate_limits import client_address
 
 __all__ = [
     "Principal",
@@ -97,6 +99,7 @@ def get_token_settings(request: Request) -> TokenSettings:
 
 
 async def current_principal(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_BEARER)],
     tokens: Annotated[TokenSettings, Depends(get_token_settings)],
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -111,6 +114,7 @@ async def current_principal(
     if api_keys.is_api_key(credentials.credentials):
         holder = await api_keys.authenticate(session, credentials.credentials)
         if holder is None:
+            security_event("api-key.refused", address=client_address(request))
             raise invalid_key()
         return Principal(holder.user_id, holder.organization_id, holder.role, holder.grant)
     try:

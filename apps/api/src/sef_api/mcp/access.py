@@ -47,11 +47,13 @@ from sef_api.auth.dependencies import (
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
+from sef_api.logs import security_event
 from sef_api.models import Role
 from sef_api.oauth import authorization as authorizations
 from sef_api.oauth import tokens as oauth_tokens
 from sef_api.oauth.authorization import issuer_of, resource_of
 from sef_api.oauth.metadata import METADATA_PATH
+from sef_api.rate_limits import client_address
 from sef_api.settings import Settings
 
 __all__ = ["METHOD", "RequireCredential", "admitted", "as_tool_errors", "challenge"]
@@ -99,6 +101,7 @@ class RequireCredential:
                 settings,
                 cast(TokenSettings, state.tokens),
                 headers.get("authorization"),
+                Request(scope),
             )
             if caller.scopes is not None:
                 body, receive = await _buffered(receive)
@@ -220,7 +223,11 @@ def _refused(settings: Settings, detail: str, error: str | None = "invalid_token
 
 
 async def _caller(
-    database: Database, settings: Settings, tokens: TokenSettings, authorization: str | None
+    database: Database,
+    settings: Settings,
+    tokens: TokenSettings,
+    authorization: str | None,
+    request: Request,
 ) -> Principal:
     """The principal of the request's API key or access token, with the role its member holds
     now; a 401 in the API's words otherwise, with the endpoint's challenge."""
@@ -232,7 +239,7 @@ async def _caller(
         raise _refused(settings, "the MCP endpoint takes an API key")
     async with database.sessions() as session:
         if by_key:
-            principal = await _key_holder(session, settings, credential)
+            principal = await _key_holder(session, settings, credential, request)
         else:
             principal = await _token_holder(session, settings, tokens, credential)
         role = await current_role(session, principal)
@@ -243,10 +250,13 @@ async def _caller(
     return replace(principal, role=role)
 
 
-async def _key_holder(session: AsyncSession, settings: Settings, credential: str) -> Principal:
+async def _key_holder(
+    session: AsyncSession, settings: Settings, credential: str, request: Request
+) -> Principal:
     """The principal of an API key, as it was issued; a 401 for one that does not work."""
     holder = await api_keys.authenticate(session, credential)
     if holder is None:
+        security_event("api-key.refused", address=client_address(request))
         raise _refused(settings, str(invalid_key().detail))
     return Principal(holder.user_id, holder.organization_id, holder.role, holder.grant)
 

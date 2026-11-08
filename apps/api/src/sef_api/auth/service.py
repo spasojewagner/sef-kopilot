@@ -21,6 +21,7 @@ from sef_api.auth.passwords import MINIMUM_LENGTH, hash_password, needs_rehash, 
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.tokens import issue_access_token, new_opaque_token, opaque_token_digest
 from sef_api.locks import lock_organization
+from sef_api.logs import security_event
 from sef_api.models import Invitation, Membership, Organization, RefreshToken, Role, User
 from sef_api.settings import Settings
 
@@ -337,6 +338,13 @@ async def refresh(
     if stored.used_at is not None or stored.revoked_at is not None:
         await _revoke_family(session, stored.family_id, moment)
         await session.commit()
+        # Someone else may hold it: every session of the family ends.
+        security_event(
+            "session.refresh-reused",
+            user=str(stored.user_id),
+            organization=str(stored.organization_id),
+            family=str(stored.family_id),
+        )
         raise InvalidRefreshTokenError
     # Not expired: _find_live refused an unspent token past its expiry, which does not move.
     row = (
