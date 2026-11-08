@@ -103,6 +103,9 @@ is tagged.
   `get_invoice`, as their routes do, and the scope an assistant needs for them,
   `invoices:submit`, which the consent page names; through an assistant, a person sees the
   invoices they submitted.
+- `apps/api`: the MCP server's tools that explain a stored invoice, `explain_invoice` (the kept
+  explanations first, ADR-0040), and validate stored invoices again, `revalidate_invoices`, in a
+  job that `get_job` reads, as their routes do.
 
 ### Changed
 
