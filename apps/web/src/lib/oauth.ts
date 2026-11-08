@@ -72,3 +72,20 @@ export function destinationOf(uri: string): Destination {
     local: true,
   };
 }
+
+/**
+ * The host that published the description of a client known by its metadata document, whose
+ * ``client_id`` is that document's `https` address (ADR-0045); null for a registered client,
+ * whose ``client_id`` the server made up. The server fetched the description from this host,
+ * so whoever runs it stands behind the client, whatever name the client gives itself.
+ */
+export function publisherOf(clientId: string): string | null {
+  if (!clientId.startsWith("https://")) {
+    return null;
+  }
+  try {
+    return new URL(clientId).host;
+  } catch {
+    return null;
+  }
+}

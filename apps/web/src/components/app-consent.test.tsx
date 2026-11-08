@@ -142,6 +142,43 @@ describe("The page where a person decides on a client's request", () => {
     expect(scopes).toHaveTextContent("members:manage");
   });
 
+  it("names the host that published the description of a client known by its document", async () => {
+    keepSession();
+    api({
+      request: {
+        ...REQUEST,
+        client_id: "https://assistant.example/oauth/client.json",
+        client_name: "Claude",
+      },
+    });
+
+    renderIn("sr-Latn", <AppConsent requestId="r-1" goTo={vi.fn()} />);
+
+    expect(await screen.findByText("Claude")).toBeInTheDocument();
+    expect(
+      screen.getByText("Opis aplikacije objavljen je na"),
+    ).toBeInTheDocument();
+    // Whatever name it gives itself, the host it was read from is what vouches for it.
+    expect(screen.getByText("assistant.example")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "SEF Kopilot je opis pročitao sa ove adrese: za aplikaciju stoji onaj ko njome upravlja.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("names no publisher for a client that registered itself", async () => {
+    keepSession();
+    api();
+
+    renderIn("en", <AppConsent requestId="r-1" goTo={vi.fn()} />);
+
+    expect(await screen.findByText("Inspektor")).toBeInTheDocument();
+    expect(
+      screen.queryByText("The app's description is published at"),
+    ).not.toBeInTheDocument();
+  });
+
   it("allows the client, and takes the person back to it with its code", async () => {
     keepSession();
     const asked = api();

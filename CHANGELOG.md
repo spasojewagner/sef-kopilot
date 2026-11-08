@@ -89,6 +89,8 @@ is tagged.
   server fetches at each authorization request, from the public internet only, and reads as a
   registration; its metadata says so (`client_id_metadata_document_supported`). Authorization
   requests are counted by address.
+- `apps/web`: the consent page names the host that published the description of a client known
+  by its metadata document, beside the name the client gives itself, which stays unchecked.
 
 ### Changed
 

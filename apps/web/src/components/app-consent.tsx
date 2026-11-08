@@ -23,6 +23,7 @@ import { formatTime } from "@/lib/format";
 import {
   approveAuthorizationRequest,
   destinationOf,
+  publisherOf,
   refuseAuthorizationRequest,
   type AuthorizationRequest,
 } from "@/lib/oauth";
@@ -172,6 +173,7 @@ function Asked({
   const me = useQuery(meQuery);
   const who = me.data ?? identity;
   const destination = destinationOf(request.redirect_uri);
+  const publisher = publisherOf(request.client_id);
   const busy = deciding !== null || leaving;
   return (
     <Card>
@@ -188,6 +190,13 @@ function Asked({
             value={request.client_name ?? t("unnamed")}
             note={t("unchecked")}
           />
+          {publisher !== null && (
+            <Fact
+              term={t("describedAt")}
+              value={publisher}
+              note={t("publisher")}
+            />
+          )}
           <Fact
             term={t("returnsTo")}
             value={destination.address}

@@ -2187,3 +2187,21 @@ OpenAPI document and the web application's types regenerated; each commit checke
 
 Next: the consent page naming the host that published a client's document
 (`feat/web-consent-client-host`), then clients in a browser (`feat/api-oauth-browser-clients`).
+
+## 2026-11-08 — `feat/web-consent-client-host` (2 commits, stacked on `feat/mcp-oauth-client-metadata`)
+
+Outcome: the page where a person decides on a client's request names, for a client known by its
+metadata document, the host that published the description, beside the name the client gives
+itself, which stays marked as unchecked.
+
+Findings:
+
+- The host is in the `client_id`, which the API sends already: the page derives it as it
+  derives the host of the redirect URI, so the API needs no new field.
+- A registered client has no publisher, and the page says nothing of one.
+
+Verification: the web application's tests, lint, types and build; the seeded faults, each caught
+(see the pull request); each commit checked on its own.
+
+Next: clients in a browser (`feat/api-oauth-browser-clients`), then what the first MCP tool
+that writes needs, and the tools on stored invoices.

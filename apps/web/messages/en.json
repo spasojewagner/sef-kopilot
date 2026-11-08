@@ -409,6 +409,8 @@
     "app": "App",
     "unnamed": "No name",
     "unchecked": "The name the app gave itself; SEF Kopilot has not checked it.",
+    "describedAt": "The app's description is published at",
+    "publisher": "SEF Kopilot read the description from this address: whoever runs it stands behind the app.",
     "returnsTo": "Once you decide, it takes you back to",
     "local": "An app on this computer, not a site.",
     "worksIn": "It will work in",
