@@ -9,6 +9,14 @@ is tagged.
 
 ## [Unreleased]
 
+### Added
+
+- `apps/api`: an organization's key to SEF, which an owner sets with `PUT
+  /organization/sef-key` and removes with `DELETE`, sealed with Fernet under `SEF_FERNET_KEY`
+  for that organization alone (ADR-0050, migration 0020); `GET /organization` shows since when
+  one is set (`sef_key_set_at`), never the key, and `make rotate-sef-keys` seals every stored
+  key again under a new secret.
+
 ### Security
 
 - `apps/api`: a request that the API's models refuse is answered 422 with where and why, and

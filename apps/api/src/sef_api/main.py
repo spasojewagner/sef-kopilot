@@ -52,6 +52,7 @@ from sef_api.repairs.repairer import Repairer
 from sef_api.retention import keep_forgetting
 from sef_api.routes import health
 from sef_api.rules import routes as rules
+from sef_api.sef.keys import keyring_for
 from sef_api.settings import Settings
 from sef_api.unexpected import AnswerUnexpectedErrors
 
@@ -255,6 +256,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.jobs = _runner(app, settings)
     app.state.explainer, app.state.repairer = _model_users(settings)
     app.state.embedder = embedder_for(settings)
+    # Seals and opens the organizations' SEF keys, where SEF_FERNET_KEY is set (ADR-0050).
+    app.state.sef_keys = keyring_for(settings)
     # Fetches a client's metadata document, where the operator allows it (ADR-0045).
     app.state.client_documents = documents.fetch if settings.client_metadata_documents else None
     for router in (

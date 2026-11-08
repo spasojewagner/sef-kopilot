@@ -277,7 +277,13 @@ system are marked as such.
 
 ### V11 Cryptography
 
-- [ ] Tenant SEF keys encrypted with Fernet (AES-128-CBC + HMAC); key from environment only.
+- [x] Tenant SEF keys sealed with Fernet (AES-128-CBC + HMAC-SHA256) under `SEF_FERNET_KEY`,
+      from the environment only (ADR-0050): the table keeps the token, which a CHECK keeps from
+      ever holding a key in the clear, and the token opens for its own organization alone, whose
+      id is sealed with the key. Several keys while it is rotated, the first sealing; `make
+      rotate-sef-keys` seals every stored key again in one transaction, or changes nothing. An
+      owner sets or removes a key, in person; it is answered, logged and recorded nowhere
+      (tested).
 - [ ] No home-grown cryptography; randomness from `secrets`.
 
 ### V12 Secure communication
@@ -364,7 +370,8 @@ system are marked as such.
 - [x] Security events are logged under `sef_api.security`, each with fields that identify and
       nothing a person wrote: a sign-in, succeeded or refused and why (never the address or
       password tried), a refresh token or a code presented again, an API key refused, a
-      consent approved or refused, a repair approved or rejected (tested).
+      consent approved or refused, a repair approved or rejected, an organization's SEF key set
+      or removed (tested).
 - [x] An API key's use is a security event, and the time each key was last used is kept and
       listed with the keys, both written at most once a minute (tested).
 - [ ] Security events for sending to SEF (M5).

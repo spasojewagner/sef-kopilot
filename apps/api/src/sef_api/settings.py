@@ -12,6 +12,7 @@ from datetime import timedelta
 from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 
+from cryptography.fernet import Fernet
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, PydanticBaseSettingsSource, SettingsConfigDict
 from sqlalchemy.engine import make_url
@@ -245,6 +246,15 @@ class Settings(BaseSettings):
             "a person sent (ADR-0048); none, the default, sends nothing anywhere."
         ),
     )
+    fernet_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="SEF_FERNET_KEY",
+        description=(
+            "The Fernet key that the organizations' SEF API keys are sealed under (ADR-0050), or "
+            "several separated by commas while it is rotated: the first seals, each opens. None "
+            "by default: no SEF key can be set."
+        ),
+    )
     llm_model: str | None = Field(
         default=None,
         min_length=1,
@@ -362,6 +372,13 @@ class Settings(BaseSettings):
         return _Given.model_validate(dict(values))
 
     @property
+    def fernet_keys(self) -> tuple[str, ...]:
+        """The keys of ``SEF_FERNET_KEY``, the one that seals first; none without it."""
+        if self.fernet_key is None:
+            return ()
+        return tuple(key.strip() for key in self.fernet_key.get_secret_value().split(","))
+
+    @property
     def access_token_lifetime(self) -> timedelta:
         return timedelta(minutes=self.access_token_minutes)
 
@@ -383,6 +400,21 @@ class Settings(BaseSettings):
     def _check_langfuse_keys(self) -> Self:
         if (self.langfuse_public_key is None) != (self.langfuse_secret_key is None):
             raise ValueError("LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set together")
+        return self
+
+    @model_validator(mode="after")
+    def _check_fernet_key(self) -> Self:
+        if self.fernet_key is None:
+            return self
+        try:
+            keys = [Fernet(key) for key in self.fernet_keys]
+        except ValueError:
+            keys = []
+        if not keys:
+            raise ValueError(
+                "SEF_FERNET_KEY must be a Fernet key, or several separated by commas: 32 bytes in "
+                "URL-safe base64, as Fernet.generate_key() writes them"
+            )
         return self
 
     @model_validator(mode="after")

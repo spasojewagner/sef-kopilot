@@ -36,6 +36,7 @@ from sef_api.models import (
     Organization,
     RefreshToken,
     Role,
+    SefKey,
     User,
 )
 from sef_api.oauth import tokens as oauth_tokens
@@ -43,7 +44,7 @@ from sef_api.organization import service as organization_service
 from sef_api.rate_limits import Limit, PasswordAttempts, RateLimiter
 
 from .conftest import TEST_JWT_SECRET, settings_for
-from .factories import bearer
+from .factories import bearer, sef_key
 from .test_oauth_authorization import CALLBACK, SERVER, VERIFIER, authorize, sent_to, sent_to_uri
 
 TOKENS = TokenSettings(
@@ -577,6 +578,49 @@ async def test_a_period_set_in_flight_by_a_demoted_owner_is_refused(
         )
         recorded = await check.scalar(select(func.count()).select_from(AuditEvent))
     assert (kept, recorded) == (None, 0)
+
+
+@pytest.mark.parametrize(
+    ("method", "body"),
+    [("PUT", {"api_key": "0815-0815-0815-0815"}), ("DELETE", None)],
+    ids=["setting", "removing"],
+)
+async def test_a_sef_key_changed_in_flight_by_a_demoted_owner_is_refused(
+    committed_api: AsyncClient,
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    body: dict[str, str] | None,
+) -> None:
+    """Milan passes the first check as an owner and asks to replace or remove Primer's key to
+    SEF; Ana demotes him before his change takes the lock; the check under the lock refuses it,
+    and Primer's key is as it was."""
+    organization, ana, milan = primer
+    async with committed_database.sessions() as session:
+        sealed = await sef_key(session, organization, "4711-4711-4711-4711")
+        await session.commit()
+    held_at = gate(monkeypatch, organization_service, "lock_organization")
+
+    milans_change = committed_api.request(
+        method, "/organization/sef-key", json=body, headers=bearer(milan, organization, Role.OWNER)
+    )
+
+    async def demote_milan() -> Response:
+        return await committed_api.patch(
+            f"/members/{milan.id}",
+            json={"role": "accountant"},
+            headers=bearer(ana, organization, Role.OWNER),
+        )
+
+    refused, demotion = await while_held(milans_change, demote_milan, held_at, then_waits=False)
+
+    assert demotion.status_code == 200
+    assert refused.status_code == 403
+    async with committed_database.sessions() as check:
+        kept = await check.scalar(select(SefKey.token))
+        recorded = await check.scalar(select(func.count()).select_from(AuditEvent))
+    assert (kept, recorded) == (sealed.token, 0)
 
 
 async def test_the_lock_is_not_taken_by_a_caller_without_the_permission(

@@ -165,6 +165,27 @@ process when it starts and every six hours, or in each worker when it starts and
 03:17 UTC. `GET /organization` shows every member the period, and the audit log records each
 change of it with what it was.
 
+## An organization's key to SEF
+
+To send its invoices to SEF, an organization needs the API key that its administrator generates
+in SEF's settings (API management). An owner, signed in, gives it to the API once:
+
+```bash
+curl -s -X PUT localhost:8000/organization/sef-key -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' -d '{"api_key": "the key SEF generated"}'
+```
+
+It is sealed with Fernet under `SEF_FERNET_KEY` (ADR-0050), which only the environment holds;
+the database keeps the token, which opens for this organization alone. The key is never shown
+again, logged or reported: `GET /organization` shows every member since when one is set
+(`sef_key_set_at`), and the audit log records who set or removed it (`DELETE
+/organization/sef-key`). No API key or MCP client may set or remove it. Without `SEF_FERNET_KEY`,
+setting one answers 503.
+
+To replace `SEF_FERNET_KEY`, put the new key first and the old one after a comma, deploy, run
+`make rotate-sef-keys`, which seals every stored key again under the new one or, when one
+does not open, changes nothing; then remove the old key.
+
 ## Validating an invoice
 
 `POST /invoices/validate` takes the invoice or credit note itself as the request body
@@ -736,7 +757,10 @@ src/sef_api/
   jobs/          running a job, the inline runner, the Redis queue and its worker, `/jobs`
                  routes with the event stream
   members/       members and invitations, `/members` and `/invitations` routes
-  organization/  the caller's organization and its retention period, `/organization` routes
+  organization/  the caller's organization, its retention period and its key to SEF,
+                 `/organization` routes
+  sef/           SEF: each organization's key, sealed and opened (`keys.py`), and sealed
+                 again under a new secret (`python -m sef_api.sef.rotate`)
   retention.py   deleting finished jobs and stored invoices once they are past their retention
   rag/           the corpus: text in two scripts, editions and dated passages, embeddings,
                  ingesting (`python -m sef_api.rag.ingest`), the passages each rule cites

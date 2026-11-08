@@ -47,3 +47,4 @@ just used. New notes are added in the pull request that introduces the concept.
 | 39 | [OAuth 2.1 for an MCP server: from a 401 to a tool call](39-oauth-for-an-mcp-server.md) | M4 |
 | 40 | [Fetching an address a stranger gave you: SSRF and DNS rebinding](40-fetching-an-address-a-stranger-gave-you.md) | M4 |
 | 41 | [Asking for more scope: the step-up](41-asking-for-more-scope.md) | M4 |
+| 42 | [A secret at rest: sealing a tenant's key so that a copy of the database opens nothing](42-a-secret-at-rest.md) | M5 |

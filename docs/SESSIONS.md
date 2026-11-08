@@ -2499,3 +2499,26 @@ Verification: each commit checked on its own; the version checks unchanged and g
 
 Next: M5, whose first branches, the organization's SEF key and the SEF demo client, wait for
 this tag.
+
+## 2026-11-08 — `feat/sef-keys` (3 commits, stacked on `chore/release-0.4.0`)
+
+Outcome: an owner gives the API the organization's key to SEF, which is sealed with Fernet under
+`SEF_FERNET_KEY` for that organization alone and shown to no one; every member sees since when
+one is set; `make rotate-sef-keys` seals every stored key again under a new secret (ADR-0050).
+The first step of M5.
+
+Findings:
+
+- FastAPI's 422 repeats each value it refuses, and for a field missing the whole object around
+  it, so a password too short came back in the answer; the API's answer now keeps the place,
+  the reason and the limits, never the value.
+- Fernet authenticates no data beside its message: the organization's id is sealed with the key,
+  so that a token moved to another row does not open there.
+- A CHECK on the column accepts a Fernet token only, so a key in the clear fails at the database.
+
+Verification: the API's tests, the whole suite; 28 seeded faults, each caught after a clean
+baseline (one first missed, the demoted owner's change in flight, then a test added); ruff,
+mypy; each commit checked on its own.
+
+Next: the SEF demo client over this key, sending an invoice and asking about its status
+(`feat/sef-demo-client`).

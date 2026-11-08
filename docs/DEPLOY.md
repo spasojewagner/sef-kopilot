@@ -169,6 +169,24 @@ conversation (ADR-0049). The free Hobby plan is enough.
 
 Without both keys, nothing is sent anywhere; with one alone, the API does not start and says so.
 
+## 9. Organizations' SEF keys (optional)
+
+Before an organization's invoices can be sent to SEF, an owner gives the API the organization's
+SEF API key, which the API keeps sealed under a secret of its own (ADR-0050).
+
+1. On your machine, in a clone: `uv run python -c "from cryptography.fernet import Fernet;
+   print(Fernet.generate_key().decode())"`. Keep the value only until the next step.
+2. Render > the API > **Environment**: `SEF_FERNET_KEY`, that value, which redeploys the
+   service. Without it, setting a key answers 503; with a value that is no Fernet key, the API
+   does not start and says so.
+3. Check: as an owner, `PUT /organization/sef-key` answers 200, and `GET /organization` shows
+   `sef_key_set_at`.
+
+Losing `SEF_FERNET_KEY` loses every stored key, never SEF's own: each owner sets theirs again.
+To replace it, set `SEF_FERNET_KEY` to the new key, a comma and the old one; once deployed, run
+`make rotate-sef-keys` from a clone with `DATABASE_URL` set as in section 3, which seals every
+stored key again under the new one or changes nothing; then remove the old key.
+
 ## Rolling back
 
 - The API: Render > the service > **Events**, and **Rollback** to an earlier deploy. A migration

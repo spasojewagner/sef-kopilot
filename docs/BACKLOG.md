@@ -129,7 +129,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## M5 — SEF demo round trip (week 8) · tag `v0.5.0`
 
-- [ ] `feat/sef-demo-client` — SEF demo client, encrypted per-tenant key, send + status polling, and the MCP tool `send_to_sef_demo` over it (moved from `feat/mcp-server`, which had no client to call)
+- [x] `feat/sef-keys` — an organization's key to SEF, which an owner sets and removes, sealed with Fernet under `SEF_FERNET_KEY` for that organization alone, shown to no one, rotated with `make rotate-sef-keys` (ADR-0050; split from `feat/sef-demo-client` on 2026-11-08, with a 422 that no longer repeats what it refused)
+- [ ] `feat/sef-demo-client` — SEF demo client over the organization's key, send + status polling, and the MCP tool `send_to_sef_demo` over it (moved from `feat/mcp-server`, which had no client to call)
+- [ ] `feat/web-sef-key` — the organization's page: an owner sets, replaces or removes the key to SEF, asked twice before removing, and every member sees since when one is set (added on 2026-11-08 with `feat/sef-keys`)
 - [ ] `feat/sef-error-mapping` — SEF error codes mapped into the explanation pipeline; Peppol profile polish
 - [ ] The SEF internal technical instruction (Interno tehničko uputstvo) in the corpus, once its official text can be pinned like the others (moved from M2)
 - [ ] Confirm against the SEF demo what the published documents leave open: the warning-level SRB rules (SRB-013, SRB-017, SRB-023, SRB-029), the set-asides that rest on the Ministry's examples (ADR-0008), and whether SEF requires a due date or payment terms when an amount is due (EN 16931 BR-CO-25, absent from CEN's UBL Schematron; ADR-0010)

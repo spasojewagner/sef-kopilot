@@ -38,9 +38,11 @@ class Permission(StrEnum):
     API_KEYS_MANAGE = "api_keys:manage"
     """See and revoke every API key of the organization, whoever it acts for."""
     ORGANIZATION_READ = "organization:read"
-    """See the organization's name and how long it keeps its stored invoices."""
+    """See the organization's name, how long it keeps its stored invoices, and whether it has a
+    key to SEF."""
     ORGANIZATION_MANAGE = "organization:manage"
-    """Set how long the organization keeps its stored invoices, after which they are deleted."""
+    """Set how long the organization keeps its stored invoices, after which they are deleted,
+    and set or remove its key to SEF."""
 
 
 #: What an API key may be allowed: the work on invoices that machine clients do. A key
