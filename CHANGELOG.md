@@ -99,6 +99,10 @@ is tagged.
   credential it came with, only a person in person decides on a repair or a client's request,
   a long request reads the consent again, the audit log names the client (migration 0018), and
   the client's requests are counted against its consent, apart from the person's own.
+- `apps/api`: the MCP server's tools on stored invoices, `store_invoice`, `list_invoices` and
+  `get_invoice`, as their routes do, and the scope an assistant needs for them,
+  `invoices:submit`, which the consent page names; through an assistant, a person sees the
+  invoices they submitted.
 
 ### Changed
 

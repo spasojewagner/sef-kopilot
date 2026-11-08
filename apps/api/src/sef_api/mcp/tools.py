@@ -4,6 +4,7 @@ HTTP error of the route is the tool's error, in the same words."""
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from typing import Annotated, cast
 
@@ -15,10 +16,22 @@ from pydantic import Field
 from starlette.requests import Request
 
 from einvoice_core.pipeline import ValidationReport
-from sef_api.auth.dependencies import Principal
+from sef_api.auth.dependencies import Principal, check_again
 from sef_api.auth.permissions import Permission
 from sef_api.db import Database
-from sef_api.invoices.routes import Explained, count_validation, judged, refuse_when_busy
+from sef_api.invoices import store
+from sef_api.invoices.routes import (
+    Explained,
+    InvoiceOut,
+    InvoicePage,
+    StoredInvoiceOut,
+    count_validation,
+    judged,
+    present,
+    present_stored,
+    refuse_when_busy,
+    scope_of,
+)
 from sef_api.invoices.validation import ProfileName, Validation
 from sef_api.llm import Language
 from sef_api.mcp.access import admitted, as_tool_errors
@@ -26,7 +39,14 @@ from sef_api.rag.embeddings import Embedder
 from sef_api.rag.explainer import Explainer, explain_report
 from sef_api.settings import Settings
 
-__all__ = ["explain_errors", "register", "validate_invoice"]
+__all__ = [
+    "explain_errors",
+    "get_invoice",
+    "list_invoices",
+    "register",
+    "store_invoice",
+    "validate_invoice",
+]
 
 Document = Annotated[
     str, Field(description="The invoice's XML document as text: a UBL 2.1 Invoice or CreditNote.")
@@ -41,6 +61,10 @@ Profile = Annotated[
 Explaining = Annotated[
     Language,
     Field(description="The language of the explanations: `sr` (Serbian, Latin script) or `en`."),
+]
+InvoiceId = Annotated[
+    uuid.UUID,
+    Field(description="The stored invoice's id, as store_invoice or list_invoices gave it."),
 ]
 
 
@@ -92,6 +116,121 @@ def register(server: MCPServer) -> None:
             open_world_hint=False,
         ),
     )
+
+    server.add_tool(
+        store_invoice,
+        name="store_invoice",
+        title="Store an e-invoice",
+        description=(
+            "Validate a UBL 2.1 invoice or credit note as validate_invoice does, then keep it "
+            "for the person's organization with the validator's report, byte for byte, as they "
+            "would by uploading it. A document the validator cannot read is stored too, with the "
+            "report that says why. The answer is the stored invoice: its id, what the validator "
+            "read from it, and the report. Counts as a validation against the caller's limit and "
+            "their organization's, and against how much the organization may store."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=False,
+            destructive_hint=False,
+            idempotent_hint=False,
+            open_world_hint=False,
+        ),
+    )
+    server.add_tool(
+        list_invoices,
+        name="list_invoices",
+        title="List stored e-invoices",
+        description=(
+            "The invoices the person stored, the newest first, each with its number, dates, "
+            "parties, totals and whether its latest report is valid; only the valid or the "
+            "invalid ones if asked. Pass a page's `next` as `after` for the next page."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+        ),
+    )
+    server.add_tool(
+        get_invoice,
+        name="get_invoice",
+        title="Read a stored e-invoice",
+        description=(
+            "A stored invoice of the person's: what the validator read from it and its latest "
+            "report, with every violation."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+        ),
+    )
+
+
+async def store_invoice(
+    xml: Document, context: Context, profile: Profile = "srb"
+) -> StoredInvoiceOut:
+    """What ``POST /invoices`` does: count a validation, validate the document, then keep it
+    with its report for the organization."""
+    request, caller = admitted(context, Permission.INVOICES_SUBMIT)
+    settings = cast(Settings, request.app.state.settings)
+    with as_tool_errors():
+        validation = await _validated(request, caller, xml, profile)
+    async with cast(Database, request.app.state.database).sessions() as session:
+        with as_tool_errors():
+            # The validation outlasts the moment the caller was checked: a member removed, or a
+            # consent revoked, meanwhile stores nothing.
+            await check_again(session, caller, Permission.INVOICES_SUBMIT)
+        try:
+            invoice = await store.store(
+                session,
+                organization_id=caller.organization_id,
+                submitted_by=caller.user_id,
+                profile=profile,
+                content=xml.encode(),
+                validation=validation,
+                quota=settings.max_stored_bytes,
+            )
+        except store.StorageFullError:
+            raise ToolError("the organization stores as much as it may") from None
+        return present_stored(invoice)
+
+
+async def list_invoices(
+    context: Context,
+    valid: Annotated[
+        bool | None,
+        Field(description="Only the invoices whose latest report is valid, or invalid."),
+    ] = None,
+    limit: Annotated[int, Field(ge=1, le=store.MAX_PAGE, description="Invoices per page.")] = 20,
+    after: Annotated[
+        str | None,
+        Field(max_length=200, description="The `next` of the page before, to continue it."),
+    ] = None,
+) -> InvoicePage:
+    """What ``GET /invoices`` does, for the invoices the caller may see."""
+    _, caller, database = _reading(context)
+    async with database.sessions() as session:
+        try:
+            page = await store.page_of(
+                session, scope_of(caller), limit=limit, after=after, valid=valid
+            )
+        except store.InvalidCursorError:
+            raise ToolError("after is not a cursor this server gave") from None
+        invoices: list[InvoiceOut] = [present(invoice) for invoice in page.invoices]
+    return InvoicePage(invoices=invoices, next=page.next)
+
+
+async def get_invoice(invoice_id: InvoiceId, context: Context) -> StoredInvoiceOut:
+    """What ``GET /invoices/{invoice_id}`` does."""
+    _, caller, database = _reading(context)
+    async with database.sessions() as session:
+        invoice = await store.find(session, scope_of(caller), invoice_id)
+        if invoice is None:
+            raise ToolError("no such invoice")
+        return present_stored(invoice)
+
+
+def _reading(context: Context) -> tuple[Request, Principal, Database]:
+    """The request, the caller who may read stored invoices, and the database."""
+    request, caller = admitted(context, Permission.INVOICES_SUBMIT)
+    return request, caller, cast(Database, request.app.state.database)
 
 
 async def validate_invoice(

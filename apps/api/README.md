@@ -524,6 +524,15 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   | --- | --- | --- |
   | `validate_invoice` | `invoices:validate` | `POST /invoices/validate`: the XML as text, a profile (`srb` by default); nothing is stored |
   | `explain_errors` | `invoices:validate` | `POST /invoices/explain`: the same, and a language (`sr` by default); the report and the explanations of its rules, with their citations; nothing is stored |
+  | `store_invoice` | `invoices:submit` | `POST /invoices`: the XML as text and a profile; the invoice is kept for the organization with its report, and the answer is the stored invoice |
+  | `list_invoices` | `invoices:submit` | `GET /invoices`: the invoices the caller may see, the newest first, a page at a time (`limit`, `after`), the valid or invalid ones only if asked |
+  | `get_invoice` | `invoices:submit` | `GET /invoices/{invoice_id}`: a stored invoice and its latest report |
+
+  An assistant's scopes match: `invoices:validate` for the first two, `invoices:submit` for the
+  others. No scope reaches every invoice of the organization (`invoices:manage`): through an
+  assistant, a person sees the invoices they submitted. A client connected before
+  `invoices:submit` existed holds `invoices:validate` alone, and a refresh never widens what a
+  person allowed: they connect it again to let it keep invoices.
 
 - **Its limits:** a message is a JSON body, at most `SEF_MAX_BODY_BYTES` (1 MiB): a larger
   invoice is uploaded to the tool's route instead. Only POST is answered (405 otherwise),
@@ -554,10 +563,11 @@ without it, they answer 404, and the MCP endpoint takes API keys alone.
 - **A client asks** by sending the person's browser to `GET /oauth/authorize` (OAuth 2.1
   §4.1), with `response_type=code`, PKCE (`code_challenge_method=S256`), a redirect URI it
   registered, the MCP endpoint as the `resource` (RFC 8707) and the scopes it wants
-  (`invoices:validate`, the scope of the tools that validate). An unknown client or redirect
-  URI is answered there (400); any other fault sends the browser back to the client with the
-  error. A request that will do waits ten minutes for a person, on the web application's page
-  at `SEF_WEB_URL` (`/oauth/consent?request=...`), which must be one of `SEF_WEB_ORIGINS`.
+  (`invoices:validate`, for the tools that validate; `invoices:submit`, for the tools on stored
+  invoices; both if it names none). An unknown client or redirect URI is answered there (400);
+  any other fault sends the browser back to the client with the error. A request that will
+  do waits ten minutes for a person, on the web application's page at `SEF_WEB_URL`
+  (`/oauth/consent?request=...`), which must be one of `SEF_WEB_ORIGINS`.
 - **A person decides**, signed in, never with an API key: `GET /oauth/requests/{id}` says
   what the client asks; `POST .../approval` lets it act for them, for the scopes their role
   grants, records the consent in the audit log and answers where to send the browser, the
