@@ -255,6 +255,15 @@ class Settings(BaseSettings):
             "by default: no SEF key can be set."
         ),
     )
+    sef_demo_base_url: str = Field(
+        default="https://demoefaktura.mfin.gov.rs",
+        pattern=r"^https://[^/?#]+$",
+        validation_alias="SEF_DEMO_BASE_URL",
+        description=(
+            "Where SEF's demo environment is, which the organizations' invoices are sent to "
+            "with their own keys (ADR-0051); the address of the Ministry of Finance's by default."
+        ),
+    )
     llm_model: str | None = Field(
         default=None,
         min_length=1,
