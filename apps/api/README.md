@@ -281,6 +281,27 @@ Without the model's answers, a suggestion for a synthetic invoice takes about 40
 child process, with one round or two (the median of eight, measured on 6 November 2026); the
 rest of the budget of 20 s is the model's.
 
+## Rules
+
+Every rule a profile applies can be looked up, broken or not, from the catalogue of the
+validator's own rule sets (ADR-0047):
+
+```bash
+curl -s "localhost:8000/rules?q=PIB%20check%20digit" -H "Authorization: Bearer $ACCESS_TOKEN"
+curl -s "localhost:8000/rules/SRB-009?day=2026-10-05" -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+`GET /rules?q=` answers the rules of the profile (`srb` by default, `en16931`, `peppol`) the
+query names, at most `limit` (20, up to 50): by id or the start of ids (`BR-CO`), by a business
+term (`BT-31`), then by the words of their statements, case and diacritics aside, the Serbian
+rules first. Each has its severity, its statement as a violation states it, its layer and
+source, the business terms it names and, if the profile always sets it aside, why. With them
+come the passages of the official documents that share enough of the query's words, among
+those that apply today: the statements are the rule sets' English, the law is found in its own
+words (`kontrolni broj PIB`). `GET /rules/{rule_id}` answers one rule and the passages an
+explanation of a violation of it would cite on `day` (today by default). Whoever may have an
+invoice validated may look rules up; nothing is counted. Without the rule sets, both answer 503.
+
 ## Jobs
 
 Work that outlasts a request runs as a job (ADR-0019). The first one validates stored invoices

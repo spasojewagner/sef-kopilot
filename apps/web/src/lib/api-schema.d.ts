@@ -417,6 +417,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find rules
+         * @description The rules of a profile that the query names: by id (`BR-CO-15`) or the start of ids (`BR-CO`), by a business term (`BT-31`), then by the words of their statements, case and diacritics aside, the Serbian rules first; and the passages of the official documents that share enough of its words, among those that apply today.
+         */
+        get: operations["find_rules_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a rule
+         * @description A rule of the profile, and the passages of the official documents that concern it on the day (today by default), as an explanation of a violation of it would cite them.
+         */
+        get: operations["read_rule_rules__rule_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/jobs/{job_id}/events": {
         parameters: {
             query?: never;
@@ -897,6 +937,46 @@ export interface components {
              * @description Whether a client may be known by an `https` client_id whose metadata document this server fetches (ADR-0045).
              */
             client_id_metadata_document_supported: boolean;
+        };
+        /**
+         * CatalogueRule
+         * @description One rule a profile applies, or sets aside.
+         */
+        CatalogueRule: {
+            /** Id */
+            id: string;
+            /**
+             * Layer
+             * @enum {string}
+             */
+            layer: "schematron" | "srb-cius" | "arithmetic";
+            severity: components["schemas"]["Severity"];
+            /**
+             * Statement
+             * @description What the rule requires, as its violation states it.
+             */
+            statement: string;
+            /**
+             * Source
+             * @description Where the rule comes from: a Schematron rule set, `srb-cius` or `arithmetic`.
+             */
+            source: string;
+            /**
+             * Terms
+             * @description The EN 16931 business terms and groups the rule concerns or names.
+             */
+            terms: string[];
+            /**
+             * Set Aside
+             * @description Why the profile does not apply the rule, if it does not.
+             */
+            set_aside?: string | null;
+            /**
+             * Replaced By
+             * @description The rules that check the matter instead, if it is set aside.
+             * @default []
+             */
+            replaced_by: string[];
         };
         /**
          * Citation
@@ -1535,6 +1615,53 @@ export interface components {
             after?: string | null;
         };
         /**
+         * Passage
+         * @description A stored passage of the corpus, with its text.
+         */
+        Passage: {
+            /**
+             * Id
+             * @description The passage's id, which names it for ever.
+             */
+            id: string;
+            /**
+             * Document
+             * @description The document's key in the corpus.
+             */
+            document: string;
+            /**
+             * Title
+             * @description The document's title.
+             */
+            title: string;
+            /**
+             * Label
+             * @description The passage as the document labels it, `Члан 2.`, `BT-31`.
+             */
+            label: string;
+            /** Heading */
+            heading: string | null;
+            /**
+             * Version
+             * @description The edition of the document the passage is taken from.
+             */
+            version: string;
+            /**
+             * Valid From
+             * Format: date
+             */
+            valid_from: string;
+            /**
+             * Valid To
+             * @description The day it stops applying, if it does.
+             */
+            valid_to: string | null;
+            /** Source Url */
+            source_url: string;
+            /** Text */
+            text: string;
+        };
+        /**
          * Patch
          * @description One change to one place of an invoice.
          */
@@ -1864,6 +1991,36 @@ export interface components {
         RoleChange: {
             /** @description The member's new role. */
             role: components["schemas"]["Role"];
+        };
+        /**
+         * RuleFound
+         * @description What a search found: rules of the profile, and passages that share its words.
+         */
+        RuleFound: {
+            /** Rules */
+            rules: components["schemas"]["CatalogueRule"][];
+            /**
+             * Passages
+             * @description Passages of the official documents that share enough of the words, among those that apply today.
+             */
+            passages: components["schemas"]["Passage"][];
+        };
+        /**
+         * RuleOut
+         * @description A rule, and the passages that concern it on a day.
+         */
+        RuleOut: {
+            rule: components["schemas"]["CatalogueRule"];
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Passages
+             * @description The passages an explanation of a violation of the rule would cite, most relevant first: those the rule is authored from, the rows of the business terms it names, and those that share its words.
+             */
+            passages: components["schemas"]["Passage"][];
         };
         /**
          * SetAsideViolation
@@ -3412,6 +3569,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    find_rules_rules_get: {
+        parameters: {
+            query: {
+                /** @description An id, a term or words. */
+                q: string;
+                profile?: "srb" | "en16931" | "peppol";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleFound"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The rule sets are not available on this server. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    read_rule_rules__rule_id__get: {
+        parameters: {
+            query?: {
+                profile?: "srb" | "en16931" | "peppol";
+                day?: string | null;
+            };
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleOut"];
+                };
+            };
+            /** @description No such rule in the profile. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The rule sets are not available on this server. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };
