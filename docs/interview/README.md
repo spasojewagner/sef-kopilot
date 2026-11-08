@@ -80,3 +80,4 @@ per branch, to keep them with the code they describe.
 | `feat/mcp-oauth-resource` | [m4-mcp-oauth-resource.md](m4-mcp-oauth-resource.md) |
 | `feat/web-upload-picture-or-pdf` | [m4-web-upload-picture-or-pdf.md](m4-web-upload-picture-or-pdf.md) |
 | `feat/mcp-oauth-client-metadata` | [m4-mcp-oauth-client-metadata.md](m4-mcp-oauth-client-metadata.md) |
+| `feat/web-consent-client-host` | [m4-web-consent-client-host.md](m4-web-consent-client-host.md) |
