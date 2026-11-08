@@ -28,9 +28,8 @@ router = APIRouter(tags=["oauth"])
 #: followed by the endpoint's own.
 METADATA_PATH: Final = "/.well-known/oauth-protected-resource/mcp"
 
-#: Public documents: a page of any origin may read them with a plain GET, as a client in a
-#: browser does. A request a browser asks about first, for headers of its client's own, is the
-#: API's CORS settings' to answer, as are the other endpoints of the authorization server.
+#: Public documents: a page of any origin may read them, as a client in a browser does, even
+#: when a browser does not send an origin; its preflight is answered too (``sef_api.cors``).
 _ANYONE: Final = {"Access-Control-Allow-Origin": "*"}
 _NOT_HERE: Final[dict[int | str, dict[str, object]]] = {
     404: {"model": Problem, "description": "This server has no authorization server."}

@@ -2205,3 +2205,22 @@ Verification: the web application's tests, lint, types and build; the seeded fau
 
 Next: clients in a browser (`feat/api-oauth-browser-clients`), then what the first MCP tool
 that writes needs, and the tools on stored invoices.
+
+## 2026-11-08 — `feat/api-oauth-browser-clients` (2 commits, stacked on `feat/web-consent-client-host`)
+
+Outcome: an MCP client running in a browser, such as the MCP Inspector, may sign its person in.
+The authorization server's metadata documents, registration and token endpoint answer a page of
+any origin, its preflight included; the rest of the API answers the web application's origins
+alone, as before.
+
+Findings:
+
+- None of the opened endpoints reads a cookie, so allowing every origin lends a page nothing it
+  could not get by calling them from a server of its own.
+- The consent's requests stay the web application's: a person decides on its own page.
+
+Verification: the API's tests, preflights and answers for both policies and without an
+authorization server; the seeded faults, each caught (see the pull request); ruff, mypy; each
+commit checked on its own.
+
+Next: what the first MCP tool that writes needs, then the tools on stored invoices.

@@ -14,7 +14,6 @@ from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from typing import Final, cast
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import SecretStr
 
 from sef_api import __version__
@@ -23,6 +22,7 @@ from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
 from sef_api.bodies import LimitBodies
 from sef_api.charset import DeclareUTF8
+from sef_api.cors import Cors
 from sef_api.db import Database
 from sef_api.invoices import routes as invoices
 from sef_api.invoices.validator import Admission, Validator, validator_for
@@ -51,15 +51,16 @@ from sef_api.unexpected import AnswerUnexpectedErrors
 
 logger = logging.getLogger(__name__)
 
-#: What a page of the web application's origin may send (CORS): the methods the API answers, the
-#: headers its requests carry (the token, the body's type, where an event stream stopped), and
-#: the headers of an answer it may read (where a new resource is, how long to wait). No
-#: credentials: a page sends its token in a header, never in a cookie.
-CORS_METHODS: Final = ("GET", "POST", "PATCH", "DELETE")
-CORS_REQUEST_HEADERS: Final = ("Authorization", "Content-Type", "Last-Event-ID")
-CORS_RESPONSE_HEADERS: Final = ("Location", "Retry-After")
-#: How long a browser may keep the answer to a preflight: ten minutes.
-CORS_MAX_AGE_SECONDS: Final = 600
+#: The authorization server's endpoints a page of any origin may call (``sef_api.cors``).
+OAUTH_PUBLIC_PATHS: Final = frozenset(
+    {
+        oauth_metadata.METADATA_PATH,
+        "/.well-known/oauth-protected-resource",
+        "/.well-known/oauth-authorization-server",
+        "/oauth/register",
+        "/oauth/token",
+    }
+)
 
 DESCRIPTION = """
 Deterministic validation, plain-language explanations and reviewable repairs for Serbian (SEF)
@@ -218,17 +219,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(AnswerUnexpectedErrors)
     app.add_middleware(LimitBodies, limit=settings.max_body_bytes)
     app.add_middleware(DeclareUTF8)  # it declares the charset of a 413 too
-    if settings.web_origins:
-        # Outermost: a preflight is answered before anything else runs, and every answer, an
-        # error included, carries the headers a page needs to read it.
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=list(settings.web_origins),
-            allow_methods=list(CORS_METHODS),
-            allow_headers=list(CORS_REQUEST_HEADERS),
-            expose_headers=list(CORS_RESPONSE_HEADERS),
-            max_age=CORS_MAX_AGE_SECONDS,
-        )
+    # Outermost: a preflight is answered before anything else runs, and every answer, an error
+    # included, carries the headers a page needs to read it. The authorization server's public
+    # endpoints answer a page of any origin, once there is an authorization server.
+    app.add_middleware(
+        Cors,
+        web_origins=settings.web_origins,
+        public_paths=OAUTH_PUBLIC_PATHS if settings.public_url is not None else (),
+    )
     app.state.settings = settings
     app.state.database = database
     app.state.tokens = TokenSettings.from_settings(settings)

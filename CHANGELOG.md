@@ -91,6 +91,10 @@ is tagged.
   requests are counted by address.
 - `apps/web`: the consent page names the host that published the description of a client known
   by its metadata document, beside the name the client gives itself, which stays unchecked.
+- `apps/api`: an MCP client running in a browser, such as the MCP Inspector, may sign its person
+  in: the authorization server's metadata documents, registration and token endpoint answer a
+  page of any origin, its preflight included; the rest of the API answers the web
+  application's origins alone.
 
 ### Changed
 
