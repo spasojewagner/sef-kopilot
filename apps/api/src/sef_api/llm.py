@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, Literal, Protocol
 
@@ -29,7 +30,16 @@ if TYPE_CHECKING:
 
     from sef_api.settings import Settings
 
-__all__ = ["LANGUAGES", "GroqClient", "LLMClient", "LLMError", "Language", "Message", "llm_for"]
+__all__ = [
+    "LANGUAGES",
+    "GroqClient",
+    "LLMClient",
+    "LLMError",
+    "Language",
+    "Message",
+    "last_usage",
+    "llm_for",
+]
 
 #: The languages a model writes in for people: Serbian in the Latin script, or English.
 Language = Literal["sr", "en"]
@@ -38,6 +48,11 @@ LANGUAGES: Final[dict[Language, str]] = {
     "sr": "Serbian, in the Latin script (latinica)",
     "en": "English",
 }
+
+
+#: The tokens the last answer of this task read and wrote, as a model reports them (``input``,
+#: ``output``, ``total``), for whoever traces the request; None if it said nothing.
+last_usage: ContextVar[dict[str, int] | None] = ContextVar("last_usage", default=None)
 
 
 class LLMError(Exception):
@@ -151,6 +166,7 @@ class GroqClient:
                 continue
             if response.status_code != httpx.codes.OK:
                 raise LLMError(f"Groq answered {response.status_code}{_code(response)}")
+            last_usage.set(_usage(response))
             return _content(response)
         raise LLMError(f"{problem}, {self.ATTEMPTS} times")
 
@@ -171,6 +187,20 @@ def _code(response: httpx.Response) -> str:
     except (ValueError, KeyError, TypeError):
         return ""
     return f" ({code})" if isinstance(code, str) and code.isidentifier() else ""
+
+
+def _usage(response: httpx.Response) -> dict[str, int] | None:
+    """The tokens a chat completion read and wrote, if it says."""
+    try:
+        usage = response.json()["usage"]
+        counted = {
+            "input": usage["prompt_tokens"],
+            "output": usage["completion_tokens"],
+            "total": usage["total_tokens"],
+        }
+    except (ValueError, KeyError, TypeError):
+        return None
+    return counted if all(isinstance(count, int) for count in counted.values()) else None
 
 
 def _content(response: httpx.Response) -> str:

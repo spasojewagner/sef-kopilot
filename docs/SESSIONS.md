@@ -2453,3 +2453,23 @@ Verification: the API's tests, the whole suite; the seeded faults, each caught a
 baseline (see the pull request); ruff, mypy, the lock file; each commit checked on its own.
 
 Next: the model's requests traced to Langfuse, without the invoice (`feat/rag-model-traces`).
+
+## 2026-11-08 — `feat/rag-model-traces` (2 commits, stacked on `feat/api-error-tracking`)
+
+Outcome: each request to the language model is traced to Langfuse where both of its keys are
+set, as a generation without the conversation: the schema, the model, the time, the tokens and
+the outcome, the answers of one API request in one trace (ADR-0049).
+
+Findings:
+
+- Langfuse v4 takes spans as OpenTelemetry and asks clients to stop sending to its legacy
+  ingestion endpoint; spans are sent as OTLP over HTTP in JSON, with `httpx`, and no new
+  dependency.
+- Groq reports the tokens of each answer; they reach the trace through a context variable, so
+  the concurrent answers of one explanation never mix.
+
+Verification: the API's tests, the whole suite; the seeded faults, each caught after a clean
+baseline (see the pull request); ruff, mypy; each commit checked on its own.
+
+Next: the maintainer enters the keys (Sentry's DSN, Langfuse's pair) on Render; then the demo
+from Claude and ChatGPT, and `v0.4.0`.

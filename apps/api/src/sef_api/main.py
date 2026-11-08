@@ -37,6 +37,7 @@ from sef_api.llm import llm_for
 from sef_api.logs import RequestIds
 from sef_api.mcp import server as mcp
 from sef_api.members import routes as members
+from sef_api.model_traces import ModelTraces, TracedClient
 from sef_api.oauth import documents
 from sef_api.oauth import metadata as oauth_metadata
 from sef_api.oauth import routes as oauth
@@ -129,11 +130,20 @@ def _runner(app: FastAPI, settings: Settings) -> JobRunner:
 
 
 def _model_users(settings: Settings) -> tuple[Explainer | None, Repairer | None]:
-    """The explainer and the repairer, sharing the language model the settings name, or
-    neither without one. The explainer closes the model when the application stops."""
+    """The explainer and the repairer, sharing the language model the settings name, traced
+    where Langfuse's keys are set (ADR-0049), or neither without one. The explainer closes the
+    model when the application stops."""
     llm = llm_for(settings)
     if llm is None:
         return None, None
+    if settings.langfuse_public_key is not None and settings.langfuse_secret_key is not None:
+        traces = ModelTraces(
+            settings.langfuse_host,
+            settings.langfuse_public_key,
+            settings.langfuse_secret_key,
+            environment=settings.environment,
+        )
+        llm = TracedClient(llm, traces)
     return Explainer(llm), Repairer(llm)
 
 

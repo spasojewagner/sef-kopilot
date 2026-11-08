@@ -84,6 +84,14 @@ reported to that Sentry project (ADR-0048): the exception's type, its stack and 
 it, the route, the release and the environment; never its message, the request's headers, body
 or query, the frames' variables, the user or breadcrumbs. Without it, nothing is sent anywhere.
 
+With `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY`, each request to the language model is
+traced to that Langfuse project (`LANGFUSE_HOST`, the EU cloud by default; ADR-0049), as a
+generation: the schema it answered (`explanation`, `repair`), the model, when it began and how
+long it took, the tokens it read and wrote, and whether it answered or why not. The requests of
+one API request share a trace, whose metadata names the request's id. A trace never holds the
+conversation or the answer, which quote an invoice; one that cannot be sent is logged and given
+up, and the answer goes on. Without the keys, nothing is sent anywhere.
+
 In 512 MB and a tenth of a CPU, about what a small free instance has, the image is ready about
 40 s after it starts on an empty database, validates a typical invoice in 0.1 to 0.4 s and one of
 11 800 elements in about 5 s, and uses at most about 330 MB (measured on 7 November 2026).
