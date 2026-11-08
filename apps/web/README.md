@@ -139,10 +139,11 @@ the role the API now reports.
 An MCP client that asks to act for a person, an assistant say, sends them through the API's
 authorization server to `/oauth/consent?request=…` (ADR-0044), in their browser's language. A
 visitor who is not signed in signs in there, and stays. The page shows what the client asks, by
-scope; the name it gave itself, marked as unchecked; the address it takes the person back to, by
-host, and whether that is an application on their own computer (the loopback interface, or a
-scheme of its own); and the organization and the account it will work in, with a way to sign in
-with another. Allowing or denying takes the person back to the client with its answer
+scope; the name it gave itself, marked as unchecked; for a client known by its metadata
+document (ADR-0045), the host that published it, which stands behind the client whatever its
+name; the address it takes the person back to, by host, and whether that is an application on
+their own computer (the loopback interface, or a scheme of its own); and the organization and
+the account it will work in, with a way to sign in with another. Allowing or denying takes the person back to the client with its answer
 (`src/lib/oauth.ts`); a request that expired or was decided says so, and what to do.
 
 ## Frames

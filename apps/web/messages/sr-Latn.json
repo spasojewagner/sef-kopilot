@@ -409,6 +409,8 @@
     "app": "Aplikacija",
     "unnamed": "Bez imena",
     "unchecked": "Ime koje je aplikacija sama sebi dala; SEF Kopilot ga nije proverio.",
+    "describedAt": "Opis aplikacije objavljen je na",
+    "publisher": "SEF Kopilot je opis pročitao sa ove adrese: za aplikaciju stoji onaj ko njome upravlja.",
     "returnsTo": "Posle odluke vraća vas na",
     "local": "Aplikacija na ovom računaru, ne sajt.",
     "worksIn": "Radiće u organizaciji",

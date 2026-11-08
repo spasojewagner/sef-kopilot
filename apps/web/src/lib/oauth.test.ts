@@ -6,6 +6,7 @@ import {
   approveAuthorizationRequest,
   destinationOf,
   getAuthorizationRequest,
+  publisherOf,
   refuseAuthorizationRequest,
 } from "./oauth";
 
@@ -51,5 +52,19 @@ describe("A request", () => {
       "POST /oauth/requests/a%2Fb/refusal",
     ]);
     expect(asked[1].headers.get("Authorization")).toBe("Bearer access-2");
+  });
+});
+
+describe("A client's identifier", () => {
+  it.each([
+    // A client known by its metadata document: the host that published it.
+    ["https://claude.ai/oauth/mcp-client.json", "claude.ai"],
+    ["https://tools.example:8443/client.json", "tools.example:8443"],
+    // A registered client, whose identifier the server made up.
+    ["tdAz3_q9k1Q2e7Yb0xWv5n8LmC4", null],
+    ["http://assistant.example/client.json", null],
+    ["https://", null],
+  ])("%j is published by %j", (clientId, publisher) => {
+    expect(publisherOf(clientId)).toBe(publisher);
   });
 });
