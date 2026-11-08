@@ -4,6 +4,7 @@ import {
   queryOptions,
 } from "@tanstack/react-query";
 
+import { listKeys } from "@/lib/api-keys";
 import { getHealth } from "@/lib/api";
 import {
   type Explained,
@@ -53,6 +54,12 @@ export const meQuery = queryOptions({
 export const organizationQuery = queryOptions({
   queryKey: ["organization"],
   queryFn: ({ signal }) => getOrganization(signal),
+});
+
+/** The API keys the visitor may see that still work, the newest first. */
+export const apiKeysQuery = queryOptions({
+  queryKey: ["keys"],
+  queryFn: ({ signal }) => listKeys(signal),
 });
 
 /** The organization's invoices, the newest first, a page at a time. */

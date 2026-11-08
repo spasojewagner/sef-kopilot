@@ -2410,3 +2410,23 @@ its own.
 
 Next: the demo from Claude and ChatGPT with screenshots, once the branches are merged and
 deployed; then `v0.4.0`.
+
+## 2026-11-08 — `feat/web-api-keys` (2 commits, stacked on `feat/api-key-last-used`)
+
+Outcome: a member manages their API keys on the organization's page: what each allows and when
+it was last used, a new key shown once with a copy button, and a revocation asked twice.
+
+Findings:
+
+- Keys could be issued only through the API, by someone who already held an access token: the
+  page closes that gap for the people the keys are for, the accountants who connect an ERP.
+- The API lists a key's permissions in the order of their names; the page says them in the
+  form's order.
+
+Verification: the web application's tests, lint and types; a key issued, used by a machine and
+listed against a local API, in screenshots (desktop and phone); the seeded faults, each caught
+after a clean baseline (see the pull request); each commit checked on its own, the end-to-end
+test included.
+
+Next: the demo from Claude and ChatGPT with screenshots, once the branches are merged and
+deployed; then `v0.4.0`.

@@ -396,6 +396,50 @@
         "uncertain": "API nije jasno odgovorio. Rok čuvanja je ponovo učitan: proverite ga pre nego što pokušate ponovo.",
         "failed": "Rok čuvanja nije promenjen. Pokušajte ponovo malo kasnije."
       }
+    },
+    "keys": {
+      "title": "API ključevi",
+      "description": "Ključ služi mašini koja radi za vas, na primer ERP-u: šalje fakture na proveru i čuva ih, sa onim od vaših dozvola koje mu date. Ključ se vidi samo jednom, kada se izda.",
+      "loading": "Učitavanje ključeva…",
+      "notLoaded": "Ključevi nisu učitani. Pokušajte ponovo malo kasnije.",
+      "none": "Nemate nijedan ključ koji radi.",
+      "listed": "Vaši ključevi",
+      "allows": "Dozvoljava",
+      "lastUsed": "Poslednja upotreba",
+      "never": "Još nije korišćen",
+      "created": "Izdat",
+      "expires": "Prestaje da radi",
+      "permissions": {
+        "invoices:validate": "proveru faktura",
+        "invoices:submit": "čuvanje faktura i čitanje sačuvanih",
+        "invoices:manage": "sve fakture organizacije"
+      },
+      "revoke": "Opozovi",
+      "confirmRevoke": "Ključ „{name}” prestaje da radi odmah, i mašina koja ga koristi gubi pristup. Opozivate ga?",
+      "revokeNow": "Da, opozovi ključ",
+      "cancel": "Odustani",
+      "new": "Novi ključ",
+      "name": "Za šta je ključ",
+      "namePlaceholder": "Na primer: Pantheon",
+      "expiresOn": "Radi do (nije obavezno)",
+      "expiresHint": "Ključ radi do kraja izabranog dana; bez datuma radi dok ga ne opozovete.",
+      "issue": "Izdaj ključ",
+      "issuing": "Izdavanje…",
+      "issued": "Ključ „{name}” je izdat",
+      "onlyOnce": "Sačuvajte ga sada, na mestu odakle ga mašina čita: ovde se više neće prikazati.",
+      "copy": "Kopiraj ključ",
+      "copied": "Kopirano",
+      "kept": "Sačuvao sam ga",
+      "errors": {
+        "signedOut": "Sesija je istekla. Prijavite se ponovo.",
+        "forbidden": "Vaša uloga ne daje neku od izabranih dozvola.",
+        "gone": "Ključa više nema: već je opozvan.",
+        "tooMany": "Imate najviše ključeva koji rade. Opozovite neki koji vam ne treba.",
+        "invalid": "Proverite naziv i datum: datum mora biti u budućnosti.",
+        "slowDown": "Previše zahteva. Pokušajte ponovo za {seconds} s.",
+        "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
+        "failed": "Nije uspelo. Pokušajte ponovo malo kasnije."
+      }
     }
   },
   "consent": {

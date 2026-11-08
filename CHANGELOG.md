@@ -126,6 +126,8 @@ is tagged.
   repairs decided.
 - `apps/api`: when each API key was last used, `last_used_at` in `GET /api-keys`, written at
   most once a minute with a security event, `api-key.used` (migration 0019).
+- `apps/web`: the member's API keys on the organization's page: each with what it allows and
+  when it was last used, a new one shown once, and a revocation asked twice.
 
 ### Changed
 

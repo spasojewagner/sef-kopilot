@@ -9,6 +9,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { ApiKeys } from "@/components/api-keys";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,8 +41,8 @@ import type { Identity } from "@/lib/session";
 const KEEP = "keep";
 
 /**
- * The visitor's organization: its name, who the visitor is in it, and how long it keeps its
- * stored invoices, which its owner sets here (ADR-0039).
+ * The visitor's organization: its name, who the visitor is in it, how long it keeps its stored
+ * invoices, which its owner sets here (ADR-0039), and the visitor's API keys.
  */
 export function OrganizationSettings() {
   const t = useTranslations("organization");
@@ -69,6 +70,7 @@ export function OrganizationSettings() {
         organization={organization.data}
         owner={identity?.role === "owner"}
       />
+      <ApiKeys role={identity?.role ?? null} />
     </div>
   );
 }

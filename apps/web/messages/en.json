@@ -396,6 +396,50 @@
         "uncertain": "The API gave no clear answer. The period has been read again: check it before you try again.",
         "failed": "The period was not changed. Try again a little later."
       }
+    },
+    "keys": {
+      "title": "API keys",
+      "description": "A key is for a machine that acts for you, such as an ERP: it sends invoices to be checked and stores them, with the permissions of yours you give it. A key is shown only once, when it is issued.",
+      "loading": "Loading the keys…",
+      "notLoaded": "The keys did not load. Try again a little later.",
+      "none": "You have no key that works.",
+      "listed": "Your keys",
+      "allows": "Allows",
+      "lastUsed": "Last used",
+      "never": "Not used yet",
+      "created": "Issued",
+      "expires": "Stops working",
+      "permissions": {
+        "invoices:validate": "checking invoices",
+        "invoices:submit": "storing invoices and reading the stored ones",
+        "invoices:manage": "every invoice of the organization"
+      },
+      "revoke": "Revoke",
+      "confirmRevoke": "The key “{name}” stops working at once, and the machine that uses it loses access. Revoke it?",
+      "revokeNow": "Yes, revoke the key",
+      "cancel": "Cancel",
+      "new": "New key",
+      "name": "What the key is for",
+      "namePlaceholder": "For example: Pantheon",
+      "expiresOn": "Works until (optional)",
+      "expiresHint": "The key works through the chosen day; without a date it works until you revoke it.",
+      "issue": "Issue the key",
+      "issuing": "Issuing…",
+      "issued": "The key “{name}” is issued",
+      "onlyOnce": "Keep it now, where the machine reads it from: it will not be shown here again.",
+      "copy": "Copy the key",
+      "copied": "Copied",
+      "kept": "I have kept it",
+      "errors": {
+        "signedOut": "The session has expired. Sign in again.",
+        "forbidden": "Your role does not grant one of the permissions chosen.",
+        "gone": "The key is no longer there: it was revoked already.",
+        "tooMany": "You have as many keys that work as allowed. Revoke one you do not need.",
+        "invalid": "Check the name and the date: the date must be in the future.",
+        "slowDown": "Too many requests. Try again in {seconds} s.",
+        "unreachable": "The API does not answer. Try again a little later.",
+        "failed": "That did not work. Try again a little later."
+      }
     }
   },
   "consent": {
