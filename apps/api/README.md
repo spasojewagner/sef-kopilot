@@ -590,7 +590,11 @@ without it, they answer 404, and the MCP endpoint takes API keys alone.
   will not do stops the request with 400. Authorization requests are counted by address:
   thirty a minute. Off by default: a self-hosted deployment calls out to nothing it did not
   choose.
-- **Next:** the consent page naming the host that published a client's document.
+- **A client may run in a browser**, at an origin of its own, such as the MCP Inspector: the
+  metadata documents, registration and the token endpoint answer a page of any origin, its
+  preflight included (`sef_api.cors`). They read no cookie, so allowing every origin lends no
+  page anyone's authority. The rest of the API, the consent's requests included, answers the
+  web application's origins alone.
 
 ## Database and migrations
 

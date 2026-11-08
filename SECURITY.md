@@ -260,6 +260,10 @@ system are marked as such.
       the connection pinned to the address checked, no redirect followed, five seconds, 5 KiB,
       unencoded JSON; a secret or a client authentication other than none is refused.
       Authorization requests, each of which may fetch, are counted by address.
+- [x] Only the authorization server's public endpoints (the metadata documents, registration,
+      the token endpoint) answer a page of any origin, for MCP clients in a browser; none reads
+      a cookie or answers with credentials. Every other route answers the web application's
+      origins alone (V3), the consent's requests included.
 
 ### V11 Cryptography
 
