@@ -90,3 +90,4 @@ per branch, to keep them with the code they describe.
 | `feat/core-rule-catalogue` | [m4-core-rule-catalogue.md](m4-core-rule-catalogue.md) |
 | `feat/mcp-search-rules` | [m4-mcp-search-rules.md](m4-mcp-search-rules.md) |
 | `feat/api-security-events` | [m4-api-security-events.md](m4-api-security-events.md) |
+| `feat/api-key-last-used` | [m4-api-key-last-used.md](m4-api-key-last-used.md) |

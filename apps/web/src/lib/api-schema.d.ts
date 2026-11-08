@@ -1342,6 +1342,11 @@ export interface components {
              */
             expires_at: string | null;
             /**
+             * Last Used At
+             * @description When a request last came with the key, to the minute; null if never.
+             */
+            last_used_at: string | null;
+            /**
              * Key
              * @description Shown this once: the machine client sends it as `Authorization: Bearer <key>`.
              */
@@ -1474,6 +1479,11 @@ export interface components {
              * @description When the key stops working; null if never.
              */
             expires_at: string | null;
+            /**
+             * Last Used At
+             * @description When a request last came with the key, to the minute; null if never.
+             */
+            last_used_at: string | null;
         };
         /** KeyRequest */
         KeyRequest: {

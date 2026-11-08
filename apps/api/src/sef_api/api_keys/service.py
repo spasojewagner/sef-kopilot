@@ -15,7 +15,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Final
 
 from sqlalchemy import ColumnElement, func, or_, select, update
@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.tokens import new_opaque_token, opaque_token_digest
 from sef_api.locks import lock_api_keys
+from sef_api.logs import security_event
 from sef_api.models import ApiKey, Membership, Role
 
 __all__ = [
@@ -47,6 +48,8 @@ __all__ = [
 
 #: How every key begins.
 PREFIX: Final = "sefk_"
+#: How often the time a key was last used is written, at most.
+USED_EVERY: Final = timedelta(minutes=1)
 #: How many characters of a key are kept in clear, by which people tell keys apart: the
 #: prefix and seven more, 42 of the key's 256 random bits.
 SHOWN: Final = 12
@@ -206,8 +209,38 @@ async def authenticate(
     if row is None:
         return None
     key_id, user_id, organization_id, role, permissions = row
+    await _note_use(session, key_id, user_id, organization_id, now or datetime.now(UTC))
     grant = Grant(key_id, frozenset(map(Permission, permissions)))
     return Holder(user_id, organization_id, role, grant)
+
+
+async def _note_use(
+    session: AsyncSession,
+    key_id: uuid.UUID,
+    user_id: uuid.UUID,
+    organization_id: uuid.UUID,
+    moment: datetime,
+) -> None:
+    """Write when the key was used, and log its use, unless it was used less than
+    :data:`USED_EVERY` ago: a machine that sends a request a second costs a write a minute.
+    Two requests at once write it once, since the second reads the first's time."""
+    noted = await session.scalar(
+        update(ApiKey)
+        .where(
+            ApiKey.id == key_id,
+            or_(ApiKey.last_used_at.is_(None), ApiKey.last_used_at <= moment - USED_EVERY),
+        )
+        .values(last_used_at=moment)
+        .returning(ApiKey.id)
+    )
+    if noted is None:
+        return
+    # The request's first work, committed on its own: whatever the request does next, a read
+    # included, the use stands.
+    await session.commit()
+    security_event(
+        "api-key.used", key=str(key_id), user=str(user_id), organization=str(organization_id)
+    )
 
 
 async def still_works(

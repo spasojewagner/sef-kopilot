@@ -4242,6 +4242,19 @@
             "title": "Expires At",
             "description": "When the key stops working; null if never."
           },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At",
+            "description": "When a request last came with the key, to the minute; null if never."
+          },
           "key": {
             "type": "string",
             "title": "Key",
@@ -4257,6 +4270,7 @@
           "acts_for",
           "created_at",
           "expires_at",
+          "last_used_at",
           "key"
         ],
         "title": "IssuedKey"
@@ -4480,6 +4494,19 @@
             ],
             "title": "Expires At",
             "description": "When the key stops working; null if never."
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At",
+            "description": "When a request last came with the key, to the minute; null if never."
           }
         },
         "type": "object",
@@ -4490,7 +4517,8 @@
           "permissions",
           "acts_for",
           "created_at",
-          "expires_at"
+          "expires_at",
+          "last_used_at"
         ],
         "title": "KeyOut"
       },

@@ -78,6 +78,7 @@ async def test_a_member_issues_a_key_and_sees_it_once(
         "acts_for": str(primer.client.id),
         "created_at": issued["created_at"],
         "expires_at": None,
+        "last_used_at": None,
     }
     row = (await session.execute(select(ApiKey.__table__))).one()
     assert row.digest == hashlib.sha256(key.encode()).hexdigest()
