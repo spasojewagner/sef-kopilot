@@ -2158,3 +2158,32 @@ Verification: the web application's tests, lint, types and build; the seeded fau
 (see the pull request); each commit checked on its own.
 
 Next: client ID metadata documents (`feat/mcp-oauth-client-metadata`).
+
+## 2026-11-08 — `feat/mcp-oauth-client-metadata` (3 commits, stacked on `feat/web-upload-picture-or-pdf`)
+
+Outcome: an MCP client may be known by its metadata document, the MCP revision's preferred way
+for a client to introduce itself: its `client_id` is an `https` URL, whose document the
+authorization server fetches at each authorization request and reads as a registration. Only
+where the operator allows it (`SEF_CLIENT_METADATA_DOCUMENTS`), as a self-hosted deployment
+calls out to nothing it did not choose (ADR-0045).
+
+Findings:
+
+- The fetch is a request to an address a stranger chose, so it reaches only the public
+  internet: every address the host resolves to is checked, and the connection goes to the
+  address checked, with the host's name for TLS, so that a second resolution cannot send it
+  elsewhere. No redirect is followed; time and size are bounded, and the answer is asked for
+  uncompressed, which also keeps a small body from inflating.
+- No cache: an authorization is rare and paced by a person, so fetching each time costs little
+  and keeps the client as its document says now.
+- With documents switched off, a client known by one is turned away even if its row remains
+  from before, since the row would stay as its document once said.
+
+Verification: the fetch against every kind of address, answer and document the tests could
+name; the authorization of a document client, read again at each request, and one whose
+document will not do; a document client through every step to a tool call; the count of
+authorization requests; the seeded faults, each caught (see the pull request); ruff, mypy; the
+OpenAPI document and the web application's types regenerated; each commit checked on its own.
+
+Next: the consent page naming the host that published a client's document
+(`feat/web-consent-client-host`), then clients in a browser (`feat/api-oauth-browser-clients`).
