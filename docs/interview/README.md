@@ -83,3 +83,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-consent-client-host` | [m4-web-consent-client-host.md](m4-web-consent-client-host.md) |
 | `feat/api-oauth-browser-clients` | [m4-api-oauth-browser-clients.md](m4-api-oauth-browser-clients.md) |
 | `feat/mcp-client-credential` | [m4-mcp-client-credential.md](m4-mcp-client-credential.md) |
+| `feat/mcp-invoice-tools` | [m4-mcp-invoice-tools.md](m4-mcp-invoice-tools.md) |

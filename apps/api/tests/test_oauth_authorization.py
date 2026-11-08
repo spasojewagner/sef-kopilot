@@ -95,7 +95,7 @@ async def test_a_request_that_will_do_waits_for_a_person(session: AsyncSession) 
         CHALLENGE,
     )
     assert (asked.scopes, asked.resource, asked.state, asked.decision) == (
-        ["invoices:validate"],
+        ["invoices:validate", "invoices:submit"],
         f"{ISSUER}/mcp",
         "xyz",
         None,
@@ -221,7 +221,7 @@ async def test_a_signed_in_person_reads_what_the_client_asks(session: AsyncSessi
     assert (answer["client_name"], answer["redirect_uri"], answer["scopes"]) == (
         "An assistant",
         CALLBACK,
-        ["invoices:validate"],
+        ["invoices:validate", "invoices:submit"],
     )
 
 
@@ -274,7 +274,7 @@ async def test_an_approval_sends_the_client_a_code_and_is_recorded(session: Asyn
     assert (event.action, event.actor, event.detail) == (
         "oauth.client_authorized",
         primer.client.id,
-        {"client_id": asked.client_id, "scopes": ["invoices:validate"]},
+        {"client_id": asked.client_id, "scopes": ["invoices:validate", "invoices:submit"]},
     )
     # Decided once, the request waits for nobody.
     assert again.status_code == read.status_code == 404

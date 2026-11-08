@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -47,6 +48,9 @@ WRONG_TOTALS = (FIXTURES / "mutations" / "br-co-15-total-with-vat.xml").read_tex
 TOOLS: dict[str, tuple[Permission, dict[str, Any]]] = {
     "validate_invoice": (Permission.INVOICES_VALIDATE, {"xml": VALID}),
     "explain_errors": (Permission.INVOICES_VALIDATE, {"xml": WRONG_PIB}),
+    "store_invoice": (Permission.INVOICES_SUBMIT, {"xml": VALID}),
+    "list_invoices": (Permission.INVOICES_SUBMIT, {}),
+    "get_invoice": (Permission.INVOICES_SUBMIT, {"invoice_id": str(uuid.uuid4())}),
 }
 
 #: What ``serving`` is given for a server without a language model.
@@ -339,7 +343,8 @@ async def test_each_tool_requires_its_permission(
 
     assert refused.is_error
     assert text_of(refused) == f"Error executing tool {name}: requires the permission {permission}"
-    assert not admitted.is_error
+    # Admitted, the tool does its work: an invoice it cannot find is another matter.
+    assert not admitted.is_error or text_of(admitted).endswith("no such invoice")
 
 
 # --- validate_invoice --------------------------------------------------------------------------

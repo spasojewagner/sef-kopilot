@@ -2245,3 +2245,25 @@ Verification: the API's tests, the whole suite; the seeded faults, each caught (
 request); the migration up and down; ruff, mypy; each commit checked on its own.
 
 Next: the tools on stored invoices (`feat/mcp-invoice-tools`).
+
+## 2026-11-08 — `feat/mcp-invoice-tools` (3 commits)
+
+Outcome: an assistant keeps and reads invoices. `store_invoice`, `list_invoices` and
+`get_invoice` do what their routes do, through the same services and with the same answers;
+they need the new scope `invoices:submit`, which the consent page names and a client gets by
+default with `invoices:validate`. No scope reaches every invoice of the organization, so an
+assistant sees the invoices its person submitted.
+
+Findings:
+
+- The routes' presenters were private to the routes; they are named now and shared, so the
+  tools cannot drift from the routes' answers.
+- A client connected before this scope must connect again: a refresh never widens a consent.
+- The backlog item was larger than one review: the explanations and revalidation of a stored
+  invoice follow, then the step-up and the tools listed by scope.
+
+Verification: the API's tests, the whole suite; the web application's tests, lint and types;
+the seeded faults, each caught (see the pull request); ruff, mypy; each commit checked on its
+own.
+
+Next: the explanations and revalidation of a stored invoice (`feat/mcp-invoice-explanations`).

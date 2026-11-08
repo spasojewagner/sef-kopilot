@@ -31,9 +31,11 @@ import { authorizationRequestQuery, meQuery } from "@/lib/queries";
 import { signOut, type Identity } from "@/lib/session";
 
 /** The message that says what each scope lets a client do. */
-const SCOPES: ReadonlyMap<string, "invoicesValidate"> = new Map([
-  ["invoices:validate", "invoicesValidate"],
-]);
+const SCOPES: ReadonlyMap<string, "invoicesValidate" | "invoicesSubmit"> =
+  new Map([
+    ["invoices:validate", "invoicesValidate"],
+    ["invoices:submit", "invoicesSubmit"],
+  ]);
 
 type Choice = "approve" | "refuse";
 

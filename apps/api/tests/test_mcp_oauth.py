@@ -33,7 +33,7 @@ from .test_oauth_documents import DOCUMENT_URL, Host
 
 #: The challenge of a refusal: where the endpoint's metadata is, and the scopes to ask for.
 METADATA = f'resource_metadata="{ISSUER}/.well-known/oauth-protected-resource/mcp"'
-SCOPE = 'scope="invoices:validate"'
+SCOPE = 'scope="invoices:validate invoices:submit"'
 #: The challenge of a refusal of a credential that came and will not do.
 INVALID = f'Bearer error="invalid_token", {METADATA}, {SCOPE}'
 
@@ -132,7 +132,13 @@ async def test_a_client_that_signed_its_person_in_validates_an_invoice(served: S
         offered = sorted(tool.name for tool in (await client.list_tools()).tools)
         result = await client.call_tool("validate_invoice", {"xml": VALID})
 
-    assert offered == ["explain_errors", "validate_invoice"]
+    assert offered == [
+        "explain_errors",
+        "get_invoice",
+        "list_invoices",
+        "store_invoice",
+        "validate_invoice",
+    ]
     assert not result.is_error
     assert '"valid":true' in text_of(result).replace(" ", "")
 

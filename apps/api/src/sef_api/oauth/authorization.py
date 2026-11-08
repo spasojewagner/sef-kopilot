@@ -47,9 +47,14 @@ __all__ = [
     "resource_of",
 ]
 
-#: The scopes a client may ask for, each the permission of the tools it allows.
+#: The scopes a client may ask for, each the permission of the tools it allows: checking an
+#: invoice, and storing invoices and reading the ones the person submitted. No scope reaches
+#: every invoice of the organization (``invoices:manage``): an assistant sees its person's own.
 SCOPES: Final[Mapping[str, Permission]] = MappingProxyType(
-    {"invoices:validate": Permission.INVOICES_VALIDATE}
+    {
+        "invoices:validate": Permission.INVOICES_VALIDATE,
+        "invoices:submit": Permission.INVOICES_SUBMIT,
+    }
 )
 #: How long a request waits for a person's decision.
 REQUEST_LIFETIME: Final = timedelta(minutes=10)

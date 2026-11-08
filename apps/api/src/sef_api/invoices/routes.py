@@ -207,7 +207,8 @@ def _summary(invoice: StoredInvoice) -> InvoiceSummary | None:
     )
 
 
-def _invoice(invoice: StoredInvoice) -> InvoiceOut:
+def present(invoice: StoredInvoice) -> InvoiceOut:
+    """A stored invoice as the API answers it, routes and MCP tools alike."""
     return InvoiceOut(
         id=invoice.id,
         submitted_by=invoice.submitted_by,
@@ -221,9 +222,10 @@ def _invoice(invoice: StoredInvoice) -> InvoiceOut:
     )
 
 
-def _stored(invoice: StoredInvoice) -> StoredInvoiceOut:
+def present_stored(invoice: StoredInvoice) -> StoredInvoiceOut:
+    """A stored invoice with its latest report, as the API answers it."""
     return StoredInvoiceOut(
-        **_invoice(invoice).model_dump(),
+        **present(invoice).model_dump(),
         # The core's models are strict, and JSON gave the report's tuples back as lists.
         report=ValidationReport.model_validate(invoice.report, strict=False),
     )
@@ -370,7 +372,7 @@ async def store_invoice(
         ) from None
     response.headers["Location"] = f"/invoices/{invoice.id}"
     response.headers["Cache-Control"] = "no-store"
-    return _stored(invoice)
+    return present_stored(invoice)
 
 
 @router.post(
@@ -456,7 +458,7 @@ async def list_invoices(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "after is not a cursor this API gave"
         ) from None
     response.headers["Cache-Control"] = "no-store"
-    return InvoicePage(invoices=[_invoice(invoice) for invoice in page.invoices], next=page.next)
+    return InvoicePage(invoices=[present(invoice) for invoice in page.invoices], next=page.next)
 
 
 @router.get(
@@ -472,7 +474,7 @@ async def get_invoice(
     if invoice is None:
         raise _not_found()
     response.headers["Cache-Control"] = "no-store"
-    return _stored(invoice)
+    return present_stored(invoice)
 
 
 @router.get(
@@ -503,7 +505,7 @@ async def download_invoice(invoice_id: uuid.UUID, caller: CanSubmit, session: Se
 def _explaining(invoice: StoredInvoice) -> tuple[StoredInvoiceOut, date, str]:
     """The stored invoice with its report, the day whose law explains it (the issue date, or
     today when the invoice cannot be read), and the report's digest."""
-    stored = _stored(invoice)
+    stored = present_stored(invoice)
     day = stored.summary.issue_date if stored.summary is not None else datetime.now(UTC).date()
     return stored, day, kept_explanations.report_digest(stored.report)
 

@@ -250,6 +250,9 @@ system are marked as such.
       role; a tool needs its permission in the role and in the token's scopes. A refusal names
       the protected resource metadata and the scopes (RFC 9728 §5.1); the metadata documents
       (RFC 9728, RFC 8414) are public and hold no secret.
+- [x] Through the MCP tools on stored invoices, an assistant sees the invoices its person
+      submitted: no scope reaches every invoice of the organization (`invoices:manage`). Storing
+      reads the consent again before it writes, and is bounded by the organization's quota.
 - [x] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
       protected resource metadata (RFC 9728), authorization server metadata (RFC 8414), the
       issuer in authorization responses (RFC 9207) and client ID metadata documents, with scope

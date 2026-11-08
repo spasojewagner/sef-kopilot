@@ -417,7 +417,8 @@
     "as": "As {email}",
     "may": "It will be able to",
     "scopes": {
-      "invoicesValidate": "validate invoices and explain their errors"
+      "invoicesValidate": "validate invoices and explain their errors",
+      "invoicesSubmit": "store invoices in your organization and read the ones you sent"
     },
     "waits": "The request waits for your decision until {time}.",
     "allow": "Allow",

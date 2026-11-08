@@ -130,7 +130,7 @@ async def test_a_code_is_exchanged_for_tokens_for_the_mcp_endpoint(session: Asyn
     assert (issued["token_type"], issued["expires_in"], issued["scope"]) == (
         "Bearer",
         900,
-        "invoices:validate",
+        "invoices:validate invoices:submit",
     )
     assert jwt.get_unverified_header(issued["access_token"])["typ"] == "at+jwt"
     claims = oauth_tokens.decode_access_token(
@@ -141,7 +141,10 @@ async def test_a_code_is_exchanged_for_tokens_for_the_mcp_endpoint(session: Asyn
         primer.organization.id,
         client,
     )
-    assert (claims.scopes, claims.authorization_id) == (("invoices:validate",), consent_id)
+    assert (claims.scopes, claims.authorization_id) == (
+        ("invoices:validate", "invoices:submit"),
+        consent_id,
+    )
     assert timedelta(minutes=14) < claims.expires_at - datetime.now(UTC) <= timedelta(minutes=15)
     # The refresh token is kept as its digest, never as itself.
     kept = await session.scalar(select(OAuthRefreshToken))
@@ -390,7 +393,7 @@ async def test_a_refresh_token_presented_again_revokes_the_consent(session: Asyn
         ({"client_id": "another-client"}, "invalid_grant"),
         ({"refresh_token": "not-one-this-server-issued"}, "invalid_grant"),
         ({"resource": f"{ISSUER}/api"}, "invalid_target"),
-        ({"scope": "invoices:validate invoices:submit"}, "invalid_scope"),
+        ({"scope": "invoices:validate members:manage"}, "invalid_scope"),
         ({"scope": " "}, "invalid_scope"),
         ({"scope": 'invoices:validate "quoted"'}, "invalid_scope"),
         ({"client_id": None}, "invalid_request"),

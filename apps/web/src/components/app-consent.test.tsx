@@ -124,7 +124,7 @@ describe("The page where a person decides on a client's request", () => {
         ...REQUEST,
         client_name: null,
         redirect_uri: "https://claude.ai/api/mcp/auth_callback",
-        scopes: ["invoices:validate", "members:manage"],
+        scopes: ["invoices:validate", "invoices:submit", "members:manage"],
       },
     });
 
@@ -138,6 +138,9 @@ describe("The page where a person decides on a client's request", () => {
     const scopes = screen.getByRole("list", { name: "It will be able to" });
     expect(scopes).toHaveTextContent(
       "validate invoices and explain their errors",
+    );
+    expect(scopes).toHaveTextContent(
+      "store invoices in your organization and read the ones you sent",
     );
     expect(scopes).toHaveTextContent("members:manage");
   });
