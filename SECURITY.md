@@ -253,6 +253,9 @@ system are marked as such.
 - [x] Through the MCP tools on stored invoices, an assistant sees the invoices its person
       submitted: no scope reaches every invoice of the organization (`invoices:manage`). Storing
       reads the consent again before it writes, and is bounded by the organization's quota.
+- [x] A call through an MCP client of a tool its scopes do not reach is refused before the tool
+      runs (403 `insufficient_scope`), naming the scopes to ask the person for; the tool still
+      checks the role and the scopes itself, so the challenge can only refuse, never allow.
 - [x] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
       protected resource metadata (RFC 9728), authorization server metadata (RFC 8414), the
       issuer in authorization responses (RFC 9207) and client ID metadata documents, with scope

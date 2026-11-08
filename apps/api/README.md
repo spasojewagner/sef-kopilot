@@ -533,9 +533,15 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
 
   An assistant's scopes match: `invoices:validate` for the first two, `invoices:submit` for the
   others. No scope reaches every invoice of the organization (`invoices:manage`): through an
-  assistant, a person sees the invoices they submitted. A client connected before
-  `invoices:submit` existed holds `invoices:validate` alone, and a refresh never widens what a
-  person allowed: they connect it again to let it keep invoices.
+  assistant, a person sees the invoices they submitted.
+- **Asking for more (step-up):** every tool is listed, whatever a token's scopes. A call
+  through an MCP client of a tool its scopes do not reach, which the person's role would
+  allow, is answered 403 before the tool runs, with `WWW-Authenticate: Bearer
+  error="insufficient_scope"`, the protected resource metadata and the scopes to ask for: those
+  the client holds and those the call needs (ADR-0046). A client that steps up sends its person
+  to be asked again and repeats the call; with one that does not, the person connects it again.
+  A refresh never widens what a person allowed. A tool the person's role would not allow, or an
+  API key's missing permission, is the tool's error, as before.
 
 - **Its limits:** a message is a JSON body, at most `SEF_MAX_BODY_BYTES` (1 MiB): a larger
   invoice is uploaded to the tool's route instead. Only POST is answered (405 otherwise),

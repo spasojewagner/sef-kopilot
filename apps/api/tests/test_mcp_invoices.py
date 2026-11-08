@@ -114,10 +114,11 @@ async def test_an_organization_that_stores_as_much_as_it_may_stores_no_more(
     )
 
 
-async def test_an_assistant_stores_only_with_the_scope_for_it(
+async def test_an_assistant_stores_as_its_person(
     committed_database: Database, database_url: str
 ) -> None:
-    """The person decides: an assistant let only check invoices may not keep them."""
+    """With the scopes a client asks for when it names none; one that may only check invoices
+    is asked to step up (``test_mcp_step_up``)."""
     async with serving(
         committed_database,
         database_url,
@@ -125,16 +126,10 @@ async def test_an_assistant_stores_only_with_the_scope_for_it(
         SEF_WEB_ORIGINS=SERVER["SEF_WEB_ORIGINS"],
         SEF_WEB_URL=SERVER["SEF_WEB_URL"],
     ) as served:
-        checking = await signed_in(served, scope="invoices:validate")
         keeping = await signed_in(served)
-        async with connected_with(served, bearer(checking["access_token"])) as client:
-            refused = await client.call_tool("store_invoice", {"xml": VALID})
         async with connected_with(served, bearer(keeping["access_token"])) as client:
             kept = await client.call_tool("store_invoice", {"xml": VALID})
 
-    assert text_of(refused) == (
-        "Error executing tool store_invoice: requires the permission invoices:submit"
-    )
     assert not kept.is_error
     assert kept.structured_content is not None
     assert kept.structured_content["submitted_by"] == str(served.primer.client.id)
