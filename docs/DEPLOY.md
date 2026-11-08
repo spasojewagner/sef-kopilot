@@ -131,7 +131,8 @@ authorization server (ADR-0044), which is off until the API knows its own addres
    answers with the server's endpoints.
 3. In the assistant, add a connector with the address `https://sef-kopilot-api.onrender.com/mcp`.
    It registers itself, sends you to the web application to sign in and allow it, and lists the
-   tools. Ask it to validate one of the synthetic invoices.
+   tools. Ask it to validate one of the synthetic invoices; `docs/DEMO.md` shows Claude and
+   ChatGPT doing it.
 
 Nothing else is configured: there is no client to register by hand and no secret to keep, since
 every client is public and proves itself with PKCE.

@@ -124,7 +124,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/mcp-propose-fix` — `propose_fix`: a repair of a stored invoice, the server's model writing the patches or the assistant giving its own (ADR-0025), which a person decides on the repair's page (ADR-0024), whose address the tool answers; `get_repair`, which reads whether they have
 - [x] `feat/core-rule-catalogue` — the rules a profile applies, or sets aside, as data: read from the rule sets the validator runs, with the calculation and SRB-CIUS rules, and searched by id, business term or words (ADR-0047; split from `feat/mcp-search-rules` on 2026-11-08)
 - [x] `feat/mcp-search-rules` — `search_rules`: the rules of a profile and the passages of the corpus, by a rule's id or by words; `get_rule`, a rule with the passages an explanation of it would cite; both as `GET /rules` and `GET /rules/{rule_id}` answer
-- [ ] Demo from Claude and ChatGPT documented with screenshots
+- [x] Demo from Claude and ChatGPT documented with screenshots: `docs/DEMO.md`, on the public demo with a synthetic invoice whose PIB has a wrong check digit, through each assistant's connector and OAuth (2026-11-08)
 - [ ] Release: `v0.4.0`
 
 ## M5 — SEF demo round trip (week 8) · tag `v0.5.0`

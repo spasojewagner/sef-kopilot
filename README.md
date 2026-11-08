@@ -21,6 +21,8 @@
 Upload only synthetic invoices, such as those in `fixtures/invoices/synthetic/`: the demo is
 public, and an explanation or a repair sends an invoice's violations and fields to the language
 model's provider. Its API sleeps after 15 minutes without a visitor and wakes in about a minute.
+From Claude or ChatGPT, connect `https://sef-kopilot-api.onrender.com/mcp`: [`docs/DEMO.md`](docs/DEMO.md)
+shows both on a synthetic invoice.
 
 ## The problem
 
@@ -195,6 +197,7 @@ Chromium for Playwright, installed once with
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system map: layers, request flow, repository map, cross-cutting concerns
 - [`docs/adr/`](docs/adr/README.md) — architecture decision records (MADR)
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) — the public demo: what runs where, and the steps to deploy it
+- [`docs/DEMO.md`](docs/DEMO.md) — the MCP server from Claude and ChatGPT, with screenshots
 - [`docs/learning/`](docs/learning/README.md) — one-page notes on the concepts the project is built on
 - [`docs/interview/`](docs/interview/README.md) — the questions each pull request should survive
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how the repository is worked on: branches, commits, pull requests, releases
