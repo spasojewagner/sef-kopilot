@@ -892,6 +892,11 @@ export interface components {
              * @default true
              */
             authorization_response_iss_parameter_supported: boolean;
+            /**
+             * Client Id Metadata Document Supported
+             * @description Whether a client may be known by an `https` client_id whose metadata document this server fetches (ADR-0045).
+             */
+            client_id_metadata_document_supported: boolean;
         };
         /**
          * Citation
@@ -3963,7 +3968,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The client is not registered, or the redirect URI is not one it registered. */
+            /** @description The client is not registered, or the redirect URI is not one it registered; or the client's metadata document, where documents are fetched, will not do. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3974,6 +3979,15 @@ export interface operations {
             };
             /** @description This server has no authorization server (`SEF_PUBLIC_URL`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many authorization requests from this address; try again after `Retry-After` seconds. */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

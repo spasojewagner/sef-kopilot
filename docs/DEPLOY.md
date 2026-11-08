@@ -120,11 +120,13 @@ The MCP endpoint, `https://sef-kopilot-api.onrender.com/mcp`, takes an API key f
 An assistant that signs its user in, such as Claude's or ChatGPT's connectors, needs the API's
 authorization server (ADR-0044), which is off until the API knows its own address:
 
-1. Render > the API > **Environment**, two variables, which redeploy the service:
+1. Render > the API > **Environment**, three variables, which redeploy the service:
    - `SEF_PUBLIC_URL`: `https://sef-kopilot-api.onrender.com`, the API's address, without a
      slash.
    - `SEF_WEB_URL`: `https://sef-kopilot.vercel.app`, the web application's address, which must
      be one of `SEF_WEB_ORIGINS`: its page is where a person decides what an assistant may do.
+   - `SEF_CLIENT_METADATA_DOCUMENTS`: `true`, for assistants that introduce themselves by a
+     metadata document instead of registering (ADR-0045); the others register either way.
 2. Check: `https://sef-kopilot-api.onrender.com/.well-known/oauth-authorization-server`
    answers with the server's endpoints.
 3. In the assistant, add a connector with the address `https://sef-kopilot-api.onrender.com/mcp`.

@@ -29,6 +29,7 @@ from .conftest import TEST_JWT_SECRET
 from .factories import join, organization
 from .test_mcp import POSTED, VALID, Served, initialize, serving, text_of
 from .test_oauth_authorization import CALLBACK, CHALLENGE, ISSUER, SERVER, VERIFIER
+from .test_oauth_documents import DOCUMENT_URL, Host
 
 #: The challenge of a refusal: where the endpoint's metadata is, and the scopes to ask for.
 METADATA = f'resource_metadata="{ISSUER}/.well-known/oauth-protected-resource/mcp"'
@@ -54,19 +55,20 @@ def query_of(uri: str) -> dict[str, str]:
 
 
 async def signed_in(
-    served: Served, *, scope: str | None = None, as_owner: bool = False
+    served: Served, *, scope: str | None = None, as_owner: bool = False, client: str | None = None
 ) -> dict[str, Any]:
-    """The tokens of a client that registered, sent its person to be asked, and exchanged the
-    code their consent issued: the person is Primer's client, or its owner."""
+    """The tokens of a client that registered, or is ``client``, sent its person to be asked,
+    and exchanged the code their consent issued: the person is Primer's client, or its owner."""
     async with served.http() as http:
-        registered = await http.post(
-            "/oauth/register",
-            json={
-                "redirect_uris": [CALLBACK],
-                "grant_types": ["authorization_code", "refresh_token"],
-            },
-        )
-        client = registered.json()["client_id"]
+        if client is None:
+            registered = await http.post(
+                "/oauth/register",
+                json={
+                    "redirect_uris": [CALLBACK],
+                    "grant_types": ["authorization_code", "refresh_token"],
+                },
+            )
+            client = registered.json()["client_id"]
         asked = await http.get(
             "/oauth/authorize",
             params={
@@ -133,6 +135,24 @@ async def test_a_client_that_signed_its_person_in_validates_an_invoice(served: S
     assert offered == ["explain_errors", "validate_invoice"]
     assert not result.is_error
     assert '"valid":true' in text_of(result).replace(" ", "")
+
+
+async def test_a_client_known_by_its_document_signs_in_as_well(served: Served) -> None:
+    """A client with no registration, whose metadata document the server fetches (ADR-0045),
+    goes through every step to a tool call, its URL for a client_id."""
+    host = Host()
+    served.app.state.client_documents = host.fetcher()
+    tokens = await signed_in(served, client=DOCUMENT_URL)
+
+    async with connected(served, bearer(tokens["access_token"])) as client:
+        result = await client.call_tool("validate_invoice", {"xml": VALID})
+
+    assert not result.is_error
+    assert (
+        jwt.decode(tokens["access_token"], options={"verify_signature": False})["client_id"]
+        == DOCUMENT_URL
+    )
+    assert len(host.asked) == 1
 
 
 async def test_without_a_credential_the_challenge_names_the_metadata(served: Served) -> None:

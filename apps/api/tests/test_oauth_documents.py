@@ -1,5 +1,5 @@
 """Clients known by a metadata document (ADR-0045): the fetch, which reaches only the public
-internet and reads only a small JSON document."""
+internet and reads only a small JSON document, and the authorization requests of such clients."""
 
 from __future__ import annotations
 
@@ -11,11 +11,17 @@ from typing import Any
 
 import httpx
 import pytest
+from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.main import create_app
+from sef_api.models import OAuthClient
 from sef_api.oauth import documents
 from sef_api.oauth.documents import DocumentError
 
-from .test_oauth_authorization import CALLBACK
+from .conftest import settings_for
+from .test_invoices_validate import application
+from .test_oauth_authorization import CALLBACK, SERVER, authorize
 
 #: A client's metadata document, at a host of the public internet.
 DOCUMENT_URL = "https://assistant.example/oauth/client.json"
@@ -215,3 +221,91 @@ async def test_a_slow_host_is_given_up_on(monkeypatch: pytest.MonkeyPatch) -> No
         await documents.fetch(
             DOCUMENT_URL, resolve=slowly, transport=httpx.MockTransport(Host().handle)
         )
+
+
+def fetching(host: Host) -> Callable[[FastAPI], None]:
+    """Lets the application fetch documents from ``host``."""
+
+    def change(app: FastAPI) -> None:
+        app.state.client_documents = host.fetcher()
+
+    return change
+
+
+async def test_a_client_known_by_its_document_is_asked_about(session: AsyncSession) -> None:
+    host = Host()
+    enabled = SERVER | {"SEF_CLIENT_METADATA_DOCUMENTS": "true"}
+
+    async with application(session, fetching(host), **enabled) as api:
+        first = await authorize(api, DOCUMENT_URL)
+        host.answer = lambda _: json_of(client_name="Asistent 2")()
+        second = await authorize(api, DOCUMENT_URL)
+
+    assert (first.status_code, second.status_code) == (302, 302)
+    assert first.headers["Location"].startswith(f"{SERVER['SEF_WEB_URL']}/oauth/consent?request=")
+    # Read at each request: the client is as its document says now.
+    assert len(host.asked) == 2
+    client = await session.get(OAuthClient, DOCUMENT_URL, populate_existing=True)
+    assert client is not None
+    assert (client.name, client.redirect_uris, client.grant_types) == (
+        "Asistent 2",
+        [CALLBACK],
+        ["authorization_code", "refresh_token"],
+    )
+
+
+async def test_a_document_that_will_not_do_stops_the_request(session: AsyncSession) -> None:
+    host = Host(answer=lambda _: answer_of(404)())
+    enabled = SERVER | {"SEF_CLIENT_METADATA_DOCUMENTS": "true"}
+
+    async with application(session, fetching(host), **enabled) as api:
+        answer = await authorize(api, DOCUMENT_URL)
+
+    # No redirect URI can be trusted: the browser is told here.
+    assert (answer.status_code, answer.json()) == (
+        400,
+        {"detail": "the client's metadata document was answered 404"},
+    )
+    assert await session.get(OAuthClient, DOCUMENT_URL) is None
+
+
+async def test_without_documents_such_a_client_is_unknown(session: AsyncSession) -> None:
+    """Off by default: a self-hosted server calls out to nothing it did not choose, and a client
+    once known by its document, while they were fetched, is unknown now."""
+    session.add(
+        OAuthClient(
+            id=DOCUMENT_URL,
+            name="Asistent",
+            redirect_uris=[CALLBACK],
+            grant_types=["authorization_code"],
+        )
+    )
+    await session.flush()
+    served: list[FastAPI] = []
+
+    async with application(session, served.append, **SERVER) as api:
+        answer = await authorize(api, DOCUMENT_URL)
+
+    assert served[0].state.client_documents is None
+    assert (answer.status_code, answer.json()) == (
+        400,
+        {"detail": "no client is registered with this client_id"},
+    )
+
+
+def test_the_setting_lets_the_server_fetch() -> None:
+    app = create_app(settings_for(**SERVER, SEF_CLIENT_METADATA_DOCUMENTS="true"))
+
+    assert app.state.client_documents is documents.fetch
+
+
+async def test_authorization_requests_are_counted_by_address(session: AsyncSession) -> None:
+    """Each may make the server fetch a document: a stranger cannot make it fetch at will."""
+    host = Host()
+    enabled = SERVER | {"SEF_CLIENT_METADATA_DOCUMENTS": "true"}
+
+    async with application(session, fetching(host), **enabled) as api:
+        answers = [(await authorize(api, DOCUMENT_URL)).status_code for _ in range(31)]
+
+    assert answers == [302] * 30 + [429]
+    assert len(host.asked) == 30

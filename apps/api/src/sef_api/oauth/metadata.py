@@ -64,6 +64,12 @@ class AuthorizationServer(BaseModel):
     authorization_response_iss_parameter_supported: bool = Field(
         default=True, description="Every answer to the client names the issuer (RFC 9207)."
     )
+    client_id_metadata_document_supported: bool = Field(
+        description=(
+            "Whether a client may be known by an `https` client_id whose metadata document this "
+            "server fetches (ADR-0045)."
+        )
+    )
 
 
 Server = Annotated[Settings, Depends(require_authorization_server)]
@@ -128,4 +134,5 @@ def authorization_server(settings: Server, response: Response) -> AuthorizationS
         token_endpoint=f"{issuer}/oauth/token",
         registration_endpoint=f"{issuer}/oauth/register",
         scopes_supported=list(authorizations.SCOPES),
+        client_id_metadata_document_supported=settings.client_metadata_documents,
     )

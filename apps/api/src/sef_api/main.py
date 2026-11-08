@@ -35,6 +35,7 @@ from sef_api.jobs.runs import JobContext, run_job
 from sef_api.llm import llm_for
 from sef_api.mcp import server as mcp
 from sef_api.members import routes as members
+from sef_api.oauth import documents
 from sef_api.oauth import metadata as oauth_metadata
 from sef_api.oauth import routes as oauth
 from sef_api.organization import routes as organization
@@ -238,6 +239,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.jobs = _runner(app, settings)
     app.state.explainer, app.state.repairer = _model_users(settings)
     app.state.embedder = embedder_for(settings)
+    # Fetches a client's metadata document, where the operator allows it (ADR-0045).
+    app.state.client_documents = documents.fetch if settings.client_metadata_documents else None
     for router in (
         health.router,
         auth.router,

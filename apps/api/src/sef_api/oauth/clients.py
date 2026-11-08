@@ -15,11 +15,12 @@ from typing import Final, Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.models import OAuthClient
 
-__all__ = ["GRANT_TYPES", "ClientMetadata", "RegisteredClient", "find", "register"]
+__all__ = ["GRANT_TYPES", "ClientMetadata", "RegisteredClient", "find", "introduced", "register"]
 
 #: The grants a client may register for.
 GRANT_TYPES: Final = ("authorization_code", "refresh_token")
@@ -130,3 +131,25 @@ async def register(session: AsyncSession, metadata: ClientMetadata) -> OAuthClie
 async def find(session: AsyncSession, client_id: str) -> OAuthClient | None:
     """The client registered as ``client_id``, if any."""
     return await session.get(OAuthClient, client_id)
+
+
+async def introduced(
+    session: AsyncSession, client_id: str, metadata: ClientMetadata
+) -> OAuthClient:
+    """The client whose metadata document, at ``client_id``, says ``metadata`` (ADR-0045): kept
+    as the document says now, for the consent and the token exchange to read as they read a
+    registered client, and committed."""
+    described = {
+        "name": metadata.client_name,
+        "redirect_uris": metadata.redirect_uris,
+        "grant_types": metadata.grant_types,
+    }
+    await session.execute(
+        insert(OAuthClient)
+        .values(id=client_id, **described)
+        .on_conflict_do_update(index_elements=[OAuthClient.id], set_=described)
+    )
+    await session.commit()
+    client = await session.get(OAuthClient, client_id, populate_existing=True)
+    assert client is not None  # just written
+    return client
