@@ -28,6 +28,9 @@ function api({
     if (asked.path === "/auth/me") {
       return json(200, { ...ALICE, role });
     }
+    if (asked.path === "/api-keys") {
+      return json(200, []);
+    }
     if (asked.method === "PATCH" && change !== undefined) {
       return change(asked);
     }
@@ -223,6 +226,9 @@ describe("The organization's page", () => {
     stubApi((asked) => {
       if (asked.path === "/auth/me") {
         return json(200, { ...ALICE, role });
+      }
+      if (asked.path === "/api-keys") {
+        return json(200, []);
       }
       if (asked.method === "PATCH") {
         role = "accountant";

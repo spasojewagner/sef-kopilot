@@ -134,6 +134,14 @@ one, or none, is saved at once. When the page cannot know whether the period was
 reads it again; when the API refuses an owner who is one no longer, the page says so and shows
 the role the API now reports.
 
+The same page holds the member's API keys, for the machines that act for them, an ERP say
+(ADR-0017): each key's name, its first characters, what it allows, when a request last came
+with it and when it stops working. A new key is named, given some of the permissions the
+member's role grants (every invoice of the organization only to an owner or an accountant)
+and, if it should, a last day; it is shown once, with a button that copies it, until the
+member says they have kept it. A key is revoked only after a second press that says the machine
+loses access at once.
+
 ## A client's request
 
 An MCP client that asks to act for a person, an assistant say, sends them through the API's
