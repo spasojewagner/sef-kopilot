@@ -52,20 +52,24 @@ _BEARER = HTTPBearer(
 
 @dataclass(frozen=True)
 class Principal:
-    """The caller: a person acting in one organization with one role, in person or through a
-    machine client with one of their API keys."""
+    """The caller: a person acting in one organization with one role, in person, through a
+    machine client with one of their API keys, or through an MCP client they consented to."""
 
     user_id: uuid.UUID
     organization_id: uuid.UUID
     role: Role
     #: The API key the caller came with; None when they came with an access token.
     key: api_keys.Grant | None = None
+    #: What the scopes of an MCP client's access token allow; None for any other caller.
+    scopes: frozenset[Permission] | None = None
 
     def may(self, permission: Permission) -> bool:
         """Whether the caller may do what ``permission`` allows: their role grants it, and so
-        does their API key if they came with one."""
-        return permission in ROLE_PERMISSIONS[self.role] and (
-            self.key is None or permission in self.key.permissions
+        does their API key, or their MCP client's scopes, if they came with one."""
+        return (
+            permission in ROLE_PERMISSIONS[self.role]
+            and (self.key is None or permission in self.key.permissions)
+            and (self.scopes is None or permission in self.scopes)
         )
 
 

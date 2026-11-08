@@ -2,7 +2,7 @@
 new endpoint cannot slip past it.
 
 - Every route is one the audit understands: an API route, one of FastAPI's documentation
-  pages, or the MCP endpoint behind its own guard (``RequireKey``; its tools and what each
+  pages, or the MCP endpoint behind its own guard (``RequireCredential``; its tools and what each
   requires are audited in ``test_mcp.py``). A mounted application or a websocket route fails
   the audit until it is guarded and added here.
 - Every endpoint is public by name, open by name to any signed-in caller, or guarded by a
@@ -33,7 +33,7 @@ from starlette.routing import BaseRoute, Route
 from sef_api.auth.dependencies import current_principal, require
 from sef_api.auth.permissions import KEY_PERMISSIONS, ROLE_PERMISSIONS, Permission
 from sef_api.main import create_app
-from sef_api.mcp.access import RequireKey
+from sef_api.mcp.access import RequireCredential
 from sef_api.members import invitations
 from sef_api.models import (
     ApiKey,
@@ -71,6 +71,10 @@ PUBLIC: set[Endpoint] = {
     ("POST", "/oauth/register"),
     ("GET", "/oauth/authorize"),
     ("POST", "/oauth/token"),
+    # The documents that send a client there (RFC 9728, RFC 8414).
+    ("GET", "/.well-known/oauth-protected-resource/mcp"),
+    ("GET", "/.well-known/oauth-protected-resource"),
+    ("GET", "/.well-known/oauth-authorization-server"),
 }
 #: Endpoints for any signed-in caller, about the caller only.
 SIGNED_IN: set[Endpoint] = {
@@ -109,7 +113,7 @@ def walk(app: FastAPI) -> Walked:
             elif (included := getattr(route, "original_router", None)) is not None:
                 # FastAPI keeps an included router as one route that holds it.
                 visit(included.routes)
-            elif type(route) is Route and isinstance(route.endpoint, RequireKey):
+            elif type(route) is Route and isinstance(route.endpoint, RequireCredential):
                 mcp.append(route.path)
             elif not (type(route) is Route and route.path in documentation):
                 unknown.append(route)

@@ -25,9 +25,9 @@ any revision, so a restart, which the free plan does often, loses nothing.
 **What a tool call goes through here.**
 
 ```text
-POST /mcp ─► LimitBodies (1 MiB) ─► RequireKey: Origin? POST? API key? ─► SDK: parse, find the
-tool, check the arguments against its schema ─► validate_invoice: permission, rate limit,
-validator ─► the report, as the route's
+POST /mcp ─► LimitBodies (1 MiB) ─► RequireCredential: Origin? POST? API key or access token?
+─► SDK: parse, find the tool, check the arguments against its schema ─► validate_invoice:
+permission, rate limit, validator ─► the report, as the route's
 ```
 
 **Three ideas worth keeping.**
@@ -39,8 +39,8 @@ validator ─► the report, as the route's
 - **One service, two doors.** A tool is a thin layer over the same functions a route calls, so
   the two cannot disagree, and a client's model is told why it was refused in the route's words.
 - **A token belongs to the resource it was issued for.** The web application's access tokens
-  are for the API's routes; the MCP endpoint takes API keys now, and will take tokens issued for
-  it once it has an OAuth 2.1 authorization server (M4's next step).
+  are for the API's routes; the MCP endpoint takes API keys, and the access tokens its OAuth 2.1
+  authorization server issued for it (note 39).
 
 **An error, two kinds.** A failure the client can act on (no permission, too many requests, an
 invoice too large) is a tool result marked `isError`, whose text the model reads. A malformed

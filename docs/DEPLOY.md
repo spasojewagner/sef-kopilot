@@ -114,6 +114,26 @@ cannot call it; Vercel's own sign-in protects them, as it does each deployment's
    unexplained ("This rule was not explained this time"), the corpus is missing: run step 3
    against this database.
 
+## 6. Connect an assistant (OAuth 2.1)
+
+The MCP endpoint, `https://sef-kopilot-api.onrender.com/mcp`, takes an API key from any client.
+An assistant that signs its user in, such as Claude's or ChatGPT's connectors, needs the API's
+authorization server (ADR-0044), which is off until the API knows its own address:
+
+1. Render > the API > **Environment**, two variables, which redeploy the service:
+   - `SEF_PUBLIC_URL`: `https://sef-kopilot-api.onrender.com`, the API's address, without a
+     slash.
+   - `SEF_WEB_URL`: `https://sef-kopilot.vercel.app`, the web application's address, which must
+     be one of `SEF_WEB_ORIGINS`: its page is where a person decides what an assistant may do.
+2. Check: `https://sef-kopilot-api.onrender.com/.well-known/oauth-authorization-server`
+   answers with the server's endpoints.
+3. In the assistant, add a connector with the address `https://sef-kopilot-api.onrender.com/mcp`.
+   It registers itself, sends you to the web application to sign in and allow it, and lists the
+   tools. Ask it to validate one of the synthetic invoices.
+
+Nothing else is configured: there is no client to register by hand and no secret to keep, since
+every client is public and proves itself with PKCE.
+
 ## Rolling back
 
 - The API: Render > the service > **Events**, and **Rollback** to an earlier deploy. A migration

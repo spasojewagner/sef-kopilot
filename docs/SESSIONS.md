@@ -2101,3 +2101,41 @@ regenerated; each commit checked on its own.
 
 Next: the MCP endpoint accepting these tokens, and the metadata documents
 (`feat/mcp-oauth-resource`).
+
+## 2026-11-08 — `feat/mcp-oauth-resource` (4 commits, stacked on `feat/mcp-oauth-tokens`)
+
+Outcome: the MCP endpoint takes the authorization server's access tokens, beside API keys. A
+token is admitted when this server issued it for the endpoint and the consent behind it stands,
+read on every request with the member's role; a tool needs its permission in the role and in
+the token's scopes. A refusal names the endpoint's protected resource metadata and the scopes
+(RFC 9728 §5.1), and the metadata documents (RFC 9728, RFC 8414) send a client to sign its
+person in. `docs/DEPLOY.md` says how to turn it on in the demo and connect an assistant.
+
+Findings:
+
+- A signed token says who issued it, not whether its consent still stands: reading the consent
+  by the token's `sid` on every request makes a revocation take effect at once, which the token
+  endpoint's own review had asked of this step. The consent must also be the token's, its
+  person, organization and client, in case the key ever signed one that is not.
+- The guard in front of the endpoint is named for what it checks now, a credential of either
+  kind, in a commit of its own before the change; the metadata documents come in one of their
+  own too, so that each commit reads on its own.
+- The step had a review of its own, by a reader who had not written it. It found two refusals
+  without the challenge (a key that does not work, a member no longer active), an assistant
+  told that its person had been deactivated, which the token endpoint withholds, and no test of
+  a token naming another organization of its person's; each is fixed and tested. Its judgement
+  calls are recorded in the backlog: what the first MCP tool that writes needs (a principal
+  that says which credential it came with, requests counted per consent, scopes that step up),
+  and clients in a browser, whose preflights the API's CORS settings refuse.
+- The metadata documents are public: a page of any origin may read them with a plain GET; they
+  hold nothing that is not in the API's OpenAPI document already. At the root of the well-known
+  path, the protected resource's document names the MCP endpoint where RFC 9728 would name the
+  origin, because MCP clients ask for a token for the resource it names.
+
+Verification: the API's tests, the endpoint's with every kind of token and consent, the
+documents' against RFC 9728 and RFC 8414; the seeded faults, each caught (see the pull
+request); ruff, mypy; the OpenAPI document and the web application's types regenerated; each
+commit checked on its own.
+
+Next: turning it on in the demo and connecting Claude, then client ID metadata documents
+(`feat/mcp-oauth-client-metadata`) and the tools on stored invoices.

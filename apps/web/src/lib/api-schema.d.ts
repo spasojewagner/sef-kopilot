@@ -733,6 +733,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/.well-known/oauth-protected-resource/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The MCP endpoint's protected resource metadata
+         * @description Where a client refused at `/mcp` learns who issues the endpoint's access tokens (RFC 9728); the endpoint's `WWW-Authenticate` names this address.
+         */
+        get: operations["protected_resource__well_known_oauth_protected_resource_mcp_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/.well-known/oauth-protected-resource": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The API's protected resource metadata
+         * @description The same document at the address a client tries when it was not told the endpoint's own: the MCP endpoint is the API's one protected resource.
+         */
+        get: operations["protected_resource_at_the_root__well_known_oauth_protected_resource_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/.well-known/oauth-authorization-server": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The authorization server's metadata
+         * @description The authorization server's endpoints and what they support (RFC 8414): public clients registering themselves, codes with PKCE (S256), refresh tokens, the issuer in every answer.
+         */
+        get: operations["authorization_server__well_known_oauth_authorization_server_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -780,6 +840,58 @@ export interface components {
              * @description Until when the request waits for a decision.
              */
             expires_at: string;
+        };
+        /**
+         * AuthorizationServer
+         * @description The authorization server, as RFC 8414 §2 describes it.
+         */
+        AuthorizationServer: {
+            /** Issuer */
+            issuer: string;
+            /** Authorization Endpoint */
+            authorization_endpoint: string;
+            /** Token Endpoint */
+            token_endpoint: string;
+            /** Registration Endpoint */
+            registration_endpoint: string;
+            /** Scopes Supported */
+            scopes_supported: string[];
+            /**
+             * Response Types Supported
+             * @default [
+             *       "code"
+             *     ]
+             */
+            response_types_supported: "code"[];
+            /**
+             * Grant Types Supported
+             * @default [
+             *       "authorization_code",
+             *       "refresh_token"
+             *     ]
+             */
+            grant_types_supported: string[];
+            /**
+             * Token Endpoint Auth Methods Supported
+             * @description Every client is public, and proves itself with PKCE.
+             * @default [
+             *       "none"
+             *     ]
+             */
+            token_endpoint_auth_methods_supported: "none"[];
+            /**
+             * Code Challenge Methods Supported
+             * @default [
+             *       "S256"
+             *     ]
+             */
+            code_challenge_methods_supported: "S256"[];
+            /**
+             * Authorization Response Iss Parameter Supported
+             * @description Every answer to the client names the issuer (RFC 9207).
+             * @default true
+             */
+            authorization_response_iss_parameter_supported: boolean;
         };
         /**
          * Citation
@@ -1444,6 +1556,36 @@ export interface components {
         Problem: {
             /** Detail */
             detail: string;
+        };
+        /**
+         * ProtectedResource
+         * @description The MCP endpoint, as a protected resource (RFC 9728 §2).
+         */
+        ProtectedResource: {
+            /**
+             * Resource
+             * @description The MCP endpoint, the audience of its access tokens.
+             */
+            resource: string;
+            /**
+             * Authorization Servers
+             * @description The issuer of its access tokens.
+             */
+            authorization_servers: string[];
+            /** Scopes Supported */
+            scopes_supported: string[];
+            /**
+             * Bearer Methods Supported
+             * @default [
+             *       "header"
+             *     ]
+             */
+            bearer_methods_supported: "header"[];
+            /**
+             * Resource Name
+             * @default SEF Kopilot
+             */
+            resource_name: string;
         };
         /**
          * ReadinessResponse
@@ -4062,6 +4204,93 @@ export interface operations {
             };
             /** @description Too many token requests from this address; try again after `Retry-After` seconds. */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    protected_resource__well_known_oauth_protected_resource_mcp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtectedResource"];
+                };
+            };
+            /** @description This server has no authorization server. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    protected_resource_at_the_root__well_known_oauth_protected_resource_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtectedResource"];
+                };
+            };
+            /** @description This server has no authorization server. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    authorization_server__well_known_oauth_authorization_server_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationServer"];
+                };
+            };
+            /** @description This server has no authorization server. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

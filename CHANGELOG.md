@@ -70,6 +70,14 @@ is tagged.
   the grant, a refresh token, spent once for the next pair; a code or a refresh token
   presented again revokes the consent, and the role is read again at each exchange (migration
   0017).
+- `apps/api`: the documents that send an MCP client to sign its person in, readable by pages
+  of any origin: the MCP endpoint's protected resource metadata,
+  `/.well-known/oauth-protected-resource/mcp` (RFC 9728), and the authorization server's,
+  `/.well-known/oauth-authorization-server` (RFC 8414).
+- `apps/api`: the MCP endpoint takes the authorization server's access tokens, for the scopes
+  they carry and the role the member holds now, while the consent behind them stands; a
+  refusal names the endpoint's protected resource metadata (RFC 9728 §5.1).
+  `docs/DEPLOY.md` says how to turn it on and connect an assistant.
 - `apps/web`: the page where a person decides on an MCP client's request, `/oauth/consent`
   (ADR-0044): what the client asks, the name it gave itself (unchecked), the address it takes
   them back to and the organization it will work in; allowing or denying takes them back to
