@@ -2224,3 +2224,24 @@ authorization server; the seeded faults, each caught (see the pull request); ruf
 commit checked on its own.
 
 Next: what the first MCP tool that writes needs, then the tools on stored invoices.
+
+## 2026-11-08 — `feat/mcp-client-credential` (2 commits, stacked on `feat/api-oauth-browser-clients`)
+
+Outcome: an MCP client's acts are told apart from the person's. A caller says which credential
+it came with: in person, an API key, or an MCP client under a consent. Only a person in person
+decides on a repair or a client's request; work that outlasts its check reads the consent
+again; the audit log names the client (migration 0018); the client's requests are counted
+against its consent, apart from the person's own.
+
+Findings:
+
+- The checks that keep a person in charge read "no API key", which an MCP client's caller also
+  has none of; no tool reached them yet, so this comes before the first tool that writes, as
+  the review of `feat/mcp-oauth-resource` asked.
+- The second scope's step-up and the tools listed by scope wait for that scope, with the tools
+  on stored invoices.
+
+Verification: the API's tests, the whole suite; the seeded faults, each caught (see the pull
+request); the migration up and down; ruff, mypy; each commit checked on its own.
+
+Next: the tools on stored invoices (`feat/mcp-invoice-tools`).
