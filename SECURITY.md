@@ -359,7 +359,8 @@ system are marked as such.
       nothing a person wrote: a sign-in, succeeded or refused and why (never the address or
       password tried), a refresh token or a code presented again, an API key refused, a
       consent approved or refused, a repair approved or rejected (tested).
-- [ ] Security events for an API key's use, and the time each key was last used.
+- [x] An API key's use is a security event, and the time each key was last used is kept and
+      listed with the keys, both written at most once a minute (tested).
 - [ ] Security events for sending to SEF (M5).
 - [x] An audit log in the database records what an organization must account for, committed
       with the change itself: who proposed, approved or rejected a repair, with which key, to

@@ -317,6 +317,8 @@ class ApiKey(Base):
     created_at: Mapped[datetime] = _created_at()
     expires_at: Mapped[datetime | None]
     revoked_at: Mapped[datetime | None]
+    #: When a request last came with the key, written at most once a minute.
+    last_used_at: Mapped[datetime | None]
 
 
 class JobKind(StrEnum):

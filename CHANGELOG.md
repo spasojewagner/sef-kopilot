@@ -124,6 +124,8 @@ is tagged.
   its id, which `X-Request-ID` answers; the security events, logged with the fields that
   identify them and nothing a person wrote: sign-ins, refused keys, reused tokens, consents and
   repairs decided.
+- `apps/api`: when each API key was last used, `last_used_at` in `GET /api-keys`, written at
+  most once a minute with a security event, `api-key.used` (migration 0019).
 
 ### Changed
 

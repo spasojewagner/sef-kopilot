@@ -54,6 +54,9 @@ class KeyOut(BaseModel):
     acts_for: uuid.UUID = Field(description="The member for whom the key acts.")
     created_at: datetime
     expires_at: datetime | None = Field(description="When the key stops working; null if never.")
+    last_used_at: datetime | None = Field(
+        description="When a request last came with the key, to the minute; null if never."
+    )
 
 
 class IssuedKey(KeyOut):
@@ -79,6 +82,7 @@ def _key(key: ApiKey) -> KeyOut:
         acts_for=key.user_id,
         created_at=key.created_at,
         expires_at=key.expires_at,
+        last_used_at=key.last_used_at,
     )
 
 

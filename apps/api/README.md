@@ -70,6 +70,7 @@ characters) and, for a security event, the event and its fields, under `sef_api.
 | `sign-in.succeeded` | `user`, `organization`, `address` |
 | `sign-in.refused` | `reason` (`credentials`, `not-a-member`, `too-many-attempts`), `address` |
 | `session.refresh-reused` | `user`, `organization`, `family`: every session of the family ends |
+| `api-key.used` | `key`, `user`, `organization`: when its last use is written, at most once a minute |
 | `api-key.refused` | `address` |
 | `oauth.consent-approved`, `oauth.consent-refused` | `user`, `client`, `consent` (and `organization` when approved) |
 | `oauth.code-reused`, `oauth.refresh-reused` | `client`, `consent`, `user`: the consent is revoked |
@@ -376,8 +377,10 @@ curl -s localhost:8000/invoices -H "Authorization: Bearer $API_KEY"
 - A key may hold `invoices:validate`, `invoices:submit` and `invoices:manage`, each only if the
   member's role grants it. On every request it allows only what it holds and the member's role
   grants at that moment. A key administers no members and issues no keys.
-- `GET /api-keys` lists the keys that work, the newest first, without the keys themselves;
-  `DELETE /api-keys/{id}` revokes one at once. A member sees and revokes their own keys, an
+- `GET /api-keys` lists the keys that work, the newest first, without the keys themselves,
+  each with when a request last came with it (`last_used_at`, written at most once a minute,
+  null if never), so that a key no machine uses any more can go; `DELETE /api-keys/{id}`
+  revokes one at once. A member sees and revokes their own keys, an
   owner every key of the organization.
 - A key works until it is revoked or reaches its optional `expires_at`. It is deleted with its
   member's membership, and a deactivated account's keys are refused. A member has at most 20
