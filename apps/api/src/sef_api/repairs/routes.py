@@ -271,6 +271,20 @@ async def propose_repair(
     caller: CanSubmit,
     session: Session,
 ) -> RepairOut:
+    repair = await repair_proposed(request, caller, session, invoice_id, proposal.patches)
+    response.headers["Location"] = f"/invoices/{invoice_id}/repairs/{repair.id}"
+    return repair_out(repair)
+
+
+async def repair_proposed(
+    request: Request,
+    caller: Principal,
+    session: AsyncSession,
+    invoice_id: uuid.UUID,
+    patches: Sequence[Patch],
+) -> Repair:
+    """The repair ``patches`` make of a stored invoice, kept until a person decides, the routes
+    and MCP tools alike; an HTTP error or a :class:`ConflictError` that says why not."""
     count_validation(request, caller)
     scope = scope_of(caller)
     invoice = await invoice_store.find(session, scope, invoice_id)
@@ -285,7 +299,7 @@ async def propose_repair(
     await session.commit()
     refuse_when_busy(request)
     with judged(request) as validator:
-        patched = await validator.patch(content, profile, proposal.patches)
+        patched = await validator.patch(content, profile, patches)
     # Applying the patches outlasts the transaction in which the permission was checked: a
     # member removed meanwhile, or a key revoked, keeps no repair.
     await check_again(session, caller, Permission.INVOICES_SUBMIT)
@@ -302,8 +316,7 @@ async def propose_repair(
         ) from None
     if repair is None:
         raise _not_found()
-    response.headers["Location"] = f"/invoices/{invoice_id}/repairs/{repair.id}"
-    return repair_out(repair)
+    return repair
 
 
 _SUGGESTION: dict[int | str, dict[str, Any]] = _PROPOSAL | {
@@ -367,6 +380,21 @@ async def suggest_repair(
     session: Session,
     language: Reasons = "sr",
 ) -> RepairOut:
+    repair = await repair_suggested(request, caller, session, invoice_id, language)
+    response.headers["Location"] = f"/invoices/{invoice_id}/repairs/{repair.id}"
+    return repair_out(repair)
+
+
+async def repair_suggested(
+    request: Request,
+    caller: Principal,
+    session: AsyncSession,
+    invoice_id: uuid.UUID,
+    language: Language,
+) -> Repair:
+    """The repair the language model proposes for a stored invoice, kept as the caller's until
+    a person decides, the routes and MCP tools alike; an HTTP error or a
+    :class:`ConflictError` that says why not."""
     repairer = cast(Repairer | None, request.app.state.repairer)
     if repairer is None:
         raise HTTPException(
@@ -422,8 +450,7 @@ async def suggest_repair(
         ) from None
     if repair is None:
         raise _not_found()
-    response.headers["Location"] = f"/invoices/{invoice_id}/repairs/{repair.id}"
-    return repair_out(repair)
+    return repair
 
 
 @router.get(

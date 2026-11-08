@@ -2307,3 +2307,25 @@ Verification: the API's tests, the whole suite; the seeded faults, each caught (
 request); ruff, mypy; each commit checked on its own.
 
 Next: `propose_fix` (`feat/mcp-propose-fix`).
+
+## 2026-11-08 — `feat/mcp-propose-fix` (3 commits, stacked on `feat/mcp-scope-step-up`)
+
+Outcome: an assistant proposes a fix of a stored invoice, and its person decides. `propose_fix`
+has the server's model write the patches, or applies the assistant's own; either way they meet
+the walls of ADR-0025 and the repair waits for a person, on the web application's page the
+tool names (`decide_at`). `get_repair` reads whether they have decided. The logic of both
+repair routes is shared, so the tool answers as they do.
+
+Findings:
+
+- No tool decides, and an assistant's access token, signed with a key of its own for the MCP
+  endpoint, is refused on the routes; a test now says so for the approval.
+- A signed-out person who opens `decide_at` is offered to sign in, but not brought back to the
+  repair afterwards; the link works again once they are signed in.
+- The repair's page says whether it came from an API key, not whether it came through an
+  assistant; the audit log does name the client.
+
+Verification: the API's tests, the whole suite; the seeded faults, each caught after a clean
+baseline (see the pull request); ruff, mypy; each commit checked on its own.
+
+Next: `search_rules` (`feat/mcp-search-rules`).

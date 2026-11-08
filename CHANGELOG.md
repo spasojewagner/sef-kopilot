@@ -109,6 +109,9 @@ is tagged.
 - `apps/api`: the MCP revision's step-up: a call through an MCP client of a tool its scopes
   do not reach is answered 403 `insufficient_scope`, with the scopes to ask the person for,
   before the tool runs; every tool stays listed (ADR-0046).
+- `apps/api`: the MCP server's `propose_fix`, a repair of a stored invoice with the server's
+  model writing the patches or the assistant giving its own, kept until a person decides on the
+  web application's page it names, and `get_repair`, which reads whether they have.
 
 ### Changed
 
