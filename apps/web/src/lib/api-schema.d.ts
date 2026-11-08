@@ -677,6 +677,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invoices/{invoice_id}/sef": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * See what SEF answered about a stored invoice
+         * @description Each time the invoice was sent to SEF, the newest first, with what SEF answered and where the invoice stands in SEF, as SEF last said.
+         */
+        get: operations["list_submissions_invoices__invoice_id__sef_get"];
+        put?: never;
+        /**
+         * Send a stored invoice to SEF
+         * @description The invoice's document is validated again under SRB-CIUS and sent to SEF's demo environment, byte for byte, only when the validator passes it, with the organization's key, which an owner set (`PUT /organization/sef-key`). The answer is the submission as SEF answered it: `imported`, with SEF's ids; `refused`, with SEF's words; or `unconfirmed`, when SEF gave no answer, and sending the invoice again asks SEF again with the same `requestId`, so that it imports the invoice once. An invoice that SEF imported is not sent again. The audit log records each sending.
+         */
+        post: operations["send_invoice_invoices__invoice_id__sef_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/oauth/register": {
         parameters: {
             query?: never;
@@ -1722,7 +1746,7 @@ export interface components {
          * @description Something a member may be allowed to do in their organization.
          * @enum {string}
          */
-        Permission: "members:read" | "members:manage" | "invoices:validate" | "invoices:submit" | "invoices:manage" | "api_keys:issue" | "api_keys:manage" | "organization:read" | "organization:manage";
+        Permission: "members:read" | "members:manage" | "invoices:validate" | "invoices:submit" | "invoices:manage" | "invoices:send" | "api_keys:issue" | "api_keys:manage" | "organization:read" | "organization:manage";
         /** Problem */
         Problem: {
             /** Detail */
@@ -2083,6 +2107,21 @@ export interface components {
             set_at: string;
         };
         /**
+         * SendConflict
+         * @description Why an invoice was not sent: a reason a client tells apart and acts on, and the detail,
+         *     in English, for a person.
+         */
+        SendConflict: {
+            /** Detail */
+            detail: string;
+            /**
+             * Reason
+             * @description `invalid`: the validator does not pass the invoice under SRB-CIUS. `no-key`: the organization has no key to SEF. `sent`: SEF imported the invoice already. `unconfirmed`: another version of it was sent, and SEF's answer is not yet read. `changed`: the invoice changed while it was being validated.
+             * @enum {string}
+             */
+            reason: "invalid" | "no-key" | "sent" | "unconfirmed" | "changed";
+        };
+        /**
          * SetAsideViolation
          * @description A violation a published rule set reported that the profile does not apply.
          */
@@ -2154,6 +2193,74 @@ export interface components {
             /** @description None when the document is not a schema-valid invoice the validator can read. */
             summary: components["schemas"]["InvoiceSummary"] | null;
             report: components["schemas"]["ValidationReport"];
+        };
+        /**
+         * Submission
+         * @description A stored invoice sent to SEF, and what SEF answered.
+         */
+        Submission: {
+            /**
+             * Id
+             * Format: uuid
+             * @description The submission, and the `requestId` SEF was sent.
+             */
+            id: string;
+            /**
+             * Invoice Id
+             * Format: uuid
+             */
+            invoice_id: string;
+            /**
+             * State
+             * @description `unconfirmed`: sent, and SEF's answer not yet read; sending the invoice again asks SEF again, with the same `requestId`. `imported`: SEF imported it, with the ids below. `refused`: SEF did not import it (`refusal`).
+             * @enum {string}
+             */
+            state: "unconfirmed" | "imported" | "refused";
+            /**
+             * Sales Invoice Id
+             * @description SEF's id of the sales invoice.
+             */
+            sales_invoice_id: number | null;
+            /**
+             * Sef Invoice Id
+             * @description SEF's id of the invoice.
+             */
+            sef_invoice_id: number | null;
+            /**
+             * Sef Status
+             * @description Where the invoice stands in SEF, as SEF last said (`Sent`, `Approved`, `Rejected`, …); null until SEF is asked.
+             */
+            sef_status: string | null;
+            /**
+             * Refusal
+             * @description Why SEF did not import it: it refused the `invoice`, or the organization's `key`.
+             */
+            refusal: ("invoice" | "key") | null;
+            /**
+             * Detail
+             * @description SEF's own words: why it refused the invoice, or its buyer's comment.
+             */
+            detail: string | null;
+            /**
+             * Attempts
+             * @description How many times SEF was asked to import it.
+             */
+            attempts: number;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            /**
+             * Answered At
+             * @description When SEF imported or refused it.
+             */
+            answered_at: string | null;
+            /**
+             * Checked At
+             * @description When SEF was last asked where it stands.
+             */
+            checked_at: string | null;
         };
         /**
          * TokenErrorAnswer
@@ -4258,6 +4365,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_submissions_invoices__invoice_id__sef_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Submission"][];
+                };
+            };
+            /** @description No such invoice. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_invoice_invoices__invoice_id__sef_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Submission"];
+                };
+            };
+            /** @description No such invoice. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not sent, and why. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendConflict"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The validator is busy or not available, or the organization's key cannot be used on this server. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };

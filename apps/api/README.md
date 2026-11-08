@@ -186,6 +186,24 @@ To replace `SEF_FERNET_KEY`, put the new key first and the old one after a comma
 `make rotate-sef-keys`, which seals every stored key again under the new one or, when one
 does not open, changes nothing; then remove the old key.
 
+## Sending an invoice to SEF
+
+An owner or an accountant (`invoices:send`) sends a stored invoice to SEF's demo environment
+(`SEF_DEMO_BASE_URL`) with the organization's key (ADR-0051):
+
+```bash
+curl -s -X POST localhost:8000/invoices/$INVOICE_ID/sef -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+The document is validated again under SRB-CIUS and sent, byte for byte, only when the validator
+passes it; 409 says why not (`invalid`, `no-key`, `sent`, `unconfirmed`, `changed`). The answer
+is the submission as SEF answered it: `imported`, with SEF's ids; `refused`, with SEF's words;
+or `unconfirmed`, when SEF gave no answer: sending again asks SEF with the same `requestId`, the
+submission's id, so that SEF imports the invoice once. `GET /invoices/{id}/sef` lists the
+submissions, and where each invoice stands in SEF (`sef_status`), which the API asks of SEF
+where the jobs run, once a minute, less often as an invoice ages, until SEF calls it final. SEF's
+words may quote the invoice: they are shown to the members who may see it, and logged nowhere.
+
 ## Validating an invoice
 
 `POST /invoices/validate` takes the invoice or credit note itself as the request body
@@ -760,7 +778,8 @@ src/sef_api/
   organization/  the caller's organization, its retention period and its key to SEF,
                  `/organization` routes
   sef/           SEF: each organization's key, sealed and opened (`keys.py`), and sealed
-                 again under a new secret (`python -m sef_api.sef.rotate`)
+                 again under a new secret (`python -m sef_api.sef.rotate`); the client of
+                 SEF's public API, invoices sent and watched, `/invoices/{id}/sef` routes
   retention.py   deleting finished jobs and stored invoices once they are past their retention
   rag/           the corpus: text in two scripts, editions and dated passages, embeddings,
                  ingesting (`python -m sef_api.rag.ingest`), the passages each rule cites

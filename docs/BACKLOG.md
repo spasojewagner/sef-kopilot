@@ -130,7 +130,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 ## M5 — SEF demo round trip (week 8) · tag `v0.5.0`
 
 - [x] `feat/sef-keys` — an organization's key to SEF, which an owner sets and removes, sealed with Fernet under `SEF_FERNET_KEY` for that organization alone, shown to no one, rotated with `make rotate-sef-keys` (ADR-0050; split from `feat/sef-demo-client` on 2026-11-08, with a 422 that no longer repeats what it refused)
-- [ ] `feat/sef-demo-client` — SEF demo client over the organization's key, send + status polling, and the MCP tool `send_to_sef_demo` over it (moved from `feat/mcp-server`, which had no client to call)
+- [x] `feat/sef-demo-client` — SEF's public API (v1, as its OpenAPI document describes it), a stored invoice sent with the organization's key only when the validator passes it, once through its `requestId`, and watched until it is final where the jobs run (ADR-0051; the MCP tool split off on 2026-11-08)
+- [ ] `feat/mcp-send-to-sef` — the MCP tool `send_to_sef_demo` over `POST /invoices/{id}/sef`, with the scope `invoices:send` (moved from `feat/mcp-server`, which had no client to call, then from `feat/sef-demo-client`)
+- [ ] `feat/api-keys-send-to-sef` — `invoices:send` among the permissions an API key may hold, for an ERP that sends its invoices (added on 2026-11-08 with `feat/sef-demo-client`)
+- [ ] `feat/web-sef-send` — the report's page: send a valid stored invoice to SEF, what SEF answered and where it stands (added on 2026-11-08 with `feat/sef-demo-client`)
 - [ ] `feat/web-sef-key` — the organization's page: an owner sets, replaces or removes the key to SEF, asked twice before removing, and every member sees since when one is set (added on 2026-11-08 with `feat/sef-keys`)
 - [ ] `feat/sef-error-mapping` — SEF error codes mapped into the explanation pipeline; Peppol profile polish
 - [ ] The SEF internal technical instruction (Interno tehničko uputstvo) in the corpus, once its official text can be pinned like the others (moved from M2)

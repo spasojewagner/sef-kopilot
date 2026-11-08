@@ -12,7 +12,7 @@ work done in the background for an organization, such as validating its invoices
 a person decides, and the audit log records who proposed and decided what (ADR-0024). The
 explanations of a stored invoice's report are kept with it, one set a language (ADR-0040). An
 organization may keep its API key to SEF, sealed under a key that only the environment holds
-(ADR-0050).
+(ADR-0050), and a stored invoice sent to SEF with it keeps what SEF answered (ADR-0051).
 
 The corpus, the official documents an explanation cites, is the same for every organization
 and belongs to none (ADR-0020): its passages are public text, written only by the command that
@@ -28,6 +28,7 @@ from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     Enum,
     ForeignKey,
@@ -64,7 +65,9 @@ __all__ = [
     "RepairStatus",
     "Role",
     "SefKey",
+    "SefSubmission",
     "StoredInvoice",
+    "SubmissionState",
     "User",
 ]
 
@@ -422,6 +425,98 @@ class Job(Base):
     finished_at: Mapped[datetime | None]
 
 
+class SubmissionState(StrEnum):
+    """Where sending a stored invoice to SEF has come (ADR-0051)."""
+
+    UNCONFIRMED = "unconfirmed"
+    """Sent, and SEF's answer not yet read: asked again, with the same request id, until SEF
+    says that it imported the invoice or why not."""
+    IMPORTED = "imported"
+    """SEF imported it, and gave it the ids it is asked about by."""
+    REFUSED = "refused"
+    """SEF did not import it: it refused the invoice, or the organization's key."""
+
+
+#: SEF's statuses of a sales invoice (``SalesInvoiceStatus``), as its API names them.
+SEF_STATUSES = (
+    "New",
+    "Draft",
+    "Sending",
+    "Sent",
+    "Mistake",
+    "Approved",
+    "Rejected",
+    "Cancelled",
+    "Storno",
+    "Paid",
+    "OverDue",
+    "Archived",
+    "Deleted",
+    "Unknown",
+)
+
+
+class SefSubmission(Base):
+    """A stored invoice sent to SEF with its organization's key, and what SEF answered.
+
+    The id is the ``requestId`` sent with it, the same each time it is asked again, so that SEF
+    imports it once. ``sha256`` is the digest of the document sent, which the validator passed
+    under SRB-CIUS just before. Once SEF imported it, its ids, and its status as SEF last said
+    (``sef_status``, none until asked); once it refused it, why (``refusal``). ``detail`` is
+    SEF's own words, a refusal or a buyer's comment, which may quote the invoice: for the
+    members who may see the invoice, and deleted with it. An invoice has at most one
+    submission that is unconfirmed or imported.
+    """
+
+    __tablename__ = "sef_submissions"
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (
+        CheckConstraint("state IN ('unconfirmed', 'imported', 'refused')", name="state_known"),
+        CheckConstraint("sha256 ~ '^[0-9a-f]{64}$'", name="sha256_hex"),
+        CheckConstraint(
+            "(state = 'imported') = (sales_invoice_id IS NOT NULL)", name="imported_with_its_id"
+        ),
+        CheckConstraint(
+            "(state = 'refused') = (refusal IS NOT NULL)", name="refused_with_a_reason"
+        ),
+        CheckConstraint("refusal IN ('invoice', 'key')", name="refusal_known"),
+        CheckConstraint(
+            "sef_status IN (" + ", ".join(f"'{status}'" for status in SEF_STATUSES) + ")",
+            name="sef_status_known",
+        ),
+        CheckConstraint("sef_status IS NULL OR state = 'imported'", name="status_once_imported"),
+        CheckConstraint("attempts >= 1", name="attempts_positive"),
+        Index(
+            "uq_sef_submissions_invoice_id_live",
+            "invoice_id",
+            unique=True,
+            postgresql_where=text("state IN ('unconfirmed', 'imported')"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _id()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoices.id", ondelete="CASCADE"), index=True
+    )
+    submitted_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    sha256: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text)
+    sales_invoice_id: Mapped[int | None] = mapped_column(BigInteger)
+    sef_invoice_id: Mapped[int | None] = mapped_column(BigInteger)
+    sef_status: Mapped[str | None] = mapped_column(Text)
+    refusal: Mapped[str | None] = mapped_column(Text)
+    detail: Mapped[str | None] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(default=1, server_default=text("1"))
+    sent_at: Mapped[datetime] = _created_at()
+    answered_at: Mapped[datetime | None]
+    checked_at: Mapped[datetime | None]
+
+
 class RepairStatus(StrEnum):
     """Where a repair is: waiting for a person, or decided."""
 
@@ -683,6 +778,7 @@ class AuditAction(StrEnum):
     OAUTH_CLIENT_AUTHORIZED = "oauth.client_authorized"
     SEF_KEY_SET = "sef.key_set"
     SEF_KEY_REMOVED = "sef.key_removed"
+    SEF_INVOICE_SENT = "sef.invoice_sent"
 
 
 class AuditEvent(Base):
@@ -703,7 +799,7 @@ class AuditEvent(Base):
         CheckConstraint(
             "action IN ('repair.proposed', 'repair.approved', 'repair.rejected', "
             "'organization.retention_set', 'oauth.client_authorized', 'sef.key_set', "
-            "'sef.key_removed')",
+            "'sef.key_removed', 'sef.invoice_sent')",
             name="action_known",
         ),
         Index("ix_audit_events_organization_id_at_id", "organization_id", "at", "id"),

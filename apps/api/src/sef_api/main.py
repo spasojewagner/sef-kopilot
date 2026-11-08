@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from typing import Final, cast
 
+import httpx
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from pydantic import SecretStr
@@ -52,7 +53,11 @@ from sef_api.repairs.repairer import Repairer
 from sef_api.retention import keep_forgetting
 from sef_api.routes import health
 from sef_api.rules import routes as rules
+from sef_api.sef import routes as sef
+from sef_api.sef.client import SefClient
 from sef_api.sef.keys import keyring_for
+from sef_api.sef.submissions import NotSendableError
+from sef_api.sef.watch import keep_watching
 from sef_api.settings import Settings
 from sef_api.unexpected import AnswerUnexpectedErrors
 
@@ -107,8 +112,13 @@ OPENAPI_TAGS = [
     },
     {
         "name": "organization",
-        "description": "The caller's organization: its name, and how long it keeps its stored "
-        "invoices before they are deleted.",
+        "description": "The caller's organization: its name, how long it keeps its stored "
+        "invoices before they are deleted, and its key to SEF.",
+    },
+    {
+        "name": "sef",
+        "description": "Stored invoices sent to SEF's demo environment in their "
+        "organization's name, once the validator passes them, and what SEF answered.",
     },
     {
         "name": "oauth",
@@ -164,6 +174,24 @@ async def _deleting_old_data(database: Database, job_retention_days: int) -> Asy
             await deleting
 
 
+@asynccontextmanager
+async def _watching_sef(app: FastAPI) -> AsyncIterator[None]:
+    """Ask SEF where the invoices it imported stand, once a minute, while the application runs
+    (ADR-0051)."""
+    settings: Settings = app.state.settings
+    watching = asyncio.create_task(
+        keep_watching(
+            app.state.database, app.state.sef_keys, app.state.sef_http, settings.sef_demo_base_url
+        )
+    )
+    try:
+        yield
+    finally:
+        watching.cancel()
+        with suppress(asyncio.CancelledError):
+            await watching
+
+
 async def _resume(app: FastAPI) -> None:
     """Have the jobs that the process before this one left unfinished run again. Without its
     database the application still starts, as /ready tells, and they wait for the next start."""
@@ -207,6 +235,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await running.enter_async_context(
                     _deleting_old_data(database, settings.job_retention_days)
                 )
+                await running.enter_async_context(_watching_sef(application))
             # The MCP endpoint's sessions, which it keeps only for a message's length.
             await running.enter_async_context(application.state.mcp.run())
             yield
@@ -218,6 +247,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         embedder: Embedder | None = application.state.embedder
         if embedder is not None:
             await embedder.aclose()
+        await application.state.sef_http.aclose()
         await database.engine.dispose()
 
     app = FastAPI(
@@ -258,6 +288,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.embedder = embedder_for(settings)
     # Seals and opens the organizations' SEF keys, where SEF_FERNET_KEY is set (ADR-0050).
     app.state.sef_keys = keyring_for(settings)
+    # Speaks to SEF for every organization, each request with that organization's key.
+    app.state.sef_http = httpx.AsyncClient(timeout=SefClient.TIMEOUT_SECONDS)
     # Fetches a client's metadata document, where the operator allows it (ADR-0045).
     app.state.client_documents = documents.fetch if settings.client_metadata_documents else None
     for router in (
@@ -271,11 +303,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         members.invitations_router,
         organization.router,
         api_keys.router,
+        sef.router,
         oauth.router,
         oauth_metadata.router,
     ):
         app.include_router(router)
     app.add_exception_handler(RequestValidationError, answer_refused)
     app.add_exception_handler(repairs.ConflictError, repairs.answer_conflict)
+    app.add_exception_handler(NotSendableError, sef.answer_not_sendable)
     app.state.mcp = mcp.mount(app, settings)
     return app

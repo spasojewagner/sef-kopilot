@@ -7,7 +7,8 @@ stay as they are; a job that never reached the queue, or was lost with it, runs 
 attempt that runs longer than :data:`ATTEMPT_SECONDS` is cut short and swept back onto the
 queue, and the next attempt continues where it stopped. When it starts, and then once a day, it
 deletes what is past its retention: the old finished jobs (ADR-0038) and the invoices kept past
-their organization's period (ADR-0039).
+their organization's period (ADR-0039). Once a minute, it asks SEF where the invoices SEF
+imported stand (ADR-0051).
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import logging
 import uuid
 from typing import Any, Final
 
+import httpx
 from arq import cron, func
 from arq.worker import run_worker
 
@@ -27,9 +29,22 @@ from sef_api.jobs.kinds import HANDLERS
 from sef_api.jobs.queue import TASK, put, redis_settings
 from sef_api.jobs.runs import JobContext, run_job
 from sef_api.retention import forget_what_is_past_retention
+from sef_api.sef.client import SefClient
+from sef_api.sef.keys import Keyring, keyring_for
+from sef_api.sef.watch import watch_once
 from sef_api.settings import Settings
 
-__all__ = ["ATTEMPT_SECONDS", "forget", "main", "options", "run", "shutdown", "startup", "sweep"]
+__all__ = [
+    "ATTEMPT_SECONDS",
+    "forget",
+    "main",
+    "options",
+    "run",
+    "shutdown",
+    "startup",
+    "sweep",
+    "watch",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +62,15 @@ async def startup(ctx: dict[str, Any]) -> None:
         logger.warning("the validator cannot run: %s", validator.problem)
     database = Database.connect(settings.database_url.get_secret_value())
     ctx["context"] = JobContext(database, validator, settings)
+    ctx["sef_keys"] = keyring_for(settings)
+    ctx["sef_http"] = httpx.AsyncClient(timeout=SefClient.TIMEOUT_SECONDS)
 
 
 async def shutdown(ctx: dict[str, Any]) -> None:
     context: JobContext = ctx["context"]
     await context.validator.stop()
     await context.database.engine.dispose()
+    await ctx["sef_http"].aclose()
 
 
 async def run(ctx: dict[str, Any], job_id: str) -> None:
@@ -78,6 +96,15 @@ async def forget(ctx: dict[str, Any]) -> None:
     await forget_what_is_past_retention(context.database, context.settings.job_retention_days)
 
 
+async def watch(ctx: dict[str, Any]) -> None:
+    """Ask SEF where the invoices it imported stand, those that are due."""
+    keyring: Keyring | None = ctx["sef_keys"]
+    if keyring is None:
+        return
+    context: JobContext = ctx["context"]
+    await watch_once(context.database, keyring, ctx["sef_http"], context.settings.sef_demo_base_url)
+
+
 def options(settings: Settings, redis_url: str) -> dict[str, Any]:
     """What a worker serves, for arq: running jobs, the sweep, the deletion of old jobs, and with
     which settings."""
@@ -86,6 +113,7 @@ def options(settings: Settings, redis_url: str) -> dict[str, Any]:
         "cron_jobs": [
             cron(sweep, run_at_startup=True),  # at second 0 of every minute
             cron(forget, hour={3}, minute={17}, run_at_startup=True),  # at 03:17 every day
+            cron(watch, second={30}),  # at second 30 of every minute
         ],
         "on_startup": startup,
         "on_shutdown": shutdown,

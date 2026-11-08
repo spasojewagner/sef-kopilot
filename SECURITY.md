@@ -344,6 +344,13 @@ system are marked as such.
       ADR-0039), none by default; an invoice stored longer ago is deleted with its document, its
       report and its repairs, and no other organization's (tested). The audit log keeps its
       events, which name the invoice by id only, and records who set each period.
+- [x] What SEF answers about an invoice sent to it, its refusal or a buyer's comment, which may
+      quote the invoice, is kept for the members who may see the invoice, answered with
+      `Cache-Control: no-store`, deleted with it, and logged nowhere: a failure is logged by its
+      kind and status (tested; ADR-0051).
+- [x] Nothing leaves without a green validator: an invoice is validated again under SRB-CIUS
+      before it is sent to SEF, and sent byte for byte as validated, its digest checked again
+      under its lock (tested).
 - [x] Kept explanations: the explanations of a stored invoice's report, which quote the rules'
       messages and so may quote the invoice, are kept with it for the members who may see it,
       and deleted with it, by a member or by the retention period (tested; ADR-0040).
@@ -374,7 +381,9 @@ system are marked as such.
       or removed (tested).
 - [x] An API key's use is a security event, and the time each key was last used is kept and
       listed with the keys, both written at most once a minute (tested).
-- [ ] Security events for sending to SEF (M5).
+- [x] Security events for sending to SEF: each invoice sent, by whom, as which submission and
+      how it ended, never what SEF wrote (tested); the audit log records each sending with the
+      document's digest, the attempt and the outcome (ADR-0051).
 - [x] Unexpected errors go to Sentry only where `SENTRY_DSN` is set, and without what a person
       sent: every category of the SDK's collected data off, then our own scrubber (no message,
       request data, variables, user or breadcrumbs), then the organization's required scrubbers

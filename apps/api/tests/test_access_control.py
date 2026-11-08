@@ -46,6 +46,7 @@ from sef_api.models import (
     Repair,
     Role,
     SefKey,
+    SefSubmission,
     StoredInvoice,
     User,
 )
@@ -359,6 +360,12 @@ async def _primers_invoice_is_not_decided(
     assert await session.scalar(select(func.count()).select_from(AuditEvent)) == 0
 
 
+async def _primers_invoice_is_not_sent(response: Response, session: AsyncSession, w: World) -> None:
+    """Primer's invoice is not found, and nothing is sent to SEF in anyone's name."""
+    assert response.status_code == 404
+    assert await session.scalar(select(func.count()).select_from(SefSubmission)) == 0
+
+
 async def _primers_invoice_is_not_found(
     response: Response, session: AsyncSession, w: World
 ) -> None:
@@ -554,6 +561,20 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda w: f"/invoices/{w.invoice.id}/repairs/suggestion",
         None,
         _primers_invoice_takes_no_repair,
+    ),
+    ("POST", "/invoices/{invoice_id}/sef"): Guarded(
+        Permission.INVOICES_SEND,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/sef",
+        None,
+        _primers_invoice_is_not_sent,
+    ),
+    ("GET", "/invoices/{invoice_id}/sef"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda w: f"/invoices/{w.invoice.id}/sef",
+        None,
+        _primers_invoice_is_not_found,
     ),
     ("GET", "/invoices/{invoice_id}/repairs"): Guarded(
         Permission.INVOICES_SUBMIT,

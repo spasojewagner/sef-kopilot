@@ -32,6 +32,8 @@ class Permission(StrEnum):
     and delete the ones submitted oneself."""
     INVOICES_MANAGE = "invoices:manage"
     """Read and delete every invoice the organization stores, whoever submitted it."""
+    INVOICES_SEND = "invoices:send"
+    """Send the organization's stored invoices to SEF, in its name, with its key."""
     API_KEYS_ISSUE = "api_keys:issue"
     """Issue API keys with which machine clients act for oneself, with some of one's
     permissions, and see and revoke one's own."""
@@ -62,6 +64,7 @@ ROLE_PERMISSIONS: Final[Mapping[Role, frozenset[Permission]]] = MappingProxyType
                 Permission.INVOICES_VALIDATE,
                 Permission.INVOICES_SUBMIT,
                 Permission.INVOICES_MANAGE,
+                Permission.INVOICES_SEND,
                 Permission.API_KEYS_ISSUE,
                 Permission.ORGANIZATION_READ,
             }
