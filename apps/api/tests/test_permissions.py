@@ -44,6 +44,14 @@ def test_owners_and_accountants_read_every_stored_invoice_and_clients_their_own(
     ]
 
 
+def test_owners_and_accountants_send_invoices_to_sef_and_no_key_may_yet() -> None:
+    assert [role for role in Role if Permission.INVOICES_SEND in ROLE_PERMISSIONS[role]] == [
+        Role.OWNER,
+        Role.ACCOUNTANT,
+    ]
+    assert Permission.INVOICES_SEND not in KEY_PERMISSIONS
+
+
 def test_only_owners_manage_members() -> None:
     assert [role for role in Role if Permission.MEMBERS_MANAGE in ROLE_PERMISSIONS[role]] == [
         Role.OWNER

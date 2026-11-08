@@ -2842,6 +2842,146 @@
         }
       }
     },
+    "/invoices/{invoice_id}/sef": {
+      "post": {
+        "tags": [
+          "sef"
+        ],
+        "summary": "Send a stored invoice to SEF",
+        "description": "The invoice's document is validated again under SRB-CIUS and sent to SEF's demo environment, byte for byte, only when the validator passes it, with the organization's key, which an owner set (`PUT /organization/sef-key`). The answer is the submission as SEF answered it: `imported`, with SEF's ids; `refused`, with SEF's words; or `unconfirmed`, when SEF gave no answer, and sending the invoice again asks SEF again with the same `requestId`, so that it imports the invoice once. An invoice that SEF imported is not sent again. The audit log records each sending.",
+        "operationId": "send_invoice_invoices__invoice_id__sef_post",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not sent, and why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendConflict"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The validator is busy or not available, or the organization's key cannot be used on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "sef"
+        ],
+        "summary": "See what SEF answered about a stored invoice",
+        "description": "Each time the invoice was sent to SEF, the newest first, with what SEF answered and where the invoice stands in SEF, as SEF last said.",
+        "operationId": "list_submissions_invoices__invoice_id__sef_get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Submission"
+                  },
+                  "title": "Response List Submissions Invoices  Invoice Id  Sef Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invoice.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/oauth/register": {
       "post": {
         "tags": [
@@ -5079,6 +5219,7 @@
           "invoices:validate",
           "invoices:submit",
           "invoices:manage",
+          "invoices:send",
           "api_keys:issue",
           "api_keys:manage",
           "organization:read",
@@ -5741,6 +5882,33 @@
         ],
         "title": "SefKeyState"
       },
+      "SendConflict": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "invalid",
+              "no-key",
+              "sent",
+              "unconfirmed",
+              "changed"
+            ],
+            "title": "Reason",
+            "description": "`invalid`: the validator does not pass the invoice under SRB-CIUS. `no-key`: the organization has no key to SEF. `sent`: SEF imported the invoice already. `unconfirmed`: another version of it was sent, and SEF's answer is not yet read. `changed`: the invoice changed while it was being validated."
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail",
+          "reason"
+        ],
+        "title": "SendConflict",
+        "description": "Why an invoice was not sent: a reason a client tells apart and acts on, and the detail,\nin English, for a person."
+      },
       "SetAsideViolation": {
         "properties": {
           "violation": {
@@ -5864,6 +6032,148 @@
         ],
         "title": "StoredInvoiceOut",
         "description": "A stored invoice with the validator's latest report on it."
+      },
+      "Submission": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "The submission, and the `requestId` SEF was sent."
+          },
+          "invoice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invoice Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "unconfirmed",
+              "imported",
+              "refused"
+            ],
+            "title": "State",
+            "description": "`unconfirmed`: sent, and SEF's answer not yet read; sending the invoice again asks SEF again, with the same `requestId`. `imported`: SEF imported it, with the ids below. `refused`: SEF did not import it (`refusal`)."
+          },
+          "sales_invoice_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sales Invoice Id",
+            "description": "SEF's id of the sales invoice."
+          },
+          "sef_invoice_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sef Invoice Id",
+            "description": "SEF's id of the invoice."
+          },
+          "sef_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sef Status",
+            "description": "Where the invoice stands in SEF, as SEF last said (`Sent`, `Approved`, `Rejected`, …); null until SEF is asked."
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "invoice",
+                  "key"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal",
+            "description": "Why SEF did not import it: it refused the `invoice`, or the organization's `key`."
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "SEF's own words: why it refused the invoice, or its buyer's comment."
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts",
+            "description": "How many times SEF was asked to import it."
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Sent At"
+          },
+          "answered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered At",
+            "description": "When SEF imported or refused it."
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At",
+            "description": "When SEF was last asked where it stands."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invoice_id",
+          "state",
+          "sales_invoice_id",
+          "sef_invoice_id",
+          "sef_status",
+          "refusal",
+          "detail",
+          "attempts",
+          "sent_at",
+          "answered_at",
+          "checked_at"
+        ],
+        "title": "Submission",
+        "description": "A stored invoice sent to SEF, and what SEF answered."
       },
       "TokenErrorAnswer": {
         "properties": {
@@ -6171,7 +6481,11 @@
     },
     {
       "name": "organization",
-      "description": "The caller's organization: its name, and how long it keeps its stored invoices before they are deleted."
+      "description": "The caller's organization: its name, how long it keeps its stored invoices before they are deleted, and its key to SEF."
+    },
+    {
+      "name": "sef",
+      "description": "Stored invoices sent to SEF's demo environment in their organization's name, once the validator passes them, and what SEF answered."
     },
     {
       "name": "oauth",

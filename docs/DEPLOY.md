@@ -181,6 +181,9 @@ SEF API key, which the API keeps sealed under a secret of its own (ADR-0050).
    does not start and says so.
 3. Check: as an owner, `PUT /organization/sef-key` answers 200, and `GET /organization` shows
    `sef_key_set_at`.
+4. Send a synthetic invoice that the validator passes: `POST /invoices/{id}/sef` answers 201,
+   `imported`, with SEF's ids. The API speaks to SEF's demo environment (`SEF_DEMO_BASE_URL`, its
+   address by default) and to no other.
 
 Losing `SEF_FERNET_KEY` loses every stored key, never SEF's own: each owner sets theirs again.
 To replace it, set `SEF_FERNET_KEY` to the new key, a comma and the old one; once deployed, run
