@@ -92,3 +92,4 @@ per branch, to keep them with the code they describe.
 | `feat/api-security-events` | [m4-api-security-events.md](m4-api-security-events.md) |
 | `feat/api-key-last-used` | [m4-api-key-last-used.md](m4-api-key-last-used.md) |
 | `feat/web-api-keys` | [m4-web-api-keys.md](m4-web-api-keys.md) |
+| `feat/api-error-tracking` | [m4-api-error-tracking.md](m4-api-error-tracking.md) |

@@ -2430,3 +2430,26 @@ test included.
 
 Next: the demo from Claude and ChatGPT with screenshots, once the branches are merged and
 deployed; then `v0.4.0`.
+
+## 2026-11-08 — `feat/api-error-tracking` (2 commits)
+
+Outcome: unexpected errors of the API and its workers are reported to Sentry where `SENTRY_DSN`
+is set, with where they happened and nothing a person sent (ADR-0048). The maintainer opened
+the accounts; the Sentry project `sef-kopilot-api` was created, and the organization requires
+its data scrubbers and stores no IP address. The Langfuse project was named `sef-kopilot`.
+
+Findings:
+
+- `sentry-sdk` 2.74 deprecates `send_default_pii` for `data_collection`, a category at a time;
+  every category that holds what a person sent is off.
+- A test that started the SDK twice sent its reports to the network; the reports of the tests
+  now go to a transport that keeps them in memory.
+- `.env.example` named the variables of the observability services from the start
+  (`SENTRY_DSN`, `LANGFUSE_*`); the settings read those names.
+- The DSN and the Langfuse keys are entered by the maintainer: a key is never typed by the build
+  environment.
+
+Verification: the API's tests, the whole suite; the seeded faults, each caught after a clean
+baseline (see the pull request); ruff, mypy, the lock file; each commit checked on its own.
+
+Next: the model's requests traced to Langfuse, without the invoice (`feat/rag-model-traces`).

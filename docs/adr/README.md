@@ -53,5 +53,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0045](0045-client-metadata-documents-are-fetched-only-when-allowed.md) | A client's metadata document is fetched only where the operator allows it, at each authorization | accepted | 2026-11-08 |
 | [0046](0046-an-mcp-client-steps-up-for-a-tools-scope.md) | An MCP client steps up for a tool's scope, and every tool is listed | accepted | 2026-11-08 |
 | [0047](0047-the-rule-catalogue-is-read-from-the-rule-sets.md) | The rule catalogue is read from the rule sets the validator runs | accepted | 2026-11-08 |
+| [0048](0048-errors-are-reported-without-what-a-person-sent.md) | Unexpected errors are reported to Sentry where the operator chooses, without what a person sent | accepted | 2026-11-08 |
 
 Planned (recorded when the work lands): evaluation thresholds (M6).
