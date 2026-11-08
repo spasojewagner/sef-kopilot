@@ -50,5 +50,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0042](0042-the-mcp-server-lives-in-the-apis-process.md) | The MCP server lives in the API's process and answers without sessions | accepted | 2026-11-07 |
 | [0043](0043-the-web-applications-look-is-a-set-of-tested-tokens.md) | The web application's look is a set of tested tokens, on the brand's navy | accepted | 2026-11-07 |
 | [0044](0044-the-mcp-endpoints-authorization-server.md) | The MCP endpoint's authorization server is the API's own, for public clients | accepted | 2026-11-07 |
+| [0045](0045-client-metadata-documents-are-fetched-only-when-allowed.md) | A client's metadata document is fetched only where the operator allows it, at each authorization | accepted | 2026-11-08 |
 
 Planned (recorded when the work lands): evaluation thresholds (M6).
