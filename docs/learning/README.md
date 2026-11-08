@@ -45,3 +45,4 @@ just used. New notes are added in the pull request that introduces the concept.
 | 37 | [Motion with its end first: an animation that hides nothing](37-motion-with-its-end-first.md) | M4 |
 | 38 | [A consent a person can trust: what the page shows, and what it refuses](38-a-consent-a-person-can-trust.md) | M4 |
 | 39 | [OAuth 2.1 for an MCP server: from a 401 to a tool call](39-oauth-for-an-mcp-server.md) | M4 |
+| 40 | [Fetching an address a stranger gave you: SSRF and DNS rebinding](40-fetching-an-address-a-stranger-gave-you.md) | M4 |

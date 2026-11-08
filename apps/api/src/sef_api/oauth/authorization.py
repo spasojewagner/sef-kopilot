@@ -14,7 +14,7 @@ from __future__ import annotations
 import hashlib
 import re
 import secrets
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
@@ -27,8 +27,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sef_api import audit
 from sef_api.auth.dependencies import Principal
 from sef_api.auth.permissions import Permission
-from sef_api.models import AuditAction, OAuthAuthorization
-from sef_api.oauth import clients
+from sef_api.models import AuditAction, OAuthAuthorization, OAuthClient
+from sef_api.oauth import clients, documents
 from sef_api.settings import Settings
 
 __all__ = [
@@ -108,12 +108,37 @@ def canonical(uri: str) -> str:
     ).rstrip("/")
 
 
+#: Fetches the metadata document an ``https`` client_id names (ADR-0045).
+DocumentFetcher = Callable[[str], Awaitable[documents.ClientDocument]]
+
+
+async def _client(
+    session: AsyncSession, client_id: str, fetch_document: DocumentFetcher | None
+) -> OAuthClient | None:
+    """The client ``client_id`` names: a registered one, or, where documents are fetched, the one
+    its metadata document describes now; None for an unknown one."""
+    if not documents.is_document_id(client_id):
+        return await clients.find(session, client_id)
+    if fetch_document is None:
+        # Documents are not fetched here: a client once known by one is unknown now.
+        return None
+    try:
+        document = await fetch_document(client_id)
+    except documents.DocumentError as refused:
+        raise UnredirectableError(str(refused)) from None
+    return await clients.introduced(session, client_id, document)
+
+
 async def begin(
-    session: AsyncSession, settings: Settings, params: Mapping[str, str]
+    session: AsyncSession,
+    settings: Settings,
+    params: Mapping[str, str],
+    fetch_document: DocumentFetcher | None = None,
 ) -> OAuthAuthorization:
     """The request the authorization's ``params`` make, kept for a person to decide on, and
-    committed; :class:`UnredirectableError` or :class:`AuthorizeError` when it will not do."""
-    client = await clients.find(session, params.get("client_id", ""))
+    committed; :class:`UnredirectableError` or :class:`AuthorizeError` when it will not do. A
+    client known by a metadata document is read from it with ``fetch_document``, if given."""
+    client = await _client(session, params.get("client_id", ""), fetch_document)
     if client is None:
         raise UnredirectableError("no client is registered with this client_id")
     redirect_uri = params.get("redirect_uri")

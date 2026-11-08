@@ -31,8 +31,11 @@ async def test_the_mcp_endpoint_names_its_authorization_server(
     assert answer.headers["Access-Control-Allow-Origin"] == "*"
 
 
-async def test_the_authorization_server_says_what_it_supports(session: AsyncSession) -> None:
-    async with server(session) as api:
+@pytest.mark.parametrize("documents", ["false", "true"])
+async def test_the_authorization_server_says_what_it_supports(
+    session: AsyncSession, documents: str
+) -> None:
+    async with server(session, SEF_CLIENT_METADATA_DOCUMENTS=documents) as api:
         answer = await api.get("/.well-known/oauth-authorization-server")
 
     assert answer.status_code == 200
@@ -47,6 +50,8 @@ async def test_the_authorization_server_says_what_it_supports(session: AsyncSess
         "token_endpoint_auth_methods_supported": ["none"],
         "code_challenge_methods_supported": ["S256"],
         "authorization_response_iss_parameter_supported": True,
+        # Clients known by a metadata document, where the operator allows them (ADR-0045).
+        "client_id_metadata_document_supported": documents == "true",
     }
     assert answer.headers["Access-Control-Allow-Origin"] == "*"
 

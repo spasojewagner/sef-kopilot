@@ -178,6 +178,7 @@ class Counted(StrEnum):
     ORGANIZATION_MODEL_REQUEST = "requests to the language model in this organization"
     CLIENT_REGISTRATION = "registrations of OAuth clients"
     TOKEN_REQUEST = "requests for OAuth tokens"
+    AUTHORIZATION_REQUEST = "OAuth authorization requests"
 
 
 #: The limits that settings do not change. Per address: what one client may try, generous
@@ -192,6 +193,8 @@ DEFAULT_LIMITS: Final[Mapping[Counted, Limit]] = MappingProxyType(
         Counted.FAILED_PASSWORD: Limit(10, timedelta(minutes=15)),
         Counted.CLIENT_REGISTRATION: Limit(10, timedelta(hours=1)),
         Counted.TOKEN_REQUEST: Limit(60, timedelta(minutes=1)),
+        # Each may make the server fetch a client's metadata document (ADR-0045).
+        Counted.AUTHORIZATION_REQUEST: Limit(30, timedelta(minutes=1)),
     }
 )
 

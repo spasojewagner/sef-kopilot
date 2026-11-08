@@ -84,6 +84,11 @@ is tagged.
   the client with its answer. A visitor who is not signed in signs in there, and stays.
 - `apps/web`: a picture or a PDF chosen on the upload page is not sent; the page says that SEF
   Kopilot checks the e-invoice itself, the XML sent to SEF, and where to get it.
+- `apps/api`: an MCP client may be known by its metadata document (ADR-0045), where
+  `SEF_CLIENT_METADATA_DOCUMENTS=true`: an `https` client_id whose document the authorization
+  server fetches at each authorization request, from the public internet only, and reads as a
+  registration; its metadata says so (`client_id_metadata_document_supported`). Authorization
+  requests are counted by address.
 
 ### Changed
 

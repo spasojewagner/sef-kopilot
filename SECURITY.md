@@ -250,10 +250,16 @@ system are marked as such.
       role; a tool needs its permission in the role and in the token's scopes. A refusal names
       the protected resource metadata and the scopes (RFC 9728 §5.1); the metadata documents
       (RFC 9728, RFC 8414) are public and hold no secret.
-- [~] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
+- [x] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
       protected resource metadata (RFC 9728), authorization server metadata (RFC 8414), the
       issuer in authorization responses (RFC 9207) and client ID metadata documents, with scope
-      checks per tool. All but client ID metadata documents, which come next.
+      checks per tool.
+- [x] A client's metadata document is fetched only where `SEF_CLIENT_METADATA_DOCUMENTS` allows
+      it, and as an address a stranger chose must be (ADR-0045): `https`, a host whose every
+      address is on the public internet (no loopback, private, link-local or reserved one),
+      the connection pinned to the address checked, no redirect followed, five seconds, 5 KiB,
+      unencoded JSON; a secret or a client authentication other than none is refused.
+      Authorization requests, each of which may fetch, are counted by address.
 
 ### V11 Cryptography
 

@@ -581,8 +581,16 @@ without it, they answer 404, and the MCP endpoint takes API keys alone.
   behind one stands and reading the member's role again, so that a revoked consent stops its
   access tokens at once. Refused, a client is told where the endpoint's metadata is (RFC 9728
   §5.1) and finds the rest from there: it needs no address but `/mcp`.
-- **Next:** client ID metadata documents, the newest revision's preferred way for a client to
-  introduce itself.
+- **A client may be known by its metadata document** (ADR-0045), the revision's preferred way
+  for a client to introduce itself, where `SEF_CLIENT_METADATA_DOCUMENTS=true`: its
+  `client_id` is an `https` URL, and the document there, fetched at each authorization
+  request, gives its name and redirect URIs, as a registration would. The fetch reaches only the
+  public internet: every address the host resolves to must be public, the request goes to the
+  address checked, with no redirect followed, within five seconds and 5 KiB. A document that
+  will not do stops the request with 400. Authorization requests are counted by address:
+  thirty a minute. Off by default: a self-hosted deployment calls out to nothing it did not
+  choose.
+- **Next:** the consent page naming the host that published a client's document.
 
 ## Database and migrations
 

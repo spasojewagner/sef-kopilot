@@ -205,7 +205,8 @@ _REQUESTS_RESPONSES: dict[int | str, dict[str, object]] = {
         status.HTTP_400_BAD_REQUEST: {
             "model": Problem,
             "description": "The client is not registered, or the redirect URI is not one it "
-            "registered.",
+            "registered; or the client's metadata document, where documents are fetched, will "
+            "not do.",
         },
         status.HTTP_404_NOT_FOUND: {
             "model": Problem,
@@ -215,8 +216,13 @@ _REQUESTS_RESPONSES: dict[int | str, dict[str, object]] = {
             "model": Problem,
             "description": "This server has no page where a person decides (`SEF_WEB_URL`).",
         },
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "model": Problem,
+            "description": "Too many authorization requests from this address; try again after "
+            "`Retry-After` seconds.",
+        },
     },
-    dependencies=[NO_STORE],
+    dependencies=[NO_STORE, Depends(per_address(Counted.AUTHORIZATION_REQUEST))],
 )
 async def authorize(
     request: Request,
@@ -229,7 +235,9 @@ async def authorize(
             "this server has no page where a person decides what a client may do",
         )
     try:
-        asked = await authorizations.begin(session, settings, request.query_params)
+        asked = await authorizations.begin(
+            session, settings, request.query_params, request.app.state.client_documents
+        )
     except UnredirectableError as refused:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, refused.description) from None
     except AuthorizeError as refused:

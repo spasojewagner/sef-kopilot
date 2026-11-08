@@ -297,6 +297,17 @@ class Settings(BaseSettings):
         ),
     )
 
+    client_metadata_documents: bool = Field(
+        default=False,
+        validation_alias="SEF_CLIENT_METADATA_DOCUMENTS",
+        description=(
+            "Whether the authorization server fetches the metadata document a client names by an "
+            "`https` client_id, the MCP revision's preferred way for a client to introduce "
+            "itself (ADR-0045). Off by default: a self-hosted deployment calls out to nothing "
+            "but its language model's provider, and clients register themselves instead."
+        ),
+    )
+
     public_demo: bool = Field(
         default=False,
         validation_alias="SEF_PUBLIC_DEMO",

@@ -2707,7 +2707,7 @@
             "description": "To the page where a person decides, or back."
           },
           "400": {
-            "description": "The client is not registered, or the redirect URI is not one it registered.",
+            "description": "The client is not registered, or the redirect URI is not one it registered; or the client's metadata document, where documents are fetched, will not do.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2728,6 +2728,16 @@
           },
           "503": {
             "description": "This server has no page where a person decides (`SEF_WEB_URL`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many authorization requests from this address; try again after `Retry-After` seconds.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3330,6 +3340,11 @@
             "title": "Authorization Response Iss Parameter Supported",
             "description": "Every answer to the client names the issuer (RFC 9207).",
             "default": true
+          },
+          "client_id_metadata_document_supported": {
+            "type": "boolean",
+            "title": "Client Id Metadata Document Supported",
+            "description": "Whether a client may be known by an `https` client_id whose metadata document this server fetches (ADR-0045)."
           }
         },
         "type": "object",
@@ -3338,7 +3353,8 @@
           "authorization_endpoint",
           "token_endpoint",
           "registration_endpoint",
-          "scopes_supported"
+          "scopes_supported",
+          "client_id_metadata_document_supported"
         ],
         "title": "AuthorizationServer",
         "description": "The authorization server, as RFC 8414 §2 describes it."
