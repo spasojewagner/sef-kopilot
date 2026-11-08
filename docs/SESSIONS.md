@@ -2473,3 +2473,29 @@ baseline (see the pull request); ruff, mypy; each commit checked on its own.
 
 Next: the maintainer enters the keys (Sentry's DSN, Langfuse's pair) on Render; then the demo
 from Claude and ChatGPT, and `v0.4.0`.
+
+## 2026-11-08 — `docs/repo-security-checklist` (1 commit, on `feat/rag-model-traces`)
+
+Outcome: the security checklist's two items from the brief that the error reports and the
+model's traces meet, left open beside the new items that said so, marked met. The commit was
+made after `feat/rag-model-traces` was handed off, and that branch was merged without it, so it
+went as a pull request of its own.
+
+## 2026-11-08 — `chore/release-0.4.0` (3 commits)
+
+Outcome: M4 released. The demo from Claude and ChatGPT, on the public demo through each
+assistant's connector and OAuth, with a synthetic invoice whose PIB has a wrong check digit
+(`docs/DEMO.md`); every package at 0.4.0; the changelog's section `[0.4.0] - 2026-11-08`; the
+README's roadmap, the architecture's status and the backlog follow.
+
+Findings:
+
+- Both assistants called `explain_errors` first; Claude then read the rule with `get_rule` and
+  validated again with `validate_invoice` before it answered.
+- The local embedding model (BGE-M3) was left out at the maintainer's decision, with its reason
+  in the backlog: keyword retrieval serves a self-hosted deployment, and the image stays small.
+
+Verification: each commit checked on its own; the version checks unchanged and green.
+
+Next: M5, whose first branches, the organization's SEF key and the SEF demo client, wait for
+this tag.

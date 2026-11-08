@@ -94,3 +94,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-api-keys` | [m4-web-api-keys.md](m4-web-api-keys.md) |
 | `feat/api-error-tracking` | [m4-api-error-tracking.md](m4-api-error-tracking.md) |
 | `feat/rag-model-traces` | [m4-rag-model-traces.md](m4-rag-model-traces.md) |
+| `chore/release-0.4.0` | [m4-release-0.4.0.md](m4-release-0.4.0.md) |

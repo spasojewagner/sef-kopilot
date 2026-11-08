@@ -1,6 +1,6 @@
 {
   "name": "@sef-kopilot/web",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "SEF Kopilot web application: upload, validation report, explanations, repairs and approval.",
   "license": "Apache-2.0",
