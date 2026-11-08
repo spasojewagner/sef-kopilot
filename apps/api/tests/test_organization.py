@@ -55,6 +55,7 @@ async def test_every_member_sees_how_long_the_organization_keeps_its_invoices(
         "id": str(primer.organization.id),
         "name": "Primer Računovodstvo",
         "invoice_retention_days": None,
+        "sef_key_set_at": None,
     }
 
 

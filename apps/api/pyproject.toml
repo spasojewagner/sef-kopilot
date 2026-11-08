@@ -19,6 +19,7 @@ dependencies = [
   "argon2-cffi>=25.1",
   "arq>=0.28",
   "asyncpg>=0.32",
+  "cryptography>=50",
   "email-validator>=2.3",
   "fastapi>=0.162",
   "httpx>=0.28",

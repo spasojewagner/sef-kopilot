@@ -13,6 +13,7 @@ database tests are skipped; CI sets it. The worker tests need Redis as well, the
 from __future__ import annotations
 
 import asyncio
+import base64
 import secrets
 import uuid
 from collections.abc import AsyncIterator, Iterator
@@ -43,6 +44,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 UNREACHABLE_DATABASE = "postgresql+asyncpg://sef:sef@127.0.0.1:1/sef_kopilot"
 #: Signs the test applications' access tokens; obviously not a key used anywhere else.
 TEST_JWT_SECRET = "test" * 10
+#: Seals the test applications' SEF keys (ADR-0050): a Fernet key of 32 bytes, all "test".
+TEST_FERNET_KEY = base64.urlsafe_b64encode(b"test" * 8).decode()
 
 
 class _TestServer(BaseSettings):
@@ -69,6 +72,7 @@ def settings_for(database_url: str = UNREACHABLE_DATABASE, **variables: str) -> 
             "SEF_ENVIRONMENT": "test",
             "DATABASE_URL": database_url,
             "SEF_JWT_SECRET": TEST_JWT_SECRET,
+            "SEF_FERNET_KEY": TEST_FERNET_KEY,
             "SEF_VALIDATOR": "thread",
             **variables,
         }

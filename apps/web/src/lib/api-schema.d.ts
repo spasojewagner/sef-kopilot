@@ -594,7 +594,7 @@ export interface paths {
         };
         /**
          * See the organization
-         * @description The caller's organization: its name and how long it keeps its stored invoices.
+         * @description The caller's organization: its name, how long it keeps its stored invoices, and since when it has an API key to SEF, if it has one.
          */
         get: operations["show_organization_get"];
         put?: never;
@@ -607,6 +607,30 @@ export interface paths {
          * @description With `invoice_retention_days`, each stored invoice is kept that many days after it was stored: once it is older, it is deleted, with its report and its repairs, when the API next deletes what is past its retention, which it does when it starts and every six hours, or each worker when it starts and every day (ADR-0038). That cannot be undone. Null keeps every invoice until a member deletes it. The audit log records each change of the period, with what it was.
          */
         patch: operations["change_organization_patch"];
+        trace?: never;
+    };
+    "/organization/sef-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the organization's API key to SEF
+         * @description The key that SEF generated in its settings (API management), with which this server sends the organization's invoices to SEF and asks about them. It replaces the key the organization had, is sealed with Fernet under `SEF_FERNET_KEY` (ADR-0050), and is never shown again, logged or reported; the audit log records who set it. An owner, signed in, sets it: no API key or MCP client may.
+         */
+        put: operations["set_sef_key_organization_sef_key_put"];
+        post?: never;
+        /**
+         * Remove the organization's API key to SEF
+         * @description Nothing is sent to SEF for the organization until an owner sets a key again. Removing a key the organization does not have changes nothing. The audit log records who removed it. SEF's own key stays as it is: revoke it in SEF's settings.
+         */
+        delete: operations["remove_sef_key_organization_sef_key_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api-keys": {
@@ -1604,6 +1628,11 @@ export interface components {
              * @description How many days after it was stored an invoice is kept before it is deleted, with its report and its repairs; null when every invoice is kept until a member deletes it.
              */
             invoice_retention_days: number | null;
+            /**
+             * Sef Key Set At
+             * @description When an owner set the organization's API key to SEF; null when it has none. The key itself is never shown.
+             */
+            sef_key_set_at: string | null;
         };
         /**
          * Outcome
@@ -2031,6 +2060,27 @@ export interface components {
              * @description The passages an explanation of a violation of the rule would cite, most relevant first: those the rule is authored from, the rows of the business terms it names, and those that share its words.
              */
             passages: components["schemas"]["Passage"][];
+        };
+        /**
+         * SefKeyChange
+         * @description The organization's API key to SEF, which replaces the one it had.
+         */
+        SefKeyChange: {
+            /**
+             * Api Key
+             * Format: password
+             * @description The API key that SEF generated in its settings (API management), 8 to 200 visible ASCII characters without spaces; spaces around it are left out. It is sealed, and never shown again.
+             */
+            api_key: string;
+        };
+        /** SefKeyState */
+        SefKeyState: {
+            /**
+             * Set At
+             * Format: date-time
+             * @description When the key was set.
+             */
+            set_at: string;
         };
         /**
          * SetAsideViolation
@@ -4040,6 +4090,66 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    set_sef_key_organization_sef_key_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SefKeyChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SefKeyState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description This server cannot keep SEF keys (`SEF_FERNET_KEY`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    remove_sef_key_organization_sef_key_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

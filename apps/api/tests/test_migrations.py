@@ -31,6 +31,7 @@ TABLES = {
     "audit_events",
     "explanations",
     "rule_embeddings",
+    "sef_keys",
     "oauth_clients",
     "oauth_authorizations",
     "oauth_refresh_tokens",

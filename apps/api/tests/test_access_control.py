@@ -45,17 +45,21 @@ from sef_api.models import (
     RefreshToken,
     Repair,
     Role,
+    SefKey,
     StoredInvoice,
     User,
 )
 
 from .conftest import REPOSITORY_ROOT, settings_for
-from .factories import Key, Office, api_key, bearer, job, office, stored_invoice
+from .factories import KEYRING, Key, Office, api_key, bearer, job, office, sef_key, stored_invoice
 
 Endpoint = tuple[str, str]
 
 #: A valid synthetic SEF invoice, for the endpoints that take a document.
 INVOICE = REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic" / "srb-final-invoice.xml"
+
+#: Primer's key to SEF, and the one Ogled's owner sets for Ogled.
+PRIMER_SEF_KEY, OGLED_SEF_KEY = "primer-sef-key-4711", "ogled-sef-key-0815"
 
 #: Endpoints anyone may call: probes, and the ways to obtain or end a session.
 PUBLIC: set[Endpoint] = {
@@ -150,9 +154,9 @@ def app() -> FastAPI:
 
 @dataclass(frozen=True)
 class World:
-    """Two organizations. Primer has an open invitation, a stored invoice, its client's API key
-    and a job the client started; Ogled's owner has a key with every permission a key may
-    hold."""
+    """Two organizations. Primer has an open invitation, a stored invoice, its client's API key,
+    a job the client started and a key to SEF; Ogled's owner has a key with every permission a
+    key may hold."""
 
     primer: Office
     ogled: Office
@@ -184,6 +188,7 @@ async def world(session: AsyncSession) -> World:
     )
     ogled_key = await api_key(session, ogled.organization, ogled.owner)
     started = await job(session, primer.organization, primer.client)
+    await sef_key(session, primer.organization, PRIMER_SEF_KEY)
     return World(primer, ogled, issued.invitation, invoice, key, ogled_key, started)
 
 
@@ -426,6 +431,32 @@ async def _primer_keeps_its_invoices(response: Response, session: AsyncSession, 
     assert periods == {w.primer.organization.id: None, w.ogled.organization.id: 1}
 
 
+async def sef_keys(session: AsyncSession) -> dict[str, str]:
+    """The organizations' SEF keys, opened, by the organizations' names."""
+    stored = await session.execute(
+        select(Organization.id, Organization.name, SefKey.token).join(SefKey)
+    )
+    return {
+        name: KEYRING.open(organization_id, token).get_secret_value()
+        for organization_id, name, token in stored.all()
+    }
+
+
+async def _primer_keeps_its_sef_key(response: Response, session: AsyncSession, w: World) -> None:
+    """Ogled's owner sets Ogled's key; Primer's is as it was."""
+    assert response.status_code == 200
+    assert await sef_keys(session) == {
+        "Primer Računovodstvo": PRIMER_SEF_KEY,
+        "Ogled": OGLED_SEF_KEY,
+    }
+
+
+async def _primers_sef_key_stays(response: Response, session: AsyncSession, w: World) -> None:
+    """Ogled's owner removes Ogled's key, which it has not; Primer's stays."""
+    assert response.status_code == 204
+    assert await sef_keys(session) == {"Primer Računovodstvo": PRIMER_SEF_KEY}
+
+
 GUARDED: dict[Endpoint, Guarded] = {
     ("GET", "/jobs/{job_id}"): Guarded(
         Permission.INVOICES_SUBMIT,
@@ -615,6 +646,20 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda _: "/organization",
         {"invoice_retention_days": 1},
         _primer_keeps_its_invoices,
+    ),
+    ("PUT", "/organization/sef-key"): Guarded(
+        Permission.ORGANIZATION_MANAGE,
+        False,
+        lambda _: "/organization/sef-key",
+        {"api_key": OGLED_SEF_KEY},
+        _primer_keeps_its_sef_key,
+    ),
+    ("DELETE", "/organization/sef-key"): Guarded(
+        Permission.ORGANIZATION_MANAGE,
+        False,
+        lambda _: "/organization/sef-key",
+        None,
+        _primers_sef_key_stays,
     ),
 }
 

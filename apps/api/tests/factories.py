@@ -1,5 +1,6 @@
-"""People, organizations, memberships, stored invoices, API keys and jobs made directly in the
-database, with access tokens for the people, for tests about what happens after sign-in."""
+"""People, organizations, memberships, stored invoices, API keys, jobs and SEF keys made
+directly in the database, with access tokens for the people, for tests about what happens after
+sign-in."""
 
 from __future__ import annotations
 
@@ -8,15 +9,30 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
+from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from einvoice_core.pipeline import ValidationReport
 from sef_api.api_keys.service import PREFIX, SHOWN
 from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
 from sef_api.auth.tokens import issue_access_token, new_opaque_token, opaque_token_digest
-from sef_api.models import ApiKey, Job, JobKind, Membership, Organization, Role, StoredInvoice, User
+from sef_api.models import (
+    ApiKey,
+    Job,
+    JobKind,
+    Membership,
+    Organization,
+    Role,
+    SefKey,
+    StoredInvoice,
+    User,
+)
+from sef_api.sef.keys import Keyring
 
-from .conftest import TEST_JWT_SECRET
+from .conftest import TEST_FERNET_KEY, TEST_JWT_SECRET
+
+#: Seals and opens SEF keys as the test applications do.
+KEYRING = Keyring((TEST_FERNET_KEY,))
 
 #: In the form of an argon2id hash but the hash of no password: these people never sign in.
 NO_PASSWORD = "$argon2id$v=19$m=19456,t=2,p=1$c2FsdHNhbHQ$bm90IGEgaGFzaCBvZiBhbnl0aGluZw"
@@ -161,3 +177,13 @@ async def job(
     session.add(queued)
     await session.flush()
     return queued
+
+
+async def sef_key(session: AsyncSession, organization: Organization, api_key: str) -> SefKey:
+    """``api_key`` as ``organization``'s key to SEF, sealed as the test applications seal it."""
+    sealed = SefKey(
+        organization_id=organization.id, token=KEYRING.seal(organization.id, SecretStr(api_key))
+    )
+    session.add(sealed)
+    await session.flush()
+    return sealed

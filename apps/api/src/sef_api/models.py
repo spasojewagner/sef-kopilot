@@ -10,7 +10,9 @@ join in a role (ADR-0013). A refresh token belongs to a person's session in one 
 work done in the background for an organization, such as validating its invoices again
 (ADR-0019). A repair is patches proposed for a stored invoice, kept with what they did to it until
 a person decides, and the audit log records who proposed and decided what (ADR-0024). The
-explanations of a stored invoice's report are kept with it, one set a language (ADR-0040).
+explanations of a stored invoice's report are kept with it, one set a language (ADR-0040). An
+organization may keep its API key to SEF, sealed under a key that only the environment holds
+(ADR-0050).
 
 The corpus, the official documents an explanation cites, is the same for every organization
 and belongs to none (ADR-0020): its passages are public text, written only by the command that
@@ -61,6 +63,7 @@ __all__ = [
     "Repair",
     "RepairStatus",
     "Role",
+    "SefKey",
     "StoredInvoice",
     "User",
 ]
@@ -119,6 +122,24 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
     invoice_retention_days: Mapped[int | None]
+
+
+class SefKey(Base):
+    """An organization's API key to SEF, sealed with Fernet under ``SEF_FERNET_KEY``
+    (ADR-0050): the token, which opens with the organization's id and nothing else, never the key
+    itself; deleted with the organization."""
+
+    __tablename__ = "sef_keys"
+    #: A Fernet token begins with its version byte, 0x80, in base64: never a key in the clear.
+    __table_args__ = (
+        CheckConstraint("token ~ '^gAAAAA[A-Za-z0-9_-]+={0,2}$'", name="token_is_fernet"),
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    token: Mapped[str] = mapped_column(Text)
+    set_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
 class User(Base):
@@ -660,6 +681,8 @@ class AuditAction(StrEnum):
     REPAIR_REJECTED = "repair.rejected"
     ORGANIZATION_RETENTION_SET = "organization.retention_set"
     OAUTH_CLIENT_AUTHORIZED = "oauth.client_authorized"
+    SEF_KEY_SET = "sef.key_set"
+    SEF_KEY_REMOVED = "sef.key_removed"
 
 
 class AuditEvent(Base):
@@ -679,7 +702,8 @@ class AuditEvent(Base):
     __table_args__ = (
         CheckConstraint(
             "action IN ('repair.proposed', 'repair.approved', 'repair.rejected', "
-            "'organization.retention_set', 'oauth.client_authorized')",
+            "'organization.retention_set', 'oauth.client_authorized', 'sef.key_set', "
+            "'sef.key_removed')",
             name="action_known",
         ),
         Index("ix_audit_events_organization_id_at_id", "organization_id", "at", "id"),
