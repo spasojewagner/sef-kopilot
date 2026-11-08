@@ -56,7 +56,14 @@ def mount(app: FastAPI, settings: Settings) -> StreamableHTTPSessionManager:
     )
     manager = server.session_manager
     app.router.routes.append(
-        Route(PATH, RequireCredential(manager.handle_request, origins=settings.web_origins))
+        Route(
+            PATH,
+            RequireCredential(
+                manager.handle_request,
+                origins=settings.web_origins,
+                permissions=tools.PERMISSIONS,
+            ),
+        )
     )
     return manager
 

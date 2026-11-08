@@ -27,7 +27,7 @@ from sef_api.oauth import tokens as oauth_tokens
 
 from .conftest import TEST_JWT_SECRET
 from .factories import join, organization
-from .test_mcp import POSTED, VALID, Served, initialize, serving, text_of
+from .test_mcp import POSTED, VALID, Served, asking, initialize, serving, text_of
 from .test_oauth_authorization import CALLBACK, CHALLENGE, ISSUER, SERVER, VERIFIER
 from .test_oauth_documents import DOCUMENT_URL, Host
 
@@ -283,13 +283,19 @@ async def test_a_token_may_do_what_its_scopes_and_the_role_both_allow(
         ),
     )
     managing = await signed_in(served, scope="members:manage", as_owner=True)
+    validating = asking("tools/call", name="validate_invoice", arguments={"xml": VALID})
 
-    async with connected(served, bearer(managing["access_token"])) as client:
-        result = await client.call_tool("validate_invoice", {"xml": VALID})
+    async with served.http(bearer(managing["access_token"]) | POSTED) as http:
+        refused = await http.post("/mcp", json=validating)
 
-    assert result.is_error
-    assert text_of(result) == (
-        "Error executing tool validate_invoice: requires the permission invoices:validate"
+    # The role allows it and the scopes do not: the client is asked to step up, for what it
+    # holds and what the tool needs, and the tool never runs (ADR-0046).
+    assert (refused.status_code, refused.json()) == (
+        403,
+        {"detail": "a call needs invoices:validate, which the person has not allowed this client"},
+    )
+    assert refused.headers["WWW-Authenticate"] == (
+        f'Bearer error="insufficient_scope", {METADATA}, scope="invoices:validate members:manage"'
     )
 
 

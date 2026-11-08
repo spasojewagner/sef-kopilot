@@ -10,14 +10,19 @@ permission it needs, which an access token's scopes must allow too.
 
 A request without a credential, or with one that will not do, is answered 401 with a challenge
 that names the protected resource's metadata (RFC 9728 §5.1) and the scopes, so that a client
-that has never met the server knows where to sign its person in.
+that has never met the server knows where to sign its person in. A call through an MCP client of
+a tool its scopes do not reach, which the person's role would allow, is answered 403
+``insufficient_scope`` with the scopes to ask for, so that the client asks its person again
+(ADR-0046); the tool itself never runs for it.
 """
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterator
+import json
+from collections.abc import Collection, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import replace
+from types import MappingProxyType
 from typing import Final, cast
 
 from fastapi import HTTPException, status
@@ -27,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import Headers
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from sef_api.api_keys import service as api_keys
 from sef_api.auth.dependencies import (
@@ -39,7 +44,7 @@ from sef_api.auth.dependencies import (
     no_longer_active,
     revoked_consent,
 )
-from sef_api.auth.permissions import Permission
+from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
 from sef_api.models import Role
@@ -62,12 +67,17 @@ _CALLER: Final = "mcp_caller"
 class RequireCredential:
     """ASGI middleware in front of the MCP endpoint. A page of an origin other than the web
     application's is refused (403), as a guard against DNS rebinding; a method other than POST
-    too (405); and a request without a working credential (401, with its challenge). The others
-    go on, with the caller's principal in the request's state."""
+    too (405); a request without a working credential (401, with its challenge); and a call
+    through an MCP client of a tool its scopes do not reach (403, with the scopes to ask for).
+    The others go on, with the caller's principal in the request's state. ``permissions`` is
+    what each tool needs, by its name."""
 
-    def __init__(self, app: ASGIApp, *, origins: Collection[str]) -> None:
+    def __init__(
+        self, app: ASGIApp, *, origins: Collection[str], permissions: Mapping[str, Permission]
+    ) -> None:
         self.app = app
         self.origins = frozenset(origins)
+        self.permissions = MappingProxyType(dict(permissions))
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         # Behind a route, which passes HTTP requests only.
@@ -83,12 +93,18 @@ class RequireCredential:
                     status.HTTP_405_METHOD_NOT_ALLOWED, "Method Not Allowed", {"Allow": METHOD}
                 )
             state = scope["app"].state
+            settings = cast(Settings, state.settings)
             caller = await _caller(
                 cast(Database, state.database),
-                cast(Settings, state.settings),
+                settings,
                 cast(TokenSettings, state.tokens),
                 headers.get("authorization"),
             )
+            if caller.scopes is not None:
+                body, receive = await _buffered(receive)
+                lacking = _beyond_scopes(body, caller, self.permissions)
+                if lacking:
+                    raise _step_up(settings, caller, lacking)
         except HTTPException as refused:
             answer = JSONResponse(
                 {"detail": refused.detail}, refused.status_code, headers=refused.headers
@@ -99,16 +115,95 @@ class RequireCredential:
         await self.app(scope, receive, send)
 
 
-def challenge(settings: Settings, error: str | None = None) -> str:
+def challenge(
+    settings: Settings, error: str | None = None, scopes: Collection[str] | None = None
+) -> str:
     """The ``WWW-Authenticate`` of a refusal: with an authorization server, where the endpoint's
-    metadata is and the scopes to ask for (RFC 9728 §5.1, RFC 6750 §3)."""
+    metadata is and the scopes to ask for, every scope unless ``scopes`` are named (RFC 9728
+    §5.1, RFC 6750 §3)."""
     parameters = [] if error is None else [f'error="{error}"']
     if settings.public_url is not None:
         parameters += [
             f'resource_metadata="{issuer_of(settings)}{METADATA_PATH}"',
-            f'scope="{" ".join(authorizations.SCOPES)}"',
+            f'scope="{" ".join(authorizations.SCOPES if scopes is None else scopes)}"',
         ]
     return " ".join(["Bearer", ", ".join(parameters)]).strip()
+
+
+async def _buffered(receive: Receive) -> tuple[bytes, Receive]:
+    """The request's body, read whole, and a ``receive`` that gives it to the server again. The
+    API's limit on bodies has already bounded it (``SEF_MAX_BODY_BYTES``)."""
+    body = bytearray()
+    while True:
+        message = await receive()
+        if message["type"] != "http.request":
+            # The client went away: the server learns it as it would have.
+            pending: list[Message] = [message]
+            break
+        body += message.get("body", b"")
+        if not message.get("more_body", False):
+            pending = [{"type": "http.request", "body": bytes(body), "more_body": False}]
+            break
+
+    async def replay() -> Message:
+        return pending.pop() if pending else await receive()
+
+    return bytes(body), replay
+
+
+def _beyond_scopes(
+    body: bytes, caller: Principal, permissions: Mapping[str, Permission]
+) -> list[Permission]:
+    """The permissions of the tools the posted messages call that the caller's role grants, a
+    scope could allow, and their client's scopes do not: what asking the person again could
+    allow. Anything else, a message that is no JSON included, is the server's to answer."""
+    try:
+        posted = json.loads(body)
+    except ValueError:
+        return []
+    granted = ROLE_PERMISSIONS[caller.role]
+    allowed = caller.scopes or frozenset()
+    lacking: list[Permission] = []
+    # A client of the protocol's revision 2025-03-26 may post a batch of messages.
+    for message in posted if isinstance(posted, list) else [posted]:
+        if not isinstance(message, dict) or message.get("method") != "tools/call":
+            continue
+        params = message.get("params")
+        name = params.get("name") if isinstance(params, dict) else None
+        permission = permissions.get(name) if isinstance(name, str) else None
+        if (
+            permission is not None
+            and permission in granted
+            and permission in _SCOPE_OF
+            and permission not in allowed
+        ):
+            lacking.append(permission)
+    return lacking
+
+
+#: The scope that allows each permission a scope allows.
+_SCOPE_OF: Final[Mapping[Permission, str]] = MappingProxyType(
+    {permission: scope for scope, permission in authorizations.SCOPES.items()}
+)
+
+
+def _step_up(
+    settings: Settings, caller: Principal, lacking: Collection[Permission]
+) -> HTTPException:
+    """A 403 that asks the client to ask its person again, for the scopes it holds and those the
+    tools it called need: a client need not remember what it was allowed before (ADR-0046)."""
+    allowed = caller.scopes or frozenset()
+    scopes = [
+        scope
+        for scope, permission in authorizations.SCOPES.items()
+        if permission in allowed or permission in lacking
+    ]
+    needed = " ".join(_SCOPE_OF[permission] for permission in dict.fromkeys(lacking))
+    return HTTPException(
+        status.HTTP_403_FORBIDDEN,
+        f"a call needs {needed}, which the person has not allowed this client",
+        {"WWW-Authenticate": challenge(settings, "insufficient_scope", scopes)},
+    )
 
 
 #: Why an access token that will not do is refused, whatever the reason: whether its person left

@@ -2288,3 +2288,22 @@ Verification: the API's tests, the whole suite; the seeded faults, each caught (
 request); ruff, mypy; each commit checked on its own.
 
 Next: the step-up and the tools listed by scope (`feat/mcp-scope-step-up`).
+
+## 2026-11-08 — `feat/mcp-scope-step-up` (2 commits, stacked on `feat/mcp-invoice-explanations`)
+
+Outcome: a client the person let do less than a tool needs is asked to step up. The endpoint
+reads a token holder's `tools/call` before the server runs the tool and answers 403
+`insufficient_scope` with the scopes to ask for, the held ones too; a client that steps up asks
+its person again on the consent page and repeats the call. Every tool stays listed (ADR-0046).
+
+Findings:
+
+- The backlog asked for `tools/list` filtered by the scopes; a hidden tool is never called, so
+  never asked for, and the decision went the other way.
+- A tool's error inside a 200 is read by the client's model, never by the client: only an HTTP
+  status starts a re-authorization.
+
+Verification: the API's tests, the whole suite; the seeded faults, each caught (see the pull
+request); ruff, mypy; each commit checked on its own.
+
+Next: `propose_fix` (`feat/mcp-propose-fix`).

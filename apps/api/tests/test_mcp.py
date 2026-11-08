@@ -28,6 +28,7 @@ from sqlalchemy import update
 from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
 from sef_api.db import Database
 from sef_api.main import create_app
+from sef_api.mcp import tools
 from sef_api.models import ApiKey, User
 from sef_api.rag.explainer import Explainer
 
@@ -329,6 +330,11 @@ async def test_the_server_offers_its_tools_with_what_each_does(served: Served) -
     assert explaining.input_schema["required"] == ["xml"]
     assert explaining.output_schema is not None
     assert explaining.output_schema["title"] == "Explained"
+
+
+def test_the_endpoint_knows_what_each_tool_requires() -> None:
+    """What the endpoint reads to ask a client to step up is what each tool checks."""
+    assert dict(tools.PERMISSIONS) == {name: needed for name, (needed, _) in TOOLS.items()}
 
 
 @pytest.mark.parametrize("name", sorted(TOOLS))

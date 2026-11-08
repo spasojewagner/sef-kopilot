@@ -5,8 +5,10 @@ HTTP error of the route is the tool's error, in the same words."""
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Annotated, cast
+from types import MappingProxyType
+from typing import Annotated, Final, cast
 
 from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
@@ -46,6 +48,7 @@ from sef_api.rag.explainer import Explainer, explain_report
 from sef_api.settings import Settings
 
 __all__ = [
+    "PERMISSIONS",
     "explain_errors",
     "explain_invoice",
     "get_invoice",
@@ -79,6 +82,22 @@ JobId = Annotated[
     uuid.UUID,
     Field(description="The job's id, as revalidate_invoices gave it."),
 ]
+
+
+#: The permission each tool needs, as the tool checks it: what the endpoint reads to ask an MCP
+#: client whose scopes do not reach a tool to ask its person again (ADR-0046).
+PERMISSIONS: Final[Mapping[str, Permission]] = MappingProxyType(
+    {
+        "validate_invoice": Permission.INVOICES_VALIDATE,
+        "explain_errors": Permission.INVOICES_VALIDATE,
+        "store_invoice": Permission.INVOICES_SUBMIT,
+        "list_invoices": Permission.INVOICES_SUBMIT,
+        "get_invoice": Permission.INVOICES_SUBMIT,
+        "explain_invoice": Permission.INVOICES_SUBMIT,
+        "revalidate_invoices": Permission.INVOICES_SUBMIT,
+        "get_job": Permission.INVOICES_SUBMIT,
+    }
+)
 
 
 def register(server: MCPServer) -> None:

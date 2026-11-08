@@ -106,6 +106,9 @@ is tagged.
 - `apps/api`: the MCP server's tools that explain a stored invoice, `explain_invoice` (the kept
   explanations first, ADR-0040), and validate stored invoices again, `revalidate_invoices`, in a
   job that `get_job` reads, as their routes do.
+- `apps/api`: the MCP revision's step-up: a call through an MCP client of a tool its scopes
+  do not reach is answered 403 `insufficient_scope`, with the scopes to ask the person for,
+  before the tool runs; every tool stays listed (ADR-0046).
 
 ### Changed
 
