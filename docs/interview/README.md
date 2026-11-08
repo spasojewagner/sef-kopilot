@@ -87,3 +87,4 @@ per branch, to keep them with the code they describe.
 | `feat/mcp-invoice-explanations` | [m4-mcp-invoice-explanations.md](m4-mcp-invoice-explanations.md) |
 | `feat/mcp-scope-step-up` | [m4-mcp-scope-step-up.md](m4-mcp-scope-step-up.md) |
 | `feat/mcp-propose-fix` | [m4-mcp-propose-fix.md](m4-mcp-propose-fix.md) |
+| `feat/core-rule-catalogue` | [m4-core-rule-catalogue.md](m4-core-rule-catalogue.md) |

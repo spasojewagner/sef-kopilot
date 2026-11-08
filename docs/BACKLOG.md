@@ -118,6 +118,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/mcp-invoice-explanations` — tools on stored invoices, as their routes do: `explain_invoice`, the kept explanations first (ADR-0040), and `revalidate_invoices`, a job `get_job` reads; the tools say which only read
 - [x] `feat/mcp-scope-step-up` — the MCP revision's step-up: a call of a tool the token's scopes do not reach, which the person's role would allow, is answered 403 `insufficient_scope` before the tool runs, naming the scopes to ask for in `WWW-Authenticate`; every tool stays listed, since a hidden tool is never asked for (ADR-0046, which decided against filtering `tools/list`); the learning note on the step-up
 - [x] `feat/mcp-propose-fix` — `propose_fix`: a repair of a stored invoice, the server's model writing the patches or the assistant giving its own (ADR-0025), which a person decides on the repair's page (ADR-0024), whose address the tool answers; `get_repair`, which reads whether they have
+- [x] `feat/core-rule-catalogue` — the rules a profile applies, or sets aside, as data: read from the rule sets the validator runs, with the calculation and SRB-CIUS rules, and searched by id, business term or words (ADR-0047; split from `feat/mcp-search-rules` on 2026-11-08)
 - [ ] `feat/mcp-search-rules` — `search_rules`: the rules of a profile and the passages of the corpus, by a rule's id or by words
 - [ ] Demo from Claude and ChatGPT documented with screenshots
 - [ ] Release: `v0.4.0`

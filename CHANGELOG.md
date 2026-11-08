@@ -112,6 +112,9 @@ is tagged.
 - `apps/api`: the MCP server's `propose_fix`, a repair of a stored invoice with the server's
   model writing the patches or the assistant giving its own, kept until a person decides on the
   web application's page it names, and `get_repair`, which reads whether they have.
+- `einvoice_core`: the catalogue of the rules a profile applies, or sets aside, read from the
+  rule sets the validator runs, with the calculation and SRB-CIUS rules, and a search over it
+  by id, business term or words (ADR-0047).
 
 ### Changed
 

@@ -2329,3 +2329,23 @@ Verification: the API's tests, the whole suite; the seeded faults, each caught a
 baseline (see the pull request); ruff, mypy; each commit checked on its own.
 
 Next: `search_rules` (`feat/mcp-search-rules`).
+
+## 2026-11-08 — `feat/core-rule-catalogue` (2 commits, stacked on `feat/mcp-propose-fix`)
+
+Outcome: the rules a profile applies, as data. `catalogue(profile)` reads the assertions of the
+rule sets the validator runs, CEN's compiled XSLT and Peppol's sources, adds the arithmetic
+layer's calculation rules and, for `srb`, the SRB-CIUS rules, and marks what the profile always
+sets aside (ADR-0047). `search` finds rules by id, business term or words. It is the ground of
+`search_rules`, split from it as a change of its own.
+
+Findings:
+
+- Every rule a validation of the fixtures and official examples reports, under every profile,
+  is in the catalogue; a test keeps it so.
+- Ordering ids by their numbers was dead weight: the published ids are padded. A seeded fault
+  that no test caught showed it, and the plain order stayed.
+
+Verification: the core's tests, coverage 100 %; the seeded faults, each caught after a clean
+baseline (see the pull request); ruff, mypy; each commit checked on its own.
+
+Next: `search_rules` over the catalogue and the corpus (`feat/mcp-search-rules`).
