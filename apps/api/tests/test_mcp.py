@@ -66,6 +66,8 @@ TOOLS: dict[str, tuple[Permission, dict[str, Any]]] = {
         Permission.INVOICES_SUBMIT,
         {"invoice_id": str(uuid.uuid4()), "repair_id": str(uuid.uuid4())},
     ),
+    "search_rules": (Permission.INVOICES_VALIDATE, {"query": "BR-01"}),
+    "get_rule": (Permission.INVOICES_VALIDATE, {"rule_id": "BR-01"}),
 }
 
 #: What ``serving`` is given for a server without a language model.

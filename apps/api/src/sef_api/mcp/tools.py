@@ -7,7 +7,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import MappingProxyType
 from typing import Annotated, Final, cast
 
@@ -55,6 +55,7 @@ from sef_api.repairs.routes import (
     repair_proposed,
     repair_suggested,
 )
+from sef_api.rules.routes import MAX_RULES, RuleFound, RuleOut, about, found
 from sef_api.settings import Settings
 
 __all__ = [
@@ -64,10 +65,12 @@ __all__ = [
     "get_invoice",
     "get_job",
     "get_repair",
+    "get_rule",
     "list_invoices",
     "propose_fix",
     "register",
     "revalidate_invoices",
+    "search_rules",
     "store_invoice",
     "validate_invoice",
 ]
@@ -145,6 +148,8 @@ PERMISSIONS: Final[Mapping[str, Permission]] = MappingProxyType(
         "get_job": Permission.INVOICES_SUBMIT,
         "propose_fix": Permission.INVOICES_SUBMIT,
         "get_repair": Permission.INVOICES_SUBMIT,
+        "search_rules": Permission.INVOICES_VALIDATE,
+        "get_rule": Permission.INVOICES_VALIDATE,
     }
 )
 
@@ -325,6 +330,39 @@ def register(server: MCPServer) -> None:
         ),
     )
     server.add_tool(
+        search_rules,
+        name="search_rules",
+        title="Search the rules of e-invoices",
+        description=(
+            "Find the rules a profile applies, broken by an invoice or not: by id (`BR-CO-15`) "
+            "or the start of ids (`BR-CO`), by an EN 16931 business term (`BT-31`), or by the "
+            "words of their statements, which are English; the Serbian rules come first. Each "
+            "rule has its severity, its statement as a violation of it states it, and, if the "
+            "profile always sets it aside, why. With them come the passages of the official "
+            "documents, Serbian law and the SRB-CIUS specification among them, that share "
+            "enough of the words, among those that apply today: search them in their own "
+            "language (`kontrolni broj PIB`). Quote the passages rather than adding law of "
+            "your own. get_rule reads one rule with its passages."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+        ),
+    )
+    server.add_tool(
+        get_rule,
+        name="get_rule",
+        title="Read a rule of e-invoices",
+        description=(
+            "One rule of a profile, by its id, and the passages of the official documents an "
+            "explanation of a violation of it would cite on a day (today by default): those it "
+            "is authored from first, then the rows of the business terms it names, then those "
+            "that share its words, each with its source and the dates it is in force."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+        ),
+    )
+    server.add_tool(
         get_repair,
         name="get_repair",
         title="Read a repair of a stored e-invoice",
@@ -477,6 +515,44 @@ async def get_repair(invoice_id: InvoiceId, repair_id: RepairId, context: Contex
         if repair is None:
             raise ToolError("no such repair of this invoice")
         return repair_out(repair)
+
+
+async def search_rules(
+    query: Annotated[
+        str, Field(min_length=1, max_length=200, description="An id, a business term or words.")
+    ],
+    context: Context,
+    profile: Profile = "srb",
+    limit: Annotated[int, Field(ge=1, le=MAX_RULES, description="Rules at most.")] = 20,
+) -> RuleFound:
+    """What ``GET /rules`` does."""
+    _, _, database = _looking_up(context)
+    async with database.sessions() as session:
+        with as_tool_errors():
+            return await found(session, query, profile=profile, limit=limit)
+
+
+async def get_rule(
+    rule_id: Annotated[
+        str, Field(min_length=1, max_length=100, description="The rule's id, `SRB-009`.")
+    ],
+    context: Context,
+    profile: Profile = "srb",
+    day: Annotated[
+        date | None, Field(description="The day whose law applies; today if none.")
+    ] = None,
+) -> RuleOut:
+    """What ``GET /rules/{rule_id}`` does."""
+    _, _, database = _looking_up(context)
+    async with database.sessions() as session:
+        with as_tool_errors():
+            return await about(session, rule_id, profile=profile, day=day)
+
+
+def _looking_up(context: Context) -> tuple[Request, Principal, Database]:
+    """The request, the caller who may look rules up, and the database."""
+    request, caller = admitted(context, Permission.INVOICES_VALIDATE)
+    return request, caller, cast(Database, request.app.state.database)
 
 
 @contextmanager

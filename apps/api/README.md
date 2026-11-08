@@ -553,9 +553,11 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   | `get_job` | `invoices:submit` | `GET /jobs/{job_id}`: a job the caller may see, how far it has come and how it ended |
   | `propose_fix` | `invoices:submit` | `POST /invoices/{invoice_id}/repairs/suggestion`, or `POST /invoices/{invoice_id}/repairs` with the assistant's own `patches`: a repair kept until a person decides, and `decide_at`, the web application's page where they do; the invoice does not change |
   | `get_repair` | `invoices:submit` | `GET /invoices/{invoice_id}/repairs/{repair_id}`: a repair, whether it waits for a decision or was approved or rejected |
+  | `search_rules` | `invoices:validate` | `GET /rules`: the rules of a profile by id, business term or words, and the passages that share the words |
+  | `get_rule` | `invoices:validate` | `GET /rules/{rule_id}`: a rule and the passages an explanation of it would cite on a day |
 
-  An assistant's scopes match: `invoices:validate` for the first two, `invoices:submit` for the
-  others. No scope reaches every invoice of the organization (`invoices:manage`): through an
+  An assistant's scopes match: `invoices:validate` for the tools that validate and look rules
+  up, `invoices:submit` for those on stored invoices. No scope reaches every invoice of the organization (`invoices:manage`): through an
   assistant, a person sees the invoices they submitted.
 - **Asking for more (step-up):** every tool is listed, whatever a token's scopes. A call
   through an MCP client of a tool its scopes do not reach, which the person's role would

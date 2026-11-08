@@ -138,9 +138,11 @@ async def test_a_client_that_signed_its_person_in_validates_an_invoice(served: S
         "get_invoice",
         "get_job",
         "get_repair",
+        "get_rule",
         "list_invoices",
         "propose_fix",
         "revalidate_invoices",
+        "search_rules",
         "store_invoice",
         "validate_invoice",
     ]
