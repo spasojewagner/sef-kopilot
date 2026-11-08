@@ -20,7 +20,8 @@ is tagged.
   permission `invoices:send` of owners and accountants) with the organization's key, only when
   the validator passes it under SRB-CIUS, byte for byte as validated, and once: an answer lost
   is asked for again with the same `requestId` (ADR-0051, migration 0021). `GET
-  /invoices/{id}/sef` shows what SEF answered.
+  /invoices/{id}/sef` shows what SEF answered and where the invoice stands in SEF, which the API
+  asks once a minute where the jobs run, less often as an invoice ages, until it is final.
 
 ### Security
 

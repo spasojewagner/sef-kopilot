@@ -281,7 +281,7 @@ def test_a_worker_serves_the_queue_of_its_settings(monkeypatch: pytest.MonkeyPat
     (options,) = served
     assert [function.name for function in options["functions"]] == [TASK]
     assert options["functions"][0].timeout_s == worker.ATTEMPT_SECONDS
-    sweeping, forgetting = options["cron_jobs"]
+    sweeping, forgetting, watching = options["cron_jobs"]
     assert sweeping.name == "cron:sweep"
     # at startup, then at second 0 of every minute (the tests move the latter away)
     assert (sweeping.run_at_startup, sweeping.minute, sweeping.second) == (True, None, 0)
@@ -293,6 +293,9 @@ def test_a_worker_serves_the_queue_of_its_settings(monkeypatch: pytest.MonkeyPat
         {17},
         0,
     )
+    assert watching.name == "cron:watch"
+    # at second 30 of every minute: where the invoices SEF imported stand (ADR-0051)
+    assert (watching.run_at_startup, watching.minute, watching.second) == (False, None, {30})
     assert (options["redis_settings"].host, options["redis_settings"].port) == (
         "queue.example",
         6380,

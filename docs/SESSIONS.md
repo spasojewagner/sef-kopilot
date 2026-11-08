@@ -2522,3 +2522,28 @@ mypy; each commit checked on its own.
 
 Next: the SEF demo client over this key, sending an invoice and asking about its status
 (`feat/sef-demo-client`).
+
+## 2026-11-08 — `feat/sef-demo-client` (4 commits, stacked on `feat/sef-keys`)
+
+Outcome: a stored invoice is sent to SEF's demo environment in its organization's name, only
+when the validator passes it under SRB-CIUS, byte for byte as validated, and once, through the
+`requestId`; what SEF answered is kept with it, and where it stands in SEF is asked where the
+jobs run until SEF calls it final (ADR-0051).
+
+Findings:
+
+- SEF publishes its API as OpenAPI (`/swagger/public_v1/swagger.json`, read on the demo): the
+  key goes in the header `ApiKey`, sales invoices are in version 1, and version 2 holds only VAT
+  recording.
+- The submission is committed before SEF is asked, so that an answer lost on the way leaves a
+  row whose id is asked again, never a second invoice in SEF.
+- Two sendings in one transaction share its `now()`; the time a submission was sent is taken
+  from the clock, so that their order holds.
+- The demo from Claude ran against the deployed API, through OAuth: `explain_errors`,
+  `get_rule` and `validate_invoice` on a synthetic invoice with a wrong PIB check digit.
+
+Verification: the API's tests, the whole suite; the seeded faults, each caught after a clean
+baseline (see the pull request); ruff, mypy; each commit checked on its own.
+
+Next: the MCP tool `send_to_sef_demo` with the scope `invoices:send`; the web application's
+pages for the SEF key and for sending; after `v0.4.0`.

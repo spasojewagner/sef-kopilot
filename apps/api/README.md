@@ -200,8 +200,9 @@ passes it; 409 says why not (`invalid`, `no-key`, `sent`, `unconfirmed`, `change
 is the submission as SEF answered it: `imported`, with SEF's ids; `refused`, with SEF's words;
 or `unconfirmed`, when SEF gave no answer: sending again asks SEF with the same `requestId`, the
 submission's id, so that SEF imports the invoice once. `GET /invoices/{id}/sef` lists the
-submissions. SEF's words may quote the invoice: they are shown to the members who may see it,
-and logged nowhere.
+submissions, and where each invoice stands in SEF (`sef_status`), which the API asks of SEF
+where the jobs run, once a minute, less often as an invoice ages, until SEF calls it final. SEF's
+words may quote the invoice: they are shown to the members who may see it, and logged nowhere.
 
 ## Validating an invoice
 

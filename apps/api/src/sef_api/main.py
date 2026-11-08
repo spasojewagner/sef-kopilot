@@ -57,6 +57,7 @@ from sef_api.sef import routes as sef
 from sef_api.sef.client import SefClient
 from sef_api.sef.keys import keyring_for
 from sef_api.sef.submissions import NotSendableError
+from sef_api.sef.watch import keep_watching
 from sef_api.settings import Settings
 from sef_api.unexpected import AnswerUnexpectedErrors
 
@@ -173,6 +174,24 @@ async def _deleting_old_data(database: Database, job_retention_days: int) -> Asy
             await deleting
 
 
+@asynccontextmanager
+async def _watching_sef(app: FastAPI) -> AsyncIterator[None]:
+    """Ask SEF where the invoices it imported stand, once a minute, while the application runs
+    (ADR-0051)."""
+    settings: Settings = app.state.settings
+    watching = asyncio.create_task(
+        keep_watching(
+            app.state.database, app.state.sef_keys, app.state.sef_http, settings.sef_demo_base_url
+        )
+    )
+    try:
+        yield
+    finally:
+        watching.cancel()
+        with suppress(asyncio.CancelledError):
+            await watching
+
+
 async def _resume(app: FastAPI) -> None:
     """Have the jobs that the process before this one left unfinished run again. Without its
     database the application still starts, as /ready tells, and they wait for the next start."""
@@ -216,6 +235,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await running.enter_async_context(
                     _deleting_old_data(database, settings.job_retention_days)
                 )
+                await running.enter_async_context(_watching_sef(application))
             # The MCP endpoint's sessions, which it keeps only for a message's length.
             await running.enter_async_context(application.state.mcp.run())
             yield
