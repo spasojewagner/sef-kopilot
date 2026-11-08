@@ -527,6 +527,9 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   | `store_invoice` | `invoices:submit` | `POST /invoices`: the XML as text and a profile; the invoice is kept for the organization with its report, and the answer is the stored invoice |
   | `list_invoices` | `invoices:submit` | `GET /invoices`: the invoices the caller may see, the newest first, a page at a time (`limit`, `after`), the valid or invalid ones only if asked |
   | `get_invoice` | `invoices:submit` | `GET /invoices/{invoice_id}`: a stored invoice and its latest report |
+  | `explain_invoice` | `invoices:submit` | `POST /invoices/{invoice_id}/explanations`: the explanations of a stored invoice's latest report, the kept ones if there are, in a language (`sr` by default); the invoice is not validated again |
+  | `revalidate_invoices` | `invoices:submit` | `POST /invoices/revalidations`: a job that validates again the invoices the caller may see; the answer is the job |
+  | `get_job` | `invoices:submit` | `GET /jobs/{job_id}`: a job the caller may see, how far it has come and how it ended |
 
   An assistant's scopes match: `invoices:validate` for the first two, `invoices:submit` for the
   others. No scope reaches every invoice of the organization (`invoices:manage`): through an

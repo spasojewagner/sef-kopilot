@@ -2267,3 +2267,24 @@ the seeded faults, each caught (see the pull request); ruff, mypy; each commit c
 own.
 
 Next: the explanations and revalidation of a stored invoice (`feat/mcp-invoice-explanations`).
+
+## 2026-11-08 — `feat/mcp-invoice-explanations` (3 commits, stacked on `feat/mcp-invoice-tools`)
+
+Outcome: an assistant asks what is wrong with a stored invoice and checks the stored ones
+against today's rules. `explain_invoice` answers the kept explanations first, so asking again
+costs nothing; `revalidate_invoices` starts the route's job and `get_job` reads it. The logic
+the routes held in their bodies is shared, so the tools cannot drift from them.
+
+Findings:
+
+- A revalidation's 409 names its job in `Location`, which a tool's caller cannot read; the tool
+  names the job in its error instead.
+- The read-only hint is about the person's data: explaining keeps what it answered and says it
+  reads; revalidating replaces reports and says it writes.
+- A test of the explanation's time limit (one second) failed once while the whole suite ran
+  beside another; it passed on its own and in every later run.
+
+Verification: the API's tests, the whole suite; the seeded faults, each caught (see the pull
+request); ruff, mypy; each commit checked on its own.
+
+Next: the step-up and the tools listed by scope (`feat/mcp-scope-step-up`).

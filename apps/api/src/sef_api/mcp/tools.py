@@ -24,15 +24,21 @@ from sef_api.invoices.routes import (
     Explained,
     InvoiceOut,
     InvoicePage,
+    RevalidationUnderWayError,
     StoredInvoiceOut,
     count_validation,
+    explain_stored,
     judged,
     present,
     present_stored,
     refuse_when_busy,
     scope_of,
+    start_revalidation,
 )
 from sef_api.invoices.validation import ProfileName, Validation
+from sef_api.jobs import store as job_store
+from sef_api.jobs.routes import JobOut, job_out
+from sef_api.jobs.routes import scope as jobs_scope
 from sef_api.llm import Language
 from sef_api.mcp.access import admitted, as_tool_errors
 from sef_api.rag.embeddings import Embedder
@@ -41,9 +47,12 @@ from sef_api.settings import Settings
 
 __all__ = [
     "explain_errors",
+    "explain_invoice",
     "get_invoice",
+    "get_job",
     "list_invoices",
     "register",
+    "revalidate_invoices",
     "store_invoice",
     "validate_invoice",
 ]
@@ -65,6 +74,10 @@ Explaining = Annotated[
 InvoiceId = Annotated[
     uuid.UUID,
     Field(description="The stored invoice's id, as store_invoice or list_invoices gave it."),
+]
+JobId = Annotated[
+    uuid.UUID,
+    Field(description="The job's id, as revalidate_invoices gave it."),
 ]
 
 
@@ -161,6 +174,63 @@ def register(server: MCPServer) -> None:
             read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
         ),
     )
+    server.add_tool(
+        explain_invoice,
+        name="explain_invoice",
+        title="Explain a stored e-invoice's errors",
+        description=(
+            "Explain each rule a stored invoice's latest report names, as explain_errors does "
+            "for a document given as text, in Serbian (`sr`, the default) or English (`en`), "
+            "with the passages of the official documents that apply on its issue date. The "
+            "invoice is not validated again: the report explained comes with the answer. "
+            "Explanations once written in full are kept with the invoice, and read again, "
+            "asking the language model nothing and counting nothing, until its report is "
+            "another; otherwise the call counts as a request to the language model against "
+            "the caller's limit and their organization's."
+        ),
+        # What it keeps is what it answered, for the same report: nothing of the person's
+        # changes, and the next call reads it back.
+        annotations=ToolAnnotations(
+            read_only_hint=True,
+            destructive_hint=False,
+            idempotent_hint=False,
+            open_world_hint=False,
+        ),
+    )
+    server.add_tool(
+        revalidate_invoices,
+        name="revalidate_invoices",
+        title="Validate stored e-invoices again",
+        description=(
+            "Start a job that validates again, with the rules this server has now, the "
+            "invoices list_invoices lists, and makes each new report the invoice's latest; "
+            "what the invoices hold does not change. The answer is the job, which get_job "
+            "reads. One revalidation the person started runs at a time. An invoice whose new "
+            "report would take the organization past how much it may store keeps the report it "
+            "has; the job counts it."
+        ),
+        # A report is the validator's, written again from the invoice: none is lost that the
+        # rules of today would not write again.
+        annotations=ToolAnnotations(
+            read_only_hint=False,
+            destructive_hint=False,
+            idempotent_hint=False,
+            open_world_hint=False,
+        ),
+    )
+    server.add_tool(
+        get_job,
+        name="get_job",
+        title="Read a job",
+        description=(
+            "Where a job the person started is, how far it has come and, once it has finished, "
+            "how it ended: for a revalidation, how many invoices are valid, invalid, kept their "
+            "report, failed or were deleted meanwhile."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+        ),
+    )
 
 
 async def store_invoice(
@@ -225,6 +295,42 @@ async def get_invoice(invoice_id: InvoiceId, context: Context) -> StoredInvoiceO
         if invoice is None:
             raise ToolError("no such invoice")
         return present_stored(invoice)
+
+
+async def explain_invoice(
+    invoice_id: InvoiceId, context: Context, language: Explaining = "sr"
+) -> Explained:
+    """What ``POST /invoices/{invoice_id}/explanations`` does: the kept explanations of the
+    invoice's latest report, or the language model's, counted."""
+    request, caller, database = _reading(context)
+    async with database.sessions() as session:
+        invoice = await store.find(session, scope_of(caller), invoice_id)
+        if invoice is None:
+            raise ToolError("no such invoice")
+        with as_tool_errors():
+            return await explain_stored(request, caller, session, invoice, language)
+
+
+async def revalidate_invoices(context: Context) -> JobOut:
+    """What ``POST /invoices/revalidations`` does: start the job, and answer it."""
+    request, caller, database = _reading(context)
+    async with database.sessions() as session:
+        try:
+            job = await start_revalidation(request, caller, session)
+        except RevalidationUnderWayError as under_way:
+            named = f": job {under_way.job_id}, as get_job reads" if under_way.job_id else ""
+            raise ToolError(f"a revalidation you started is under way{named}") from None
+        return job_out(job)
+
+
+async def get_job(job_id: JobId, context: Context) -> JobOut:
+    """What ``GET /jobs/{job_id}`` does."""
+    _, caller, database = _reading(context)
+    async with database.sessions() as session:
+        job = await job_store.find(session, jobs_scope(caller), job_id)
+        if job is None:
+            raise ToolError("no such job")
+        return job_out(job)
 
 
 def _reading(context: Context) -> tuple[Request, Principal, Database]:

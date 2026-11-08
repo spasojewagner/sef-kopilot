@@ -39,7 +39,7 @@ from sef_api.jobs import store as job_store
 from sef_api.jobs.routes import JobOut, job_out
 from sef_api.jobs.runners import JobRunner
 from sef_api.llm import Language
-from sef_api.models import JobKind, StoredInvoice
+from sef_api.models import Job, JobKind, StoredInvoice
 from sef_api.rag.embeddings import Embedder
 from sef_api.rag.explainer import Explainer, Explanation, explain_report
 from sef_api.rate_limits import Counted, Limit, RateLimiter, Rule, too_many
@@ -397,6 +397,30 @@ async def store_invoice(
 async def revalidate_invoices(
     request: Request, response: Response, caller: CanSubmit, session: Session
 ) -> JobOut:
+    try:
+        job = await start_revalidation(request, caller, session)
+    except RevalidationUnderWayError as under_way:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "a revalidation you started is under way",
+            None if under_way.job_id is None else {"Location": f"/jobs/{under_way.job_id}"},
+        ) from None
+    response.headers["Location"] = f"/jobs/{job.id}"
+    response.headers["Cache-Control"] = "no-store"
+    return job_out(job)
+
+
+class RevalidationUnderWayError(Exception):
+    """The caller started a revalidation that is not done: ``job_id``, if it is still found."""
+
+    def __init__(self, job_id: uuid.UUID | None) -> None:
+        super().__init__("a revalidation you started is under way")
+        self.job_id = job_id
+
+
+async def start_revalidation(request: Request, caller: Principal, session: AsyncSession) -> Job:
+    """Start validating again the invoices ``caller`` may see, the routes and MCP tools alike;
+    :class:`RevalidationUnderWayError` while one they started is not done."""
     scope = scope_of(caller)
     job = await job_store.start(
         session,
@@ -409,15 +433,9 @@ async def revalidate_invoices(
         running = await job_store.under_way(
             session, caller.organization_id, caller.user_id, JobKind.REVALIDATION
         )
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "a revalidation you started is under way",
-            None if running is None else {"Location": f"/jobs/{running.id}"},
-        )
+        raise RevalidationUnderWayError(None if running is None else running.id)
     await cast(JobRunner, request.app.state.jobs).enqueue(job.id)
-    response.headers["Location"] = f"/jobs/{job.id}"
-    response.headers["Cache-Control"] = "no-store"
-    return job_out(job)
+    return job
 
 
 @router.get(
@@ -567,8 +585,21 @@ async def explain_stored_invoice(
     invoice = await store.find(session, scope_of(caller), invoice_id)
     if invoice is None:
         raise _not_found()
-    stored, day, digest = _explaining(invoice)
     response.headers["Cache-Control"] = "no-store"
+    return await explain_stored(request, caller, session, invoice, language)
+
+
+async def explain_stored(
+    request: Request,
+    caller: Principal,
+    session: AsyncSession,
+    invoice: StoredInvoice,
+    language: Language,
+) -> Explained:
+    """The explanations of a stored invoice's latest report, the routes and MCP tools alike: the
+    ones kept for it, or the language model's, counted as a request to it and kept when every
+    rule asked about is explained. 503 with no model and none kept, 429 beyond a limit."""
+    stored, day, digest = _explaining(invoice)
     kept = await kept_explanations.kept(
         session, invoice.id, language, report_sha256=digest, day=day
     )

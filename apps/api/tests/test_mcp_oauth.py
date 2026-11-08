@@ -134,8 +134,11 @@ async def test_a_client_that_signed_its_person_in_validates_an_invoice(served: S
 
     assert offered == [
         "explain_errors",
+        "explain_invoice",
         "get_invoice",
+        "get_job",
         "list_invoices",
+        "revalidate_invoices",
         "store_invoice",
         "validate_invoice",
     ]

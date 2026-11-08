@@ -51,6 +51,9 @@ TOOLS: dict[str, tuple[Permission, dict[str, Any]]] = {
     "store_invoice": (Permission.INVOICES_SUBMIT, {"xml": VALID}),
     "list_invoices": (Permission.INVOICES_SUBMIT, {}),
     "get_invoice": (Permission.INVOICES_SUBMIT, {"invoice_id": str(uuid.uuid4())}),
+    "explain_invoice": (Permission.INVOICES_SUBMIT, {"invoice_id": str(uuid.uuid4())}),
+    "revalidate_invoices": (Permission.INVOICES_SUBMIT, {}),
+    "get_job": (Permission.INVOICES_SUBMIT, {"job_id": str(uuid.uuid4())}),
 }
 
 #: What ``serving`` is given for a server without a language model.
@@ -343,8 +346,8 @@ async def test_each_tool_requires_its_permission(
 
     assert refused.is_error
     assert text_of(refused) == f"Error executing tool {name}: requires the permission {permission}"
-    # Admitted, the tool does its work: an invoice it cannot find is another matter.
-    assert not admitted.is_error or text_of(admitted).endswith("no such invoice")
+    # Admitted, the tool does its work: an invoice or a job it cannot find is another matter.
+    assert not admitted.is_error or text_of(admitted).endswith(("no such invoice", "no such job"))
 
 
 # --- validate_invoice --------------------------------------------------------------------------
