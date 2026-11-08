@@ -338,7 +338,10 @@ async def _primers_invoice_is_not_decided(
     its API key is refused, as every key is, before anything is looked up."""
     assert (response.status_code, response.json()["detail"]) in {
         (404, "no such invoice in this organization"),
-        (403, "a person decides on a repair: sign in to decide, an API key cannot"),
+        (
+            403,
+            "a person decides on a repair: sign in to decide, an API key or an MCP client cannot",
+        ),
     }
     assert await session.scalar(select(func.count()).select_from(AuditEvent)) == 0
 

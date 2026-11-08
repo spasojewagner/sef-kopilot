@@ -48,11 +48,12 @@ CanSubmit = Annotated[Principal, Depends(require(Permission.INVOICES_SUBMIT))]
 
 
 def in_person(caller: CanSubmit) -> Principal:
-    """The caller, if they came in person, with an access token: not with an API key."""
-    if caller.key is not None:
+    """The caller, if they came in person, with an access token: not with an API key, nor
+    through an MCP client."""
+    if not caller.in_person:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "a person decides on a repair: sign in to decide, an API key cannot",
+            "a person decides on a repair: sign in to decide, an API key or an MCP client cannot",
         )
     return caller
 

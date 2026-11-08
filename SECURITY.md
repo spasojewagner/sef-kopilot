@@ -264,6 +264,10 @@ system are marked as such.
       the token endpoint) answer a page of any origin, for MCP clients in a browser; none reads
       a cookie or answers with credentials. Every other route answers the web application's
       origins alone (V3), the consent's requests included.
+- [x] An MCP client never passes for the person who let it act: a caller says which credential
+      it came with, only a person in person decides on a repair or a client's request, work that
+      outlasts its check reads the consent again, the audit log names the client, and the
+      client's requests are counted against its consent.
 
 ### V11 Cryptography
 

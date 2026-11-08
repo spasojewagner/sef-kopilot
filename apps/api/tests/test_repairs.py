@@ -483,7 +483,9 @@ async def test_a_key_revoked_while_the_patches_are_applied_keeps_no_repair(
 
 # --- deciding ------------------------------------------------------------------------------------
 
-PERSON_ONLY = {"detail": "a person decides on a repair: sign in to decide, an API key cannot"}
+PERSON_ONLY = {
+    "detail": "a person decides on a repair: sign in to decide, an API key or an MCP client cannot"
+}
 LONG_NOTE = {
     "xpath": "/ubl:Invoice/cbc:Note[2]",
     "op": "add",

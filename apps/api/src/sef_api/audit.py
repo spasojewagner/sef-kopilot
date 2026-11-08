@@ -36,6 +36,7 @@ def record(
             organization_id=caller.organization_id,
             actor=caller.user_id,
             key_id=None if caller.key is None else caller.key.key_id,
+            oauth_client_id=None if caller.consent is None else caller.consent.client_id,
             action=action,
             invoice_id=invoice_id,
             repair_id=repair_id,

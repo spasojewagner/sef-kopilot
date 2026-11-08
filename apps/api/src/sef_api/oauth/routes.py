@@ -139,10 +139,11 @@ async def in_person(
 ) -> Principal:
     """The caller, signed in with the role they hold now: a person, not an API key, since a
     person decides what a client may do for them."""
-    if principal.key is not None:
+    if not principal.in_person:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "a person decides what a client may do: sign in to decide, an API key cannot",
+            "a person decides what a client may do: sign in to decide, an API key or an MCP "
+            "client cannot",
         )
     role = await current_role(session, principal)
     if role is None:

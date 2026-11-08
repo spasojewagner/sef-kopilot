@@ -242,7 +242,7 @@ turned it into then; the invoice becomes that document within `SEF_MAX_STORED_BY
 other repairs that waited for it become `superseded`, since they were proposed for a document
 it no longer is. A repair is seen by whoever sees its invoice, and is deleted with it.
 Proposing counts as a validation against the rate limits. Each proposal, approval and rejection is committed with an event in the audit log
-(`audit_events`): who, with which key, to which invoice and repair, the digests of the document
+(`audit_events`): who, with which key or through which MCP client, to which invoice and repair, the digests of the document
 before and after, the verdict, each patch's place, operation and outcome, and the repairs an
 approval superseded; never a value or a reason, which may quote the invoice. An event outlives the invoice and the repair it names,
 and goes with the organization.
@@ -512,8 +512,12 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   and the scopes (RFC 9728 §5.1), which is how a client that has never met the server finds
   where to sign its person in.
 - **What it may do:** each tool requires a permission, as the route it stands for does, and
-  counts against the same limits; with an access token, its scopes must allow it too. A tool's
-  error is the route's error, in the same words.
+  counts against the same limits; with an access token, its scopes must allow it too, and its
+  requests are counted against the client's consent, apart from the person's own, so that an
+  assistant that runs away holds back itself and the organization, not the person. A tool's
+  error is the route's error, in the same words. An MCP client never passes for the person:
+  what only a person decides, a repair or a client's request, it cannot, and an act it does is
+  recorded with the client it came through (migration 0018).
 - **Its tools:**
 
   | Tool | Requires | Does what this route does |
