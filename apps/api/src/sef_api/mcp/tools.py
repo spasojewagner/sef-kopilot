@@ -5,7 +5,8 @@ HTTP error of the route is the tool's error, in the same words."""
 from __future__ import annotations
 
 import uuid
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Annotated, Final, cast
@@ -14,9 +15,10 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
-from pydantic import Field
+from pydantic import BaseModel, Field
 from starlette.requests import Request
 
+from einvoice_core.patches import MAX_PATCHES, Patch
 from einvoice_core.pipeline import ValidationReport
 from sef_api.auth.dependencies import Principal, check_again
 from sef_api.auth.permissions import Permission
@@ -45,6 +47,14 @@ from sef_api.llm import Language
 from sef_api.mcp.access import admitted, as_tool_errors
 from sef_api.rag.embeddings import Embedder
 from sef_api.rag.explainer import Explainer, explain_report
+from sef_api.repairs import store as repair_store
+from sef_api.repairs.routes import (
+    ConflictError,
+    RepairOut,
+    repair_out,
+    repair_proposed,
+    repair_suggested,
+)
 from sef_api.settings import Settings
 
 __all__ = [
@@ -53,7 +63,9 @@ __all__ = [
     "explain_invoice",
     "get_invoice",
     "get_job",
+    "get_repair",
     "list_invoices",
+    "propose_fix",
     "register",
     "revalidate_invoices",
     "store_invoice",
@@ -82,6 +94,41 @@ JobId = Annotated[
     uuid.UUID,
     Field(description="The job's id, as revalidate_invoices gave it."),
 ]
+RepairId = Annotated[
+    uuid.UUID,
+    Field(description="The repair's id, as propose_fix gave it."),
+]
+Patches = Annotated[
+    list[Patch],
+    Field(
+        min_length=1,
+        max_length=MAX_PATCHES,
+        description="Each `{xpath, op, value, reason}`: the canonical path of a place, as a "
+        "violation reports it, `replace`, `add` or `remove`, the new text (none to remove), "
+        "and why.",
+    ),
+]
+Reasons = Annotated[
+    Language,
+    Field(
+        description="The language of the reasons the server's model writes: `sr` (Serbian, "
+        "Latin script) or `en`; also the language of the page where the person decides."
+    ),
+]
+
+#: The web application's language for each language a tool is asked in.
+_LOCALES: Final[Mapping[Language, str]] = MappingProxyType({"sr": "sr-Latn", "en": "en"})
+
+
+class ProposedFix(BaseModel):
+    """A repair proposed for a stored invoice, and the page where a person decides on it."""
+
+    repair: RepairOut
+    decide_at: str | None = Field(
+        description="The page of the web application where the person, signed in, approves or "
+        "rejects the repair: only a person decides, never an assistant. None on a server "
+        "without a web application."
+    )
 
 
 #: The permission each tool needs, as the tool checks it: what the endpoint reads to ask an MCP
@@ -96,6 +143,8 @@ PERMISSIONS: Final[Mapping[str, Permission]] = MappingProxyType(
         "explain_invoice": Permission.INVOICES_SUBMIT,
         "revalidate_invoices": Permission.INVOICES_SUBMIT,
         "get_job": Permission.INVOICES_SUBMIT,
+        "propose_fix": Permission.INVOICES_SUBMIT,
+        "get_repair": Permission.INVOICES_SUBMIT,
     }
 )
 
@@ -250,6 +299,44 @@ def register(server: MCPServer) -> None:
             read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
         ),
     )
+    server.add_tool(
+        propose_fix,
+        name="propose_fix",
+        title="Propose a fix of a stored e-invoice",
+        description=(
+            "Propose a repair of a stored invoice that is not valid. Without `patches`, the "
+            "server's language model writes them for the invoice's fatal violations, in rounds "
+            "within the server's time limit; with `patches`, yours are applied as given, each "
+            "at the canonical path a violation reports. They are applied to a copy, the copy "
+            "is validated, and the repair is kept: what became of each patch, the difference "
+            "and the report. The invoice itself does not change: a person approves or rejects "
+            "the repair, signed in, on the page `decide_at` names; give it to them, as no tool "
+            "decides. A patch that touches an amount, VAT, a tax or company identifier, a date "
+            "or the document's number is not applied: it waits for the person's decision. "
+            "Counts as a validation, and as a request to the language model when it writes the "
+            "patches."
+        ),
+        # The invoice changes only when a person approves the repair, on the web application.
+        annotations=ToolAnnotations(
+            read_only_hint=False,
+            destructive_hint=False,
+            idempotent_hint=False,
+            open_world_hint=False,
+        ),
+    )
+    server.add_tool(
+        get_repair,
+        name="get_repair",
+        title="Read a repair of a stored e-invoice",
+        description=(
+            "A repair proposed for a stored invoice of the person's: whether it waits for "
+            "their decision or was approved or rejected, what became of each patch, the "
+            "difference and the report on the patched invoice."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+        ),
+    )
 
 
 async def store_invoice(
@@ -350,6 +437,57 @@ async def get_job(job_id: JobId, context: Context) -> JobOut:
         if job is None:
             raise ToolError("no such job")
         return job_out(job)
+
+
+async def propose_fix(
+    invoice_id: InvoiceId,
+    context: Context,
+    patches: Annotated[
+        Patches | None,
+        Field(description="Your patches; none for the server's language model to write them."),
+    ] = None,
+    language: Reasons = "sr",
+) -> ProposedFix:
+    """What ``POST /invoices/{invoice_id}/repairs`` does with patches, and ``POST
+    .../repairs/suggestion`` without: a repair kept until a person decides, and their page."""
+    request, caller, database = _reading(context)
+    async with database.sessions() as session:
+        with _repair_errors():
+            if patches is None:
+                repair = await repair_suggested(request, caller, session, invoice_id, language)
+            else:
+                repair = await repair_proposed(request, caller, session, invoice_id, patches)
+        proposed = repair_out(repair)
+    settings = cast(Settings, request.app.state.settings)
+    page = (
+        None
+        if settings.web_url is None
+        else f"{settings.web_url}/{_LOCALES[language]}/invoices/{invoice_id}/repairs/{proposed.id}"
+    )
+    return ProposedFix(repair=proposed, decide_at=page)
+
+
+async def get_repair(invoice_id: InvoiceId, repair_id: RepairId, context: Context) -> RepairOut:
+    """What ``GET /invoices/{invoice_id}/repairs/{repair_id}`` does."""
+    _, caller, database = _reading(context)
+    async with database.sessions() as session:
+        if await store.find(session, scope_of(caller), invoice_id) is None:
+            raise ToolError("no such invoice")
+        repair = await repair_store.find(session, invoice_id, repair_id)
+        if repair is None:
+            raise ToolError("no such repair of this invoice")
+        return repair_out(repair)
+
+
+@contextmanager
+def _repair_errors() -> Iterator[None]:
+    """What the repair routes would answer with an error, a conflict included, becomes the
+    tool's error, in the same words."""
+    with as_tool_errors():
+        try:
+            yield
+        except ConflictError as conflict:
+            raise ToolError(conflict.detail) from None
 
 
 def _reading(context: Context) -> tuple[Request, Principal, Database]:
