@@ -2390,3 +2390,23 @@ Verification: the API's tests, the whole suite; the seeded faults, each caught a
 baseline (see the pull request); ruff, mypy; each commit checked on its own.
 
 Next: when each API key was last used (`feat/api-key-last-used`).
+
+## 2026-11-08 — `feat/api-key-last-used` (2 commits, stacked on `feat/api-security-events`)
+
+Outcome: a member sees when each of their keys was last used, in `GET /api-keys`, and a key's
+use is a security event; both are written at most once a minute, by one conditional update
+(migration 0019).
+
+Findings:
+
+- The web application has no page of API keys yet; the time is in the API's list, and the page
+  waits for its own item.
+- A request that only reads ends without a commit, so noting the use commits on its own, as
+  the request's first work.
+
+Verification: the API's tests, the whole suite; the migration up and down; the seeded faults,
+each caught after a clean baseline (see the pull request); ruff, mypy; each commit checked on
+its own.
+
+Next: the demo from Claude and ChatGPT with screenshots, once the branches are merged and
+deployed; then `v0.4.0`.
