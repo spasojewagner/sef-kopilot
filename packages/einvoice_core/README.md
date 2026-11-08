@@ -167,6 +167,25 @@ for violation in validate_arithmetic(tree):
     #   [BR-CO-10]-Sum of Invoice line net amount (BT-106) = ...: expected 12000.00, found 12000.01.
 ```
 
+## Rule catalogue
+
+`catalogue(profile)` lists every rule a profile applies, or sets aside, with its severity, its
+statement and the business terms it names: the Schematron rules read from the rule sets the
+validator runs (CEN's compiled XSLT, Peppol's sources), the calculation rules of the arithmetic
+layer, and, for `srb`, the SRB-CIUS rules (ADR-0047). Nothing is copied from the rule sets; a
+rule a profile always sets aside says why. `search` finds rules by id or prefix, by a business
+term, or by the words of their statements, case and diacritics aside:
+
+```python
+from einvoice_core.catalogue import catalogue, search
+
+for rule in search(catalogue("srb"), "PIB check digit"):
+    print(rule.id, rule.severity, rule.statement)
+    # SRB-009 fatal Every nine-digit PIB has a serial number in range and a valid check digit
+```
+
+The three profiles' catalogues are read once per process, in about a tenth of a second.
+
 ## SRB-CIUS rules
 
 The Serbian rules are authored from the specification (version of 06.06.2025), one module
