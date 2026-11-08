@@ -128,6 +128,8 @@ is tagged.
   most once a minute with a security event, `api-key.used` (migration 0019).
 - `apps/web`: the member's API keys on the organization's page: each with what it allows and
   when it was last used, a new one shown once, and a revocation asked twice.
+- `apps/api`: unexpected errors of the API and its workers reported to Sentry where
+  `SENTRY_DSN` is set, with where they happened and nothing a person sent (ADR-0048).
 
 ### Changed
 

@@ -136,6 +136,21 @@ authorization server (ADR-0044), which is off until the API knows its own addres
 Nothing else is configured: there is no client to register by hand and no secret to keep, since
 every client is public and proves itself with PKCE.
 
+## 7. Error reports (Sentry, optional)
+
+Unexpected errors of the API and its workers can be reported to a Sentry project, without what
+a person sent (ADR-0048). The free Developer plan is enough.
+
+1. In Sentry, the project `sef-kopilot-api` (platform FastAPI) > **Settings** > **Client Keys
+   (DSN)**: copy the DSN.
+2. Render > the API > **Environment**: `SENTRY_DSN`, the DSN, which redeploys the service.
+3. Check: the next unexpected error appears under **Issues**, with its type, its stack and its
+   route, and without its message, the request's headers, body or query, or the frames'
+   variables.
+
+Without `SENTRY_DSN`, nothing is sent anywhere. The organization's **Security & Privacy**
+settings require the data scrubbers and keep no IP address, as a second wall.
+
 ## Rolling back
 
 - The API: Render > the service > **Events**, and **Rollback** to an earlier deploy. A migration

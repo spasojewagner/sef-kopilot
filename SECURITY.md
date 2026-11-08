@@ -362,6 +362,10 @@ system are marked as such.
 - [x] An API key's use is a security event, and the time each key was last used is kept and
       listed with the keys, both written at most once a minute (tested).
 - [ ] Security events for sending to SEF (M5).
+- [x] Unexpected errors go to Sentry only where `SENTRY_DSN` is set, and without what a person
+      sent: every category of the SDK's collected data off, then our own scrubber (no message,
+      request data, variables, user or breadcrumbs), then the organization's required scrubbers
+      and no IP address stored (ADR-0048, tested).
 - [x] An audit log in the database records what an organization must account for, committed
       with the change itself: who proposed, approved or rejected a repair, with which key, to
       which invoice, the digests before and after and each patch's place and outcome, never a

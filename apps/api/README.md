@@ -79,6 +79,11 @@ characters) and, for a security event, the event and its fields, under `sef_api.
 No event holds what a person wrote: not the address or password a sign-in tried, not a token,
 not an invoice. In development the server's own lines stay as they were.
 
+With `SENTRY_DSN`, unexpected errors of the API and its workers, and lines logged at error, are
+reported to that Sentry project (ADR-0048): the exception's type, its stack and the code around
+it, the route, the release and the environment; never its message, the request's headers, body
+or query, the frames' variables, the user or breadcrumbs. Without it, nothing is sent anywhere.
+
 In 512 MB and a tenth of a CPU, about what a small free instance has, the image is ready about
 40 s after it starts on an empty database, validates a typical invoice in 0.1 to 0.4 s and one of
 11 800 elements in about 5 s, and uses at most about 330 MB (measured on 7 November 2026).
