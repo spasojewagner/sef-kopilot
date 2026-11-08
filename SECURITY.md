@@ -310,7 +310,10 @@ system are marked as such.
       and records a message written for its member. The MCP server logs no tool's arguments
       (tested with an invoice through both revisions of the protocol it answers), and making it
       leaves the process's root logger as it was.
-- [ ] No invoice content in traces, metrics or crash reports (with Langfuse and Sentry).
+- [x] No invoice content in error reports or traces: a report to Sentry holds where an error
+      happened, never what a person sent (ADR-0048), and a trace to Langfuse the metadata of a
+      request to the language model, never the conversation or the answer (ADR-0049); each is
+      tested with an invoice. The API keeps no metrics.
 - [x] The validator writes nothing to the process's standard streams: Saxon's warnings, which
       can quote a document, go to the null device (tested on the file descriptors); where that
       device cannot be opened, a log warning says that they reach the standard error instead.
@@ -374,8 +377,9 @@ system are marked as such.
       which invoice, the digests before and after and each patch's place and outcome, never a
       value or a reason (ADR-0024), and the model that wrote the patches, when one did
       (ADR-0025). Only a person signed in decides on a repair; an API key is refused (403).
-- [ ] Errors are handled centrally; unexpected exceptions are reported to Sentry without
-      invoice content.
+- [x] Errors are handled centrally: an exception that no handler answered is a JSON 500,
+      answered inside the CORS middleware so that a page can read it (`sef_api.unexpected`,
+      tested), and reported to Sentry as above.
 
 ### V17 WebRTC
 
