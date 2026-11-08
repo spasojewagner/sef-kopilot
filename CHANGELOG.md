@@ -115,6 +115,11 @@ is tagged.
 - `einvoice_core`: the catalogue of the rules a profile applies, or sets aside, read from the
   rule sets the validator runs, with the calculation and SRB-CIUS rules, and a search over it
   by id, business term or words (ADR-0047).
+- `apps/api`: `GET /rules`, the rules of a profile found by id, business term or words, with
+  the passages that share the words, and `GET /rules/{rule_id}`, a rule with the passages an
+  explanation of it would cite on a day.
+- `apps/api`: the MCP server's `search_rules` and `get_rule`, as `/rules` answers, under the
+  scope that checks invoices, `invoices:validate`.
 
 ### Changed
 

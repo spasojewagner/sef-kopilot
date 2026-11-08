@@ -273,6 +273,14 @@ async def _validation_keeps_nothing(response: Response, session: AsyncSession, w
     await _the_world_as_it_was(session)
 
 
+async def _rules_are_everyones(response: Response, session: AsyncSession, w: World) -> None:
+    """The rules are the published rule sets', the same for every organization; looking them up
+    leaves no trace."""
+    assert response.status_code == 200
+    assert response.json()["rule" if "rule" in response.json() else "rules"]
+    await _the_world_as_it_was(session)
+
+
 async def _explanation_keeps_nothing(response: Response, session: AsyncSession, w: World) -> None:
     """An explanation answers with the report and its explanations, and leaves no trace."""
     assert response.status_code == 200
@@ -557,6 +565,12 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda _: "/invoices/explain",
         INVOICE.read_bytes(),
         _explanation_keeps_nothing,
+    ),
+    ("GET", "/rules"): Guarded(
+        Permission.INVOICES_VALIDATE, False, lambda _: "/rules?q=BR-01", None, _rules_are_everyones
+    ),
+    ("GET", "/rules/{rule_id}"): Guarded(
+        Permission.INVOICES_VALIDATE, False, lambda _: "/rules/BR-01", None, _rules_are_everyones
     ),
     ("GET", "/members"): Guarded(
         Permission.MEMBERS_READ, False, lambda _: "/members", None, _lists_only_ogleds_members

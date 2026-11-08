@@ -46,6 +46,7 @@ from sef_api.repairs import routes as repairs
 from sef_api.repairs.repairer import Repairer
 from sef_api.retention import keep_forgetting
 from sef_api.routes import health
+from sef_api.rules import routes as rules
 from sef_api.settings import Settings
 from sef_api.unexpected import AnswerUnexpectedErrors
 
@@ -244,6 +245,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         auth.router,
         invoices.router,
         repairs.router,
+        rules.router,
         jobs.router,
         members.router,
         members.invitations_router,

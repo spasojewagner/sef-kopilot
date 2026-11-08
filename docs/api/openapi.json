@@ -1888,6 +1888,195 @@
         }
       }
     },
+    "/rules": {
+      "get": {
+        "tags": [
+          "rules"
+        ],
+        "summary": "Find rules",
+        "description": "The rules of a profile that the query names: by id (`BR-CO-15`) or the start of ids (`BR-CO`), by a business term (`BT-31`), then by the words of their statements, case and diacritics aside, the Serbian rules first; and the passages of the official documents that share enough of its words, among those that apply today.",
+        "operationId": "find_rules_rules_get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "An id, a term or words.",
+              "title": "Q"
+            },
+            "description": "An id, a term or words."
+          },
+          {
+            "name": "profile",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "srb",
+                "en16931",
+                "peppol"
+              ],
+              "type": "string",
+              "default": "srb",
+              "title": "Profile"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleFound"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The rule sets are not available on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rules/{rule_id}": {
+      "get": {
+        "tags": [
+          "rules"
+        ],
+        "summary": "Read a rule",
+        "description": "A rule of the profile, and the passages of the official documents that concern it on the day (today by default), as an explanation of a violation of it would cite them.",
+        "operationId": "read_rule_rules__rule_id__get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "profile",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "srb",
+                "en16931",
+                "peppol"
+              ],
+              "type": "string",
+              "default": "srb",
+              "title": "Profile"
+            }
+          },
+          {
+            "name": "day",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Day"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The rule sets are not available on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such rule in the profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/jobs/{job_id}/events": {
       "get": {
         "tags": [
@@ -3359,6 +3548,76 @@
         "title": "AuthorizationServer",
         "description": "The authorization server, as RFC 8414 §2 describes it."
       },
+      "CatalogueRule": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "layer": {
+            "type": "string",
+            "enum": [
+              "schematron",
+              "srb-cius",
+              "arithmetic"
+            ],
+            "title": "Layer"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "statement": {
+            "type": "string",
+            "title": "Statement",
+            "description": "What the rule requires, as its violation states it."
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Where the rule comes from: a Schematron rule set, `srb-cius` or `arithmetic`."
+          },
+          "terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Terms",
+            "description": "The EN 16931 business terms and groups the rule concerns or names."
+          },
+          "set_aside": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Set Aside",
+            "description": "Why the profile does not apply the rule, if it does not."
+          },
+          "replaced_by": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Replaced By",
+            "description": "The rules that check the matter instead, if it is set aside.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "layer",
+          "severity",
+          "statement",
+          "source",
+          "terms"
+        ],
+        "title": "CatalogueRule",
+        "description": "One rule a profile applies, or sets aside."
+      },
       "Citation": {
         "properties": {
           "id": {
@@ -4568,6 +4827,87 @@
         "title": "Outcome",
         "description": "What became of a patch. For an applied one, ``before`` is the text or attribute value\nits place had, and ``after`` the one it has now; either is ``None`` where there is none."
       },
+      "Passage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The passage's id, which names it for ever."
+          },
+          "document": {
+            "type": "string",
+            "title": "Document",
+            "description": "The document's key in the corpus."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "The document's title."
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The passage as the document labels it, `Члан 2.`, `BT-31`."
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "The edition of the document the passage is taken from."
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To",
+            "description": "The day it stops applying, if it does."
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "document",
+          "title",
+          "label",
+          "heading",
+          "version",
+          "valid_from",
+          "valid_to",
+          "source_url",
+          "text"
+        ],
+        "title": "Passage",
+        "description": "A stored passage of the corpus, with its text."
+      },
       "Patch": {
         "properties": {
           "xpath": {
@@ -5197,6 +5537,60 @@
           "role"
         ],
         "title": "RoleChange"
+      },
+      "RuleFound": {
+        "properties": {
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogueRule"
+            },
+            "type": "array",
+            "title": "Rules"
+          },
+          "passages": {
+            "items": {
+              "$ref": "#/components/schemas/Passage"
+            },
+            "type": "array",
+            "title": "Passages",
+            "description": "Passages of the official documents that share enough of the words, among those that apply today."
+          }
+        },
+        "type": "object",
+        "required": [
+          "rules",
+          "passages"
+        ],
+        "title": "RuleFound",
+        "description": "What a search found: rules of the profile, and passages that share its words."
+      },
+      "RuleOut": {
+        "properties": {
+          "rule": {
+            "$ref": "#/components/schemas/CatalogueRule"
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "passages": {
+            "items": {
+              "$ref": "#/components/schemas/Passage"
+            },
+            "type": "array",
+            "title": "Passages",
+            "description": "The passages an explanation of a violation of the rule would cite, most relevant first: those the rule is authored from, the rows of the business terms it names, and those that share its words."
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule",
+          "day",
+          "passages"
+        ],
+        "title": "RuleOut",
+        "description": "A rule, and the passages that concern it on a day."
       },
       "SetAsideViolation": {
         "properties": {

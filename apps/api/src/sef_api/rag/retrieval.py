@@ -221,6 +221,11 @@ class Retriever:
         )
         return await self._read(list(dict.fromkeys(found))[: self._limit])
 
+    async def by_words(self, text: str) -> list[Found]:
+        """The passages that share enough of ``text``'s words, most alike first: the last of
+        the ways a violation's passages are found, for words that come with no violation."""
+        return await self._read(await self._by_words(text))
+
     async def _read_anchors(self) -> _Anchors:
         if self._anchors is None:
             anchors = _Anchors()
