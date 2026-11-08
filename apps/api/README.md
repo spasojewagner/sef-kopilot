@@ -60,6 +60,24 @@ Behind a platform's proxy, set `FORWARDED_ALLOW_IPS` to the proxy's addresses, o
 the proxy is the only way to the container: the rate limits count by the client's address,
 which the server then takes from the proxy's `X-Forwarded-For` (ADR-0018).
 
+A container writes every log line as one JSON object (`apps/api/docker/logging.json`): its
+time, level, logger and message, the request it was written for (`request_id`, which the
+answer's `X-Request-ID` names; a client may send its own, a plain token of at most 64
+characters) and, for a security event, the event and its fields, under `sef_api.security`:
+
+| Event | Fields |
+| --- | --- |
+| `sign-in.succeeded` | `user`, `organization`, `address` |
+| `sign-in.refused` | `reason` (`credentials`, `not-a-member`, `too-many-attempts`), `address` |
+| `session.refresh-reused` | `user`, `organization`, `family`: every session of the family ends |
+| `api-key.refused` | `address` |
+| `oauth.consent-approved`, `oauth.consent-refused` | `user`, `client`, `consent` (and `organization` when approved) |
+| `oauth.code-reused`, `oauth.refresh-reused` | `client`, `consent`, `user`: the consent is revoked |
+| `repair.approved`, `repair.rejected` | `user`, `organization`, `invoice`, `repair` |
+
+No event holds what a person wrote: not the address or password a sign-in tried, not a token,
+not an invoice. In development the server's own lines stay as they were.
+
 In 512 MB and a tenth of a CPU, about what a small free instance has, the image is ready about
 40 s after it starts on an empty database, validates a typical invoice in 0.1 to 0.4 s and one of
 11 800 elements in about 5 s, and uses at most about 330 MB (measured on 7 November 2026).

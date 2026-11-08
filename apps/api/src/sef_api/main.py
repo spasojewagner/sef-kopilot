@@ -33,6 +33,7 @@ from sef_api.jobs.queue import ArqRunner, redis_settings
 from sef_api.jobs.runners import InlineRunner, JobRunner
 from sef_api.jobs.runs import JobContext, run_job
 from sef_api.llm import llm_for
+from sef_api.logs import RequestIds
 from sef_api.mcp import server as mcp
 from sef_api.members import routes as members
 from sef_api.oauth import documents
@@ -228,6 +229,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         web_origins=settings.web_origins,
         public_paths=OAUTH_PUBLIC_PATHS if settings.public_url is not None else (),
     )
+    # Around everything: every line logged while a request is answered names it.
+    app.add_middleware(RequestIds)
     app.state.settings = settings
     app.state.database = database
     app.state.tokens = TokenSettings.from_settings(settings)

@@ -120,6 +120,10 @@ is tagged.
   explanation of it would cite on a day.
 - `apps/api`: the MCP server's `search_rules` and `get_rule`, as `/rules` answers, under the
   scope that checks invoices, `invoices:validate`.
+- `apps/api`: every log line of a container as one JSON object, each request's lines named by
+  its id, which `X-Request-ID` answers; the security events, logged with the fields that
+  identify them and nothing a person wrote: sign-ins, refused keys, reused tokens, consents and
+  repairs decided.
 
 ### Changed
 

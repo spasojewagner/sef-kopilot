@@ -7,4 +7,6 @@
 set -eu
 
 alembic -c /app/apps/api/alembic.ini upgrade head
-exec uvicorn sef_api.main:create_app --factory --host 0.0.0.0 --port "${PORT:-8000}"
+# Every log line is one JSON object (logging.json, sef_api.logs), the security events among them.
+exec uvicorn sef_api.main:create_app --factory --host 0.0.0.0 --port "${PORT:-8000}" \
+  --log-config /app/apps/api/docker/logging.json

@@ -35,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sef_api.auth.permissions import ROLE_PERMISSIONS
 from sef_api.auth.service import TokenSettings
 from sef_api.auth.tokens import new_opaque_token, opaque_token_digest
+from sef_api.logs import security_event
 from sef_api.models import (
     Membership,
     OAuthAuthorization,
@@ -233,6 +234,12 @@ async def exchange_code(
             # Presented again: someone else may hold it, so no token of it holds any longer.
             consent.revoked_at = consent.revoked_at or moment
             await session.commit()
+            security_event(
+                "oauth.code-reused",
+                client=consent.client_id,
+                consent=consent.id,
+                user=None if consent.user_id is None else str(consent.user_id),
+            )
             raise TokenError(
                 "invalid_grant", "the code was used already: every token it led to is revoked"
             )
@@ -300,6 +307,12 @@ async def refresh(
         if stored.used_at is not None:
             consent.revoked_at = moment
             await session.commit()
+            security_event(
+                "oauth.refresh-reused",
+                client=consent.client_id,
+                consent=consent.id,
+                user=None if consent.user_id is None else str(consent.user_id),
+            )
             raise TokenError(
                 "invalid_grant",
                 "the refresh token was used already: every token of the consent is revoked",
