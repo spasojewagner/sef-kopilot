@@ -153,6 +153,8 @@
     "file": "Faktura (UBL 2.1 XML)",
     "fileHint": "Faktura ili knjižno odobrenje u XML-u, kako ga šaljete SEF-u.",
     "missing": "Izaberite fakturu u XML-u.",
+    "picture": "Izabrali ste sliku. SEF Kopilot proverava samu e-fakturu, XML (UBL 2.1) koji se šalje SEF-u, a ne njenu sliku. Slika nije poslata: preuzmite XML iz SEF-a ili iz programa u kom je faktura izdata.",
+    "pdf": "Izabrali ste PDF. SEF Kopilot proverava samu e-fakturu, XML (UBL 2.1) koji se šalje SEF-u, a ne njen PDF. PDF nije poslat: preuzmite XML iz SEF-a ili iz programa u kom je faktura izdata.",
     "profile": "Profil",
     "submit": "Proveri i sačuvaj",
     "pending": "Provera…",

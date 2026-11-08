@@ -153,6 +153,8 @@
     "file": "Invoice (UBL 2.1 XML)",
     "fileHint": "An invoice or a credit note in XML, as you send it to SEF.",
     "missing": "Choose an invoice in XML.",
+    "picture": "You chose a picture. SEF Kopilot checks the e-invoice itself, the XML (UBL 2.1) that is sent to SEF, not a picture of it. The picture was not sent: download the XML from SEF or from the program the invoice was issued in.",
+    "pdf": "You chose a PDF. SEF Kopilot checks the e-invoice itself, the XML (UBL 2.1) that is sent to SEF, not a PDF of it. The PDF was not sent: download the XML from SEF or from the program the invoice was issued in.",
     "profile": "Profile",
     "submit": "Check and keep",
     "pending": "Checking…",

@@ -84,6 +84,12 @@ English, and are marked so. Amounts keep every decimal the invoice states. The r
 page is the same for every invoice and is built once; the id is read when the page is asked
 for, and the report is fetched in the browser (ADR-0028).
 
+The form sends XML. A picture or a PDF chosen instead, a photo of an invoice or its rendering,
+is not sent: the page says that SEF Kopilot checks the e-invoice itself and where to get its
+XML (`renderingOf` in `src/lib/invoices.ts`). The server would only store it to report it as not
+well-formed, and on the public demo it might be a real invoice. The browser's media type tells,
+or else the file's name; a file that slips past is still judged by the validator.
+
 What these pages show comes from an uploaded document: the parties' names, the number, and the
 rules' messages, which quote the document's values. It is rendered as text, which React
 escapes; the lint rule `react/no-danger` keeps anyone from setting HTML from it.

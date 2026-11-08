@@ -109,6 +109,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `fix/web-credentials-post` — a sign-in or a registration sent before the page's script has loaded is the browser's own GET of the form, with the password in the address, the history and the host's logs; the button waits for the script, and the forms are posted (found in `feat/web-oauth-consent`)
 - [x] `feat/mcp-oauth-tokens` — the token endpoint: a consent's code exchanged once, with its PKCE verifier, for an access token whose audience is the MCP endpoint (a JWT signed with a key of its own) and, for a client that registered the grant, a refresh token spent once for the next pair; a code or refresh token presented again revokes the consent; the role read again at each exchange (migration 0017); reviewed on its own (split on 2026-11-07: the MCP endpoint's side follows)
 - [x] `feat/mcp-oauth-resource` — the MCP endpoint accepting these tokens with the scopes they carry, the consent and the role read again on every request; the metadata documents (RFC 9728, RFC 8414) and `WWW-Authenticate` that send clients to the authorization server; the learning note on OAuth 2.1 for an MCP server; how to turn it on in the demo (`docs/DEPLOY.md`, step 6)
+- [x] `feat/web-upload-picture-or-pdf` — a picture or a PDF chosen on the upload page is told for what it is and not sent, with where to get the XML (asked for on 2026-11-08, after the maintainer tried a picture of an invoice)
 - [ ] `feat/mcp-oauth-client-metadata` — client ID metadata documents, the revision's preferred registration, fetched safely
 - [ ] `feat/api-oauth-browser-clients` — MCP clients in a browser: the authorization server's public endpoints (the metadata documents, registration, the token endpoint) answer a page of any origin, the browser's preflight included (found in the review of `feat/mcp-oauth-resource`)
 - [ ] Before the first MCP tool that writes (found in the review of `feat/mcp-oauth-resource`): a principal that says which credential it came with (in person, an API key, or a consent by its id), read again by `check_again`, so that an MCP client never passes for a person where only a person may act (approving a repair, deciding on a consent) and the audit log names it; requests counted per consent; a second scope brings the MCP revision's step-up (403, `insufficient_scope`) and `tools/list` filtered by the scopes
@@ -136,6 +137,6 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## M7 — PDF beta, case study, 1.0 (week 10) · tag `v1.0.0`
 
-- [ ] `feat/pdf-extraction-beta` — PDF → UBL extraction with a review step, clearly marked beta
+- [ ] `feat/pdf-extraction-beta` — PDF or picture → UBL extraction with a review step, clearly marked beta (pictures added on 2026-11-08 at the maintainer's request; kept after the evaluations, which can measure it)
 - [ ] `docs/readme-case-study` — final README (problem, demo GIF, architecture diagram, numbers, how to run, how to self-host), 90-second demo video script, `docs/CASE_STUDY.md`
 - [ ] `chore/release-1.0` — security review pass, `v1.0.0`
