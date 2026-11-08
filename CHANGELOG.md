@@ -9,6 +9,19 @@ is tagged.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-08
+
+The MCP server and OAuth 2.1 (milestone M4): the API's tools for an assistant at `/mcp`, in
+the API's process, answering without sessions, to validate an invoice, explain its errors with
+dated citations, read the rules, and work on the organization's stored invoices and their
+repairs, each tool within what the person's role and the client's scopes allow; an
+authorization server of the API's own for assistants that sign their person in, with PKCE,
+resource indicators, self-registration or client metadata documents fetched safely, a consent
+page that names who asks, and the step-up when a tool needs more; shown from Claude and ChatGPT
+on the public demo. Around it: how long data is kept, explanations kept with a stored invoice's
+report, rules embedded once, security events and structured logs, API keys on the
+organization's page, and error reports and the model's traces that hold nothing a person sent.
+
 ### Added
 
 - `apps/api`: finished jobs are deleted 30 days after they end (`SEF_JOB_RETENTION_DAYS`,
@@ -646,7 +659,8 @@ whose verdicts the tests pin.
 - Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
   backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
-[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/spasojewagner/sef-kopilot/releases/tag/v0.1.0
