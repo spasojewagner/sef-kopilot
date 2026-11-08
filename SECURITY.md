@@ -325,6 +325,9 @@ system are marked as such.
 - [x] Responses that carry invoice data send `Cache-Control: no-store`: the validation report,
       the explanations, every answer about a stored invoice, and every job and its event
       stream, each checked by a test.
+- [x] A request the API's models refuse is answered 422 with each error's place, reason and
+      limits, never with what it held: FastAPI repeats each value refused, and for a field
+      missing the whole object around it (`sef_api.refusals`, tested with a password).
 - [x] Responses that carry a credential send `Cache-Control: no-store` as well (RFC 6749): the
       tokens of registration, sign-in, accepting an invitation and refreshing, an invitation's
       code and a new API key, each checked by a test.

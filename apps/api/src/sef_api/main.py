@@ -14,6 +14,7 @@ from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from typing import Final, cast
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from pydantic import SecretStr
 
 from sef_api import __version__
@@ -45,6 +46,7 @@ from sef_api.organization import routes as organization
 from sef_api.rag.embeddings import Embedder, embedder_for
 from sef_api.rag.explainer import Explainer
 from sef_api.rate_limits import RateLimiter, limits
+from sef_api.refusals import answer_refused
 from sef_api.repairs import routes as repairs
 from sef_api.repairs.repairer import Repairer
 from sef_api.retention import keep_forgetting
@@ -270,6 +272,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         oauth_metadata.router,
     ):
         app.include_router(router)
+    app.add_exception_handler(RequestValidationError, answer_refused)
     app.add_exception_handler(repairs.ConflictError, repairs.answer_conflict)
     app.state.mcp = mcp.mount(app, settings)
     return app

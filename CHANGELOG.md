@@ -9,6 +9,12 @@ is tagged.
 
 ## [Unreleased]
 
+### Security
+
+- `apps/api`: a request that the API's models refuse is answered 422 with where and why, and
+  no longer with what it held: FastAPI's answer repeated each value refused, a password too
+  short included, and for a field missing the whole object around it.
+
 ## [0.4.0] - 2026-11-08
 
 The MCP server and OAuth 2.1 (milestone M4): the API's tools for an assistant at `/mcp`, in
