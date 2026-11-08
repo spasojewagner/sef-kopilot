@@ -24,6 +24,7 @@ from sef_api.bodies import LimitBodies
 from sef_api.charset import DeclareUTF8
 from sef_api.cors import Cors
 from sef_api.db import Database
+from sef_api.error_tracking import track_errors
 from sef_api.invoices import routes as invoices
 from sef_api.invoices.validator import Admission, Validator, validator_for
 from sef_api.jobs import routes as jobs
@@ -175,6 +176,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     stops stay unfinished; the workers' sweep looks after the jobs on the Redis queue.
     """
     settings = settings if settings is not None else Settings()
+    track_errors(settings)
     database = Database.connect(settings.database_url.get_secret_value())
 
     @asynccontextmanager

@@ -20,6 +20,7 @@ from arq import cron, func
 from arq.worker import run_worker
 
 from sef_api.db import Database
+from sef_api.error_tracking import track_errors
 from sef_api.invoices.validator import validator_for
 from sef_api.jobs import store
 from sef_api.jobs.kinds import HANDLERS
@@ -39,6 +40,7 @@ ATTEMPT_SECONDS: Final = 3600
 async def startup(ctx: dict[str, Any]) -> None:
     """Connect to the database and start the validator, which compiles every rule set."""
     settings: Settings = ctx["settings"]
+    track_errors(settings)
     validator = validator_for(settings)
     await validator.start()
     if validator.problem is not None:

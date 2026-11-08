@@ -216,6 +216,14 @@ class Settings(BaseSettings):
         validation_alias="GROQ_API_KEY",
         description="The key to Groq's API: required with `LLM_PROVIDER=groq`.",
     )
+    sentry_dsn: SecretStr | None = Field(
+        default=None,
+        validation_alias="SENTRY_DSN",
+        description=(
+            "The DSN of the Sentry project that unexpected errors are reported to, without what "
+            "a person sent (ADR-0048); none, the default, sends nothing anywhere."
+        ),
+    )
     llm_model: str | None = Field(
         default=None,
         min_length=1,
