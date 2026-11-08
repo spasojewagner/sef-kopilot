@@ -130,6 +130,8 @@ is tagged.
   when it was last used, a new one shown once, and a revocation asked twice.
 - `apps/api`: unexpected errors of the API and its workers reported to Sentry where
   `SENTRY_DSN` is set, with where they happened and nothing a person sent (ADR-0048).
+- `apps/api`: each request to the language model traced to Langfuse where its keys are set:
+  the model, the time, the tokens and the outcome, never the conversation (ADR-0049).
 
 ### Changed
 

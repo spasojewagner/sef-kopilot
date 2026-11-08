@@ -216,6 +216,27 @@ class Settings(BaseSettings):
         validation_alias="GROQ_API_KEY",
         description="The key to Groq's API: required with `LLM_PROVIDER=groq`.",
     )
+    langfuse_public_key: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+        validation_alias="LANGFUSE_PUBLIC_KEY",
+        description=(
+            "The public key of the Langfuse project that each request to the language model is "
+            "traced to, without the conversation (ADR-0049); with `LANGFUSE_SECRET_KEY`."
+        ),
+    )
+    langfuse_secret_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="LANGFUSE_SECRET_KEY",
+        description="The secret key of that Langfuse project; with `LANGFUSE_PUBLIC_KEY`.",
+    )
+    langfuse_host: str = Field(
+        default="https://cloud.langfuse.com",
+        pattern=r"^https://[^/?#]+$",
+        validation_alias="LANGFUSE_HOST",
+        description="Where the Langfuse project is: its EU cloud by default.",
+    )
     sentry_dsn: SecretStr | None = Field(
         default=None,
         validation_alias="SENTRY_DSN",
@@ -356,6 +377,12 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"SEF_JWT_SECRET must have at least {MINIMUM_JWT_SECRET_LENGTH} characters"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _check_langfuse_keys(self) -> Self:
+        if (self.langfuse_public_key is None) != (self.langfuse_secret_key is None):
+            raise ValueError("LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set together")
         return self
 
     @model_validator(mode="after")

@@ -28,7 +28,14 @@ from typing import Final
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-__all__ = ["REQUEST_ID", "SECURITY", "JsonFormatter", "RequestIds", "security_event"]
+__all__ = [
+    "REQUEST_ID",
+    "SECURITY",
+    "JsonFormatter",
+    "RequestIds",
+    "current_request_id",
+    "security_event",
+]
 
 #: The header that names a request, in the request and in its answer.
 REQUEST_ID: Final = "X-Request-ID"
@@ -42,6 +49,11 @@ SECURITY: Final = logging.getLogger("sef_api.security")
 
 #: A field of an event: an id, an address, a reason, a count or a flag.
 Field = str | int | bool | None
+
+
+def current_request_id() -> str | None:
+    """The id of the request being answered, if any."""
+    return _REQUEST.get()
 
 
 def security_event(event: str, **fields: Field) -> None:

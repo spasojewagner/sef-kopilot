@@ -151,6 +151,23 @@ a person sent (ADR-0048). The free Developer plan is enough.
 Without `SENTRY_DSN`, nothing is sent anywhere. The organization's **Security & Privacy**
 settings require the data scrubbers and keep no IP address, as a second wall.
 
+## 8. Traces of the language model (Langfuse, optional)
+
+Each request to the language model can be traced to a Langfuse project, without the
+conversation (ADR-0049). The free Hobby plan is enough.
+
+1. In Langfuse (the EU cloud, `https://cloud.langfuse.com`), the project `sef-kopilot` >
+   **Settings** > **API Keys** > **Create new API keys**. The secret key is shown once: keep the
+   page open for the next step.
+2. Render > the API > **Environment**: `LANGFUSE_PUBLIC_KEY` (`pk-lf-…`) and
+   `LANGFUSE_SECRET_KEY` (`sk-lf-…`), together, which redeploys the service. `LANGFUSE_HOST`
+   only for another region.
+3. Check: ask for an explanation in the web application; **Tracing** in Langfuse shows a
+   `model.explanation` generation with its model, time and tokens, and neither the invoice nor
+   the model's words.
+
+Without both keys, nothing is sent anywhere; with one alone, the API does not start and says so.
+
 ## Rolling back
 
 - The API: Render > the service > **Events**, and **Rollback** to an earlier deploy. A migration

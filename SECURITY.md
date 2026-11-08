@@ -366,6 +366,9 @@ system are marked as such.
       sent: every category of the SDK's collected data off, then our own scrubber (no message,
       request data, variables, user or breadcrumbs), then the organization's required scrubbers
       and no IP address stored (ADR-0048, tested).
+- [x] Requests to the language model go to Langfuse only where both of its keys are set, as
+      generations without the conversation or the answer: the schema, the model, the time, the
+      tokens and the outcome (ADR-0049, tested).
 - [x] An audit log in the database records what an organization must account for, committed
       with the change itself: who proposed, approved or rejected a repair, with which key, to
       which invoice, the digests before and after and each patch's place and outcome, never a
