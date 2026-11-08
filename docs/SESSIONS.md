@@ -2349,3 +2349,25 @@ Verification: the core's tests, coverage 100 %; the seeded faults, each caught a
 baseline (see the pull request); ruff, mypy; each commit checked on its own.
 
 Next: `search_rules` over the catalogue and the corpus (`feat/mcp-search-rules`).
+
+## 2026-11-08 — `feat/mcp-search-rules` (3 commits, stacked on `feat/core-rule-catalogue`)
+
+Outcome: any rule can be looked up, broken or not. `GET /rules` and `search_rules` find the
+rules of a profile by id, business term or words, with the passages that share the words;
+`GET /rules/{rule_id}` and `get_rule` answer one rule with the passages an explanation of it
+would cite on a day, found by the explainer's own retrieval.
+
+Findings:
+
+- The statements are English; a Serbian query finds the law in its own words, and the rules
+  through it, which is why a search answers passages as well as rules.
+- A rule's passages are found as those of a violation of it, so the lookup and an explanation
+  cite the same law.
+- The pinned test of every endpoint's guard failed for the new routes until they were pinned,
+  with what another organization's owner finds there: the same rules, and no trace.
+
+Verification: the API's tests, the whole suite; the seeded faults, each caught after a clean
+baseline (see the pull request); ruff, mypy; the OpenAPI document and the web application's
+types regenerated; each commit checked on its own.
+
+Next: the demo from Claude and ChatGPT, documented with screenshots, then `v0.4.0`.
