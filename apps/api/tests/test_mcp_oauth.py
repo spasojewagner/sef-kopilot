@@ -341,3 +341,36 @@ async def test_an_api_key_refused_is_sent_to_sign_in_too(
 
     assert_refused(unknown, "invalid, expired or revoked API key")
     assert_refused(inactive, "the account or its membership is no longer active")
+
+
+async def test_an_mcp_client_is_counted_on_its_own(
+    committed_database: Database, database_url: str
+) -> None:
+    """An assistant that runs away holds back itself and the organization, not the person's
+    own work: its validations are counted against its consent, apart from theirs."""
+    async with serving(
+        committed_database,
+        database_url,
+        SEF_PUBLIC_URL=SERVER["SEF_PUBLIC_URL"],
+        SEF_WEB_ORIGINS=SERVER["SEF_WEB_ORIGINS"],
+        SEF_WEB_URL=SERVER["SEF_WEB_URL"],
+        SEF_VALIDATIONS_PER_MINUTE="1",
+    ) as served:
+        tokens = await signed_in(served)
+        async with connected(served, bearer(tokens["access_token"])) as client:
+            first = await client.call_tool("validate_invoice", {"xml": VALID})
+            second = await client.call_tool("validate_invoice", {"xml": VALID})
+        # The same person, signed in to the web application, has their own count.
+        async with served.http(served.primer.as_client()) as http:
+            by_the_person = await http.post(
+                "/invoices/validate",
+                content=VALID.encode(),
+                headers={"Content-Type": "application/xml"},
+            )
+
+    assert not first.is_error
+    assert second.is_error
+    assert text_of(second).startswith(
+        "Error executing tool validate_invoice: too many validations; try again in "
+    )
+    assert by_the_person.status_code == 200

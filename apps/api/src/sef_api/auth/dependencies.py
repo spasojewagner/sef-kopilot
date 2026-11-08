@@ -27,7 +27,7 @@ from sef_api.auth.service import TokenSettings
 from sef_api.auth.tokens import InvalidTokenError, decode_access_token
 from sef_api.db import get_session
 from sef_api.locks import lock_organization
-from sef_api.models import Membership, Role, User
+from sef_api.models import Membership, OAuthAuthorization, Role, User
 
 __all__ = [
     "Principal",
@@ -51,6 +51,15 @@ _BEARER = HTTPBearer(
 
 
 @dataclass(frozen=True)
+class Consent:
+    """The consent an MCP client acts under: the authorization a person approved, for which
+    client (ADR-0044)."""
+
+    authorization_id: str
+    client_id: str
+
+
+@dataclass(frozen=True)
 class Principal:
     """The caller: a person acting in one organization with one role, in person, through a
     machine client with one of their API keys, or through an MCP client they consented to."""
@@ -62,6 +71,15 @@ class Principal:
     key: api_keys.Grant | None = None
     #: What the scopes of an MCP client's access token allow; None for any other caller.
     scopes: frozenset[Permission] | None = None
+    #: The consent of the MCP client the caller came through; None for any other caller.
+    consent: Consent | None = None
+
+    @property
+    def in_person(self) -> bool:
+        """Whether the person came themselves, with the web application's access token: not
+        through an API key, nor an MCP client. Only a person decides on a repair or on what a
+        client may do."""
+        return self.key is None and self.consent is None
 
     def may(self, permission: Permission) -> bool:
         """Whether the caller may do what ``permission`` allows: their role grants it, and so
@@ -177,12 +195,40 @@ async def check_again(
     session: AsyncSession, principal: Principal, permission: Permission
 ) -> Principal:
     """Check, in the transaction about to change something, that the caller still holds
-    ``permission``, and that their API key still works if they came with one: for a request
-    whose work outlasts the transaction in which :func:`require` checked it, such as an upload
-    and its validation. 401 or 403 as :func:`require` answers."""
+    ``permission``, and that their API key still works, or the consent of their MCP client
+    still stands, if they came with one: for a request whose work outlasts the transaction in
+    which it was checked, such as an upload and its validation. 401 or 403 as :func:`require`
+    answers."""
     if principal.key is not None and not await api_keys.still_works(session, principal.key.key_id):
         raise invalid_key()
+    if principal.consent is not None and not await consent_stands(session, principal):
+        raise revoked_consent()
     return await _permitted(session, principal, permission)
+
+
+async def consent_stands(session: AsyncSession, principal: Principal) -> bool:
+    """Whether the consent ``principal``'s MCP client acts under is still there, not revoked,
+    and the one of this person, organization and client."""
+    if principal.consent is None:
+        return False
+    consent = await session.get(
+        OAuthAuthorization, principal.consent.authorization_id, populate_existing=True
+    )
+    return (
+        consent is not None
+        and consent.revoked_at is None
+        and (consent.user_id, consent.organization_id, consent.client_id)
+        == (principal.user_id, principal.organization_id, principal.consent.client_id)
+    )
+
+
+def revoked_consent() -> HTTPException:
+    """401 for an MCP client whose consent was revoked or is gone since its token was issued."""
+    return HTTPException(
+        status.HTTP_401_UNAUTHORIZED,
+        detail="the consent behind this access token was revoked",
+        headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+    )
 
 
 async def _permitted(

@@ -30,11 +30,19 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from sef_api.api_keys import service as api_keys
-from sef_api.auth.dependencies import Principal, current_role, invalid_key, no_longer_active
+from sef_api.auth.dependencies import (
+    Consent,
+    Principal,
+    consent_stands,
+    current_role,
+    invalid_key,
+    no_longer_active,
+    revoked_consent,
+)
 from sef_api.auth.permissions import Permission
 from sef_api.auth.service import TokenSettings
 from sef_api.db import Database
-from sef_api.models import OAuthAuthorization, Role
+from sef_api.models import Role
 from sef_api.oauth import authorization as authorizations
 from sef_api.oauth import tokens as oauth_tokens
 from sef_api.oauth.authorization import issuer_of, resource_of
@@ -163,20 +171,22 @@ async def _token_holder(
         )
     except oauth_tokens.InvalidTokenError:
         raise _refused(settings, _NOT_ADMITTED) from None
-    consent = await session.get(OAuthAuthorization, claims.authorization_id)
-    if (
-        consent is None
-        or consent.revoked_at is not None
-        # A token is its consent's: the person, their organization and the client it names.
-        or (consent.user_id, consent.organization_id, consent.client_id)
-        != (claims.user_id, claims.organization_id, claims.client_id)
-    ):
-        raise _refused(settings, "the consent behind this access token was revoked")
     allowed = frozenset(
         authorizations.SCOPES[scope] for scope in claims.scopes if scope in authorizations.SCOPES
     )
     # The role is the member's as it is now, read with the API key's (see ``_caller``).
-    return Principal(claims.user_id, claims.organization_id, Role.CLIENT, scopes=allowed)
+    principal = Principal(
+        claims.user_id,
+        claims.organization_id,
+        Role.CLIENT,
+        scopes=allowed,
+        consent=Consent(claims.authorization_id, claims.client_id),
+    )
+    # A token is its consent's, while it stands: the person, their organization and the client
+    # it names.
+    if not await consent_stands(session, principal):
+        raise _refused(settings, str(revoked_consent().detail))
+    return principal
 
 
 def admitted(context: Context, permission: Permission) -> tuple[Request, Principal]:

@@ -688,14 +688,16 @@ def count_validation(request: Request, caller: Principal, *, asks_model: bool = 
 def count(request: Request, caller: Principal, *kinds: Kind) -> None:
     """Count a request of each kind against the caller's limit of that kind and their
     organization's, all at once; 429 beyond any. A caller is a member signed in, whatever the
-    device, or one API key."""
+    device, one API key, or one MCP client's consent: an assistant that runs away holds back
+    itself and the organization, not the person's own work."""
     limiter = cast(RateLimiter, request.app.state.limiter)
     limits = cast(Mapping[Counted, Limit], request.app.state.limits)
-    who = (
-        f"key {caller.key.key_id}"
-        if caller.key is not None
-        else f"member {caller.organization_id} {caller.user_id}"
-    )
+    if caller.key is not None:
+        who = f"key {caller.key.key_id}"
+    elif caller.consent is not None:
+        who = f"consent {caller.consent.authorization_id}"
+    else:
+        who = f"member {caller.organization_id} {caller.user_id}"
     organization = str(caller.organization_id)
     rules = [
         rule

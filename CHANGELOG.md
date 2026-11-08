@@ -95,6 +95,10 @@ is tagged.
   in: the authorization server's metadata documents, registration and token endpoint answer a
   page of any origin, its preflight included; the rest of the API answers the web
   application's origins alone.
+- `apps/api`: an MCP client's acts are told apart from the person's: a caller says which
+  credential it came with, only a person in person decides on a repair or a client's request,
+  a long request reads the consent again, the audit log names the client (migration 0018), and
+  the client's requests are counted against its consent, apart from the person's own.
 
 ### Changed
 

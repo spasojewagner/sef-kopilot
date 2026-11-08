@@ -236,7 +236,10 @@ async def test_only_a_person_decides(session: AsyncSession) -> None:
     assert anonymous.status_code == 401
     assert (with_key.status_code, with_key.json()) == (
         403,
-        {"detail": "a person decides what a client may do: sign in to decide, an API key cannot"},
+        {
+            "detail": "a person decides what a client may do: sign in to decide, an API key or "
+            "an MCP client cannot"
+        },
     )
 
 

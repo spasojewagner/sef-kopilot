@@ -662,10 +662,11 @@ class AuditAction(StrEnum):
 
 class AuditEvent(Base):
     """Something done in an organization that it must be able to account for: what, when, by
-    which member and with which key, to which invoice and repair (ADR-0024).
+    which member, with which key or through which MCP client, to which invoice and repair
+    (ADR-0024).
 
-    Events are only ever added. They name the member, the key, the invoice and the repair by
-    id, without a foreign key, so that an event outlives what it names; and they hold no
+    Events are only ever added. They name the member, the key, the client, the invoice and the
+    repair by id, without a foreign key, so that an event outlives what it names; and they hold no
     invoice content: digests, counts, and the places patches name with what became of them,
     never a value or a reason. They are deleted with the organization.
     """
@@ -689,6 +690,8 @@ class AuditEvent(Base):
     at: Mapped[datetime] = _created_at()
     actor: Mapped[uuid.UUID]
     key_id: Mapped[uuid.UUID | None]
+    #: The MCP client the member acted through, under their consent (ADR-0044).
+    oauth_client_id: Mapped[str | None] = mapped_column(Text)
     action: Mapped[str] = mapped_column(Text)
     invoice_id: Mapped[uuid.UUID | None]
     repair_id: Mapped[uuid.UUID | None]
