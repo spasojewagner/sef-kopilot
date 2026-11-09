@@ -135,10 +135,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `feat/api-keys-send-to-sef` — `invoices:send` among the permissions an API key may hold, by choice, for owners' and accountants' keys, for an ERP that sends its invoices; offered on the keys page (ADR-0053, migration 0022; added on 2026-11-08 with `feat/sef-demo-client`)
 - [x] `feat/web-sef-send` — the report's page: send a valid stored invoice to SEF, after a second press, what SEF answered and where it stands, read again while the API asks SEF (added on 2026-11-08 with `feat/sef-demo-client`)
 - [x] `feat/web-sef-key` — the organization's page: an owner sets, replaces or removes the key to SEF, asked twice before removing, and every member sees since when one is set (added on 2026-11-08 with `feat/sef-keys`)
-- [ ] `feat/sef-error-mapping` — SEF error codes mapped into the explanation pipeline; Peppol profile polish
-- [ ] The SEF internal technical instruction (Interno tehničko uputstvo) in the corpus, once its official text can be pinned like the others (moved from M2)
-- [ ] Confirm against the SEF demo what the published documents leave open: the warning-level SRB rules (SRB-013, SRB-017, SRB-023, SRB-029), the set-asides that rest on the Ministry's examples (ADR-0008), and whether SEF requires a due date or payment terms when an amount is due (EN 16931 BR-CO-25, absent from CEN's UBL Schematron; ADR-0010)
-- [ ] Release: `v0.5.0`
+- [ ] `feat/sef-error-mapping` — SEF error codes mapped into the explanation pipeline; Peppol profile polish — waits for a SEF demo account, at the maintainer's decision of 2026-11-09: signing in to the demo takes an eID and a company administrator's role, which the project does not have yet; `v0.5.0` goes without it, and it is taken up before `v1.0.0` (M7)
+- [ ] The SEF internal technical instruction (Interno tehničko uputstvo) in the corpus, once its official text can be pinned like the others (moved from M2) — waits for a SEF demo account, as the item above, and is taken up before `v1.0.0` (M7)
+- [ ] Confirm against the SEF demo what the published documents leave open: the warning-level SRB rules (SRB-013, SRB-017, SRB-023, SRB-029), the set-asides that rest on the Ministry's examples (ADR-0008), and whether SEF requires a due date or payment terms when an amount is due (EN 16931 BR-CO-25, absent from CEN's UBL Schematron; ADR-0010) — waits for a SEF demo account, as the item above, and is taken up before `v1.0.0` (M7)
+- [x] Release: `v0.5.0`
 
 ## M6 — Evals, CI gate, billing (week 9) · tag `v0.6.0`
 
@@ -152,4 +152,5 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [ ] `feat/pdf-extraction-beta` — PDF or picture → UBL extraction with a review step, clearly marked beta (pictures added on 2026-11-08 at the maintainer's request; kept after the evaluations, which can measure it)
 - [ ] `docs/readme-case-study` — final README (problem, demo GIF, architecture diagram, numbers, how to run, how to self-host), 90-second demo video script, `docs/CASE_STUDY.md`
+- [ ] The SEF items of M5 that wait for a SEF demo account: `feat/sef-error-mapping`, the SEF internal technical instruction in the corpus, and what the published documents leave open, confirmed against the demo (moved from M5 on 2026-11-09)
 - [ ] `chore/release-1.0` — security review pass, `v1.0.0`

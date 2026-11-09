@@ -2644,3 +2644,21 @@ own; screenshots against a local API with a fake SEF.
 
 Next: SEF's error codes mapped into the explanations (`feat/sef-error-mapping`), and the
 release `v0.5.0`.
+
+## 2026-11-09 — `chore/release-0.5.0` (2 commits)
+
+Outcome: M5 released. Every package at 0.5.0; the changelog's section `[0.5.0] - 2026-11-09`,
+opened by a summary of the round trip to SEF's demo; the README's roadmap, the architecture's
+status, its course of an invoice and its repository map follow.
+
+Findings:
+
+- The client to SEF was built and tested against a stand-in that answers as SEF's OpenAPI
+  document describes; signing in to the demo takes an eID and a company administrator's role.
+  At the maintainer's decision the release goes without them, and the backlog moves to M7 what
+  waits for an account: SEF's error codes in the explanations, SEF's technical instruction in
+  the corpus, and the points the published documents leave open.
+
+Verification: each commit checked on its own; the version checks unchanged and green.
+
+Next: M6, the evaluation harness with golden sets and offline cassettes (`feat/evals-harness`).

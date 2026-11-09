@@ -9,6 +9,19 @@ is tagged.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-09
+
+The SEF demo round trip (milestone M5): an organization's key to SEF, which its owner sets and
+removes and which no one is shown, sealed for that organization alone; a stored invoice sent to SEF's
+demo environment in the organization's name, only when the validator passes it, byte for byte
+as validated and once, with where it stands in SEF asked until it is final; the same sending
+from an assistant, through a scope asked for when it first sends, and from an ERP's API key,
+by the owner's or the accountant's choice; and the pages where an owner sets the key and where
+a member sends an invoice and sees what SEF answered. The client follows SEF's published API
+and is tested against a stand-in that answers as its OpenAPI document describes; SEF's error
+codes in the explanations, and what the published documents leave open, wait for a SEF demo
+account, at the maintainer's decision.
+
 ### Added
 
 - `apps/api`: an organization's key to SEF, which an owner sets with `PUT
@@ -706,7 +719,8 @@ whose verdicts the tests pin.
 - Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
   backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
-[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.1.0...v0.2.0

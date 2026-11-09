@@ -101,3 +101,4 @@ per branch, to keep them with the code they describe.
 | `feat/api-keys-send-to-sef` | [m5-api-keys-send-to-sef.md](m5-api-keys-send-to-sef.md) |
 | `feat/web-sef-key` | [m5-web-sef-key.md](m5-web-sef-key.md) |
 | `feat/web-sef-send` | [m5-web-sef-send.md](m5-web-sef-send.md) |
+| `chore/release-0.5.0` | [m5-release-0.5.0.md](m5-release-0.5.0.md) |
