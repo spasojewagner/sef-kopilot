@@ -3,6 +3,7 @@
 **Deterministic validation, plain-language explanations and reviewable repairs for Serbian (SEF) and EU electronic invoices.**
 
 [![CI](https://github.com/spasojewagner/sef-kopilot/actions/workflows/ci.yml/badge.svg)](https://github.com/spasojewagner/sef-kopilot/actions/workflows/ci.yml)
+[![Evaluations](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fspasojewagner%2Fsef-kopilot%2Fmain%2Fevals%2Freports%2Fbadge.json)](evals/reports/latest.md)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-orange)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
@@ -160,7 +161,7 @@ make migrate      # apply the database migrations (Alembic) to the database of `
 make ingest       # load the regulation corpus (corpus/) into that database
 make test         # core, api and web test suites with their coverage gates
 make e2e          # the golden path in Chromium (Playwright), against the API and a build
-make evals        # measure on the golden sets and write evals/reports/latest.{json,md}
+make evals        # measure on the golden sets and write evals/reports/ (the report, the badge)
 make lint         # ruff, Prettier, ESLint — no changes
 make typecheck    # mypy --strict and tsc --noEmit
 make api          # FastAPI with auto-reload → http://127.0.0.1:8000/docs

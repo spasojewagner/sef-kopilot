@@ -179,9 +179,14 @@ def test_a_check_fails_on_a_stale_report_and_writes_nothing(small_root: Path) ->
         "\nsef-evals: the report is stale, run `make evals`: evals/reports/latest.json\n"
     )
     assert written.read_text(encoding="utf-8") == "{}\n"
+    (small_root / "evals" / "reports" / "badge.json").unlink()
+    assert run(small_root, "--check")[1].endswith(
+        "run `make evals`: evals/reports/latest.json, evals/reports/badge.json\n"
+    )
     (small_root / "evals" / "reports" / "latest.md").unlink()
     assert run(small_root, "--check")[1].endswith(
-        "run `make evals`: evals/reports/latest.json, evals/reports/latest.md\n"
+        "run `make evals`: evals/reports/latest.json, evals/reports/latest.md, "
+        "evals/reports/badge.json\n"
     )
 
 
@@ -195,7 +200,7 @@ def test_a_check_says_both_when_the_report_is_stale_and_a_threshold_not_met(
     assert status == EXIT_NOT_MET
     assert out.endswith(
         "\nsef-evals: the report is stale, run `make evals`: evals/reports/latest.json, "
-        "evals/reports/latest.md\n\nsef-evals: a threshold is not met\n"
+        "evals/reports/latest.md, evals/reports/badge.json\n\nsef-evals: a threshold is not met\n"
     )
 
 

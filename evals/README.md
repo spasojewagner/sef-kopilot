@@ -5,7 +5,7 @@ in [`thresholds.yaml`](thresholds.yaml) (ADR-0054). The latest measures are in
 [`reports/latest.md`](reports/latest.md).
 
 ```bash
-make evals          # measure, print the table, write reports/latest.{json,md}
+make evals          # measure, print the table, write reports/latest.{json,md} and badge.json
 make evals-check    # measure, and fail if a threshold is not met or the report is stale
 make evals-record   # ask the model what cassettes/ lacks, then measure (needs a key)
 ```
@@ -15,6 +15,12 @@ They need the fetched rule sets (`make rulesets`) and PostgreSQL (`make up`, nam
 the workspace package `sef-kopilot-evals` (`uv run sef-evals`). A pull request that changes what the validator
 reports commits the report that `make evals` writes, as it commits `verdicts.json`: a changed
 measure is a changed behaviour, and its diff is reviewed like code.
+
+CI's `evaluations` job runs `sef-evals --check` on every push and pull request (ADR-0061): it
+replays the cassettes offline, fails when a measure misses its threshold or when the committed
+report is not what the run gives. The README's badge is `reports/badge.json`, which the same
+run writes and shields.io reads from the default branch: it shows what the committed report
+says, and the check keeps the two the same.
 
 ## The validator
 
