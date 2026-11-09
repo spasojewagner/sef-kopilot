@@ -1,13 +1,19 @@
-"""Shared fixtures: the repository the evaluations measure, and a small one to run them in."""
+"""Shared fixtures: the repository the evaluations measure, a small one to run them in, and a
+stand-in for the language model."""
 
 from __future__ import annotations
 
+import json
 import shutil
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
+from sef_api.llm import LLMError, Message
+from sef_evals.database import DatabaseError, server_url
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SYNTHETIC_DIR = REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic"
@@ -23,15 +29,67 @@ def _fetched() -> bool:
     return True
 
 
+def _server() -> str | None:
+    try:
+        return server_url(REPOSITORY_ROOT / ".env")
+    except DatabaseError:
+        return None
+
+
 #: For tests that validate documents: the rule sets must have been fetched (``make rulesets``).
 needs_rulesets = pytest.mark.skipif(
     not _fetched(), reason="rule sets not fetched (run `make rulesets`)"
 )
+#: The PostgreSQL server the explanations are measured on, as the API's tests name it.
+SERVER = _server()
+#: For tests that explain: they make a database of their own on the tests' server.
+needs_database = pytest.mark.skipif(
+    SERVER is None or not _fetched(),
+    reason="SEF_TEST_DATABASE_URL not set, or rule sets not fetched",
+)
+
+
+class Explaining:
+    """A stand-in for the language model: it explains every rule in the same words and cites
+    the first passage it may, or fails as ``failures`` say, in turn."""
+
+    model = "test/explaining"
+
+    def __init__(self, *failures: str) -> None:
+        self.failures = list(failures)
+        self.asked = 0
+
+    async def answer(
+        self,
+        messages: Sequence[Message],  # noqa: ARG002
+        *,
+        name: str,
+        schema: Mapping[str, Any],
+        max_tokens: int | None = None,  # noqa: ARG002
+    ) -> str:
+        self.asked += 1
+        if self.failures:
+            raise LLMError(self.failures.pop(0))
+        if name != "explanation":
+            raise LLMError("the stand-in explains, and writes nothing else")
+        allowed = schema["properties"]["citations"]["items"]["enum"]
+        return json.dumps(
+            {
+                "explanation": "Pravilo nije ispunjeno na mestu koje izveštaj navodi.",
+                "fix": "Ispravite podatak koji pravilo navodi.",
+                "citations": allowed[:1],
+            }
+        )
+
+    async def aclose(self) -> None:
+        pass
+
 
 THRESHOLDS = """\
 agreement: {min: 1.0}
 false_accept_rate: {max: 0.0}
 detection: {min: 1.0}
+citation_relevance: {min: 1.0}
 """
 
 DOCUMENTS = """\
@@ -49,17 +107,33 @@ groups:
     reports: header
 """
 
+EXPLANATIONS = """\
+day: 2026-11-09
+languages: [sr]
+documents: [docs/srb-009-pib-check-digit.xml]
+rules:
+  SRB-009:
+    relevant: [pib-rulebook/article-2/2018-10-01]
+"""
+
 
 @pytest.fixture
-def small_root(tmp_path: Path) -> Path:
-    """A repository with two documents, a golden set of them and thresholds, in which the
-    runner can be run and its report written."""
+def small_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A repository with two documents, the corpus, golden sets of them and thresholds, in
+    which the runner can be run and its report written. Its database server is the tests'."""
     (tmp_path / "docs").mkdir()
     shutil.copy(SYNTHETIC_DIR / "srb-minimal-invoice.xml", tmp_path / "docs")
     shutil.copy(MUTATIONS_DIR / "srb-009-pib-check-digit.xml", tmp_path / "docs")
     (tmp_path / "third_party").mkdir()
     shutil.copy(REPOSITORY_ROOT / "third_party" / "manifest.json", tmp_path / "third_party")
-    (tmp_path / "evals" / "golden").mkdir(parents=True)
+    shutil.copytree(
+        REPOSITORY_ROOT / "corpus", tmp_path / "corpus", ignore=shutil.ignore_patterns("raw")
+    )
+    golden = tmp_path / "evals" / "golden"
+    golden.mkdir(parents=True)
     (tmp_path / "evals" / "thresholds.yaml").write_text(THRESHOLDS, encoding="utf-8")
-    (tmp_path / "evals" / "golden" / "documents.yaml").write_text(DOCUMENTS, encoding="utf-8")
+    (golden / "documents.yaml").write_text(DOCUMENTS, encoding="utf-8")
+    (golden / "explanations.yaml").write_text(EXPLANATIONS, encoding="utf-8")
+    if SERVER is not None:
+        monkeypatch.setenv("SEF_TEST_DATABASE_URL", SERVER)
     return tmp_path

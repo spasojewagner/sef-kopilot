@@ -4,8 +4,8 @@
 #
 # The validator is deterministic, so its thresholds allow no exception: one document that it
 # judges otherwise than the reference, or accepts when it must reject, is a defect to fix. The
-# brief's thresholds for the language model (repair success, citations) join with the golden
-# sets that measure them.
+# language model's thresholds leave room for its variance; the brief's repair success joins with
+# the golden set that measures it.
 
 # Verdicts as the published rule sets give them, applied as published (ADR-0054).
 agreement: { min: 1.0 }
@@ -17,3 +17,11 @@ false_accept_rate: { max: 0.0 }
 false_reject_rate: { max: 0.0 }
 # Every mistake of the golden set is reported by the rules it must be reported by.
 detection: { min: 1.0 }
+
+# The language model's explanations (ADR-0055), replayed from evals/cassettes/.
+# A rule left unexplained leaves the person with the rule's message alone.
+explained: { min: 0.9 }
+# Every citation names a stored passage that applies on the day: the brief's guardrail.
+citation_resolution: { min: 1.0 }
+# Citations of a passage labelled relevant to the rule: the brief's 90 %.
+citation_relevance: { min: 0.9 }

@@ -76,11 +76,19 @@ _MET = {True: "yes", False: "**no**", None: "—"}
 
 def as_markdown(judgements: Sequence[Judgement], measured: Mapping[str, Any]) -> str:
     rule_sets = ", ".join(f"{name} {ref}" for name, ref in measured["rule sets"].items())
+    model = ""
+    if "model" in measured:
+        recorded = measured["model"]
+        model = (
+            f", and the answers of {recorded} recorded in evals/cassettes/"
+            if recorded is not None
+            else ", with no answer of a language model recorded"
+        )
     lines = [
         "# Evaluation report",
         "",
         "Written by `make evals` (ADR-0054); do not edit. Measured with the rule sets "
-        f"{rule_sets}.",
+        f"{rule_sets}{model}.",
         "",
         "| Measure | What it counts | Value | Threshold | Met |",
         "| --- | --- | --- | --- | --- |",

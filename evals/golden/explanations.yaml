@@ -1,0 +1,268 @@
+# The golden set of the explanations' evaluations (ADR-0055). Every rule that a document below
+# breaks under SRB-CIUS is explained by the model, in each language, as the API explains a
+# report, on the day named, which dates the passages that apply.
+#
+# `rules` labels, for each rule, the passages retrieval finds for it: relevant, or not. A passage
+# is relevant to a rule when it is one of the passages the rule is authored from, or defines a
+# business term or group that the rule's statement names, by its id or in words (for the
+# schema's violations, which name none, the element each concerns); a passage about a
+# neighbouring field is not. A citation of a passage that no label names counts against the
+# relevance of citations, so that the labels keep up with retrieval: `uv run sef-evals
+# --unlabelled` lists the passages to label. The labels were proposed from the rules'
+# statements and the passages' text and are reviewed by the maintainer.
+#
+# The unreadable documents are left out: no passage concerns a document that is not XML.
+
+day: 2026-11-09
+languages: [sr]
+documents: [fixtures/invoices/synthetic/mutations/*.xml]
+exclude: [fixtures/invoices/synthetic/mutations/xml-*.xml]
+
+rules:
+  BR-06:
+    relevant:
+      - srb-cius/1-3-table-1-bt-27/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bt-28/2025-06-06
+      - srb-cius/1-3-table-1-bt-41/2025-06-06
+      - srb-cius/1-3-table-1-bt-42/2025-06-06
+  BR-25:
+    relevant:
+      - srb-cius/1-3-table-1-bg-25/2025-06-06
+      - srb-cius/1-3-table-1-bt-153/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bg-28/2025-06-06
+      - srb-cius/1-3-table-1-bt-127/2025-06-06
+  BR-CL-14:
+    relevant:
+      - srb-cius/1-3-table-1-bt-55/2025-06-06
+  BR-CL-23:
+    not_relevant:
+      - srb-cius/1-3-table-1-bt-129/2025-06-06
+  BR-CO-03:
+    relevant:
+      - srb-cius/1-3-table-1-bt-7/2025-06-06
+      - srb-cius/1-3-table-1-bt-8/2025-06-06
+  BR-CO-09:
+    relevant:
+      - srb-cius/1-3-table-1-bt-31/2025-06-06
+      - srb-cius/1-3-table-1-bt-48/2025-06-06
+      - srb-cius/1-3-table-1-bt-63/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bg-7/2025-06-06
+  BR-CO-10:
+    relevant:
+      - srb-cius/1-3-table-1-bt-106/2025-06-06
+      - srb-cius/1-3-table-1-bt-131/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bt-136/2025-06-06
+      - srb-cius/1-3-table-1-bt-137/2025-06-06
+  BR-CO-13:
+    relevant:
+      - srb-cius/1-3-table-1-bt-107/2025-06-06
+      - srb-cius/1-3-table-1-bt-108/2025-06-06
+      - srb-cius/1-3-table-1-bt-109/2025-06-06
+      - srb-cius/1-3-table-1-bt-131/2025-06-06
+  BR-CO-14:
+    relevant:
+      - srb-cius/1-3-table-1-bt-110/2025-06-06
+      - srb-cius/1-3-table-1-bt-117/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bt-111/2025-06-06
+      - srb-cius/1-4-table-2-bt-e23/2025-06-06
+  BR-CO-15:
+    relevant:
+      - srb-cius/1-3-table-1-bt-109/2025-06-06
+      - srb-cius/1-3-table-1-bt-110/2025-06-06
+      - srb-cius/1-3-table-1-bt-112/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bt-111/2025-06-06
+  BR-CO-16:
+    relevant:
+      - srb-cius/1-3-table-1-bt-112/2025-06-06
+      - srb-cius/1-3-table-1-bt-113/2025-06-06
+      - srb-cius/1-3-table-1-bt-114/2025-06-06
+      - srb-cius/1-3-table-1-bt-115/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bt-109/2025-06-06
+      - srb-cius/1-3-table-1-bt-110/2025-06-06
+  BR-CO-17:
+    relevant:
+      - srb-cius/1-3-table-1-bt-116/2025-06-06
+      - srb-cius/1-3-table-1-bt-117/2025-06-06
+      - srb-cius/1-3-table-1-bt-119/2025-06-06
+    not_relevant:
+      - srb-cius/1-4-table-2-bt-e23/2025-06-06
+  BR-S-09:
+    relevant:
+      - srb-cius/1-3-table-1-bg-23/2025-06-06
+      - srb-cius/1-3-table-1-bt-116/2025-06-06
+      - srb-cius/1-3-table-1-bt-117/2025-06-06
+      - srb-cius/1-3-table-1-bt-118/2025-06-06
+      - srb-cius/1-3-table-1-bt-119/2025-06-06
+    not_relevant:
+      - srb-cius/1-4-table-2-bg-e7/2025-06-06
+  SRB-001:
+    relevant:
+      - srb-cius/1-3-table-1-bt-3/2025-06-06
+  SRB-002:
+    relevant:
+      - srb-cius/1-3-table-1-bt-111/2025-06-06
+      - srb-cius/1-3-table-1-bt-5/2025-06-06
+      - srb-cius/1-3-table-1-bt-6/2025-06-06
+      - srb-cius/1-4/2025-06-06
+  SRB-003:
+    relevant:
+      - srb-cius/1-3-table-1-bt-7/2025-06-06
+      - srb-cius/1-3-table-1-bt-8/2025-06-06
+  SRB-004:
+    relevant:
+      - srb-cius/1-3-table-1-bt-3/2025-06-06
+      - srb-cius/1-3-table-1-bt-9/2025-06-06
+  SRB-005:
+    relevant:
+      - srb-cius/1-2/2025-06-06
+      - srb-cius/1-3-table-1-bt-24/2025-06-06
+  SRB-006:
+    relevant:
+      - srb-cius/1-3-table-1-bt-29/2025-06-06
+      - srb-cius/1-3-table-1-bt-46/2025-06-06
+      - srb-cius/1-3-table-1-bt-60/2025-06-06
+  SRB-007:
+    relevant:
+      - pib-rulebook/article-2/2018-10-01
+      - srb-cius/1-3-table-1-bt-31/2025-06-06
+      - srb-cius/1-3-table-1-bt-48/2025-06-06
+      - srb-cius/1-3-table-1-bt-63/2025-06-06
+  SRB-008:
+    relevant:
+      - srb-cius/1-3-table-1-bt-34/2025-06-06
+      - srb-cius/1-3-table-1-bt-49/2025-06-06
+  SRB-009:
+    relevant:
+      - pib-rulebook/article-2/2018-10-01
+      - srb-cius/1-3-table-1-bt-31/2025-06-06
+      - srb-cius/1-3-table-1-bt-34/2025-06-06
+      - srb-cius/1-3-table-1-bt-48/2025-06-06
+      - srb-cius/1-3-table-1-bt-49/2025-06-06
+      - srb-cius/1-3-table-1-bt-63/2025-06-06
+  SRB-010:
+    relevant:
+      - srb-cius/1-3-table-1-bt-10/2025-06-06
+  SRB-011:
+    relevant:
+      - srb-cius/1-3-table-1-bg-3/2025-06-06
+      - srb-cius/1-3-table-1-bt-25/2025-06-06
+      - srb-cius/1-3-table-1-bt-26/2025-06-06
+      - srb-cius/1-4-table-2-bg-3/2025-06-06
+  SRB-012:
+    relevant:
+      - srb-cius/1-3-table-1-bt-30/2025-06-06
+      - srb-cius/1-3-table-1-bt-47/2025-06-06
+      - srb-cius/1-3-table-1-bt-61/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bg-7/2025-06-06
+  SRB-013:
+    relevant:
+      - srb-cius/1-3-table-1-bt-32/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bg-4/2025-06-06
+  SRB-014:
+    relevant:
+      - srb-cius/1-3-table-1-bt-32/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bt-30/2025-06-06
+      - srb-cius/1-3-table-1-bt-31/2025-06-06
+  SRB-015:
+    relevant:
+      - srb-cius/1-3-table-1-bg-8/2025-06-06
+      - srb-cius/1-3-table-1-bt-37/2025-06-06
+      - srb-cius/1-3-table-1-bt-52/2025-06-06
+      - srb-cius/1-3-table-1-bt-66/2025-06-06
+  SRB-016:
+    relevant:
+      - srb-cius/1-3-table-1-bg-12/2025-06-06
+      - srb-cius/1-3-table-1-bg-5/2025-06-06
+      - srb-cius/1-3-table-1-bt-38/2025-06-06
+      - srb-cius/1-3-table-1-bt-67/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bt-35/2025-06-06
+  SRB-017:
+    relevant:
+      - srb-cius/1-3-table-1-bg-8/2025-06-06
+      - srb-cius/1-3-table-1-bt-53/2025-06-06
+    not_relevant:
+      - srb-cius/1-3-table-1-bg-12/2025-06-06
+      - srb-cius/1-3-table-1-bt-50/2025-06-06
+  SRB-018:
+    relevant:
+      - srb-cius/1-3-table-1-bt-72/2025-06-06
+      - srb-cius/1-3-table-1-bt-8/2025-06-06
+  SRB-019:
+    relevant:
+      - srb-cius/1-3-table-1-bt-83/2025-06-06
+  SRB-020:
+    relevant:
+      - srb-cius/1-3-table-1-bt-102/2025-06-06
+      - srb-cius/1-3-table-1-bt-118/2025-06-06
+      - srb-cius/1-3-table-1-bt-151/2025-06-06
+      - srb-cius/1-3-table-1-bt-95/2025-06-06
+    not_relevant:
+      - srb-cius/1-4-table-2-bt-e24/2025-06-06
+  SRB-021:
+    relevant:
+      - srb-cius/1-3-table-1-bt-103/2025-06-06
+      - srb-cius/1-3-table-1-bt-118/2025-06-06
+      - srb-cius/1-3-table-1-bt-119/2025-06-06
+      - srb-cius/1-3-table-1-bt-152/2025-06-06
+      - srb-cius/1-3-table-1-bt-96/2025-06-06
+    not_relevant:
+      - srb-cius/1-4-table-2-bt-e25/2025-06-06
+  SRB-022:
+    relevant:
+      - srb-cius/1-3-table-1-bt-118/2025-06-06
+      - srb-cius/1-3-table-1-bt-121/2025-06-06
+      - tax-categories/tax-category-e/2024-09-01
+      - tax-categories/tax-category-z/2024-09-01
+  SRB-023:
+    relevant:
+      - srb-cius/1-3-table-1-bt-121/2025-06-06
+  SRB-024:
+    relevant:
+      - srb-cius/1-3-table-1-bg-23/2025-06-06
+      - srb-cius/1-3-table-1-bt-118/2025-06-06
+      - srb-cius/1-3-table-1-bt-121/2025-06-06
+      - tax-categories/tax-category-e/2024-09-01
+    not_relevant:
+      - srb-cius/1-4-table-2-bg-e7/2025-06-06
+  SRB-025:
+    relevant:
+      - srb-cius/1-3-table-1-bt-112/2025-06-06
+      - srb-cius/1-3-table-1-bt-113/2025-06-06
+      - srb-cius/1-4-table-2-bt-e13/2025-06-06
+  SRB-026:
+    relevant:
+      - srb-cius/1-3-table-1-bg-3/2025-06-06
+      - srb-cius/1-3-table-1-bt-25/2025-06-06
+      - srb-cius/1-4-table-2-bg-3/2025-06-06
+      - srb-cius/1-4-table-2-bg-e1/2025-06-06
+      - srb-cius/1-4-table-2-bt-e1/2025-06-06
+  SRB-027:
+    relevant:
+      - srb-cius/1-4-table-2-bg-e1/2025-06-06
+      - srb-cius/1-4-table-2-bg-e5/2025-06-06
+      - srb-cius/1-4-table-2-bg-e6/2025-06-06
+  SRB-028:
+    relevant:
+      - srb-cius/1-3-table-1-bt-5/2025-06-06
+      - srb-cius/1-4-table-2-bg-e7/2025-06-06
+      - srb-cius/1-4/2025-06-06
+  SRB-029:
+    relevant:
+      - srb-cius/1-2/2025-06-06
+      - srb-cius/1-3-table-1-bt-24/2025-06-06
+  XSD:
+    relevant:
+      - srb-cius/1-3-table-1-bt-146/2025-06-06
+      - srb-cius/1-3-table-1-bt-2/2025-06-06
+      - srb-cius/1-3-table-1-bt-9/2025-06-06
