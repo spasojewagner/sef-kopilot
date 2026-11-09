@@ -223,6 +223,57 @@ async def test_a_signed_in_person_reads_what_the_client_asks(session: AsyncSessi
         CALLBACK,
         ["invoices:validate", "invoices:submit"],
     )
+    assert answer["withheld"] == []
+
+
+async def test_sending_to_sef_is_asked_for_only_by_name(session: AsyncSession) -> None:
+    """A client that names no scope is given to decide on every scope but sending, which acts
+    in the organization's name outside the server (ADR-0052)."""
+    async with server(session) as api:
+        unnamed = await requested(session, api, scope=None)
+        sending = await requested(session, api, scope="invoices:send")
+        every = await requested(
+            session, api, scope="invoices:send invoices:validate invoices:submit"
+        )
+
+    scopes = {}
+    for request_id in (unnamed, sending, every):
+        asked = await session.get(OAuthAuthorization, request_id)
+        assert asked is not None
+        scopes[request_id] = asked.scopes
+    assert scopes == {
+        unnamed: ["invoices:validate", "invoices:submit"],
+        sending: ["invoices:send"],
+        every: ["invoices:validate", "invoices:submit", "invoices:send"],
+    }
+
+
+async def test_the_page_learns_what_the_persons_role_withholds(session: AsyncSession) -> None:
+    """A client asks to send to SEF, which a client of the office may not do: its page says so,
+    and approving gives the client the rest only; an accountant may, and gives it."""
+    primer = await office(session, "Primer Računovodstvo", "primer.example")
+    async with server(session) as api:
+        first = await requested(session, api, scope="invoices:validate invoices:send")
+        read_by_client = await api.get(f"/oauth/requests/{first}", headers=primer.as_client())
+        read_by_accountant = await api.get(
+            f"/oauth/requests/{first}", headers=primer.as_accountant()
+        )
+        by_client = await api.post(f"/oauth/requests/{first}/approval", headers=primer.as_client())
+        second = await requested(session, api, scope="invoices:validate invoices:send")
+        by_accountant = await api.post(
+            f"/oauth/requests/{second}/approval", headers=primer.as_accountant()
+        )
+
+    assert read_by_client.json()["withheld"] == ["invoices:send"]
+    assert read_by_accountant.json()["withheld"] == []
+    assert by_client.status_code == by_accountant.status_code == 200
+    granted = []
+    for request_id in (first, second):
+        asked = await session.get(OAuthAuthorization, request_id)
+        assert asked is not None
+        await session.refresh(asked)
+        granted.append(asked.scopes)
+    assert granted == [["invoices:validate"], ["invoices:validate", "invoices:send"]]
 
 
 async def test_only_a_person_decides(session: AsyncSession) -> None:

@@ -462,6 +462,26 @@ async def test_a_refresh_may_ask_for_fewer_scopes_and_the_role_is_read_again(
     assert demoted["scope"] == "invoices:validate"
 
 
+async def test_an_owner_made_a_client_no_longer_sends_through_the_assistant(
+    session: AsyncSession,
+) -> None:
+    """Sending to SEF is the owners' and the accountants': the refresh after an owner becomes a
+    client of the office leaves the assistant the rest of what they allowed (ADR-0052)."""
+    primer = await office(session, "Primer Računovodstvo", "primer.example")
+    async with server(session) as api:
+        client, code = await consented(
+            api, primer, as_owner=True, scope="invoices:validate invoices:send"
+        )
+        issued = (await token(api, exchange(client, code))).json()
+        await session.execute(
+            update(Membership).where(Membership.user_id == primer.owner.id).values(role=Role.CLIENT)
+        )
+        renewed = (await token(api, renewal(client, issued["refresh_token"]))).json()
+
+    assert issued["scope"] == "invoices:validate invoices:send"
+    assert renewed["scope"] == "invoices:validate"
+
+
 async def test_a_member_no_longer_active_or_no_longer_a_member_gets_no_tokens(
     session: AsyncSession,
 ) -> None:

@@ -3159,7 +3159,7 @@
           "oauth"
         ],
         "summary": "Read a client's request",
-        "description": "What the client asks to do, for the page where a signed-in person decides.",
+        "description": "What the client asks to do, and what of it the caller's role does not grant, for the page where a signed-in person decides.",
         "operationId": "read_request_oauth_requests__request_id__get",
         "security": [
           {
@@ -3650,6 +3650,14 @@
             "title": "Scopes",
             "description": "What the client asks to do, by scope."
           },
+          "withheld": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Withheld",
+            "description": "Of those scopes, the ones the caller's role does not grant them in their organization: approving does not give them to the client."
+          },
           "expires_at": {
             "type": "string",
             "format": "date-time",
@@ -3664,6 +3672,7 @@
           "client_name",
           "redirect_uri",
           "scopes",
+          "withheld",
           "expires_at"
         ],
         "title": "AuthorizationRequest",

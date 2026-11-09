@@ -23,7 +23,7 @@ async def test_the_mcp_endpoint_names_its_authorization_server(
     assert answer.json() == {
         "resource": f"{ISSUER}/mcp",
         "authorization_servers": [ISSUER],
-        "scopes_supported": ["invoices:validate", "invoices:submit"],
+        "scopes_supported": ["invoices:validate", "invoices:submit", "invoices:send"],
         "bearer_methods_supported": ["header"],
         "resource_name": "SEF Kopilot",
     }
@@ -44,7 +44,7 @@ async def test_the_authorization_server_says_what_it_supports(
         "authorization_endpoint": f"{ISSUER}/oauth/authorize",
         "token_endpoint": f"{ISSUER}/oauth/token",
         "registration_endpoint": f"{ISSUER}/oauth/register",
-        "scopes_supported": ["invoices:validate", "invoices:submit"],
+        "scopes_supported": ["invoices:validate", "invoices:submit", "invoices:send"],
         "response_types_supported": ["code"],
         "grant_types_supported": ["authorization_code", "refresh_token"],
         "token_endpoint_auth_methods_supported": ["none"],
