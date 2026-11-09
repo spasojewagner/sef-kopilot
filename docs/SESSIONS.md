@@ -2753,3 +2753,27 @@ Each provider answers the tests as its API reference shows; no paid account is h
 adapters are not compared on the evaluations, at the maintainer's decision.
 
 Next: the organization's own key to a provider (`feat/api-organization-model-key`).
+
+## 2026-11-09 — `feat/api-organization-model-key` (4 commits, stacked on `feat/llm-openai-anthropic`)
+
+Outcome: an organization's owner may set its own key to Groq, OpenAI or Anthropic, with a model
+if not the provider's default; the key is sealed as the SEF key is, for that purpose alone, and
+rotated with it. The organization's explanations and repairs, from the routes and from MCP, are
+then written by its own model, made for the request and closed after it; a key the server
+cannot open answers 503 rather than send the invoice to the server's model (ADR-0058).
+
+Findings:
+
+- Fernet authenticates the whole message, so the key's purpose sealed beside the organization's
+  id keeps a model key from opening as a SEF key; the SEF keys sealed before read as SEF keys
+  and need no new sealing.
+- The server's model owned the Langfuse client; a model made for one request had to share it
+  without closing it, so the traces are now the application's.
+- The requests of one test share a transaction, and so the time their audit events record; the
+  tests compare the events as a set.
+
+Verification: the API's tests, the whole suite; seeded faults in the sealing, the rotation, the
+permission, the choice of model and the closing of the traces, each failing a test; ruff, mypy,
+tsc; each commit checked on its own.
+
+Next: the organization page's form for the key (`feat/web-organization-model-key`).
