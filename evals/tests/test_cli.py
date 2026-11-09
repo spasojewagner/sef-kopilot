@@ -124,7 +124,7 @@ def test_needs_a_model_to_record_with(small_root: Path, monkeypatch: pytest.Monk
     status, out = run(small_root, "--record", model=lambda: None)
     assert (status, out) == (
         EXIT_ERROR,
-        "sef-evals: set LLM_PROVIDER=groq and GROQ_API_KEY to record\n",
+        "sef-evals: set LLM_PROVIDER and its key (GROQ_API_KEY, say) to record\n",
     )
 
 
@@ -276,7 +276,13 @@ def test_the_committed_report_is_what_the_run_gives_and_meets_every_threshold() 
 async def test_records_with_the_model_the_settings_name(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    for name in ("LLM_PROVIDER", "GROQ_API_KEY", "SEF_LLM_MODEL"):
+    for name in (
+        "LLM_PROVIDER",
+        "GROQ_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "SEF_LLM_MODEL",
+    ):
         monkeypatch.delenv(name, raising=False)
     env_file = tmp_path / ".env"
     assert model_named_in(env_file) is None
@@ -294,5 +300,12 @@ async def test_records_with_the_model_the_settings_name(
     assert named is not None
     assert named.model == "groq/llama-3.3-70b-versatile"
     await named.aclose()
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "not-a-real-key-either")
+    monkeypatch.delenv("SEF_LLM_MODEL")
+    anthropic = model_named_in(env_file)
+    assert anthropic is not None
+    assert anthropic.model == "anthropic/claude-haiku-5-5"
+    await anthropic.aclose()
     monkeypatch.setenv("LLM_PROVIDER", "none")
     assert model_named_in(env_file) is None

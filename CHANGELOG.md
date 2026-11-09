@@ -25,6 +25,10 @@ is tagged.
 - `evals`: the repairs' evaluations: nine held-out invoices, made at run time from the synthetic
   ones, which a repair must leave the validator accepting (80 % at least), and eleven whose
   mistake a person decides, which no repair may make pass (ADR-0056).
+- `apps/api`: OpenAI's and Anthropic's models write explanations and propose repairs where the
+  operator names them, `LLM_PROVIDER=openai` with `OPENAI_API_KEY` (`gpt-6-luna` by default) or
+  `anthropic` with `ANTHROPIC_API_KEY` (`claude-haiku-5-5`), each asked for structured outputs
+  and its answers checked as Groq's; Groq's free tier stays the default (ADR-0057).
 
 ## [0.5.0] - 2026-11-09
 

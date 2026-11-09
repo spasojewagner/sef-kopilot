@@ -1,5 +1,6 @@
-"""Language models: Groq's chat completions as the explainer's model, what they are sent, how
-their failures end, and the settings that choose them."""
+"""Language models: Groq's and OpenAI's chat completions and Anthropic's Messages API as the
+explainer's model, what they are sent, how their answers read and their failures end, and the
+settings that choose them. Each provider answers here as its API reference shows an answer."""
 
 from __future__ import annotations
 
@@ -12,7 +13,16 @@ import pytest
 from pydantic import SecretStr, ValidationError
 
 import sef_api.llm as llm_module
-from sef_api.llm import GroqClient, LLMError, Message, llm_for
+from sef_api.llm import (
+    AnthropicClient,
+    GroqClient,
+    LLMError,
+    Message,
+    OpenAIClient,
+    client_for,
+    last_usage,
+    llm_for,
+)
 
 from .conftest import settings_for
 
@@ -26,18 +36,19 @@ SCHEMA: dict[str, Any] = {
 CONVERSATION = [Message("system", "Answer in JSON."), Message("user", "тајни рачун 4711")]
 
 
-def answering(
+def answering[Client: (GroqClient, OpenAIClient, AnthropicClient)](
     handler: Callable[[dict[str, Any]], httpx.Response],
     requests: list[httpx.Request],
     *,
-    model: str = GroqClient.MODEL,
-) -> GroqClient:
+    model: str | None = None,
+    provider: type[Client] = GroqClient,  # type: ignore[assignment]
+) -> Client:
     def handle(request: httpx.Request) -> httpx.Response:
         requests.append(request)
         return handler(json.loads(request.content))
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
-    return GroqClient(KEY, model=model, client=client, backoff_seconds=0)
+    return provider(KEY, model=model, client=client, backoff_seconds=0)
 
 
 def completion(content: str, *, finish_reason: str = "stop") -> httpx.Response:
@@ -230,8 +241,6 @@ def test_the_settings_choose_the_model() -> None:
     assert chosen.model == "groq/openai/gpt-oss-20b"
     with pytest.raises(ValidationError, match="GROQ_API_KEY must be set"):
         settings_for(LLM_PROVIDER="groq")
-    with pytest.raises(ValidationError):
-        settings_for(LLM_PROVIDER="openai")
 
 
 def test_the_limits_of_asking_the_model_come_from_the_settings() -> None:
@@ -255,3 +264,270 @@ def test_the_limits_of_asking_the_model_come_from_the_settings() -> None:
         settings_for(SEF_EXPLANATION_SECONDS="0")
     with pytest.raises(ValidationError):
         settings_for(SEF_REPAIR_SECONDS="0")
+
+
+# --- OpenAI -------------------------------------------------------------------------------------
+
+
+async def test_openai_is_asked_for_its_chat_completions_with_brief_reasoning() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(
+        lambda _body: completion('{"answer": "da"}'), requests, provider=OpenAIClient
+    )
+
+    answer = await client.answer(CONVERSATION, name="reply", schema=SCHEMA)
+
+    assert answer == '{"answer": "da"}'
+    assert client.model == "openai/gpt-6-luna"
+    (request,) = requests
+    assert request.url == "https://api.openai.com/v1/chat/completions"
+    assert request.headers["Authorization"] == "Bearer gsk_test_key"
+    assert json.loads(request.content) == {
+        "model": "gpt-6-luna",
+        "messages": [
+            {"role": "system", "content": "Answer in JSON."},
+            {"role": "user", "content": "тајни рачун 4711"},
+        ],
+        "max_completion_tokens": OpenAIClient.MAX_TOKENS,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {"name": "reply", "strict": True, "schema": SCHEMA},
+        },
+        "reasoning_effort": "low",
+    }
+    assert last_usage.get() == {"input": 120, "output": 40, "total": 160}
+
+
+async def test_an_openai_model_that_does_not_reason_is_not_asked_how_hard_to() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(
+        lambda _body: completion("{}"), requests, model="gpt-4.1-mini", provider=OpenAIClient
+    )
+
+    await client.answer(CONVERSATION, name="reply", schema=SCHEMA)
+
+    body = json.loads(requests[0].content)
+    assert (body["model"], "reasoning_effort" in body, "temperature" in body) == (
+        "gpt-4.1-mini",
+        False,
+        False,
+    )
+    assert client.model == "openai/gpt-4.1-mini"
+
+
+@pytest.mark.parametrize(
+    ("answer", "problem"),
+    [
+        (
+            httpx.Response(
+                401,
+                json={
+                    "error": {
+                        "message": "Incorrect API key provided: sk-...4711.",
+                        "type": "invalid_request_error",
+                        "param": None,
+                        "code": "invalid_api_key",
+                    }
+                },
+            ),
+            r"OpenAI answered 401 \(invalid_api_key\)$",
+        ),
+        (httpx.Response(200, json={"object": "chat.completion"}), "OpenAI's answer is not a"),
+        (completion(""), "OpenAI answered nothing"),
+    ],
+)
+async def test_openai_s_failures_say_what_went_wrong_and_nothing_sent(
+    answer: httpx.Response, problem: str
+) -> None:
+    with pytest.raises(LLMError, match=problem) as raised:
+        await answering(lambda _body: answer, [], provider=OpenAIClient).answer(
+            CONVERSATION, name="reply", schema=SCHEMA
+        )
+    assert "4711" not in str(raised.value)
+
+
+# --- Anthropic ----------------------------------------------------------------------------------
+
+
+def message(
+    *blocks: dict[str, Any], stop_reason: str = "end_turn", usage: object = None
+) -> httpx.Response:
+    """A message as Anthropic's Messages API answers one."""
+    return httpx.Response(
+        200,
+        json={
+            "id": "msg_01",
+            "type": "message",
+            "role": "assistant",
+            "model": AnthropicClient.MODEL,
+            "content": list(blocks),
+            "stop_reason": stop_reason,
+            "stop_sequence": None,
+            "usage": usage if usage is not None else {"input_tokens": 210, "output_tokens": 35},
+        },
+    )
+
+
+def text(content: str) -> dict[str, Any]:
+    return {"type": "text", "text": content}
+
+
+async def test_anthropic_is_sent_the_system_apart_and_asked_for_the_schema() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(
+        lambda _body: message(text('{"answer": "da"}')), requests, provider=AnthropicClient
+    )
+    conversation = [
+        *CONVERSATION,
+        Message("assistant", '{"answer": "ne"}'),
+        Message("user", "That answer cannot be used. Answer again."),
+    ]
+
+    answer = await client.answer(conversation, name="reply", schema=SCHEMA, max_tokens=2048)
+
+    assert answer == '{"answer": "da"}'
+    assert client.model == "anthropic/claude-haiku-5-5"
+    (request,) = requests
+    assert request.url == "https://api.anthropic.com/v1/messages"
+    assert request.headers["x-api-key"] == "gsk_test_key"
+    assert request.headers["anthropic-version"] == "2026-10-21"
+    assert "Authorization" not in request.headers
+    assert json.loads(request.content) == {
+        "model": "claude-haiku-5-5",
+        "max_tokens": 2048,
+        "system": "Answer in JSON.",
+        "messages": [
+            {"role": "user", "content": "тајни рачун 4711"},
+            {"role": "assistant", "content": '{"answer": "ne"}'},
+            {"role": "user", "content": "That answer cannot be used. Answer again."},
+        ],
+        "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
+    }
+    assert last_usage.get() == {"input": 210, "output": 35, "total": 245}
+
+
+async def test_anthropic_without_a_system_message_is_sent_none() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(lambda _body: message(text("{}")), requests, provider=AnthropicClient)
+
+    await client.answer(CONVERSATION[1:], name="reply", schema=SCHEMA)
+
+    assert "system" not in json.loads(requests[0].content)
+
+
+@pytest.mark.parametrize(
+    "usage", [{"input_tokens": "many", "output_tokens": 3}, {"input_tokens": 210}, []]
+)
+async def test_anthropic_s_answer_is_its_first_text_block_and_its_count_if_it_gives_one(
+    usage: object,
+) -> None:
+    client = answering(
+        lambda _body: message(
+            {"type": "thinking", "thinking": "…", "signature": "s"},
+            text('{"answer": "da"}'),
+            text("{}"),
+            usage=usage,
+        ),
+        [],
+        provider=AnthropicClient,
+    )
+
+    assert await client.answer(CONVERSATION, name="reply", schema=SCHEMA) == '{"answer": "da"}'
+    assert last_usage.get() is None
+
+
+async def test_anthropic_overloaded_is_asked_again() -> None:
+    answers = iter([httpx.Response(529, json={"type": "error", "error": {"type": "x"}})])
+    requests: list[httpx.Request] = []
+    client = answering(
+        lambda _body: next(answers, None) or message(text("{}")),
+        requests,
+        provider=AnthropicClient,
+    )
+
+    assert await client.answer(CONVERSATION, name="reply", schema=SCHEMA) == "{}"
+    assert len(requests) == 2
+
+
+@pytest.mark.parametrize(
+    ("answer", "problem"),
+    [
+        (
+            httpx.Response(
+                401,
+                json={
+                    "type": "error",
+                    "error": {"type": "authentication_error", "message": "invalid x-api-key"},
+                },
+            ),
+            r"Anthropic answered 401 \(authentication_error\)$",
+        ),
+        (
+            httpx.Response(
+                400,
+                json={
+                    "type": "error",
+                    "error": {"type": "invalid_request_error", "message": "тајни рачун 4711"},
+                },
+            ),
+            r"Anthropic answered 400 \(invalid_request_error\)$",
+        ),
+        (message(text('{"answer": "da'), stop_reason="max_tokens"), "cut off"),
+        (message(text("{}"), stop_reason="refusal"), "declined to answer"),
+        (message(), "Anthropic answered nothing"),
+        (message(text("  ")), "Anthropic answered nothing"),
+        (httpx.Response(200, json={"type": "message"}), "Anthropic's answer is not a message"),
+        (httpx.Response(200, text="<html>"), "Anthropic's answer is not a message"),
+    ],
+)
+async def test_anthropic_s_failures_say_what_went_wrong_and_nothing_sent(
+    answer: httpx.Response, problem: str
+) -> None:
+    requests: list[httpx.Request] = []
+    with pytest.raises(LLMError, match=problem) as raised:
+        await answering(lambda _body: answer, requests, provider=AnthropicClient).answer(
+            CONVERSATION, name="reply", schema=SCHEMA
+        )
+    assert "4711" not in str(raised.value)
+    assert len(requests) == 1
+
+
+async def test_a_completion_that_counts_nothing_is_traced_without_a_count() -> None:
+    answer = completion("{}")
+    body = json.loads(answer.content)
+    del body["usage"]
+    client = answering(lambda _body: httpx.Response(200, json=body), [])
+
+    await client.answer(CONVERSATION, name="reply", schema=SCHEMA)
+
+    assert last_usage.get() is None
+
+
+def test_each_provider_is_chosen_by_its_name_and_its_key() -> None:
+    openai = llm_for(settings_for(LLM_PROVIDER="openai", OPENAI_API_KEY="openai-test-key"))
+    assert isinstance(openai, OpenAIClient)
+    assert openai.model == "openai/gpt-6-luna"
+    anthropic = llm_for(
+        settings_for(
+            LLM_PROVIDER="anthropic",
+            ANTHROPIC_API_KEY="anthropic-test-key",
+            SEF_LLM_MODEL="claude-x",
+        )
+    )
+    assert isinstance(anthropic, AnthropicClient)
+    assert anthropic.model == "anthropic/claude-x"
+    # The other providers' keys send nothing.
+    assert (
+        llm_for(
+            settings_for(OPENAI_API_KEY="openai-test-key", ANTHROPIC_API_KEY="anthropic-test-key")
+        )
+        is None
+    )
+    with pytest.raises(ValidationError, match="OPENAI_API_KEY must be set"):
+        settings_for(LLM_PROVIDER="openai", ANTHROPIC_API_KEY="anthropic-test-key")
+    with pytest.raises(ValidationError, match="ANTHROPIC_API_KEY must be set"):
+        settings_for(LLM_PROVIDER="anthropic")
+    with pytest.raises(ValidationError):
+        settings_for(LLM_PROVIDER="mistral")
+    assert client_for("mistral", KEY, None) is None
+    assert client_for("groq", None, None) is None

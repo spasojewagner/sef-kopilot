@@ -307,9 +307,10 @@ system are marked as such.
       server elsewhere).
 - [x] `JINA_API_KEY` is a secret setting too; `EMBEDDINGS_PROVIDER=jina` without it refuses to
       start, and an embedder's error names the status it got, never the texts it was sent.
-- [x] `GROQ_API_KEY` is a secret setting as well; `LLM_PROVIDER=groq` without it refuses to
-      start, and the model client's error names the status and Groq's error code, never what
-      it was asked or answered.
+- [x] `GROQ_API_KEY`, `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are secret settings as well; a
+      provider named in `LLM_PROVIDER` without its key refuses to start, and the model client's
+      error names the provider, the status and its error code, never what it was asked or
+      answered.
 - [x] The corpus's sources are pinned by SHA-256 in `corpus/manifest.toml`: the converter
       refuses a download whose digest differs, and loading the corpus refuses an edition file
       that is not exactly what the converter writes (ADR-0020).

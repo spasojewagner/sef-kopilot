@@ -204,18 +204,30 @@ class Settings(BaseSettings):
         validation_alias="JINA_API_KEY",
         description="The key to Jina's embeddings API: required with `EMBEDDINGS_PROVIDER=jina`.",
     )
-    llm_provider: Literal["none", "groq"] = Field(
+    llm_provider: Literal["none", "groq", "openai", "anthropic"] = Field(
         default="none",
         validation_alias="LLM_PROVIDER",
         description=(
-            "The language model that writes explanations and proposes repairs. `none`: no "
-            "model, and both answer 503; `groq`: Groq's API, with `GROQ_API_KEY`."
+            "The language model that writes explanations and proposes repairs (ADR-0057). "
+            "`none`: no model, and both answer 503; `groq`: Groq's API, with `GROQ_API_KEY`, "
+            "free; `openai`: OpenAI's, with `OPENAI_API_KEY`; `anthropic`: Anthropic's, with "
+            "`ANTHROPIC_API_KEY`."
         ),
     )
     groq_api_key: SecretStr | None = Field(
         default=None,
         validation_alias="GROQ_API_KEY",
         description="The key to Groq's API: required with `LLM_PROVIDER=groq`.",
+    )
+    openai_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="OPENAI_API_KEY",
+        description="The key to OpenAI's API: required with `LLM_PROVIDER=openai`.",
+    )
+    anthropic_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="ANTHROPIC_API_KEY",
+        description="The key to Anthropic's API: required with `LLM_PROVIDER=anthropic`.",
     )
     langfuse_public_key: str | None = Field(
         default=None,
@@ -270,8 +282,9 @@ class Settings(BaseSettings):
         max_length=200,
         validation_alias="SEF_LLM_MODEL",
         description=(
-            "The provider's model, when not its default (`openai/gpt-oss-120b` on Groq); it "
-            "must support structured outputs."
+            "The provider's model, when not its default (`openai/gpt-oss-120b` on Groq, "
+            "`gpt-6-luna` on OpenAI, `claude-haiku-5-5` on Anthropic); it must support "
+            "structured outputs."
         ),
     )
     max_explanations: int = Field(
@@ -444,8 +457,15 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_llm(self) -> Self:
-        if self.llm_provider == "groq" and self.groq_api_key is None:
-            raise ValueError("GROQ_API_KEY must be set when LLM_PROVIDER is groq")
+        keys = {
+            "groq": ("GROQ_API_KEY", self.groq_api_key),
+            "openai": ("OPENAI_API_KEY", self.openai_api_key),
+            "anthropic": ("ANTHROPIC_API_KEY", self.anthropic_api_key),
+        }
+        if self.llm_provider in keys:
+            name, key = keys[self.llm_provider]
+            if key is None:
+                raise ValueError(f"{name} must be set when LLM_PROVIDER is {self.llm_provider}")
         return self
 
     @model_validator(mode="after")
