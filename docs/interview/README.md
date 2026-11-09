@@ -105,3 +105,4 @@ per branch, to keep them with the code they describe.
 | `feat/evals-harness` | [m6-evals-harness.md](m6-evals-harness.md) |
 | `feat/evals-explanations` | [m6-evals-explanations.md](m6-evals-explanations.md) |
 | `feat/evals-repairs` | [m6-evals-repairs.md](m6-evals-repairs.md) |
+| `feat/llm-openai-anthropic` | [m6-llm-openai-anthropic.md](m6-llm-openai-anthropic.md) |

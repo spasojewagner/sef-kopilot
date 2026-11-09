@@ -2732,3 +2732,24 @@ Verification: the runner's tests; the report replayed from the cassettes here; r
 each commit checked on its own.
 
 Next: the stack above, from the providers' adapters to the evaluations' gate, rebased on these.
+
+## 2026-11-09 — `feat/llm-openai-anthropic` (3 commits, stacked on `feat/evals-repairs`)
+
+Outcome: OpenAI's and Anthropic's models answer through `LLMClient` beside Groq's, chosen by
+`LLM_PROVIDER` with the operator's key, each asked for structured outputs and its answers checked
+as Groq's; one retrying client for the three (ADR-0057). Groq's free tier stays the default.
+
+Findings:
+
+- Anthropic's API version `2026-10-21` refuses `temperature`, and OpenAI's reasoning models do
+  too; the shared client sends it to Groq alone.
+- The explanations' and repairs' schemas already keep within what Anthropic's structured outputs
+  support (closed objects, string enums, no length constraints).
+- The secret scan took a test's fake key for a real one; the tests now use keys that are
+  plainly fake.
+
+Verification: the API's tests, the whole suite; ruff, mypy; each commit checked on its own.
+Each provider answers the tests as its API reference shows; no paid account is held, so the
+adapters are not compared on the evaluations, at the maintainer's decision.
+
+Next: the organization's own key to a provider (`feat/api-organization-model-key`).
