@@ -1,0 +1,19 @@
+# The thresholds the evaluations must meet (ADR-0054). Each names a measure of the runner
+# (evals/README.md), with `min` for a share that must be at least so high and `max` for a rate
+# that must be at most so low, from 0 to 1. A threshold whose measure is not taken is not met.
+#
+# The validator is deterministic, so its thresholds allow no exception: one document that it
+# judges otherwise than the reference, or accepts when it must reject, is a defect to fix. The
+# brief's thresholds for the language model (repair success, citations) join with the golden
+# sets that measure them.
+
+# Verdicts as the published rule sets give them, applied as published (ADR-0054).
+agreement: { min: 1.0 }
+# The same fatal rules as the reference, save what it reports inside the extension (ADR-0007).
+rule_agreement: { min: 1.0 }
+# No document that must be rejected is accepted.
+false_accept_rate: { max: 0.0 }
+# No document that must be accepted is rejected.
+false_reject_rate: { max: 0.0 }
+# Every mistake of the golden set is reported by the rules it must be reported by.
+detection: { min: 1.0 }

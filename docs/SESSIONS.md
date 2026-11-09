@@ -2662,3 +2662,30 @@ Findings:
 Verification: each commit checked on its own; the version checks unchanged and green.
 
 Next: M6, the evaluation harness with golden sets and offline cassettes (`feat/evals-harness`).
+
+## 2026-11-09 — `feat/evals-harness` (4 commits, stacked on `chore/release-0.5.0`)
+
+Outcome: the evaluations' runner, `sef-evals`, a package of the workspace. It measures the
+validator on every document of the corpus against golden labels and against the published rule
+sets applied as published, judges the measures against `evals/thresholds.yaml`, and writes a
+committed report that CI holds to the run (ADR-0054). Every threshold is met. The first step of
+M6.
+
+Findings:
+
+- The first run missed two labels, not the validator: of the Ministry's examples,
+  `faktura-sa-prilogom.xml` is not schema-valid, so SRB-009 never runs on it, and
+  `faktura-sa-popustom.xml` has an allowance without a reason; each now has its own group.
+- Under EN 16931 the validator, like the reference, reports rules inside the Serbian extension;
+  the rule-level comparison leaves the extension out on both sides (ADR-0007).
+- The published unit tests are fragments the schema refuses, so they stay with the Schematron
+  conformance tests; the evaluations compare whole documents.
+- `uv sync --frozen --package sef-kopilot-api`, as the API's image runs it, does not need the
+  new member, so the image is unchanged.
+
+Verification: the runner's tests (100 % coverage); seeded faults in the validator, each failing
+the evaluations, and in the runner, each failing its tests, after a clean baseline (see the
+pull request); ruff, mypy; each commit checked on its own.
+
+Next: the model's measures, starting with the explanations and their cassettes
+(`feat/evals-explanations`).

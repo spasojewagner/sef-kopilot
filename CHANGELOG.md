@@ -9,6 +9,15 @@ is tagged.
 
 ## [Unreleased]
 
+### Added
+
+- `evals`: the evaluations' runner, `sef-evals` (`make evals`, `make evals-check`), which
+  measures the validator on every document of the corpus against golden labels, and against
+  the published rule sets applied as published: the same verdicts and fatal rules, no false
+  accept or reject, every mistake reported by the rules it must be. The measures are judged
+  against `evals/thresholds.yaml` and written to a committed report, `evals/reports/latest.md`
+  (ADR-0054).
+
 ## [0.5.0] - 2026-11-09
 
 The SEF demo round trip (milestone M5): an organization's key to SEF, which its owner sets and
