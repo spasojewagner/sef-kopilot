@@ -13,7 +13,9 @@ a person decides, and the audit log records who proposed and decided what (ADR-0
 explanations of a stored invoice's report are kept with it, one set a language (ADR-0040). An
 organization may keep its API key to SEF, sealed under a key that only the environment holds
 (ADR-0050), and a stored invoice sent to SEF with it keeps what SEF answered (ADR-0051); its
-own key to a language model's provider is sealed the same way (ADR-0058).
+own key to a language model's provider is sealed the same way (ADR-0058). Where billing is on,
+an organization holds credits, spent one for each invoice it stores, and a ledger of every
+change of them (ADR-0059).
 
 The corpus, the official documents an explanation cites, is the same for every organization
 and belongs to none (ADR-0020): its passages are public text, written only by the command that
@@ -34,6 +36,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
+    Identity,
     Index,
     LargeBinary,
     Numeric,
@@ -55,6 +58,9 @@ __all__ = [
     "AuditEvent",
     "CorpusDocument",
     "CorpusPassage",
+    "CreditAccount",
+    "CreditEntry",
+    "CreditKind",
     "Invitation",
     "Job",
     "JobKind",
@@ -169,6 +175,63 @@ class ModelKey(Base):
     model: Mapped[str | None] = mapped_column(Text)
     token: Mapped[str] = mapped_column(Text)
     set_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class CreditAccount(Base):
+    """How many credits an organization holds, where billing is on (ADR-0059): opened with the
+    credits the settings start an organization with, the first time it spends one; never below
+    zero. Every change of it is a :class:`CreditEntry`, written in the same transaction."""
+
+    __tablename__ = "credit_accounts"
+    __table_args__ = (CheckConstraint("balance >= 0", name="balance_not_negative"),)
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    balance: Mapped[int]
+    opened_at: Mapped[datetime] = _created_at()
+
+
+class CreditKind(StrEnum):
+    """Why an organization's credits changed."""
+
+    OPENING = "opening"
+    """The credits the settings start an organization with, when its account is opened."""
+    SPEND = "spend"
+    """One credit, for an invoice the organization stored."""
+    GRANT = "grant"
+    """Credits the operator gave the organization, with the command that grants them."""
+
+
+class CreditEntry(Base):
+    """A change of an organization's credits (ADR-0059): only ever added, so that the balance is
+    always the sum of its entries. ``number`` orders the entries as they were written, those of
+    one transaction too, whose times are the same. A spend names the invoice it paid for by id,
+    without a foreign key, so that the entry outlives the invoice; it is deleted with the
+    organization."""
+
+    __tablename__ = "credit_entries"
+    #: The time and the number of a new entry, set by the database, come back with its insert.
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (
+        CheckConstraint("kind IN ('opening', 'spend', 'grant')", name="kind_known"),
+        CheckConstraint(
+            "(kind = 'spend' AND delta < 0 AND invoice_id IS NOT NULL) "
+            "OR (kind <> 'spend' AND delta > 0 AND invoice_id IS NULL)",
+            name="delta_follows_kind",
+        ),
+        Index("ix_credit_entries_organization_id_number", "organization_id", "number"),
+    )
+
+    id: Mapped[uuid.UUID] = _id()
+    number: Mapped[int] = mapped_column(BigInteger, Identity(always=True), unique=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    at: Mapped[datetime] = _created_at()
+    kind: Mapped[str] = mapped_column(Text)
+    delta: Mapped[int]
+    invoice_id: Mapped[uuid.UUID | None]
 
 
 class User(Base):

@@ -35,6 +35,8 @@ TABLES = {
     "sef_keys",
     "sef_submissions",
     "model_keys",
+    "credit_accounts",
+    "credit_entries",
     "oauth_clients",
     "oauth_authorizations",
     "oauth_refresh_tokens",

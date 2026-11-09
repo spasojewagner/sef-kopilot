@@ -51,3 +51,4 @@ just used. New notes are added in the pull request that introduces the concept.
 | 43 | [Sending once over a network that loses answers: the request id](43-sending-once-over-a-network-that-loses-answers.md) | M5 |
 | 44 | [A measure is only as good as its labels: golden sets and the reference](44-a-measure-is-only-as-good-as-its-labels.md) | M6 |
 | 45 | [Measuring a model offline: cassettes](45-measuring-a-model-offline-with-cassettes.md) | M6 |
+| 46 | [A balance is a sum of entries](46-a-balance-is-a-sum-of-entries.md) | M6 |
