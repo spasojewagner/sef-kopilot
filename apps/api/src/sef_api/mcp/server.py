@@ -35,7 +35,8 @@ INSTRUCTIONS: Final = (
     "invoices and credit notes, against SRB-CIUS, the profile SEF uses, against EN 16931 and "
     "against Peppol BIS Billing 3.0. Its rule sets decide whether an invoice is valid, never a "
     "language model: report what its tools answer, and do not judge an invoice's validity "
-    "yourself. SEF Kopilot is not a certified validator."
+    "yourself. SEF Kopilot is not a certified validator. It sends invoices to SEF's demo "
+    "environment only, in the person's organization's name: send one only when the person asks."
 )
 
 

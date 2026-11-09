@@ -56,6 +56,8 @@ from sef_api.repairs.routes import (
     repair_suggested,
 )
 from sef_api.rules.routes import MAX_RULES, RuleFound, RuleOut, about, found
+from sef_api.sef.routes import Submission, send_stored, submissions_out
+from sef_api.sef.submissions import NotSendableError
 from sef_api.settings import Settings
 
 __all__ = [
@@ -66,11 +68,13 @@ __all__ = [
     "get_job",
     "get_repair",
     "get_rule",
+    "get_sef_status",
     "list_invoices",
     "propose_fix",
     "register",
     "revalidate_invoices",
     "search_rules",
+    "send_to_sef_demo",
     "store_invoice",
     "validate_invoice",
 ]
@@ -123,6 +127,13 @@ Reasons = Annotated[
 _LOCALES: Final[Mapping[Language, str]] = MappingProxyType({"sr": "sr-Latn", "en": "en"})
 
 
+class SefSubmissions(BaseModel):
+    """Each time a stored invoice was sent to SEF, the newest first, with what SEF answered and
+    where the invoice stands in SEF, as SEF last said."""
+
+    submissions: list[Submission]
+
+
 class ProposedFix(BaseModel):
     """A repair proposed for a stored invoice, and the page where a person decides on it."""
 
@@ -150,6 +161,8 @@ PERMISSIONS: Final[Mapping[str, Permission]] = MappingProxyType(
         "get_repair": Permission.INVOICES_SUBMIT,
         "search_rules": Permission.INVOICES_VALIDATE,
         "get_rule": Permission.INVOICES_VALIDATE,
+        "send_to_sef_demo": Permission.INVOICES_SEND,
+        "get_sef_status": Permission.INVOICES_SUBMIT,
     }
 )
 
@@ -363,6 +376,49 @@ def register(server: MCPServer) -> None:
         ),
     )
     server.add_tool(
+        send_to_sef_demo,
+        name="send_to_sef_demo",
+        title="Send a stored e-invoice to SEF's demo environment",
+        description=(
+            "Send a stored invoice of the person's to SEF's demo environment "
+            "(demoefaktura.mfin.gov.rs) in their organization's name, with the organization's "
+            "key to SEF, which an owner sets. Call it only when the person has asked to send "
+            "this invoice: SEF keeps what it imports, and the buyer sees it. The stored "
+            "document is validated again under SRB-CIUS and sent byte for byte only when the "
+            "validator passes it. The answer is the submission: `imported`, with SEF's ids; "
+            "`refused`, with SEF's words and whether SEF refused the `invoice` or the "
+            "organization's `key`; or `unconfirmed`, when SEF gave no answer: calling again "
+            "asks SEF again with the same request id, so that SEF imports the invoice once. An "
+            "invoice SEF imported is not sent again. When nothing is sent, the error says why: "
+            "`invalid` (the validator does not pass it; propose_fix can help), `no-key` (an "
+            "owner sets the organization's key in the web application), `sent`, `unconfirmed` "
+            "or `changed`. get_sef_status reads later where the invoice stands in SEF."
+        ),
+        # Sent again, an invoice is asked about with the same request id, or refused as sent:
+        # SEF holds it once whatever the client repeats.
+        annotations=ToolAnnotations(
+            read_only_hint=False,
+            destructive_hint=False,
+            idempotent_hint=True,
+            open_world_hint=True,
+        ),
+    )
+    server.add_tool(
+        get_sef_status,
+        name="get_sef_status",
+        title="Read where a stored e-invoice stands in SEF",
+        description=(
+            "Each time a stored invoice of the person's was sent to SEF, the newest first: what "
+            "SEF answered, and where the invoice stands in SEF as SEF last said (`sef_status`: "
+            "`Sent`, `Approved`, `Rejected`, and so on, with the buyer's comment in `detail`). "
+            "The server asks SEF until the status is final, every minute at first and less "
+            "often as the invoice ages; this tool reads what SEF told it, and asks SEF nothing."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+        ),
+    )
+    server.add_tool(
         get_repair,
         name="get_repair",
         title="Read a repair of a stored e-invoice",
@@ -547,6 +603,26 @@ async def get_rule(
     async with database.sessions() as session:
         with as_tool_errors():
             return await about(session, rule_id, profile=profile, day=day)
+
+
+async def send_to_sef_demo(invoice_id: InvoiceId, context: Context) -> Submission:
+    """What ``POST /invoices/{invoice_id}/sef`` does: the stored invoice validated again under
+    SRB-CIUS and sent to SEF's demo environment in the organization's name, and SEF's answer."""
+    request, caller = admitted(context, Permission.INVOICES_SEND)
+    async with cast(Database, request.app.state.database).sessions() as session:
+        with as_tool_errors():
+            try:
+                return await send_stored(request, caller, session, invoice_id)
+            except NotSendableError as refused:
+                raise ToolError(f"not sent ({refused.reason}): {refused.detail}") from None
+
+
+async def get_sef_status(invoice_id: InvoiceId, context: Context) -> SefSubmissions:
+    """What ``GET /invoices/{invoice_id}/sef`` does."""
+    _, caller, database = _reading(context)
+    async with database.sessions() as session:
+        with as_tool_errors():
+            return SefSubmissions(submissions=await submissions_out(caller, session, invoice_id))
 
 
 def _looking_up(context: Context) -> tuple[Request, Principal, Database]:

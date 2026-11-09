@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Final
 
+import httpx
 import httpx2
 import pytest
 from fastapi import FastAPI
@@ -68,6 +69,8 @@ TOOLS: dict[str, tuple[Permission, dict[str, Any]]] = {
     ),
     "search_rules": (Permission.INVOICES_VALIDATE, {"query": "BR-01"}),
     "get_rule": (Permission.INVOICES_VALIDATE, {"rule_id": "BR-01"}),
+    "send_to_sef_demo": (Permission.INVOICES_SEND, {"invoice_id": str(uuid.uuid4())}),
+    "get_sef_status": (Permission.INVOICES_SUBMIT, {"invoice_id": str(uuid.uuid4())}),
 }
 
 #: What ``serving`` is given for a server without a language model.
@@ -125,11 +128,13 @@ async def serving(
     model: Any = None,
     embedder: Any = None,
     corpus: bool = False,
+    sef: httpx.AsyncBaseTransport | None = None,
     **variables: str,
 ) -> AsyncIterator[Served]:
     """The application with ``variables`` set, running, on a database with Primer's office and,
     if asked, the repository's corpus; explaining with ``model``, a stand-in that quotes the
-    passages unless another is given, and with ``embedder`` if one is."""
+    passages unless another is given, and with ``embedder`` if one is; speaking to SEF through
+    ``sef`` if given, from before it starts, so that its watching does too."""
     async with database.sessions() as setup:
         if corpus:
             await store_corpus(setup, repository_corpus())
@@ -139,6 +144,9 @@ async def serving(
     app = create_app(settings_for(database_url, **variables))
     app.state.explainer = None if model is NO_MODEL else Explainer(model or QuotingModel())
     app.state.embedder = embedder
+    if sef is not None:
+        await app.state.sef_http.aclose()
+        app.state.sef_http = httpx.AsyncClient(transport=sef)
     async with running(app):
         yield Served(app, primer, key)
 
@@ -350,7 +358,12 @@ def test_the_endpoint_knows_what_each_tool_requires() -> None:
     assert dict(tools.PERMISSIONS) == {name: needed for name, (needed, _) in TOOLS.items()}
 
 
-@pytest.mark.parametrize("name", sorted(TOOLS))
+#: The tools whose permission a key may hold: sending to SEF is not yet a key's, and
+#: ``test_mcp_sef.py`` checks it through an assistant its person allowed.
+BY_KEY = sorted(name for name, (needed, _) in TOOLS.items() if needed in KEY_PERMISSIONS)
+
+
+@pytest.mark.parametrize("name", BY_KEY)
 async def test_each_tool_requires_its_permission(
     name: str, served: Served, committed_database: Database
 ) -> None:

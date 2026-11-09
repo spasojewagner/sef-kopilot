@@ -30,6 +30,10 @@ is tagged.
 - `apps/web`: the consent page names apart what the person's role withholds, which approving
   does not give the client, and lets them only deny a client whose every scope it withholds;
   sending to SEF has its words in Serbian and English.
+- `apps/api`: the MCP tools `send_to_sef_demo`, which sends a stored invoice of the person's to
+  SEF's demo environment as `POST /invoices/{id}/sef` does, and `get_sef_status`, which reads
+  where it stands in SEF as `GET /invoices/{id}/sef` does; the server's instructions tell an
+  assistant to send only when its person asks.
 
 ### Security
 

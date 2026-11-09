@@ -628,10 +628,15 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   | `get_repair` | `invoices:submit` | `GET /invoices/{invoice_id}/repairs/{repair_id}`: a repair, whether it waits for a decision or was approved or rejected |
   | `search_rules` | `invoices:validate` | `GET /rules`: the rules of a profile by id, business term or words, and the passages that share the words |
   | `get_rule` | `invoices:validate` | `GET /rules/{rule_id}`: a rule and the passages an explanation of it would cite on a day |
+  | `send_to_sef_demo` | `invoices:send` | `POST /invoices/{invoice_id}/sef`: a stored invoice validated again under SRB-CIUS and sent to SEF's demo environment in the organization's name, once; the answer is the submission as SEF answered it, and a reason (`invalid`, `no-key`, `sent`, `unconfirmed`, `changed`) when nothing was sent |
+  | `get_sef_status` | `invoices:submit` | `GET /invoices/{invoice_id}/sef`: each sending of a stored invoice, with what SEF answered and where the invoice stands in SEF as SEF last said; SEF is not asked |
 
   An assistant's scopes match: `invoices:validate` for the tools that validate and look rules
-  up, `invoices:submit` for those on stored invoices. No scope reaches every invoice of the organization (`invoices:manage`): through an
-  assistant, a person sees the invoices they submitted.
+  up, `invoices:submit` for those on stored invoices, `invoices:send` for sending to SEF, which
+  a client is not told to ask for first and asks for through the step-up when its assistant
+  first sends (ADR-0052). The server's instructions tell the assistant to send only when the
+  person asks. No scope reaches every invoice of the organization (`invoices:manage`): through
+  an assistant, a person sees, and sends, the invoices they submitted.
 - **Asking for more (step-up):** every tool is listed, whatever a token's scopes. A call
   through an MCP client of a tool its scopes do not reach, which the person's role would
   allow, is answered 403 before the tool runs, with `WWW-Authenticate: Bearer

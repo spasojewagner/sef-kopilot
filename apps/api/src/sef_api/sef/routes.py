@@ -120,6 +120,15 @@ async def send_invoice(
 ) -> Submission:
     # What SEF answers may quote the invoice.
     response.headers["Cache-Control"] = "no-store"
+    return await send_stored(request, caller, session, invoice_id)
+
+
+async def send_stored(
+    request: Request, caller: Principal, session: AsyncSession, invoice_id: uuid.UUID
+) -> Submission:
+    """What ``POST /invoices/{invoice_id}/sef`` does, for the route and the MCP tool: the
+    invoice the caller may see validated again and sent, and the submission as SEF answered.
+    A :class:`NotSendableError` says why it was not sent; an HTTP error, as the route answers."""
     scope = scope_of(caller)
     invoice = await store.find(session, scope, invoice_id)
     document = await store.content_of(session, scope, invoice_id)
@@ -159,6 +168,14 @@ async def list_submissions(
     invoice_id: uuid.UUID, response: Response, caller: CanRead, session: Session
 ) -> list[Submission]:
     response.headers["Cache-Control"] = "no-store"
+    return await submissions_out(caller, session, invoice_id)
+
+
+async def submissions_out(
+    caller: Principal, session: AsyncSession, invoice_id: uuid.UUID
+) -> list[Submission]:
+    """What ``GET /invoices/{invoice_id}/sef`` answers, for the route and the MCP tool: each
+    sending of an invoice the caller may see, the newest first."""
     if await store.find(session, scope_of(caller), invoice_id) is None:
         raise _not_found()
     return [
