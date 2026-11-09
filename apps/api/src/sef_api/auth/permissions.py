@@ -47,11 +47,16 @@ class Permission(StrEnum):
     and set or remove its key to SEF."""
 
 
-#: What an API key may be allowed: the work on invoices that machine clients do. A key
-#: administers no one and issues no keys, so that a leaked key can neither let anyone in nor
-#: outlive its own revocation.
+#: What an API key may be allowed: the work on invoices that machine clients do, an ERP's
+#: sending them to SEF included. A key administers no one and issues no keys, so that a leaked
+#: key can neither let anyone in nor outlive its own revocation.
 KEY_PERMISSIONS: Final[frozenset[Permission]] = frozenset(
-    {Permission.INVOICES_VALIDATE, Permission.INVOICES_SUBMIT, Permission.INVOICES_MANAGE}
+    {
+        Permission.INVOICES_VALIDATE,
+        Permission.INVOICES_SUBMIT,
+        Permission.INVOICES_MANAGE,
+        Permission.INVOICES_SEND,
+    }
 )
 
 

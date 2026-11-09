@@ -13,11 +13,12 @@ import httpx
 import pytest
 from sqlalchemy import delete, select
 
+from sef_api.auth.permissions import Permission
 from sef_api.db import Database
 from sef_api.models import AuditAction, AuditEvent, SefKey, User
 
 from .factories import sef_key, stored_invoice
-from .test_mcp import POSTED, Served, asking, initialize, serving, text_of
+from .test_mcp import POSTED, Served, asking, initialize, key_with, serving, text_of
 from .test_mcp import connected as connected_by_key
 from .test_mcp_oauth import METADATA, bearer, connected, signed_in
 from .test_oauth_authorization import SERVER
@@ -197,9 +198,10 @@ async def test_a_client_not_yet_allowed_to_send_is_asked_to_step_up(
 async def test_whom_asking_again_could_not_help_gets_the_tools_error(
     served: Served, committed_database: Database, sef: FakeSef
 ) -> None:
-    """A client of the office may not send, whatever its assistant asks; nor may an API key,
-    which cannot hold the permission. The permission is checked first: the invoice, which the
-    validator would not pass, is not validated for a caller who may not send it."""
+    """A client of the office may not send, whatever its assistant asks, nor with a key that
+    holds every permission a key may: what a key allows is bounded by its member's role. The
+    permission is checked first: the invoice, which the validator would not pass, is not
+    validated for a caller who may not send it."""
     invoice_id = await kept(committed_database, served, served.primer.client, INVALID)
     tokens = await signed_in(served, scope="invoices:submit invoices:send")
 
@@ -214,6 +216,35 @@ async def test_whom_asking_again_could_not_help_gets_the_tools_error(
             "Error executing tool send_to_sef_demo: requires the permission invoices:send"
         )
     assert sef.asked == []
+
+
+async def test_an_erps_key_of_an_accountant_sends_through_the_tool(
+    served: Served, committed_database: Database, sef: FakeSef
+) -> None:
+    """A machine client sends with a key that holds the permission, as the route lets it; the
+    audit log names the key."""
+    invoice_id = await kept(committed_database, served, served.primer.accountant)
+    key = await key_with(
+        committed_database,
+        served,
+        Permission.INVOICES_SUBMIT,
+        Permission.INVOICES_SEND,
+        holder=served.primer.accountant,
+    )
+
+    async with connected_by_key(served.app, key) as client:
+        sent = await client.call_tool("send_to_sef_demo", {"invoice_id": invoice_id})
+
+    assert not sent.is_error, text_of(sent)
+    assert sent.structured_content is not None
+    assert sent.structured_content["state"] == "imported"
+    assert len(sef.asked) == 1
+    async with committed_database.sessions() as session:
+        event = await session.scalar(
+            select(AuditEvent).where(AuditEvent.action == AuditAction.SEF_INVOICE_SENT)
+        )
+    assert event is not None
+    assert (event.key_id, event.oauth_client_id) == (key.row.id, None)
 
 
 async def test_a_client_is_told_that_sending_reaches_outside_and_may_be_repeated(

@@ -127,6 +127,7 @@ Endpoints ask for a permission; a member's role grants permissions (ADR-0013):
 | `invoices:validate`: have an invoice checked by the validator | yes | yes | yes |
 | `invoices:submit`: store invoices, and read and delete the ones submitted oneself | yes | yes | yes |
 | `invoices:manage`: read and delete every invoice the organization stores | yes | yes | no |
+| `invoices:send`: send the organization's stored invoices to SEF, in its name | yes | yes | no |
 | `api_keys:issue`: issue API keys that act for oneself, see and revoke one's own | yes | yes | yes |
 | `api_keys:manage`: see and revoke every API key of the organization | yes | no | no |
 | `organization:read`: see the organization and how long it keeps its invoices | yes | yes | yes |
@@ -189,10 +190,12 @@ does not open, changes nothing; then remove the old key.
 ## Sending an invoice to SEF
 
 An owner or an accountant (`invoices:send`) sends a stored invoice to SEF's demo environment
-(`SEF_DEMO_BASE_URL`) with the organization's key (ADR-0051):
+(`SEF_DEMO_BASE_URL`) with the organization's key (ADR-0051), in person or through an ERP with an
+API key of theirs that holds `invoices:send` (ADR-0053):
 
 ```bash
 curl -s -X POST localhost:8000/invoices/$INVOICE_ID/sef -H "Authorization: Bearer $ACCESS_TOKEN"
+curl -s -X POST localhost:8000/invoices/$INVOICE_ID/sef -H "Authorization: Bearer $API_KEY"
 ```
 
 The document is validated again under SRB-CIUS and sent, byte for byte, only when the validator
@@ -426,9 +429,11 @@ curl -s localhost:8000/invoices -H "Authorization: Bearer $API_KEY"
 
 - A key is `sefk_` and 43 characters. The database keeps its SHA-256 digest, and lists show
   its first 12 characters. A rule in `.gitleaks.toml` recognizes a key pasted into a file.
-- A key may hold `invoices:validate`, `invoices:submit` and `invoices:manage`, each only if the
-  member's role grants it. On every request it allows only what it holds and the member's role
-  grants at that moment. A key administers no members and issues no keys.
+- A key may hold `invoices:validate`, `invoices:submit`, `invoices:manage` and `invoices:send`,
+  each only if the member's role grants it: an owner's or an accountant's key may send the
+  invoices it may see to SEF, and the audit log names the key that sent (ADR-0053). On every
+  request it allows only what it holds and the member's role grants at that moment. A key
+  administers no members and issues no keys.
 - `GET /api-keys` lists the keys that work, the newest first, without the keys themselves,
   each with when a request last came with it (`last_used_at`, written at most once a minute,
   null if never), so that a key no machine uses any more can go; `DELETE /api-keys/{id}`

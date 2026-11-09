@@ -188,6 +188,39 @@ def test_undoing_0012_forgets_the_periods_and_the_events_that_recorded_them(
     assert "invoice_retention_days" not in columns
 
 
+def test_undoing_0022_takes_sending_from_every_key_and_revokes_one_that_only_sent(
+    empty_database_url: str,
+) -> None:
+    """The earlier schema has no permission to send: a key keeps what else it holds, and a key
+    that only sent stops working, holding a permission the schema knows."""
+    config = alembic_config(empty_database_url)
+    command.upgrade(config, "0022")
+    keys = "INSERT INTO api_keys (organization_id, user_id, name, prefix, digest, permissions)"
+    asyncio.run(
+        run(
+            empty_database_url,
+            "INSERT INTO organizations (name) VALUES ('Primer')",
+            "INSERT INTO users (email, password_hash) VALUES ('ana@primer.example', 'x')",
+            "INSERT INTO memberships (organization_id, user_id, role)"
+            " SELECT organizations.id, users.id, 'owner' FROM organizations, users",
+            f"{keys} SELECT organization_id, user_id, 'ERP', 'sefk_a', 'a',"
+            " ARRAY['invoices:submit', 'invoices:send'] FROM memberships",
+            f"{keys} SELECT organization_id, user_id, 'Sender', 'sefk_b', 'b',"
+            " ARRAY['invoices:send'] FROM memberships",
+        )
+    )
+
+    command.downgrade(config, "0021")
+
+    assert asyncio.run(
+        run(
+            empty_database_url,
+            "SELECT name || ' ' || array_to_string(permissions, ',') || ' '"
+            " || (revoked_at IS NOT NULL) FROM api_keys ORDER BY name",
+        )
+    ) == ["ERP invoices:submit false", "Sender invoices:validate true"]
+
+
 def test_the_revision_ids_are_sequence_numbers() -> None:
     config = alembic_config("postgresql+asyncpg://reviewer@localhost/sef")
     revisions = [script.revision for script in ScriptDirectory.from_config(config).walk_revisions()]

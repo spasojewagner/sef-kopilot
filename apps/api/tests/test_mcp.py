@@ -167,10 +167,14 @@ async def connected(app: FastAPI, key: Key) -> AsyncIterator[Client]:
         yield client
 
 
-async def key_with(database: Database, served: Served, *permissions: Permission) -> Key:
-    """Another key of Primer's client, holding ``permissions``."""
+async def key_with(
+    database: Database, served: Served, *permissions: Permission, holder: User | None = None
+) -> Key:
+    """Another key of Primer's client, or of ``holder``, holding ``permissions``."""
     async with database.sessions() as setup:
-        key = await api_key(setup, served.primer.organization, served.primer.client, *permissions)
+        key = await api_key(
+            setup, served.primer.organization, holder or served.primer.client, *permissions
+        )
         await setup.commit()
     return key
 
@@ -358,18 +362,17 @@ def test_the_endpoint_knows_what_each_tool_requires() -> None:
     assert dict(tools.PERMISSIONS) == {name: needed for name, (needed, _) in TOOLS.items()}
 
 
-#: The tools whose permission a key may hold: sending to SEF is not yet a key's, and
-#: ``test_mcp_sef.py`` checks it through an assistant its person allowed.
-BY_KEY = sorted(name for name, (needed, _) in TOOLS.items() if needed in KEY_PERMISSIONS)
-
-
-@pytest.mark.parametrize("name", BY_KEY)
+@pytest.mark.parametrize("name", sorted(TOOLS))
 async def test_each_tool_requires_its_permission(
     name: str, served: Served, committed_database: Database
 ) -> None:
+    """Keys of the accountant, whose role grants every permission a key may hold."""
     permission, arguments = TOOLS[name]
-    lacking = await key_with(committed_database, served, *sorted(KEY_PERMISSIONS - {permission}))
-    holding = await key_with(committed_database, served, permission)
+    accountant = served.primer.accountant
+    lacking = await key_with(
+        committed_database, served, *sorted(KEY_PERMISSIONS - {permission}), holder=accountant
+    )
+    holding = await key_with(committed_database, served, permission, holder=accountant)
 
     async with connected(served.app, lacking) as client:
         refused = await client.call_tool(name, arguments)

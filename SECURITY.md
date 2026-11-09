@@ -201,7 +201,10 @@ system are marked as such.
       another member's answers 404, as another organization's does (tested per role).
 - [x] An API key allows what it holds and its member's role grants at that moment, both. A key
       holds only permissions for work on invoices, so it administers no one and issues no keys;
-      every guarded endpoint has a cross-tenant case with another organization's key.
+      every guarded endpoint has a cross-tenant case with another organization's key. A key
+      that sends to SEF is an owner's or an accountant's, holds `invoices:send` by choice, is
+      named in the audit log for each sending, and stops at its revocation or its member's
+      demotion (tested; ADR-0053).
 - [x] An upload that outlasts its permission check is checked again before it is stored: a
       member removed, or an API key revoked, during the validation stores nothing.
 - [x] A validation's answer reaches only its own request: the validator's turns end whole

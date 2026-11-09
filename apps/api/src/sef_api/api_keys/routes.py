@@ -23,7 +23,7 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 CanIssue = Annotated[Principal, Depends(require(Permission.API_KEYS_ISSUE))]
 
 #: The permissions a key may hold (``KEY_PERMISSIONS``), as the API spells them.
-KeyPermission = Literal["invoices:validate", "invoices:submit", "invoices:manage"]
+KeyPermission = Literal["invoices:validate", "invoices:submit", "invoices:manage", "invoices:send"]
 KeyName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 
 

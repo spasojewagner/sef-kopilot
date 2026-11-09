@@ -44,12 +44,12 @@ def test_owners_and_accountants_read_every_stored_invoice_and_clients_their_own(
     ]
 
 
-def test_owners_and_accountants_send_invoices_to_sef_and_no_key_may_yet() -> None:
+def test_owners_and_accountants_send_invoices_to_sef_and_so_may_their_keys() -> None:
     assert [role for role in Role if Permission.INVOICES_SEND in ROLE_PERMISSIONS[role]] == [
         Role.OWNER,
         Role.ACCOUNTANT,
     ]
-    assert Permission.INVOICES_SEND not in KEY_PERMISSIONS
+    assert Permission.INVOICES_SEND in KEY_PERMISSIONS
 
 
 def test_only_owners_manage_members() -> None:
@@ -86,6 +86,7 @@ def test_a_key_may_hold_only_permissions_for_work_on_invoices() -> None:
         Permission.INVOICES_VALIDATE,
         Permission.INVOICES_SUBMIT,
         Permission.INVOICES_MANAGE,
+        Permission.INVOICES_SEND,
     }
     assert set(get_args(KeyPermission)) == {permission.value for permission in KEY_PERMISSIONS}
 
