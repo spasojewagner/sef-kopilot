@@ -2575,3 +2575,27 @@ ruff, mypy, eslint, tsc; each commit checked on its own.
 
 Next: `invoices:send` among the permissions an API key may hold, for an ERP that sends its
 invoices (`feat/api-keys-send-to-sef`).
+
+## 2026-11-09 — `feat/api-keys-send-to-sef` (4 commits, stacked on `feat/mcp-send-to-sef`)
+
+Outcome: an API key may hold `invoices:send`, so that an ERP sends its organization's invoices
+to SEF with an owner's or an accountant's key, through the route or the MCP tool; the keys page
+offers it to them, unticked (ADR-0053, migration 0022).
+
+Findings:
+
+- The fault seeding of the branch before showed the tool's own permission check hidden behind
+  the sending's check under the lock: both refuse with the same words. The test now sends an
+  invoice the validator would not pass, which a late check would report as invalid instead.
+- The MCP tests issued every key to the office's client, whose role granted all a key could
+  hold; with sending, they issue the accountant's.
+- Alembic's autogenerate does not compare CHECK constraints: a fault seeded into the model's
+  list of permissions a key may hold went unseen while migration 0022 changed the table. The
+  models now build a database of their own, and the checks PostgreSQL writes back for both
+  compare.
+
+Verification: the API's tests, the whole suite; the web application's tests, build and
+end-to-end test; the seeded faults, each caught after a clean baseline (see the pull request);
+ruff, mypy, eslint, tsc; each commit checked on its own; the migration undone and applied again.
+
+Next: the organization's page, where an owner sets the key to SEF (`feat/web-sef-key`).
