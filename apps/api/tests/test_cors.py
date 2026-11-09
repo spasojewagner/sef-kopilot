@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 
 from httpx import ASGITransport, AsyncClient
 
-from sef_api.cors import CORS_MAX_AGE_SECONDS
+from sef_api.cors import CORS_MAX_AGE_SECONDS, CORS_METHODS
 from sef_api.main import create_app
 
 from .conftest import settings_for
@@ -43,6 +43,7 @@ async def test_a_page_of_the_web_origin_is_told_what_it_may_send() -> None:
     assert set(answer.headers["Access-Control-Allow-Methods"].split(", ")) == {
         "GET",
         "POST",
+        "PUT",
         "PATCH",
         "DELETE",
     }
@@ -52,6 +53,16 @@ async def test_a_page_of_the_web_origin_is_told_what_it_may_send() -> None:
     assert {"authorization", "content-type", "last-event-id"} <= allowed
     assert answer.headers["Access-Control-Max-Age"] == str(CORS_MAX_AGE_SECONDS)
     assert "Access-Control-Allow-Credentials" not in answer.headers
+
+
+def test_a_page_may_send_every_method_the_routes_answer() -> None:
+    """A method the routes answer and a page may not send is a route the web application cannot
+    call: setting the organization's key to SEF with PUT was one."""
+    paths = create_app(settings_for()).openapi()["paths"]
+    answered = {method.upper() for operations in paths.values() for method in operations}
+
+    assert "PUT" in answered
+    assert answered <= set(CORS_METHODS)
 
 
 async def test_a_page_of_the_web_origin_may_read_the_answer_and_its_headers() -> None:

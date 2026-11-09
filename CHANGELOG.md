@@ -39,6 +39,11 @@ is tagged.
   (ADR-0053, migration 0022).
 - `apps/web`: the API keys page offers sending to SEF to owners and accountants.
 
+### Fixed
+
+- `apps/api`: a page of the web application may send PUT, with which an owner sets the
+  organization's key to SEF: the browser refused the request before it reached the API.
+
 ### Security
 
 - `apps/api`: a request that the API's models refuse is answered 422 with where and why, and
