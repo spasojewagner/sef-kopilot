@@ -28,7 +28,7 @@ __all__ = [
 #: headers its requests carry (the token, the body's type, where an event stream stopped), and
 #: the headers of an answer it may read (where a new resource is, how long to wait). No
 #: credentials: a page sends its token in a header, never in a cookie.
-CORS_METHODS: Final = ("GET", "POST", "PATCH", "DELETE")
+CORS_METHODS: Final = ("GET", "POST", "PUT", "PATCH", "DELETE")
 CORS_REQUEST_HEADERS: Final = ("Authorization", "Content-Type", "Last-Event-ID")
 CORS_RESPONSE_HEADERS: Final = ("Location", "Retry-After")
 #: What a page of any origin may send to the authorization server's public endpoints: a form or

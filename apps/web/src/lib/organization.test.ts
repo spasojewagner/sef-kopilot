@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deletesInvoices, storedBefore } from "./organization";
+import { deletesInvoices, isSefKey, storedBefore } from "./organization";
 
 describe("A change of the period", () => {
   it.each([
@@ -19,5 +19,21 @@ describe("A change of the period", () => {
     expect(storedBefore(90, new Date("2026-11-07T12:00:00Z"))).toEqual(
       new Date("2026-08-09T12:00:00Z"),
     );
+  });
+});
+
+describe("A key to SEF", () => {
+  it.each([
+    ["4711-4711", true],
+    ["  4711-4711-4711-4711 ", true],
+    ["a".repeat(200), true],
+    ["4711-47", false],
+    ["a".repeat(201), false],
+    ["4711 4711 4711", false],
+    ["ključ-4711-4711", false],
+    ["4711\t4711\t4711", false],
+    ["", false],
+  ])("%j may be one: %s", (written, may) => {
+    expect(isSefKey(written)).toBe(may);
   });
 });

@@ -134,11 +134,18 @@ one, or none, is saved at once. When the page cannot know whether the period was
 reads it again; when the API refuses an owner who is one no longer, the page says so and shows
 the role the API now reports.
 
+Every member sees there since when the organization has a key to SEF, the API key of its SEF
+demo account with which the API sends its invoices (ADR-0050). The owner sets it there, in a
+password field that forgets it once it is saved, since the API never shows it again; a key that
+cannot be one, fewer than 8 or more than 200 visible characters or with a space, is not sent.
+A key replaces the one the organization had, and is removed only after a second press that says
+nothing will be sent to SEF without one and that SEF's own key stays as it is.
+
 The same page holds the member's API keys, for the machines that act for them, an ERP say
 (ADR-0017): each key's name, its first characters, what it allows, when a request last came
 with it and when it stops working. A new key is named, given some of the permissions the
-member's role grants (every invoice of the organization only to an owner or an accountant)
-and, if it should, a last day; it is shown once, with a button that copies it, until the
+member's role grants (every invoice of the organization, and sending to SEF, only to an owner
+or an accountant) and, if it should, a last day; it is shown once, with a button that copies it, until the
 member says they have kept it. A key is revoked only after a second press that says the machine
 loses access at once.
 

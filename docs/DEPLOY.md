@@ -179,8 +179,10 @@ SEF API key, which the API keeps sealed under a secret of its own (ADR-0050).
 2. Render > the API > **Environment**: `SEF_FERNET_KEY`, that value, which redeploys the
    service. Without it, setting a key answers 503; with a value that is no Fernet key, the API
    does not start and says so.
-3. Check: as an owner, `PUT /organization/sef-key` answers 200, and `GET /organization` shows
-   `sef_key_set_at`.
+3. As the organization's owner, on the web application's organization page, **Key to SEF**:
+   paste the API key of the organization's SEF demo account (SEF > settings > API management)
+   and save it. Check: the page says since when a key is set (`PUT /organization/sef-key`
+   answered 200, and `GET /organization` shows `sef_key_set_at`).
 4. Send a synthetic invoice that the validator passes: `POST /invoices/{id}/sef` answers 201,
    `imported`, with SEF's ids, and within a few minutes `GET /invoices/{id}/sef` shows where it
    stands in SEF (`sef_status`). The API speaks to SEF's demo environment
