@@ -495,6 +495,51 @@
         "failed": "The key was not changed. Try again a little later."
       }
     },
+    "modelKey": {
+      "title": "Language model",
+      "description": "The model that writes your organization's explanations and proposes its repairs: the server's, or, with a key of your own, your provider's model, under your contract with it. The key is kept sealed and never shown to anyone again.",
+      "servers": "The server's model writes the organization's explanations and repairs.",
+      "own": "{provider}, model {model}, writes the organization's explanations and repairs, with the organization's own key, set on {moment}.",
+      "defaultModel": "its default",
+      "ownersOnly": "The organization's owner chooses the model.",
+      "provider": "Provider",
+      "providers": {
+        "groq": "Groq",
+        "openai": "OpenAI",
+        "anthropic": "Anthropic"
+      },
+      "model": "Model (optional)",
+      "defaults": {
+        "groq": "openai/gpt-oss-120b",
+        "openai": "gpt-6-luna",
+        "anthropic": "claude-haiku-5-5"
+      },
+      "modelHint": "Leave it empty for the provider's default. The model must support structured outputs.",
+      "label": "API key from the provider",
+      "newLabel": "New API key from the provider",
+      "hint": "Create it in your account with the provider. It is not tried when you save it: a key the provider refuses shows on the first explanation. Once you save it, not even you will see it here again.",
+      "save": "Save the model key",
+      "replace": "Replace the model key",
+      "saving": "Saving…",
+      "saved": "The key is saved: your provider's model writes from now on.",
+      "remove": "Remove the model key",
+      "confirmRemove": "Without the key, the server's model writes your organization's explanations and repairs, or nothing does if the server has none. The key stays valid with the provider: revoke it there. Remove the key?",
+      "removeNow": "Yes, remove the model key",
+      "cancel": "Cancel",
+      "removed": "The key is removed: the server's model writes from now on.",
+      "errors": {
+        "invalid": "An API key is 8 to 300 visible characters, without spaces.",
+        "invalidModel": "A model's name begins with a letter or a digit, and holds only letters, digits and . _ : / -",
+        "refused": "The API refused what was sent: check the provider, the model and the key.",
+        "signedOut": "The session has expired. Sign in again.",
+        "forbidden": "The key was not changed: you are no longer the organization's owner.",
+        "tooMany": "Too many requests. Try again in {seconds} s.",
+        "unavailable": "This server cannot keep keys to a model: an administrator has to set SEF_FERNET_KEY.",
+        "unreachable": "The API does not answer. The organization is being read again: check the model before you try again.",
+        "uncertain": "The API gave no clear answer. The organization has been read again: check the model before you try again.",
+        "failed": "The key was not changed. Try again a little later."
+      }
+    },
     "keys": {
       "title": "API keys",
       "description": "A key is for a machine that acts for you, such as an ERP: it sends invoices to be checked and stores them, with the permissions of yours you give it. A key is shown only once, when it is issued.",

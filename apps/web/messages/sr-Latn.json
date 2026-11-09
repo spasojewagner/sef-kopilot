@@ -495,6 +495,51 @@
         "failed": "Ključ nije promenjen. Pokušajte ponovo malo kasnije."
       }
     },
+    "modelKey": {
+      "title": "Jezički model",
+      "description": "Model koji piše objašnjenja vaše organizacije i predlaže njene ispravke: model servera ili, sa vašim ključem, model vašeg dobavljača, po vašem ugovoru sa njim. Ključ se čuva zaključan i više se nikome ne prikazuje.",
+      "servers": "Objašnjenja i ispravke organizacije piše model servera.",
+      "own": "Objašnjenja i ispravke organizacije piše {provider}, model {model}, sa ključem organizacije postavljenim {moment}.",
+      "defaultModel": "podrazumevani",
+      "ownersOnly": "Model bira vlasnik organizacije.",
+      "provider": "Dobavljač",
+      "providers": {
+        "groq": "Groq",
+        "openai": "OpenAI",
+        "anthropic": "Anthropic"
+      },
+      "model": "Model (nije obavezno)",
+      "defaults": {
+        "groq": "openai/gpt-oss-120b",
+        "openai": "gpt-6-luna",
+        "anthropic": "claude-haiku-5-5"
+      },
+      "modelHint": "Ostavite prazno za podrazumevani model dobavljača. Model mora da podržava strukturisane odgovore.",
+      "label": "API ključ dobavljača",
+      "newLabel": "Novi API ključ dobavljača",
+      "hint": "Napravite ga na svom nalogu kod dobavljača. Ne proverava se pri čuvanju: ključ koji dobavljač odbije vidi se na prvom objašnjenju. Kad ga sačuvate, ni vi ga ovde više nećete videti.",
+      "save": "Sačuvaj ključ za model",
+      "replace": "Zameni ključ za model",
+      "saving": "Čuvanje…",
+      "saved": "Ključ je sačuvan: od sada piše model vašeg dobavljača.",
+      "remove": "Ukloni ključ za model",
+      "confirmRemove": "Bez ključa objašnjenja i ispravke vaše organizacije piše model servera, ili niko ako ga server nema. Ključ ostaje važeći kod dobavljača: opozovite ga tamo. Ukloniti ključ?",
+      "removeNow": "Da, ukloni ključ za model",
+      "cancel": "Odustani",
+      "removed": "Ključ je uklonjen: od sada piše model servera.",
+      "errors": {
+        "invalid": "API ključ ima od 8 do 300 vidljivih znakova, bez razmaka.",
+        "invalidModel": "Naziv modela počinje slovom ili cifrom i sadrži samo slova, cifre i . _ : / -",
+        "refused": "API je odbio ono što je poslato: proverite dobavljača, model i ključ.",
+        "signedOut": "Sesija je istekla. Prijavite se ponovo.",
+        "forbidden": "Ključ nije promenjen: više niste vlasnik organizacije.",
+        "tooMany": "Previše zahteva. Pokušajte ponovo za {seconds} s.",
+        "unavailable": "Ovaj server ne može da čuva ključeve za model: administrator treba da postavi SEF_FERNET_KEY.",
+        "unreachable": "API ne odgovara. Organizacija se ponovo čita: proverite model pre nego što pokušate ponovo.",
+        "uncertain": "API nije dao jasan odgovor. Organizacija je ponovo pročitana: proverite model pre nego što pokušate ponovo.",
+        "failed": "Ključ nije promenjen. Pokušajte ponovo malo kasnije."
+      }
+    },
     "keys": {
       "title": "API ključevi",
       "description": "Ključ služi mašini koja radi za vas, na primer ERP-u: šalje fakture na proveru i čuva ih, sa onim od vaših dozvola koje mu date. Ključ se vidi samo jednom, kada se izda.",

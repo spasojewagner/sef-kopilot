@@ -2,8 +2,8 @@ import type { Schemas } from "@/lib/api";
 import { authorized } from "@/lib/session";
 
 /**
- * The visitor's organization: its name, how long it keeps its stored invoices, and since when it
- * has a key to SEF.
+ * The visitor's organization: its name, how long it keeps its stored invoices, since when it has
+ * a key to SEF, and whose language model writes for it.
  */
 export type Organization = Schemas["OrganizationSettings"];
 
@@ -73,4 +73,58 @@ export function setSefKey(apiKey: string): Promise<SefKeyState> {
 /** Removes the organization's key to SEF; only an owner may. */
 export function removeSefKey(): Promise<void> {
   return authorized<void>("/organization/sef-key", { method: "DELETE" });
+}
+
+/** Whose model writes, as setting the organization's own key answers. */
+export type ModelKeyState = Schemas["ModelKeyState"];
+
+/** What an owner sends to set the organization's own key to a model. */
+export type ModelKeyChange = Schemas["ModelKeyChange"];
+
+/** A provider whose model may write for the organization. */
+export type ModelProvider = ModelKeyState["provider"];
+
+/** The providers an owner chooses from, in the order the API names them. */
+export const MODEL_PROVIDERS: readonly ModelProvider[] = [
+  "groq",
+  "openai",
+  "anthropic",
+];
+
+/** The characters a key to a model may hold, as the API accepts it: visible ASCII, no spaces. */
+const MODEL_KEY = /^[\x21-\x7e]{8,300}$/;
+
+/** A model's name, as the API accepts it. */
+const MODEL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/;
+
+/** Whether ``text``, without the spaces around it, may be a key to a model, as the API checks it. */
+export function isModelKey(text: string): boolean {
+  return MODEL_KEY.test(text.trim());
+}
+
+/** Whether ``text``, without the spaces around it, may name a provider's model. */
+export function isModelName(text: string): boolean {
+  return MODEL_NAME.test(text.trim());
+}
+
+/**
+ * Sets the organization's own key to a model in place of the one it had, with the provider and,
+ * if named, the model; only an owner may. The key is sent once, without the spaces around it, and
+ * never read back: the API keeps it sealed.
+ */
+export function setModelKey(change: ModelKeyChange): Promise<ModelKeyState> {
+  return authorized<ModelKeyState>("/organization/model-key", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      provider: change.provider,
+      model: change.model?.trim() || null,
+      api_key: change.api_key.trim(),
+    }),
+  });
+}
+
+/** Removes the organization's own key to a model; only an owner may. */
+export function removeModelKey(): Promise<void> {
+  return authorized<void>("/organization/model-key", { method: "DELETE" });
 }

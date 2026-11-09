@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { deletesInvoices, isSefKey, storedBefore } from "./organization";
+import {
+  deletesInvoices,
+  isModelKey,
+  isModelName,
+  isSefKey,
+  storedBefore,
+} from "./organization";
 
 describe("A change of the period", () => {
   it.each([
@@ -35,5 +41,35 @@ describe("A key to SEF", () => {
     ["", false],
   ])("%j may be one: %s", (written, may) => {
     expect(isSefKey(written)).toBe(may);
+  });
+});
+
+describe("A key to a model", () => {
+  it.each([
+    ["own_4711-4711", true],
+    ["  own-model-key-4711 ", true],
+    ["a".repeat(300), true],
+    ["4711-47", false],
+    ["a".repeat(301), false],
+    ["a key with spaces", false],
+    ["ključ-4711-4711", false],
+  ])("%j may be one: %s", (written, may) => {
+    expect(isModelKey(written)).toBe(may);
+  });
+});
+
+describe("A model's name", () => {
+  it.each([
+    ["claude-haiku-5-5", true],
+    ["openai/gpt-oss-120b", true],
+    [" gpt-6-luna ", true],
+    ["llama3.3:70b", true],
+    ["m".repeat(200), true],
+    ["m".repeat(201), false],
+    ["-dash-first", false],
+    ["gpt 6", false],
+    ["", false],
+  ])("%j may be one: %s", (written, may) => {
+    expect(isModelName(written)).toBe(may);
   });
 });
