@@ -1,6 +1,7 @@
 import type { Explained } from "@/lib/explanations";
 import type { Invoice, StoredInvoice } from "@/lib/invoices";
 import type { ListedRepair } from "@/lib/repairs";
+import type { Submission } from "@/lib/sef";
 import { type Asked, json, stubApi } from "@/test/api";
 
 /** An invoice as the API lists it, with ``changes`` of the test's own. */
@@ -142,16 +143,18 @@ export function explained(changes: Partial<Explained> = {}): Explained {
 }
 
 /**
- * An API as an invoice's report finds it: the stored invoice ``stored`` and its ``repairs``,
- * and ``other`` for anything else; what it was asked is returned.
+ * An API as an invoice's report finds it: the stored invoice ``stored``, its ``repairs`` and its
+ * ``submissions`` to SEF, and ``other`` for anything else; what it was asked is returned.
  */
 export function stubReportApi({
   stored = storedInvoice(),
   repairs = [],
+  submissions = [],
   other = () => json(404, { detail: "not found" }),
 }: {
   stored?: StoredInvoice;
   repairs?: ListedRepair[];
+  submissions?: Submission[];
   other?: (asked: Asked) => Response | Promise<Response>;
 } = {}): Asked[] {
   return stubApi((asked) => {
@@ -160,6 +163,9 @@ export function stubReportApi({
     }
     if (asked.path === `/invoices/${stored.id}/repairs`) {
       return json(200, repairs);
+    }
+    if (asked.path === `/invoices/${stored.id}/sef` && asked.method === "GET") {
+      return json(200, submissions);
     }
     return other(asked);
   });

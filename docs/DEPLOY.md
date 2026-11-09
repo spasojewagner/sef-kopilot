@@ -183,9 +183,9 @@ SEF API key, which the API keeps sealed under a secret of its own (ADR-0050).
    paste the API key of the organization's SEF demo account (SEF > settings > API management)
    and save it. Check: the page says since when a key is set (`PUT /organization/sef-key`
    answered 200, and `GET /organization` shows `sef_key_set_at`).
-4. Send a synthetic invoice that the validator passes: `POST /invoices/{id}/sef` answers 201,
-   `imported`, with SEF's ids, and within a few minutes `GET /invoices/{id}/sef` shows where it
-   stands in SEF (`sef_status`). The API speaks to SEF's demo environment
+4. Upload a synthetic invoice that the validator passes and, on its report, **Send to SEF**
+   (`POST /invoices/{id}/sef` answers 201, `imported`, with SEF's ids); within a few minutes
+   the report shows where it stands in SEF (`GET /invoices/{id}/sef`, `sef_status`). The API speaks to SEF's demo environment
    (`SEF_DEMO_BASE_URL`, its address by default) and to no other.
 
 Losing `SEF_FERNET_KEY` loses every stored key, never SEF's own: each owner sets theirs again.

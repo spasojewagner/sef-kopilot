@@ -16,6 +16,7 @@ import { getInvoice, listInvoices } from "@/lib/invoices";
 import { getAuthorizationRequest } from "@/lib/oauth";
 import { getOrganization } from "@/lib/organization";
 import { getRepair, listRepairs } from "@/lib/repairs";
+import { isWatched, listSubmissions } from "@/lib/sef";
 import { authorized, type Identity } from "@/lib/session";
 
 /**
@@ -129,6 +130,23 @@ export function repairQuery(invoiceId: string, repairId: string) {
   return queryOptions({
     queryKey: ["invoices", "one", invoiceId, "repairs", repairId],
     queryFn: ({ signal }) => getRepair(invoiceId, repairId, signal),
+  });
+}
+
+/** How often the page reads again where an invoice the API watches stands in SEF. */
+export const WATCH_INTERVAL_MS = 30_000;
+
+/**
+ * Each time the stored invoice ``invoiceId`` was sent to SEF, the newest first, read again every
+ * half a minute while the API still asks SEF where the latest stands, so that the page shows
+ * what SEF says without being reloaded. Under the invoice's key, so that deleting it drops them.
+ */
+export function submissionsQuery(invoiceId: string) {
+  return queryOptions({
+    queryKey: ["invoices", "one", invoiceId, "sef"],
+    queryFn: ({ signal }) => listSubmissions(invoiceId, signal),
+    refetchInterval: (query) =>
+      isWatched(query.state.data?.[0]) ? WATCH_INTERVAL_MS : false,
   });
 }
 
