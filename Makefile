@@ -109,7 +109,7 @@ corpus-check: ## Fail if corpus/ is not what its downloaded sources make (no net
 ingest: ## Load corpus/ into DATABASE_URL, embedding it if EMBEDDINGS_PROVIDER names a provider
 	$(UV) run python -m sef_api.rag.ingest
 
-rotate-sef-keys: ## Seal every stored SEF key again under the first key of SEF_FERNET_KEY
+rotate-sef-keys: ## Seal every stored key, to SEF and to a model, again under SEF_FERNET_KEY's first
 	$(UV) run python -m sef_api.sef.rotate
 
 up: ## Start PostgreSQL (pgvector) and Redis in Docker and wait until they are healthy

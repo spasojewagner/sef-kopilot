@@ -1,10 +1,10 @@
 """The caller's organization on the database: the period for which it keeps its stored
-invoices, and its key to SEF.
+invoices, its key to SEF, and its own key to a language model's provider.
 
 Setting the period or the key takes the organization's lock, which changes of its members take
 too, and checks the caller's permission again under it: an owner whose role changes while the
 request waits changes nothing. Each change is committed with the audit event that records it:
-what the period was, and whether a key was replaced, never the key (ADR-0050).
+what the period was, and whether a key was replaced, never the key (ADR-0050, ADR-0058).
 """
 
 from __future__ import annotations
@@ -22,10 +22,19 @@ from sef_api.auth.dependencies import Principal, check_again
 from sef_api.auth.permissions import Permission
 from sef_api.locks import lock_organization
 from sef_api.logs import security_event
-from sef_api.models import AuditAction, Organization, SefKey
+from sef_api.models import AuditAction, ModelKey, Organization, SefKey
 from sef_api.sef.keys import Keyring
 
-__all__ = ["find", "remove_sef_key", "sef_key_set_at", "set_invoice_retention", "set_sef_key"]
+__all__ = [
+    "find",
+    "model_key",
+    "remove_model_key",
+    "remove_sef_key",
+    "sef_key_set_at",
+    "set_invoice_retention",
+    "set_model_key",
+    "set_sef_key",
+]
 
 
 async def find(session: AsyncSession, organization_id: uuid.UUID) -> Organization:
@@ -109,3 +118,76 @@ async def remove_sef_key(session: AsyncSession, caller: Principal) -> None:
     audit.record(session, permitted, AuditAction.SEF_KEY_REMOVED)
     await session.commit()
     security_event("sef-key.removed", organization=str(removed), user=str(permitted.user_id))
+
+
+async def model_key(session: AsyncSession, organization_id: uuid.UUID) -> ModelKey | None:
+    """The organization's own key to a model's provider, sealed; None when it has none."""
+    return await session.scalar(select(ModelKey).where(ModelKey.organization_id == organization_id))
+
+
+async def set_model_key(
+    session: AsyncSession,
+    caller: Principal,
+    keyring: Keyring,
+    *,
+    provider: str,
+    model: str | None,
+    api_key: SecretStr,
+) -> ModelKey:
+    """Seal ``api_key`` as the caller's organization's own key to ``provider``, whose ``model``
+    (or its default) answers for it, in place of the key it had, and commit. 403 for a caller
+    who no longer holds the permission."""
+    await lock_organization(session, caller.organization_id)
+    permitted = await check_again(session, caller, Permission.ORGANIZATION_MANAGE)
+    organization_id = permitted.organization_id
+    replaced = await model_key(session, organization_id) is not None
+    token = keyring.seal(organization_id, api_key, "model")
+    values = {"provider": provider, "model": model, "token": token}
+    stored = await session.scalars(
+        insert(ModelKey)
+        .values(organization_id=organization_id, **values)
+        .on_conflict_do_update(
+            index_elements=[ModelKey.organization_id], set_={**values, "set_at": func.now()}
+        )
+        .returning(ModelKey)
+        .execution_options(populate_existing=True)
+    )
+    key = stored.one()
+    audit.record(
+        session,
+        permitted,
+        AuditAction.MODEL_KEY_SET,
+        detail={"provider": provider, "model": model, "replaced": replaced},
+    )
+    await session.commit()
+    security_event(
+        "model-key.set",
+        organization=str(organization_id),
+        user=str(permitted.user_id),
+        provider=provider,
+        replaced=replaced,
+    )
+    return key
+
+
+async def remove_model_key(session: AsyncSession, caller: Principal) -> None:
+    """Remove the caller's organization's own key to a model, if it has one, and commit: its
+    explanations and repairs go back to the operator's model. 403 for a caller who no longer
+    holds the permission."""
+    await lock_organization(session, caller.organization_id)
+    permitted = await check_again(session, caller, Permission.ORGANIZATION_MANAGE)
+    removed = await session.scalar(
+        delete(ModelKey)
+        .where(ModelKey.organization_id == permitted.organization_id)
+        .returning(ModelKey.provider)
+    )
+    if removed is None:
+        return
+    audit.record(session, permitted, AuditAction.MODEL_KEY_REMOVED, detail={"provider": removed})
+    await session.commit()
+    security_event(
+        "model-key.removed",
+        organization=str(permitted.organization_id),
+        user=str(permitted.user_id),
+        provider=removed,
+    )
