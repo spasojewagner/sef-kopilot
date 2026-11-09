@@ -1,0 +1,99 @@
+# The golden set of the validator's evaluations (ADR-0054): what each document of the corpus
+# must get, under the profile it is judged by. Each group names documents by globs from the
+# repository's root, whether they must be accepted or rejected, and the rules that must be
+# among those reported, as often as named; `reports: header` reads them from the line "The srb
+# profile reports: ..." at the top of each mutation, which states the mistake it was made to
+# have (scripts/make_fixtures.py). A document may be in several groups, under one profile each.
+#
+# The labels come from the documents' publishers and from the mistakes the mutations were made
+# to have, never from what the validator answered: verdicts.json records that, and the tests
+# hold the validator to it.
+
+groups:
+  - name: ministry-examples
+    title: The Ministry of Finance's examples for SEF
+    documents: fixtures/invoices/official/sef/*.xml
+    exclude:
+      - fixtures/invoices/official/sef/faktura-sa-popustom.xml
+      - fixtures/invoices/official/sef/faktura-sa-prilogom.xml
+    profile: srb
+    expect: reject
+    reports: [SRB-009]
+    why: >-
+      Their PIBs are placeholders (123456789, 987654321) whose check digits are wrong; the
+      Ministry publishes them to show the documents' shape.
+
+  - name: ministry-example-allowance
+    title: The Ministry's example of a discount, whose allowance has no reason
+    documents: fixtures/invoices/official/sef/faktura-sa-popustom.xml
+    profile: srb
+    expect: reject
+    reports: [SRB-009, BR-33, BR-CO-21]
+    why: >-
+      Besides the placeholder PIBs, a document-level allowance without a reason or its code, an
+      EN 16931 error that SRB-CIUS does not relax (ADR-0008).
+
+  - name: ministry-example-attachment
+    title: The Ministry's example with an attachment, as published
+    documents: fixtures/invoices/official/sef/faktura-sa-prilogom.xml
+    profile: srb
+    expect: reject
+    reports: [XSD]
+    why: >-
+      The published file is not valid against the UBL 2.1 schema, so no rule after the schema
+      is applied to it (ADR-0008).
+
+  - name: synthetic-serbian
+    title: Synthetic Serbian invoices, the bases of the mutations
+    documents:
+      - fixtures/invoices/synthetic/srb-minimal-invoice.xml
+      - fixtures/invoices/synthetic/srb-final-invoice.xml
+      - fixtures/invoices/synthetic/srb-final-invoice-in-euro.xml
+    profile: srb
+    expect: accept
+
+  - name: synthetic-en16931
+    title: Synthetic invoices that EN 16931 accepts as they are
+    documents:
+      - fixtures/invoices/synthetic/srb-minimal-invoice.xml
+      - fixtures/invoices/synthetic/credit-note-full.xml
+    profile: en16931
+    expect: accept
+
+  - name: mutations
+    title: Synthetic invoices with one deliberate mistake, which SEF must refuse
+    documents: fixtures/invoices/synthetic/mutations/*.xml
+    exclude:
+      - fixtures/invoices/synthetic/mutations/srb-013-seller-vat-status-missing.xml
+      - fixtures/invoices/synthetic/mutations/srb-017-buyer-post-code.xml
+      - fixtures/invoices/synthetic/mutations/srb-023-exemption-code-unlisted.xml
+      - fixtures/invoices/synthetic/mutations/srb-029-extension-identifier.xml
+    profile: srb
+    expect: reject
+    reports: header
+
+  - name: mutations-warned
+    title: Synthetic invoices with one mistake that SRB-CIUS only warns about
+    documents:
+      - fixtures/invoices/synthetic/mutations/srb-013-seller-vat-status-missing.xml
+      - fixtures/invoices/synthetic/mutations/srb-017-buyer-post-code.xml
+      - fixtures/invoices/synthetic/mutations/srb-023-exemption-code-unlisted.xml
+      - fixtures/invoices/synthetic/mutations/srb-029-extension-identifier.xml
+    profile: srb
+    expect: accept
+    reports: header
+    why: >-
+      SRB-013, SRB-017, SRB-023 and SRB-029 are warnings in SRB-CIUS 1.4 (ADR-0006): the
+      invoice is accepted, and the warning must be reported.
+
+  - name: cen-examples
+    title: CEN/TC 434's example invoices for EN 16931 in UBL
+    documents: third_party/en16931/ubl/examples/*
+    profile: en16931
+    expect: accept
+
+  - name: peppol-examples
+    title: OpenPeppol's example invoices for Peppol BIS Billing 3.0
+    documents: third_party/peppol-bis-billing-3/rules/examples/*
+    profile: peppol
+    expect: accept

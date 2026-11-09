@@ -6,7 +6,7 @@
 # monorepo is checked the same way. See docs/adr/0001-monorepo-and-tooling.md.
 
 [tool.uv.workspace]
-members = ["apps/api", "packages/einvoice_core"]
+members = ["apps/api", "packages/einvoice_core", "evals"]
 
 [tool.uv]
 default-groups = ["dev"]
@@ -23,6 +23,7 @@ dev = [
   "httpx>=0.28",
   "pre-commit>=4.7",
   "types-lxml>=2026.2.16",
+  "types-pyyaml>=6.0.12",
   # Reads the official PDFs of the corpus (scripts/build_corpus.py); the API does not need it.
   "pdfplumber>=0.11.10",
 ]
@@ -33,7 +34,7 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["packages/einvoice_core/src", "apps/api/src", "scripts", "scripts/hooks"]
+src = ["packages/einvoice_core/src", "apps/api/src", "evals/src", "scripts", "scripts/hooks"]
 extend-exclude = ["third_party", "apps/web"]
 
 [tool.ruff.lint]
@@ -74,7 +75,7 @@ ignore = [
 "scripts/tests/test_build_corpus.py" = ["RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["einvoice_core", "sef_api"]
+known-first-party = ["einvoice_core", "sef_api", "sef_evals"]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -87,12 +88,12 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 pretty = true
-files = ["packages/einvoice_core", "apps/api", "scripts"]
+files = ["packages/einvoice_core", "apps/api", "evals", "scripts"]
 # Module names are derived from these bases (closest wins), so the two `tests/conftest.py`
 # files and the editable-installed packages each get exactly one, unique module name.
 explicit_package_bases = true
 # `packages/einvoice_core/stubs` holds type information for dependencies that ship none.
-mypy_path = "packages/einvoice_core/src:packages/einvoice_core/stubs:apps/api/src:scripts:scripts/hooks"
+mypy_path = "packages/einvoice_core/src:packages/einvoice_core/stubs:apps/api/src:evals/src:scripts:scripts/hooks"
 exclude = ["third_party/", "node_modules/", "\\.venv/"]
 
 # ---------------------------------------------------------------------------
@@ -100,7 +101,7 @@ exclude = ["third_party/", "node_modules/", "\\.venv/"]
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 minversion = "9.0"
-testpaths = ["packages/einvoice_core/tests", "apps/api/tests", "scripts/tests"]
+testpaths = ["packages/einvoice_core/tests", "apps/api/tests", "evals/tests", "scripts/tests"]
 addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 pythonpath = ["scripts", "scripts/hooks"]
 asyncio_mode = "auto"
