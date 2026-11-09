@@ -25,7 +25,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
-import { useSession } from "@/hooks/use-session";
+import { useIdentity } from "@/hooks/use-identity";
 import { ApiError } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import {
@@ -79,17 +79,6 @@ export function OrganizationSettings() {
       <ApiKeys role={identity?.role ?? null} />
     </div>
   );
-}
-
-/**
- * Who the visitor is, with the role the API says they hold now, or the one they held when they
- * signed in until it has said: a role changed since is the API's to enforce, and the page
- * follows it once it knows.
- */
-function useIdentity(): Identity | null {
-  const session = useSession();
-  const me = useQuery({ ...meQuery, enabled: session.status === "signed-in" });
-  return session.status === "signed-in" ? (me.data ?? session.identity) : null;
 }
 
 function Who({
