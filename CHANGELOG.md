@@ -41,6 +41,9 @@ is tagged.
 - `apps/web`: the organization's page shows every member since when the organization has a key
   to SEF, and lets its owner set one, in a field that forgets it once saved, replace it, or
   remove it after a second press.
+- `apps/web`: the report says where the invoice stands in SEF, read again while the API asks
+  SEF, and lets an owner or an accountant send a valid invoice, after a second press that names
+  the organization; SEF's answers and the API's refusals are said in Serbian and English.
 
 ### Fixed
 

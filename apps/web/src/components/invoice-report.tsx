@@ -9,6 +9,7 @@ import {
   useExplanations,
 } from "@/components/invoice-explanations";
 import { RepairHistory } from "@/components/repair-history";
+import { SefSending } from "@/components/sef-sending";
 import { ReportLayers, RuleCard } from "@/components/report-rules";
 import { Verdict } from "@/components/verdict";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -132,6 +133,8 @@ function Loaded({ invoice }: { invoice: StoredInvoice }) {
               </p>
             )}
           </section>
+
+          <SefSending invoice={invoice} />
 
           <RepairHistory
             invoiceId={invoice.id}

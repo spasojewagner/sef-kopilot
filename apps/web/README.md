@@ -103,7 +103,16 @@ nothing is asked of it until the visitor asks. The API keeps the explanations of
 report another member had explained shows its explanations without a press. A server without a
 language model says so.
 
-Below the rules, the report lists the invoice's repairs, the latest first: who proposed each,
+Below the rules, the report says where the invoice stands in SEF (ADR-0051): what SEF answered
+each time it was sent, the latest first, and, once SEF imported it, its status in SEF as SEF
+last said, with the buyer's comment, read again every half a minute while the API still asks
+SEF. An owner or an accountant sends a valid invoice from there, when the organization has a
+key to SEF, after a second press that says it goes in the organization's name; an invoice SEF
+did not answer about is sent again with the same request id, and one SEF imported is not
+offered again. A refusal says why, by the reason the API names, and has the page read again
+what it names: the invoice, the organization's key, or what was sent.
+
+Below that, the report lists the invoice's repairs, the latest first: who proposed each,
 where it stands, whether the copy it leaves is valid, and what became of its patches. Each one
 opens at `/sr-Latn/invoices/{id}/repairs/{repairId}`, with who decided on it, each patch and its
 reason, the difference it makes to the invoice and the validator's report on the copy. The

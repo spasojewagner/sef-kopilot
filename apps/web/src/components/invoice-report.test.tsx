@@ -40,13 +40,19 @@ describe("Invoice report", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "1 greška, 1 upozorenje" }),
     ).toBeInTheDocument();
-    // The explanations the API keeps are read too, which asks the language model nothing.
-    expect(asked.map((request) => `${request.method} ${request.path}`)).toEqual(
+    // The explanations the API keeps are read too, which asks the language model nothing; and
+    // what was sent to SEF, and the visitor's role, whether they may send. Nothing else, the
+    // organization's key to SEF included, which matters for a valid invoice only.
+    expect(
+      asked.map((request) => `${request.method} ${request.path}`).sort(),
+    ).toEqual(
       [
         `GET /invoices/${ID}`,
         `GET /invoices/${ID}/repairs`,
         `GET /invoices/${ID}/explanations`,
-      ],
+        `GET /invoices/${ID}/sef`,
+        "GET /auth/me",
+      ].sort(),
     );
   });
 
@@ -295,9 +301,13 @@ describe("Invoice report", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "F-2026-0042" }),
     ).toBeInTheDocument();
-    expect(asked.map((request) => request.path)).toEqual([
-      `/invoices/${ID}/repairs`,
-      `/invoices/${ID}/explanations`,
-    ]);
+    expect(asked.map((request) => request.path).sort()).toEqual(
+      [
+        `/invoices/${ID}/repairs`,
+        `/invoices/${ID}/explanations`,
+        `/invoices/${ID}/sef`,
+        "/auth/me",
+      ].sort(),
+    );
   });
 });
