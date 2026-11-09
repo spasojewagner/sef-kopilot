@@ -37,6 +37,9 @@ DEFAULT_MAX_INVOICE_ELEMENTS = 20_000
 #: What an organization may store by default, its invoices and their reports together: some
 #: hundreds of large invoices, or thousands of ordinary ones, on a free database of 512 MB.
 DEFAULT_MAX_STORED_BYTES = 100 * 1024 * 1024
+#: The most credits one pack may give, and the least and the most it may cost, in cents: Stripe
+#: takes no charge below 50 cents.
+MOST_PACKED, LEAST_PRICE, MOST_PRICE = 100_000, 50, 1_000_000
 
 
 def _is_origin(text: str, schemes: set[str]) -> bool:
@@ -292,6 +295,39 @@ class Settings(BaseSettings):
         validation_alias="SEF_STARTING_CREDITS",
         description="The credits an organization starts with, where billing is on.",
     )
+    credit_packs: Annotated[tuple[tuple[int, int], ...], NoDecode] = Field(
+        default=((100, 1000), (500, 4000)),
+        validation_alias="SEF_CREDIT_PACKS",
+        description=(
+            "The packs an owner may buy where Stripe is set, as `credits:price` separated by "
+            "commas, the price in cents of `SEF_CREDIT_CURRENCY` (ADR-0060)."
+        ),
+    )
+    credit_currency: str = Field(
+        default="eur",
+        pattern=r"^[a-z]{3}$",
+        validation_alias="SEF_CREDIT_CURRENCY",
+        description="The currency of the packs' prices, in lower case (ISO 4217).",
+    )
+    stripe_secret_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="STRIPE_SECRET_KEY",
+        description=(
+            "A key to Stripe's sandbox, `sk_test_` or `rk_test_`: credits are sold through "
+            "Stripe Checkout where it is set with `STRIPE_WEBHOOK_SECRET`. A live key is refused."
+        ),
+    )
+    stripe_webhook_secret: SecretStr | None = Field(
+        default=None,
+        validation_alias="STRIPE_WEBHOOK_SECRET",
+        description="The signing secret of the endpoint Stripe sends its events to (`whsec_`).",
+    )
+    stripe_api_url: str = Field(
+        default="https://api.stripe.com",
+        pattern=r"^https?://[^/?#]+$",
+        validation_alias="STRIPE_API_URL",
+        description="Where Stripe's API is: Stripe's own, or `stripe-mock` in tests.",
+    )
     llm_model: str | None = Field(
         default=None,
         min_length=1,
@@ -469,6 +505,54 @@ class Settings(BaseSettings):
     def _check_embeddings(self) -> Self:
         if self.embeddings_provider == "jina" and self.jina_api_key is None:
             raise ValueError("JINA_API_KEY must be set when EMBEDDINGS_PROVIDER is jina")
+        return self
+
+    @field_validator("credit_packs", mode="before")
+    @classmethod
+    def _split_packs(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        packs = []
+        for item in value.split(","):
+            count, _, price = item.strip().partition(":")
+            if not (count.isdigit() and price.isdigit()):
+                raise ValueError(
+                    f"SEF_CREDIT_PACKS holds {item.strip()!r}: write each pack as credits:price, "
+                    "the price in cents"
+                )
+            packs.append((int(count), int(price)))
+        return tuple(packs)
+
+    @field_validator("credit_packs")
+    @classmethod
+    def _check_packs(cls, packs: tuple[tuple[int, int], ...]) -> tuple[tuple[int, int], ...]:
+        if not packs:
+            raise ValueError("SEF_CREDIT_PACKS names no pack")
+        if len({count for count, _ in packs}) != len(packs):
+            raise ValueError("SEF_CREDIT_PACKS names a pack of the same credits twice")
+        for count, price in packs:
+            if not (1 <= count <= MOST_PACKED and LEAST_PRICE <= price <= MOST_PRICE):
+                raise ValueError(
+                    "a pack of SEF_CREDIT_PACKS gives 1 to 100 000 credits for 50 to 1 000 000 "
+                    "cents"
+                )
+        return packs
+
+    @model_validator(mode="after")
+    def _check_stripe(self) -> Self:
+        if (self.stripe_secret_key is None) != (self.stripe_webhook_secret is None):
+            raise ValueError("STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set together")
+        if self.stripe_secret_key is None or self.stripe_webhook_secret is None:
+            return self
+        if not self.stripe_secret_key.get_secret_value().startswith(("sk_test_", "rk_test_")):
+            raise ValueError(
+                "STRIPE_SECRET_KEY must be a key to Stripe's sandbox (sk_test_ or rk_test_): "
+                "this project never takes a real payment"
+            )
+        if not self.stripe_webhook_secret.get_secret_value().startswith("whsec_"):
+            raise ValueError("STRIPE_WEBHOOK_SECRET must be an endpoint's signing secret (whsec_)")
+        if self.billing == "off":
+            raise ValueError("STRIPE_SECRET_KEY sells credits: set SEF_BILLING=credits too")
         return self
 
     @model_validator(mode="after")
