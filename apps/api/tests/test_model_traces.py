@@ -181,15 +181,33 @@ async def test_unreachable_langfuse_is_logged_without_what_was_sent(
 
 def test_the_model_is_traced_only_where_both_keys_are_set() -> None:
     model = {"LLM_PROVIDER": "groq", "GROQ_API_KEY": "gsk_test_key"}
-    plain = create_app(settings_for(**model)).state.explainer
-    traced = create_app(
+    plain_app = create_app(settings_for(**model))
+    traced_app = create_app(
         settings_for(**model, LANGFUSE_PUBLIC_KEY="pk-lf-x", LANGFUSE_SECRET_KEY="sk-lf-x")
-    ).state.explainer
+    )
+    plain, traced = plain_app.state.explainer, traced_app.state.explainer
 
     assert not isinstance(plain._llm, TracedClient)
+    assert plain_app.state.model_traces is None
     assert isinstance(traced._llm, TracedClient)
+    assert isinstance(traced_app.state.model_traces, ModelTraces)
     with pytest.raises(ValueError, match="set together"):
         Settings.from_values({"LANGFUSE_PUBLIC_KEY": "pk-lf-x"})
+
+
+async def test_a_client_that_shares_the_traces_leaves_them_open_for_the_others() -> None:
+    langfuse = Langfuse()
+    traces = langfuse.traces()
+    first = TracedClient(ScriptedModel("{}"), traces, owns_traces=False)
+    second = TracedClient(ScriptedModel("{}"), traces, owns_traces=False)
+
+    await first.answer(CONVERSATION, name="explanation", schema=SCHEMA)
+    await first.aclose()
+    await second.answer(CONVERSATION, name="explanation", schema=SCHEMA)
+    await second.aclose()
+    await traces.aclose()
+
+    assert len(langfuse.spans()) == 2
 
 
 async def test_the_tokens_of_an_answer_are_read_from_groq() -> None:
