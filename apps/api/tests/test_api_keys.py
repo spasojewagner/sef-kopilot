@@ -195,6 +195,24 @@ async def test_a_member_cannot_give_a_key_what_their_role_does_not_grant(
     assert await keys(session) == 0
 
 
+async def test_an_accountant_gives_an_erps_key_sending_and_a_client_cannot(
+    api: AsyncClient, session: AsyncSession, primer: Office
+) -> None:
+    """Sending to SEF is the owners' and the accountants', and so a key of theirs may send."""
+    accountants = await issue(
+        api, primer.as_accountant(), permissions=["invoices:submit", "invoices:send"]
+    )
+    clients = await issue(api, primer.as_client(), permissions=["invoices:send"])
+
+    assert accountants.status_code == 201
+    assert accountants.json()["permissions"] == ["invoices:send", "invoices:submit"]
+    assert (clients.status_code, clients.json()) == (
+        403,
+        {"detail": "your role does not grant invoices:send"},
+    )
+    assert await keys(session) == 1
+
+
 @pytest.mark.parametrize("permission", ["members:read", "members:manage", "api_keys:issue"])
 async def test_a_key_holds_only_permissions_for_work_on_invoices(
     api: AsyncClient, session: AsyncSession, primer: Office, permission: str
@@ -486,6 +504,7 @@ async def test_openapi_documents_the_api_keys(client: AsyncClient) -> None:
         "invoices:validate",
         "invoices:submit",
         "invoices:manage",
+        "invoices:send",
     ]
 
 

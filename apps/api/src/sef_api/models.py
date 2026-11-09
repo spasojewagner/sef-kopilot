@@ -324,8 +324,8 @@ class ApiKey(Base):
         CheckConstraint("char_length(btrim(name)) BETWEEN 1 AND 100", name="name_length"),
         CheckConstraint("cardinality(permissions) > 0", name="has_permissions"),
         CheckConstraint(
-            "permissions <@ "
-            "ARRAY['invoices:validate', 'invoices:submit', 'invoices:manage']::text[]",
+            "permissions <@ ARRAY['invoices:validate', 'invoices:submit', 'invoices:manage', "
+            "'invoices:send']::text[]",
             name="permissions_known",
         ),
         Index("ix_api_keys_organization_id_user_id", "organization_id", "user_id"),

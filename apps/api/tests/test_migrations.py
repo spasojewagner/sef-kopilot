@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
+from sef_api.db import Base
 from sef_api.migrations import alembic_config
 from sef_api.models import StoredInvoice
 
@@ -188,6 +189,39 @@ def test_undoing_0012_forgets_the_periods_and_the_events_that_recorded_them(
     assert "invoice_retention_days" not in columns
 
 
+def test_undoing_0022_takes_sending_from_every_key_and_revokes_one_that_only_sent(
+    empty_database_url: str,
+) -> None:
+    """The earlier schema has no permission to send: a key keeps what else it holds, and a key
+    that only sent stops working, holding a permission the schema knows."""
+    config = alembic_config(empty_database_url)
+    command.upgrade(config, "0022")
+    keys = "INSERT INTO api_keys (organization_id, user_id, name, prefix, digest, permissions)"
+    asyncio.run(
+        run(
+            empty_database_url,
+            "INSERT INTO organizations (name) VALUES ('Primer')",
+            "INSERT INTO users (email, password_hash) VALUES ('ana@primer.example', 'x')",
+            "INSERT INTO memberships (organization_id, user_id, role)"
+            " SELECT organizations.id, users.id, 'owner' FROM organizations, users",
+            f"{keys} SELECT organization_id, user_id, 'ERP', 'sefk_a', 'a',"
+            " ARRAY['invoices:submit', 'invoices:send'] FROM memberships",
+            f"{keys} SELECT organization_id, user_id, 'Sender', 'sefk_b', 'b',"
+            " ARRAY['invoices:send'] FROM memberships",
+        )
+    )
+
+    command.downgrade(config, "0021")
+
+    assert asyncio.run(
+        run(
+            empty_database_url,
+            "SELECT name || ' ' || array_to_string(permissions, ',') || ' '"
+            " || (revoked_at IS NOT NULL) FROM api_keys ORDER BY name",
+        )
+    ) == ["ERP invoices:submit false", "Sender invoices:validate true"]
+
+
 def test_the_revision_ids_are_sequence_numbers() -> None:
     config = alembic_config("postgresql+asyncpg://reviewer@localhost/sef")
     revisions = [script.revision for script in ScriptDirectory.from_config(config).walk_revisions()]
@@ -233,3 +267,35 @@ def test_the_corpus_is_searched_through_indexes_of_its_own_kinds(database_url: s
 
     assert any("USING hnsw (embedding vector_cosine_ops)" in str(d) for d in definitions)
     assert any("USING gin (search_text gin_trgm_ops)" in str(d) for d in definitions)
+
+
+#: Every CHECK constraint of the public schema, as PostgreSQL writes it back.
+CHECKS = (
+    "SELECT conrelid::regclass::text || '.' || conname || ': ' || pg_get_constraintdef(oid)"
+    " FROM pg_constraint WHERE contype = 'c' AND connamespace = 'public'::regnamespace"
+)
+
+
+def test_the_models_check_what_the_migrations_check(
+    database_url: str, empty_database_url: str
+) -> None:
+    """Autogenerate does not compare CHECK constraints: a model's and a migration's may drift
+    apart unseen. The models build a database of their own, and PostgreSQL writes both sets
+    back in its own words, which compare."""
+
+    async def built_from_the_models() -> None:
+        engine = create_async_engine(empty_database_url, poolclass=NullPool)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                await connection.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+                await connection.run_sync(Base.metadata.create_all)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(built_from_the_models())
+
+    migrated = {str(check) for check in asyncio.run(run(database_url, CHECKS))}
+    modelled = {str(check) for check in asyncio.run(run(empty_database_url, CHECKS))}
+    assert migrated - modelled == modelled - migrated == set()
+    assert any("permissions_known" in check for check in migrated)

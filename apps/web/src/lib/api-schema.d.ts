@@ -1549,7 +1549,7 @@ export interface components {
              * Permissions
              * @description What the key allows: permissions the caller's role grants, among those a key may hold.
              */
-            permissions: ("invoices:validate" | "invoices:submit" | "invoices:manage")[];
+            permissions: ("invoices:validate" | "invoices:submit" | "invoices:manage" | "invoices:send")[];
             /**
              * Expires At
              * @description When the key stops working, in the future; never when null.

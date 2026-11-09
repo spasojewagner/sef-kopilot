@@ -412,7 +412,8 @@
       "permissions": {
         "invoices:validate": "checking invoices",
         "invoices:submit": "storing invoices and reading the stored ones",
-        "invoices:manage": "every invoice of the organization"
+        "invoices:manage": "every invoice of the organization",
+        "invoices:send": "sending invoices to SEF in the organization's name"
       },
       "revoke": "Revoke",
       "confirmRevoke": "The key “{name}” stops working at once, and the machine that uses it loses access. Revoke it?",

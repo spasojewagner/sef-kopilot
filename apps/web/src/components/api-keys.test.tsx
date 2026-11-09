@@ -128,21 +128,53 @@ describe("The API keys of the organization's page", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("offers a client the permissions their role grants, and an accountant every invoice", async () => {
+  it("offers a client the permissions their role grants, and an accountant every invoice and sending", async () => {
     keepSession();
     api();
 
     const { unmount } = renderIn("en", <ApiKeys role="client" />);
     expect(await screen.findByLabelText("checking invoices")).toBeChecked();
-    expect(
-      screen.queryByLabelText("every invoice of the organization"),
-    ).not.toBeInTheDocument();
+    for (const withheld of [
+      "every invoice of the organization",
+      "sending invoices to SEF in the organization's name",
+    ]) {
+      expect(screen.queryByLabelText(withheld)).not.toBeInTheDocument();
+    }
     unmount();
 
     renderIn("en", <ApiKeys role="accountant" />);
     expect(
       await screen.findByLabelText("every invoice of the organization"),
     ).not.toBeChecked();
+    expect(
+      screen.getByLabelText(
+        "sending invoices to SEF in the organization's name",
+      ),
+    ).not.toBeChecked();
+  });
+
+  it("issues an ERP's key that sends to SEF", async () => {
+    keepSession();
+    const asked = api({ keys: [] });
+    renderIn("sr-Latn", <ApiKeys role="accountant" />);
+
+    await user().type(
+      await screen.findByLabelText("Za šta je ključ"),
+      "Pantheon",
+    );
+    await user().click(
+      screen.getByLabelText("slanje faktura na SEF u ime organizacije"),
+    );
+    await user().click(screen.getByRole("button", { name: "Izdaj ključ" }));
+
+    await screen.findByRole("region", { name: "Ključ „Pantheon” je izdat" });
+    expect(posted(asked)).toEqual([
+      {
+        name: "Pantheon",
+        permissions: ["invoices:validate", "invoices:submit", "invoices:send"],
+        expires_at: null,
+      },
+    ]);
   });
 
   it("issues a key that works through the day chosen", async () => {

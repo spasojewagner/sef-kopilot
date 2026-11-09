@@ -34,6 +34,10 @@ is tagged.
   SEF's demo environment as `POST /invoices/{id}/sef` does, and `get_sef_status`, which reads
   where it stands in SEF as `GET /invoices/{id}/sef` does; the server's instructions tell an
   assistant to send only when its person asks.
+- `apps/api`: an API key may hold `invoices:send`, for an ERP that sends its organization's
+  invoices to SEF with an owner's or an accountant's key; the audit log names the key that sent
+  (ADR-0053, migration 0022).
+- `apps/web`: the API keys page offers sending to SEF to owners and accountants.
 
 ### Security
 

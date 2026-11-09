@@ -4761,7 +4761,8 @@
               "enum": [
                 "invoices:validate",
                 "invoices:submit",
-                "invoices:manage"
+                "invoices:manage",
+                "invoices:send"
               ]
             },
             "type": "array",

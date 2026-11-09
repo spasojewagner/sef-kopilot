@@ -412,7 +412,8 @@
       "permissions": {
         "invoices:validate": "proveru faktura",
         "invoices:submit": "čuvanje faktura i čitanje sačuvanih",
-        "invoices:manage": "sve fakture organizacije"
+        "invoices:manage": "sve fakture organizacije",
+        "invoices:send": "slanje faktura na SEF u ime organizacije"
       },
       "revoke": "Opozovi",
       "confirmRevoke": "Ključ „{name}” prestaje da radi odmah, i mašina koja ga koristi gubi pristup. Opozivate ga?",

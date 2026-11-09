@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from einvoice_core.pipeline import ValidationReport
 from sef_api.auth.dependencies import Principal
+from sef_api.auth.permissions import Permission
 from sef_api.db import Database, get_session
 from sef_api.main import create_app
 from sef_api.models import (
@@ -40,7 +41,7 @@ from sef_api.sef.client import SefStatus
 from sef_api.sef.keys import Keyring
 
 from .conftest import REPOSITORY_ROOT, settings_for
-from .factories import KEYRING, Office, office, sef_key, stored_invoice
+from .factories import KEYRING, Office, api_key, office, sef_key, stored_invoice
 from .test_sef_keys import NEXT_FERNET_KEY
 
 SYNTHETIC = REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic"
@@ -273,6 +274,57 @@ async def test_a_member_who_may_not_send_sends_nothing(
     invoice = await kept(session, primer)
 
     response = await served.api.post(f"/invoices/{invoice.id}/sef", headers=primer.as_client())
+
+    assert response.status_code == 403
+    assert served.sef.asked == []
+
+
+async def test_an_erps_key_that_holds_the_permission_sends_and_one_without_it_does_not(
+    served: Served, session: AsyncSession, primer: Office
+) -> None:
+    """An accountant's keys: one may send, as their role does; the other, which may store and
+    read every invoice, may not. The audit log names the key that sent."""
+    invoice = await kept(session, primer)
+    sending = await api_key(
+        session,
+        primer.organization,
+        primer.accountant,
+        Permission.INVOICES_MANAGE,
+        Permission.INVOICES_SEND,
+    )
+    storing = await api_key(
+        session,
+        primer.organization,
+        primer.accountant,
+        Permission.INVOICES_SUBMIT,
+        Permission.INVOICES_MANAGE,
+    )
+
+    refused = await served.api.post(f"/invoices/{invoice.id}/sef", headers=storing.header())
+    sent = await served.api.post(f"/invoices/{invoice.id}/sef", headers=sending.header())
+
+    assert (refused.status_code, refused.json()) == (
+        403,
+        {"detail": "requires the permission invoices:send"},
+    )
+    assert (sent.status_code, sent.json()["state"]) == (201, "imported")
+    assert len(served.sef.asked) == 1
+    event = await session.scalar(
+        select(AuditEvent).where(AuditEvent.action == AuditAction.SEF_INVOICE_SENT)
+    )
+    assert event is not None
+    assert (event.actor, event.key_id) == (primer.accountant.id, sending.row.id)
+
+
+async def test_a_clients_key_sends_nothing_whatever_it_holds(
+    served: Served, session: AsyncSession, primer: Office
+) -> None:
+    """What a key allows is decided by the role its member holds: a client's key may hold the
+    permission in the table, and still sends nothing."""
+    invoice = await kept(session, primer)
+    key = await api_key(session, primer.organization, primer.client, Permission.INVOICES_SEND)
+
+    response = await served.api.post(f"/invoices/{invoice.id}/sef", headers=key.header())
 
     assert response.status_code == 403
     assert served.sef.asked == []
