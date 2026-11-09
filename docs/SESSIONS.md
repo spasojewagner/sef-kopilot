@@ -2623,3 +2623,24 @@ own; screenshots against a local API.
 
 Next: the report's page, where an owner or an accountant sends a valid stored invoice to SEF
 and sees what SEF answered (`feat/web-sef-send`).
+
+## 2026-11-09 — `feat/web-sef-send` (3 commits, stacked on `feat/web-sef-key`)
+
+Outcome: the report says where the invoice stands in SEF, read again every half a minute while
+the API asks SEF, and an owner or an accountant sends a valid invoice from there, when the
+organization has a key, after a second press that names the organization; a refusal is said by
+its reason, and the page reads again what the reason concerns.
+
+Findings:
+
+- The page reads the submissions again only within the API's own window: imported, not final,
+  less than thirty days old.
+- Sending waits up to two minutes in the browser, as the API tries SEF three times; a lost answer
+  leaves the submission the API committed before asking, which the page reads again.
+
+Verification: the web application's tests, build and end-to-end test; the seeded faults, each
+caught after a clean baseline (see the pull request); eslint, tsc; each commit checked on its
+own; screenshots against a local API with a fake SEF.
+
+Next: SEF's error codes mapped into the explanations (`feat/sef-error-mapping`), and the
+release `v0.5.0`.
