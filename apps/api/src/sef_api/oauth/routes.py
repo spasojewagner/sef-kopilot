@@ -163,6 +163,10 @@ class AuthorizationRequest(BaseModel):
     client_name: str | None = Field(description="The name the client registered, unchecked.")
     redirect_uri: str = Field(description="Where the person is sent back once they decide.")
     scopes: list[str] = Field(description="What the client asks to do, by scope.")
+    withheld: list[str] = Field(
+        description="Of those scopes, the ones the caller's role does not grant them in their "
+        "organization: approving does not give them to the client."
+    )
     expires_at: datetime = Field(description="Until when the request waits for a decision.")
 
 
@@ -258,12 +262,15 @@ async def authorize(
 @router.get(
     "/requests/{request_id}",
     summary="Read a client's request",
-    description="What the client asks to do, for the page where a signed-in person decides.",
+    description=(
+        "What the client asks to do, and what of it the caller's role does not grant, for the "
+        "page where a signed-in person decides."
+    ),
     responses=_REQUESTS_RESPONSES,
     dependencies=[NO_STORE, Depends(require_authorization_server)],
 )
 async def read_request(request_id: str, caller: InPerson, session: Session) -> AuthorizationRequest:
-    del caller  # anyone signed in may decide whether to let a client act for them
+    # Anyone signed in may decide whether to let a client act for them, within their role.
     asked = await authorizations.pending(session, request_id)
     if asked is None:
         raise _GONE
@@ -274,6 +281,7 @@ async def read_request(request_id: str, caller: InPerson, session: Session) -> A
         client_name=None if client is None else client.name,
         redirect_uri=asked.redirect_uri,
         scopes=list(asked.scopes),
+        withheld=[scope for scope in asked.scopes if not caller.may(authorizations.SCOPES[scope])],
         expires_at=asked.expires_at,
     )
 

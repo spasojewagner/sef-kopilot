@@ -57,5 +57,6 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0049](0049-model-requests-are-traced-without-the-conversation.md) | Requests to the language model are traced to Langfuse without the conversation | accepted | 2026-11-08 |
 | [0050](0050-an-organizations-sef-key-is-kept-sealed.md) | An organization's SEF key is kept sealed with Fernet, under a key the environment holds | accepted | 2026-11-08 |
 | [0051](0051-an-invoice-goes-to-sef-once-as-validated.md) | An invoice goes to SEF once, as the validator passed it, and is watched until it is final | accepted | 2026-11-08 |
+| [0052](0052-sending-to-sef-is-a-scope-asked-for-when-needed.md) | Sending to SEF is a scope of its own, which an assistant asks for when it first sends | accepted | 2026-11-09 |
 
 Planned (recorded when the work lands): evaluation thresholds (M6).

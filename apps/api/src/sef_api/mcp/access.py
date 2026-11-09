@@ -122,13 +122,14 @@ def challenge(
     settings: Settings, error: str | None = None, scopes: Collection[str] | None = None
 ) -> str:
     """The ``WWW-Authenticate`` of a refusal: with an authorization server, where the endpoint's
-    metadata is and the scopes to ask for, every scope unless ``scopes`` are named (RFC 9728
-    §5.1, RFC 6750 §3)."""
+    metadata is and the scopes to ask for, those a client asks for first unless ``scopes`` are
+    named (RFC 9728 §5.1, RFC 6750 §3)."""
     parameters = [] if error is None else [f'error="{error}"']
     if settings.public_url is not None:
+        asked = authorizations.DEFAULT_SCOPES if scopes is None else scopes
         parameters += [
             f'resource_metadata="{issuer_of(settings)}{METADATA_PATH}"',
-            f'scope="{" ".join(authorizations.SCOPES if scopes is None else scopes)}"',
+            f'scope="{" ".join(asked)}"',
         ]
     return " ".join(["Bearer", ", ".join(parameters)]).strip()
 

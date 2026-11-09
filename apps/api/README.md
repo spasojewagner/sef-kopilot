@@ -603,8 +603,8 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   application is refused (401): it was issued for the API's routes. A revoked or expired key, a
   consent that was revoked or is gone, and a member who has left are refused as the routes
   refuse them. A refusal's `WWW-Authenticate` names the endpoint's protected resource metadata
-  and the scopes (RFC 9728 §5.1), which is how a client that has never met the server finds
-  where to sign its person in.
+  and the scopes to ask for first (RFC 9728 §5.1), which is how a client that has never met the
+  server finds where to sign its person in.
 - **What it may do:** each tool requires a permission, as the route it stands for does, and
   counts against the same limits; with an access token, its scopes must allow it too, and its
   requests are counted against the client's consent, apart from the person's own, so that an
@@ -628,10 +628,15 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   | `get_repair` | `invoices:submit` | `GET /invoices/{invoice_id}/repairs/{repair_id}`: a repair, whether it waits for a decision or was approved or rejected |
   | `search_rules` | `invoices:validate` | `GET /rules`: the rules of a profile by id, business term or words, and the passages that share the words |
   | `get_rule` | `invoices:validate` | `GET /rules/{rule_id}`: a rule and the passages an explanation of it would cite on a day |
+  | `send_to_sef_demo` | `invoices:send` | `POST /invoices/{invoice_id}/sef`: a stored invoice validated again under SRB-CIUS and sent to SEF's demo environment in the organization's name, once; the answer is the submission as SEF answered it, and a reason (`invalid`, `no-key`, `sent`, `unconfirmed`, `changed`) when nothing was sent |
+  | `get_sef_status` | `invoices:submit` | `GET /invoices/{invoice_id}/sef`: each sending of a stored invoice, with what SEF answered and where the invoice stands in SEF as SEF last said; SEF is not asked |
 
   An assistant's scopes match: `invoices:validate` for the tools that validate and look rules
-  up, `invoices:submit` for those on stored invoices. No scope reaches every invoice of the organization (`invoices:manage`): through an
-  assistant, a person sees the invoices they submitted.
+  up, `invoices:submit` for those on stored invoices, `invoices:send` for sending to SEF, which
+  a client is not told to ask for first and asks for through the step-up when its assistant
+  first sends (ADR-0052). The server's instructions tell the assistant to send only when the
+  person asks. No scope reaches every invoice of the organization (`invoices:manage`): through
+  an assistant, a person sees, and sends, the invoices they submitted.
 - **Asking for more (step-up):** every tool is listed, whatever a token's scopes. A call
   through an MCP client of a tool its scopes do not reach, which the person's role would
   allow, is answered 403 before the tool runs, with `WWW-Authenticate: Bearer
@@ -671,15 +676,18 @@ without it, they answer 404, and the MCP endpoint takes API keys alone.
   §4.1), with `response_type=code`, PKCE (`code_challenge_method=S256`), a redirect URI it
   registered, the MCP endpoint as the `resource` (RFC 8707) and the scopes it wants
   (`invoices:validate`, for the tools that validate; `invoices:submit`, for the tools on stored
-  invoices; both if it names none). An unknown client or redirect URI is answered there (400);
+  invoices; `invoices:send`, for sending them to SEF; the first two if it names none, since
+  sending acts in the organization's name outside the server and is asked for when an assistant
+  first sends, ADR-0052). An unknown client or redirect URI is answered there (400);
   any other fault sends the browser back to the client with the error. A request that will
   do waits ten minutes for a person, on the web application's page at `SEF_WEB_URL`
   (`/oauth/consent?request=...`), which must be one of `SEF_WEB_ORIGINS`.
 - **A person decides**, signed in, never with an API key: `GET /oauth/requests/{id}` says
-  what the client asks; `POST .../approval` lets it act for them, for the scopes their role
-  grants, records the consent in the audit log and answers where to send the browser, the
-  client's redirect URI with a code valid for two minutes; `POST .../refusal` sends it back
-  with `access_denied`. Every answer the client gets names this server (`iss`, RFC 9207).
+  what the client asks, and which of those scopes their role does not grant (`withheld`);
+  `POST .../approval` lets it act for them, for the scopes their role grants, records the
+  consent in the audit log and answers where to send the browser, the client's redirect URI
+  with a code valid for two minutes; `POST .../refusal` sends it back with `access_denied`.
+  Every answer the client gets names this server (`iss`, RFC 9207).
 - **The client exchanges the code** at `POST /oauth/token`, a form (OAuth 2.1 §3.2), once,
   with the PKCE verifier that began it and its client id; the redirect URI, if it names one,
   must be the one the code was sent to. It gets an access token for the MCP endpoint alone, for

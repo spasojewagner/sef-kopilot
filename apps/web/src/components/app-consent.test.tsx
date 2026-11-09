@@ -22,6 +22,7 @@ const REQUEST = {
   client_name: "Inspektor",
   redirect_uri: CALLBACK,
   scopes: ["invoices:validate"],
+  withheld: [],
   expires_at: "2026-11-07T21:32:00Z",
 };
 
@@ -143,6 +144,65 @@ describe("The page where a person decides on a client's request", () => {
       "store invoices in your organization and read the ones you sent",
     );
     expect(scopes).toHaveTextContent("members:manage");
+  });
+
+  it("names apart what the person's role withholds, which approving does not give", async () => {
+    keepSession();
+    api({
+      request: {
+        ...REQUEST,
+        scopes: ["invoices:validate", "invoices:send"],
+        withheld: ["invoices:send"],
+      },
+    });
+
+    renderIn("en", <AppConsent requestId="r-1" goTo={vi.fn()} />);
+
+    const allowed = await screen.findByRole("list", {
+      name: "It will be able to",
+    });
+    expect(allowed).toHaveTextContent(
+      "validate invoices and explain their errors",
+    );
+    expect(allowed).not.toHaveTextContent("SEF");
+    expect(
+      screen.getByRole("list", {
+        name: "Your role does not allow it, so it will not be able to",
+      }),
+    ).toHaveTextContent(
+      "send the invoices you stored to SEF's demo environment, in your organization's name",
+    );
+    expect(screen.getByRole("button", { name: "Allow" })).toBeEnabled();
+  });
+
+  it("lets the person only deny a client whose every scope their role withholds", async () => {
+    keepSession();
+    const asked = api({
+      request: {
+        ...REQUEST,
+        scopes: ["invoices:send"],
+        withheld: ["invoices:send"],
+      },
+    });
+
+    renderIn("sr-Latn", <AppConsent requestId="r-1" goTo={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Vaša uloga u organizaciji ne dozvoljava ništa od onoga što aplikacija traži.",
+    );
+    expect(
+      screen.queryByRole("list", { name: "Moći će da" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("list", {
+        name: "Vaša uloga to ne dozvoljava, pa neće moći da",
+      }),
+    ).toHaveTextContent(
+      "šalje fakture koje ste vi sačuvali na SEF demo, u ime vaše organizacije",
+    );
+    expect(screen.getByRole("button", { name: "Dozvoli" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Odbij" })).toBeEnabled();
+    expect(decisions(asked)).toEqual([]);
   });
 
   it("names the host that published the description of a client known by its document", async () => {

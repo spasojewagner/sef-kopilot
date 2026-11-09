@@ -256,6 +256,11 @@ system are marked as such.
 - [x] A call through an MCP client of a tool its scopes do not reach is refused before the tool
       runs (403 `insufficient_scope`), naming the scopes to ask the person for; the tool still
       checks the role and the scopes itself, so the challenge can only refuse, never allow.
+- [x] Least privilege for assistants: sending to SEF, which acts in the organization's name
+      outside the server, is a scope of its own (`invoices:send`) that a client is not told to
+      ask for first and that a person grants on the consent page when the assistant first
+      sends; the page names apart what the person's role withholds, which approving does not
+      give; an owner who becomes a client loses it at the next refresh (tested; ADR-0052).
 - [x] MCP authorization implements OAuth 2.1 with PKCE, resource indicators (RFC 8707),
       protected resource metadata (RFC 9728), authorization server metadata (RFC 8414), the
       issuer in authorization responses (RFC 9207) and client ID metadata documents, with scope

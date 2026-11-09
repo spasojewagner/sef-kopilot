@@ -33,6 +33,7 @@ from sef_api.settings import Settings
 
 __all__ = [
     "CODE_LIFETIME",
+    "DEFAULT_SCOPES",
     "REQUEST_LIFETIME",
     "SCOPES",
     "AuthorizeError",
@@ -48,14 +49,20 @@ __all__ = [
 ]
 
 #: The scopes a client may ask for, each the permission of the tools it allows: checking an
-#: invoice, and storing invoices and reading the ones the person submitted. No scope reaches
-#: every invoice of the organization (``invoices:manage``): an assistant sees its person's own.
+#: invoice, storing invoices and reading the ones the person submitted, and sending those to SEF
+#: in the organization's name. No scope reaches every invoice of the organization
+#: (``invoices:manage``): an assistant sees its person's own.
 SCOPES: Final[Mapping[str, Permission]] = MappingProxyType(
     {
         "invoices:validate": Permission.INVOICES_VALIDATE,
         "invoices:submit": Permission.INVOICES_SUBMIT,
+        "invoices:send": Permission.INVOICES_SEND,
     }
 )
+#: The scopes a client is told to ask for first, and is given to decide on when it names none:
+#: every scope but sending to SEF, which acts outside the server in the organization's name and
+#: is asked for when an assistant first sends, as a step-up (ADR-0052).
+DEFAULT_SCOPES: Final[tuple[str, ...]] = ("invoices:validate", "invoices:submit")
 #: How long a request waits for a person's decision.
 REQUEST_LIFETIME: Final = timedelta(minutes=10)
 #: How long the code a consent issues may be exchanged.
@@ -171,7 +178,7 @@ async def begin(
         resource = ""
     if resource != resource_of(settings):
         raise refused("invalid_target", "the resource is not this server's MCP endpoint")
-    asked = params.get("scope", "").split() or list(SCOPES)
+    asked = params.get("scope", "").split() or list(DEFAULT_SCOPES)
     if not set(asked) <= set(SCOPES):
         # Named in general: what the client sent is not repeated back (RFC 6749 §4.1.2.1).
         raise refused("invalid_scope", "a scope asked for is not one this server has")

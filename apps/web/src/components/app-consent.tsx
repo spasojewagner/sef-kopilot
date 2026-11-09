@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, Plug } from "lucide-react";
+import { Check, Plug, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId } from "react";
 
@@ -31,11 +31,14 @@ import { authorizationRequestQuery, meQuery } from "@/lib/queries";
 import { signOut, type Identity } from "@/lib/session";
 
 /** The message that says what each scope lets a client do. */
-const SCOPES: ReadonlyMap<string, "invoicesValidate" | "invoicesSubmit"> =
-  new Map([
-    ["invoices:validate", "invoicesValidate"],
-    ["invoices:submit", "invoicesSubmit"],
-  ]);
+const SCOPES: ReadonlyMap<
+  string,
+  "invoicesValidate" | "invoicesSubmit" | "invoicesSend"
+> = new Map([
+  ["invoices:validate", "invoicesValidate"],
+  ["invoices:submit", "invoicesSubmit"],
+  ["invoices:send", "invoicesSend"],
+]);
 
 type Choice = "approve" | "refuse";
 
@@ -170,6 +173,7 @@ function Asked({
   const t = useTranslations("consent");
   const locale = useLocale();
   const scopesId = useId();
+  const withheldId = useId();
   // Who the visitor is now, as the API says, once it has: the organization the client will
   // work in is the one the session is in.
   const me = useQuery(meQuery);
@@ -177,6 +181,17 @@ function Asked({
   const destination = destinationOf(request.redirect_uri);
   const publisher = publisherOf(request.client_id);
   const busy = deciding !== null || leaving;
+  // What the person's role does not grant is not given by approving: it is named apart.
+  const withheld = request.scopes.filter((scope) =>
+    request.withheld.includes(scope),
+  );
+  const allowed = request.scopes.filter(
+    (scope) => !request.withheld.includes(scope),
+  );
+  const said = (scope: string) => {
+    const message = SCOPES.get(scope);
+    return message === undefined ? scope : t(`scopes.${message}`);
+  };
   return (
     <Card>
       <CardHeader>
@@ -219,25 +234,43 @@ function Asked({
             </Button>
           </Fact>
         </dl>
-        <div className="grid gap-2 text-sm">
-          <h2 id={scopesId} className="text-muted-foreground">
-            {t("may")}
-          </h2>
-          <ul aria-labelledby={scopesId} className="grid gap-2">
-            {request.scopes.map((scope) => {
-              const message = SCOPES.get(scope);
-              return (
+        {allowed.length > 0 ? (
+          <div className="grid gap-2 text-sm">
+            <h2 id={scopesId} className="text-muted-foreground">
+              {t("may")}
+            </h2>
+            <ul aria-labelledby={scopesId} className="grid gap-2">
+              {allowed.map((scope) => (
                 <li key={scope} className="flex gap-2 font-medium">
                   <Check
                     aria-hidden="true"
                     className="mt-0.5 size-4 shrink-0 text-success"
                   />
-                  {message === undefined ? scope : t(`scopes.${message}`)}
+                  {said(scope)}
                 </li>
-              );
-            })}
-          </ul>
-        </div>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <Alert>
+            <AlertDescription>{t("forbidden")}</AlertDescription>
+          </Alert>
+        )}
+        {withheld.length > 0 && (
+          <div className="grid gap-2 text-sm">
+            <h2 id={withheldId} className="text-muted-foreground">
+              {t("withheld")}
+            </h2>
+            <ul aria-labelledby={withheldId} className="grid gap-2">
+              {withheld.map((scope) => (
+                <li key={scope} className="flex gap-2 text-muted-foreground">
+                  <X aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  {said(scope)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">
           {t("waits", { time: formatTime(locale, request.expires_at) })}
         </p>
@@ -251,7 +284,10 @@ function Asked({
         </p>
       </CardContent>
       <CardFooter className="flex-wrap gap-2">
-        <Button disabled={busy} onClick={() => decide("approve")}>
+        <Button
+          disabled={busy || allowed.length === 0}
+          onClick={() => decide("approve")}
+        >
           {deciding === "approve" ? t("allowing") : t("allow")}
         </Button>
         <Button

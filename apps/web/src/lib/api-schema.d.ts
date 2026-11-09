@@ -750,7 +750,7 @@ export interface paths {
         };
         /**
          * Read a client's request
-         * @description What the client asks to do, for the page where a signed-in person decides.
+         * @description What the client asks to do, and what of it the caller's role does not grant, for the page where a signed-in person decides.
          */
         get: operations["read_request_oauth_requests__request_id__get"];
         put?: never;
@@ -922,6 +922,11 @@ export interface components {
              * @description What the client asks to do, by scope.
              */
             scopes: string[];
+            /**
+             * Withheld
+             * @description Of those scopes, the ones the caller's role does not grant them in their organization: approving does not give them to the client.
+             */
+            withheld: string[];
             /**
              * Expires At
              * Format: date-time

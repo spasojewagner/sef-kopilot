@@ -22,6 +22,18 @@ is tagged.
   is asked for again with the same `requestId` (ADR-0051, migration 0021). `GET
   /invoices/{id}/sef` shows what SEF answered and where the invoice stands in SEF, which the API
   asks once a minute where the jobs run, less often as an invoice ages, until it is final.
+- `apps/api`: the OAuth scope `invoices:send`, with which a person lets an assistant send to
+  SEF in their organization's name; a client that names no scope is not given it to decide on,
+  and the MCP endpoint's challenge names the other two, so that it is asked for when an
+  assistant first sends (ADR-0052). `GET /oauth/requests/{id}` names the scopes asked for that
+  the person's role does not grant (`withheld`).
+- `apps/web`: the consent page names apart what the person's role withholds, which approving
+  does not give the client, and lets them only deny a client whose every scope it withholds;
+  sending to SEF has its words in Serbian and English.
+- `apps/api`: the MCP tools `send_to_sef_demo`, which sends a stored invoice of the person's to
+  SEF's demo environment as `POST /invoices/{id}/sef` does, and `get_sef_status`, which reads
+  where it stands in SEF as `GET /invoices/{id}/sef` does; the server's instructions tell an
+  assistant to send only when its person asks.
 
 ### Security
 
