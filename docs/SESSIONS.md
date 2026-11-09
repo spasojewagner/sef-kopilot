@@ -2824,3 +2824,26 @@ check of the balance and the permissions, each failing a test; ruff, mypy; each 
 on its own.
 
 Next: credits bought through Stripe's sandbox (`feat/api-stripe-checkout`).
+
+## 2026-11-09 — `feat/api-stripe-checkout` (3 commits, stacked on `feat/api-credits`)
+
+Outcome: an owner buys credits through Stripe Checkout, in Stripe's sandbox only, behind a
+provider's interface: the packs of `SEF_CREDIT_PACKS`, `POST /billing/checkout`, and
+`POST /billing/stripe-events`, whose events are read only when signed by Stripe less than five
+minutes before; a paid checkout is counted once under its reference (ADR-0060). Live keys refuse
+to start and live events add nothing. Built and tested without a Stripe account.
+
+Findings:
+
+- `stripe-mock` is maintained (v0.206.0, October 2026) and validates each request against
+  Stripe's OpenAPI description: it refuses a misnamed parameter or a price that is not a
+  number, which a test against a stub could not show.
+- Stripe's current API version is `2026-10-28.endive`; requests pin it.
+- A payment may be reported by two events (`completed`, then `async_payment_succeeded` for a
+  delayed method): the unique reference counts it once either way.
+
+Verification: the API's tests, the whole suite, with `stripe-mock` running; seeded faults in
+the signature, the tolerance, the scheme, the counting once and the sandbox checks, each failing
+a test; ruff, mypy; each commit checked on its own.
+
+Next: the page that shows the credits and buys them (`feat/web-billing`).
