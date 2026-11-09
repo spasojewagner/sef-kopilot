@@ -2710,3 +2710,25 @@ Verification: the runner's tests; the measures replayed from the cassette here a
 recording wrote on the maintainer's machine; ruff, mypy; each commit checked on its own.
 
 Next: the repairs' measures (`feat/evals-repairs`).
+
+## 2026-11-09 — `feat/evals-repairs` (2 commits, stacked on `feat/evals-explanations`)
+
+Outcome: repairs are measured on nine held-out invoices made at run time, which a repair must
+leave the validator accepting (80 % at least), and on eleven whose mistake a person decides,
+which no repair may make pass (none may), with the model's answers recorded once and replayed
+offline (ADR-0056). The measures of the final recording are in `evals/reports/latest.md`.
+
+Findings:
+
+- The first recording left `repair_success` at 5 of 9: the four misses were invoice types SEF
+  does not accept, for which the model proposed nothing. SRB-001 allows four codes and the
+  invoice does not say which was meant, so those cases did not meet the set's own criterion;
+  at the maintainer's decision they became cases a person decides, and four new held-out
+  invoices took their places before the model saw them (ADR-0056 records why).
+- The model did propose patches a person decides (a PIB's check digit, an amount due); the
+  guard kept them as suggestions, and `overreach_rate` stayed at zero.
+
+Verification: the runner's tests; the report replayed from the cassettes here; ruff, mypy;
+each commit checked on its own.
+
+Next: the stack above, from the providers' adapters to the evaluations' gate, rebased on these.
