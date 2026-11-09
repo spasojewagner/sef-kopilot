@@ -2869,3 +2869,20 @@ own.
 
 Next: the evaluations as CI's gate (`ci/evals-gate`), once the repairs' cassette is recorded,
 then `v0.6.0`.
+
+## 2026-11-09 — `ci/evals-gate` (3 commits, stacked on `feat/web-billing`)
+
+Outcome: the evaluations gate CI as a job of their own, which replays the cassettes offline and
+fails on a missed threshold or a stale report; `sef-evals` writes the README's badge with the
+report, and the README reads it through shields.io from the default branch (ADR-0061). The last
+branch of M6 before `v0.6.0`.
+
+Findings:
+
+- The badge as a file of the report needs no token and cannot drift: `--check` holds it to the
+  run like the rest.
+
+Verification: the runner's tests; the workflow validated against GitHub's schema; the job's
+command run here on the stack's tip, every threshold met.
+
+Next: `v0.6.0`.
