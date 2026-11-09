@@ -14,12 +14,12 @@ default-groups = ["dev"]
 [dependency-groups]
 dev = [
   # Pinned exactly so that the pre-commit hook and the local run use the same ruff.
-  "ruff==0.17.3",
+  "ruff==0.17.4",
   "mypy==2.4.1",
   "pytest>=9.2",
   "pytest-asyncio>=1.4",
   "pytest-cov>=7.1",
-  "hypothesis>=6.170",
+  "hypothesis>=6.170.15",
   "httpx>=0.28",
   "pre-commit>=4.7",
   "types-lxml>=2026.2.16",

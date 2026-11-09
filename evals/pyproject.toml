@@ -14,7 +14,7 @@ classifiers = [
 ]
 dependencies = [
   "einvoice-core",
-  "pydantic>=2.14",
+  "pydantic>=2.14.3",
   "pyyaml>=6.0.3",
 ]
 
