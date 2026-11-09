@@ -462,8 +462,10 @@
     "may": "Moći će da",
     "scopes": {
       "invoicesValidate": "proverava fakture i objašnjava njihove greške",
-      "invoicesSubmit": "čuva fakture u vašoj organizaciji i čita one koje ste vi poslali"
+      "invoicesSubmit": "čuva fakture u vašoj organizaciji i čita one koje ste vi poslali",
+      "invoicesSend": "šalje fakture koje ste vi sačuvali na SEF demo, u ime vaše organizacije"
     },
+    "withheld": "Vaša uloga to ne dozvoljava, pa neće moći da",
     "waits": "Zahtev čeka vašu odluku do {time}.",
     "allow": "Dozvoli",
     "allowing": "Dozvoljavanje…",

@@ -462,8 +462,10 @@
     "may": "It will be able to",
     "scopes": {
       "invoicesValidate": "validate invoices and explain their errors",
-      "invoicesSubmit": "store invoices in your organization and read the ones you sent"
+      "invoicesSubmit": "store invoices in your organization and read the ones you sent",
+      "invoicesSend": "send the invoices you stored to SEF's demo environment, in your organization's name"
     },
+    "withheld": "Your role does not allow it, so it will not be able to",
     "waits": "The request waits for your decision until {time}.",
     "allow": "Allow",
     "allowing": "Allowing…",

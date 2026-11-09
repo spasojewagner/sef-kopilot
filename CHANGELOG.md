@@ -27,6 +27,9 @@ is tagged.
   and the MCP endpoint's challenge names the other two, so that it is asked for when an
   assistant first sends (ADR-0052). `GET /oauth/requests/{id}` names the scopes asked for that
   the person's role does not grant (`withheld`).
+- `apps/web`: the consent page names apart what the person's role withholds, which approving
+  does not give the client, and lets them only deny a client whose every scope it withholds;
+  sending to SEF has its words in Serbian and English.
 
 ### Security
 
