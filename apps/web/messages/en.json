@@ -174,6 +174,7 @@
     "validatorBusy": "The validator is busy. Try again in {seconds} s.",
     "validatorAway": "The validator is not available right now. Try again a little later.",
     "storageFull": "The organization has filled its space for invoices. Delete some, then try again.",
+    "noCredits": "The organization has no credit left to store an invoice. Its owner buys more on the organization page, or the server's operator gives them.",
     "unreachable": "The API is not answering. Try again a little later.",
     "failed": "The invoice was not kept. Try again."
   },
@@ -538,6 +539,40 @@
         "unreachable": "The API does not answer. The organization is being read again: check the model before you try again.",
         "uncertain": "The API gave no clear answer. The organization has been read again: check the model before you try again.",
         "failed": "The key was not changed. Try again a little later."
+      }
+    },
+    "credits": {
+      "title": "Credits",
+      "description": "Storing an invoice on this server costs a credit; checking one without storing it costs nothing.",
+      "balance": "The organization holds {balance, plural, one {# credit} other {# credits}}; an invoice stored costs {perInvoice}.",
+      "ownersBuy": "The organization's owner buys more credits.",
+      "buy": "Buy more:",
+      "pack": "{credits} credits for {price}",
+      "sandbox": "Paid on Stripe's page, in its sandbox: only Stripe's test cards are taken, and nothing is charged.",
+      "opening": "Opening Stripe's page…",
+      "notSold": "This server sells no credits: its operator gives them.",
+      "paid": "Stripe took the payment. The credits are added when Stripe tells the API, usually within a minute: read the page again to see them.",
+      "cancelled": "The payment was cancelled: nothing was charged.",
+      "ledger": "The latest changes of the organization's credits",
+      "loading": "Loading the changes…",
+      "notLoaded": "The changes did not load. Try again a little later.",
+      "noEntries": "No credit has been spent or bought yet.",
+      "when": "When",
+      "what": "What",
+      "change": "Change",
+      "kinds": {
+        "opening": "Starting credits",
+        "spend": "An invoice stored",
+        "grant": "Given by the operator",
+        "purchase": "Bought"
+      },
+      "errors": {
+        "signedOut": "The session has expired. Sign in again.",
+        "forbidden": "You are no longer the organization's owner.",
+        "stripe": "Stripe did not open the page. Try again a little later.",
+        "notSold": "This server sells no credits: its operator gives them.",
+        "unreachable": "The API does not answer. Try again a little later.",
+        "failed": "Stripe's page did not open. Try again a little later."
       }
     },
     "keys": {

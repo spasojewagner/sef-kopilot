@@ -50,6 +50,10 @@ is tagged.
   whose events are read only when signed by Stripe less than five minutes before, a paid
   checkout counted once under its reference; live keys refuse to start, live events add
   nothing; tested in CI against `stripe-mock` (ADR-0060).
+- `apps/web`: the organization's credits on its page, where the server counts them: the
+  balance for every member who stores invoices; for the owner, the latest changes and the packs
+  on sale, each bought on Stripe's page in its sandbox, the credits read again after a payment;
+  the upload page says when there is no credit left to store an invoice.
 
 ## [0.5.0] - 2026-11-09
 

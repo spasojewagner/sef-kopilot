@@ -160,6 +160,14 @@ provider refuses shows on the first explanation. It is removed only after a seco
 says the server's model writes without it, or nothing where the server has none, and that the
 key stays valid with the provider.
 
+Where the server counts credits (ADR-0059), the page shows every member who stores invoices how
+many the organization holds and what an invoice costs; where storing costs nothing, it shows
+nothing of them. The owner sees the latest changes of the ledger and, where the server sells
+credits (ADR-0060), a button for each pack on sale, which opens Stripe's page, in its sandbox;
+coming back from it, the page says the payment is on its way and reads the credits again every
+five seconds for a minute, since Stripe tells the API a moment after it tells the owner. An
+invoice the organization has no credit to store says so on the upload page.
+
 The same page holds the member's API keys, for the machines that act for them, an ERP say
 (ADR-0017): each key's name, its first characters, what it allows, when a request last came
 with it and when it stops working. A new key is named, given some of the permissions the

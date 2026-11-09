@@ -6,6 +6,7 @@ import {
 
 import { listKeys } from "@/lib/api-keys";
 import { getHealth } from "@/lib/api";
+import { getBilling, listCreditEntries } from "@/lib/billing";
 import {
   type Explained,
   explainInvoice,
@@ -55,6 +56,18 @@ export const meQuery = queryOptions({
 export const organizationQuery = queryOptions({
   queryKey: ["organization"],
   queryFn: ({ signal }) => getOrganization(signal),
+});
+
+/** Whether storing an invoice costs a credit, and how many the organization holds. */
+export const billingQuery = queryOptions({
+  queryKey: ["billing"],
+  queryFn: ({ signal }) => getBilling(signal),
+});
+
+/** The latest changes of the organization's credits, which only an owner sees. */
+export const creditEntriesQuery = queryOptions({
+  queryKey: ["billing", "entries"],
+  queryFn: ({ signal }) => listCreditEntries(signal),
 });
 
 /** The API keys the visitor may see that still work, the newest first. */
