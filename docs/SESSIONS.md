@@ -2777,3 +2777,26 @@ permission, the choice of model and the closing of the traces, each failing a te
 tsc; each commit checked on its own.
 
 Next: the organization page's form for the key (`feat/web-organization-model-key`).
+
+## 2026-11-09 — `feat/web-organization-model-key` (2 commits, stacked on `feat/api-organization-model-key`)
+
+Outcome: the organization page shows every member whose language model writes the
+organization's explanations and repairs, the server's or its own provider's and model, and since
+when; an owner chooses the provider (Groq, OpenAI or Anthropic), names a model if not the
+provider's default, gives the key in a password field that forgets it once saved, and removes it
+after a second press (ADR-0058).
+
+Findings:
+
+- The page already holds the key to SEF, whose buttons say "Save the key": the model's buttons
+  name the model key, so that neither a person nor a test is left to guess which card a button
+  belongs to.
+- The page checks the key and the model's name by the API's own rules, kept beside them in
+  `lib/organization.ts` and tested at the same boundaries; a 422 keeps its own message in case
+  they ever drift.
+
+Verification: the web application's tests, types, lint and build; the seeded faults, each
+failing a test; each commit checked on its own; screenshots against a local API.
+
+Next: credits and Stripe behind an interface, built and tested without an account
+(`feat/billing-stripe-sandbox`), while the cassettes of the model's measures are recorded.

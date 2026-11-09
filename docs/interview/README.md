@@ -107,3 +107,4 @@ per branch, to keep them with the code they describe.
 | `feat/evals-repairs` | [m6-evals-repairs.md](m6-evals-repairs.md) |
 | `feat/llm-openai-anthropic` | [m6-llm-openai-anthropic.md](m6-llm-openai-anthropic.md) |
 | `feat/api-organization-model-key` | [m6-api-organization-model-key.md](m6-api-organization-model-key.md) |
+| `feat/web-organization-model-key` | [m6-web-organization-model-key.md](m6-web-organization-model-key.md) |
