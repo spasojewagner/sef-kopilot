@@ -2800,3 +2800,27 @@ failing a test; each commit checked on its own; screenshots against a local API.
 
 Next: credits and Stripe behind an interface, built and tested without an account
 (`feat/billing-stripe-sandbox`), while the cassettes of the model's measures are recorded.
+
+## 2026-11-09 — `feat/api-credits` (3 commits, stacked on `feat/web-organization-model-key`)
+
+Outcome: where the operator turns billing on, each organization holds credits, starting with
+`SEF_STARTING_CREDITS`, and storing an invoice, from the routes or from MCP, spends one or
+answers 402; a balance and an append-only ledger in one transaction, never below zero;
+`GET /billing` for whoever may store, the ledger for the owner, `make grant-credits` for the
+operator (ADR-0059). Off by default and in the public demo. `feat/billing-stripe-sandbox` is
+split: the credits here, buying them through Stripe's sandbox and the page next.
+
+Findings:
+
+- The entries of one transaction share their time: an identity column orders them as they
+  were written.
+- Spending before the invoice is added leaves nothing to undo when there is no credit, whatever
+  the caller does with its session.
+- `stripe-mock` is maintained (v0.206.0, October 2026), so the Stripe branch can test against
+  it in CI.
+
+Verification: the API's tests, the whole suite; seeded faults in the spend, the opening, the
+check of the balance and the permissions, each failing a test; ruff, mypy; each commit checked
+on its own.
+
+Next: credits bought through Stripe's sandbox (`feat/api-stripe-checkout`).
