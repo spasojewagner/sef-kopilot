@@ -2547,3 +2547,31 @@ baseline (see the pull request); ruff, mypy; each commit checked on its own.
 
 Next: the MCP tool `send_to_sef_demo` with the scope `invoices:send`; the web application's
 pages for the SEF key and for sending; after `v0.4.0`.
+
+## 2026-11-09 — `feat/mcp-send-to-sef` (4 commits)
+
+Outcome: an assistant sends a stored invoice of its person's to SEF's demo environment with
+`send_to_sef_demo`, and reads where it stands with `get_sef_status`, as the routes do; sending is
+the scope `invoices:send`, which a client is not told to ask for first and asks for through the
+step-up when its assistant first sends; the consent page names what the person's role withholds
+(ADR-0052).
+
+Findings:
+
+- The MCP revision's clients take the scopes to ask for from the challenge first, then from
+  `scopes_supported`: listing a scope as supported and leaving it out of the challenge is how a
+  server keeps it for later without a mechanism of its own.
+- Every role held both scopes until now, so the consent page never had to say what approving
+  does not give; `invoices:send` is the first scope a client of the office is denied.
+- The application's SEF client is captured by its watching when it starts, so a test that speaks
+  to a fake SEF sets it before the application starts.
+- The maintainer's decisions for M6: the language model adapters are tested on recorded answers
+  without a paid comparison, and billing is built and tested without a Stripe account, off in
+  the public demo; the project stays free.
+
+Verification: the API's tests, the whole suite; the web application's tests, build and
+end-to-end test; the seeded faults, each caught after a clean baseline (see the pull request);
+ruff, mypy, eslint, tsc; each commit checked on its own.
+
+Next: `invoices:send` among the permissions an API key may hold, for an ERP that sends its
+invoices (`feat/api-keys-send-to-sef`).

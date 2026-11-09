@@ -131,7 +131,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [x] `feat/sef-keys` — an organization's key to SEF, which an owner sets and removes, sealed with Fernet under `SEF_FERNET_KEY` for that organization alone, shown to no one, rotated with `make rotate-sef-keys` (ADR-0050; split from `feat/sef-demo-client` on 2026-11-08, with a 422 that no longer repeats what it refused)
 - [x] `feat/sef-demo-client` — SEF's public API (v1, as its OpenAPI document describes it), a stored invoice sent with the organization's key only when the validator passes it, once through its `requestId`, and watched until it is final where the jobs run (ADR-0051; the MCP tool split off on 2026-11-08)
-- [ ] `feat/mcp-send-to-sef` — the MCP tool `send_to_sef_demo` over `POST /invoices/{id}/sef`, with the scope `invoices:send` (moved from `feat/mcp-server`, which had no client to call, then from `feat/sef-demo-client`)
+- [x] `feat/mcp-send-to-sef` — the MCP tool `send_to_sef_demo` over `POST /invoices/{id}/sef`, with the scope `invoices:send`, asked for through the step-up when an assistant first sends, and `get_sef_status`; the consent page names what the person's role withholds (ADR-0052; moved from `feat/mcp-server`, which had no client to call, then from `feat/sef-demo-client`)
 - [ ] `feat/api-keys-send-to-sef` — `invoices:send` among the permissions an API key may hold, for an ERP that sends its invoices (added on 2026-11-08 with `feat/sef-demo-client`)
 - [ ] `feat/web-sef-send` — the report's page: send a valid stored invoice to SEF, what SEF answered and where it stands (added on 2026-11-08 with `feat/sef-demo-client`)
 - [ ] `feat/web-sef-key` — the organization's page: an owner sets, replaces or removes the key to SEF, asked twice before removing, and every member sees since when one is set (added on 2026-11-08 with `feat/sef-keys`)
@@ -144,8 +144,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [ ] `feat/evals-harness` — golden sets, eval runner, `evals/thresholds.yaml`, offline cassettes
 - [ ] `ci/evals-gate` — CI fails below thresholds; README badge from the latest report
-- [ ] `feat/billing-stripe-sandbox` — Stripe sandbox credits per invoice, verified webhooks
-- [ ] OpenAI and Anthropic adapters behind `LLMClient` (the operator's key, `LLM_PROVIDER=openai|anthropic`), and an organization's own key kept encrypted like its SEF key (BYOK), compared on the evaluation set
+- [ ] `feat/billing-stripe-sandbox` — credits per invoice, kept in the API's own database, and Stripe behind an interface: webhooks verified by their signature and spent once, tested with payloads signed as Stripe signs them, and with `stripe-mock` in CI if it is still maintained; off in the public demo. Built and tested without a Stripe account, decided on 2026-11-09: Stripe does not take payments for businesses in Serbia, and the project stays free
+- [ ] OpenAI and Anthropic adapters behind `LLMClient` (the operator's key, `LLM_PROVIDER=openai|anthropic`), and an organization's own key kept encrypted like its SEF key (BYOK), tested on recorded answers; ~~compared on the evaluation set~~ — the comparison left out on 2026-11-09 at the maintainer's decision, since it would need paid accounts and the project stays free: whoever runs the API with their own key can run the evaluations on it
 - [ ] Release: `v0.6.0`
 
 ## M7 — PDF beta, case study, 1.0 (week 10) · tag `v1.0.0`
