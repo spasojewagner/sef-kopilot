@@ -2454,6 +2454,7 @@ dependencies = [
     { name = "einvoice-core" },
     { name = "pydantic" },
     { name = "pyyaml" },
+    { name = "sef-kopilot-api" },
 ]
 
 [package.metadata]
@@ -2461,6 +2462,7 @@ requires-dist = [
     { name = "einvoice-core", editable = "packages/einvoice_core" },
     { name = "pydantic", specifier = ">=2.14" },
     { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "sef-kopilot-api", editable = "apps/api" },
 ]
 
 [[package]]
