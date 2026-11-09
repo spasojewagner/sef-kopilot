@@ -294,6 +294,27 @@ invoice's report is its latest, and `validated_at` says when the validator made 
 invoice was stored, or validated again. After a revalidation, `GET /invoices?valid=false`
 lists the invoices it found invalid.
 
+## Credits
+
+Where the operator turns billing on (`SEF_BILLING=credits`; off by default and in the public
+demo), storing an invoice spends one of the organization's credits (ADR-0059): from
+`POST /invoices` and MCP's `store_invoice` alike. An organization starts with
+`SEF_STARTING_CREDITS` (25); without a credit, `POST /invoices` answers 402 and nothing is stored
+or spent. Validating without storing, explanations and repairs cost nothing.
+
+| Endpoint | Who | Answer |
+| --- | --- | --- |
+| `GET /billing` | whoever may store invoices, an API key too | whether billing is on, the balance, the starting credits and what an invoice costs |
+| `GET /billing/entries?limit=` | the owner | the ledger, newest first, up to 100 (50 by default): the opening credits, each spend with its invoice, each grant |
+
+The balance and the ledger are written in one transaction, so the balance is always the sum of
+the entries; a spend takes a credit only from an account that has one, so two invoices stored
+at once cannot take an organization below zero. The operator gives credits:
+
+```bash
+make grant-credits ORGANIZATION=<the organization's id> COUNT=100
+```
+
 ## Repairs
 
 A repair is a list of patches for a stored invoice (ADR-0023, ADR-0024), proposed by a member
@@ -798,7 +819,7 @@ src/sef_api/
                  column type
   models.py      organizations, users, memberships, roles, invitations, refresh tokens,
                  stored invoices, API keys, jobs, the corpus's documents and passages,
-                 repairs and audit events
+                 repairs and audit events, keys to SEF and to a model, credits
   locks.py       the advisory locks on an organization's members, invoices and API keys,
                  and the one that makes two ingests of the corpus take turns
   rate_limits.py the rate limiter (GCRA), what it counts and the limits
@@ -809,6 +830,8 @@ src/sef_api/
   repairs/       repairs of stored invoices: proposals and their outcomes, the repairer
                  that has the language model propose patches, `/invoices/{id}/repairs` routes
   audit.py       the audit log's events: who did what, without the invoice's content
+  billing/       an organization's credits and their ledger, granting them
+                 (`python -m sef_api.billing.grant`), `/billing` routes
   bodies.py      the limit on every request body other than an invoice
   llm.py         the language model behind an adapter (Groq), and the languages it writes in
   values.py      the dates and numbers a model's answer names, and those it made up

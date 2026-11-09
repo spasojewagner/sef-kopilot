@@ -37,6 +37,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.billing.ledger import CreditTerms, spend
 from sef_api.invoices.validation import InvoiceSummary, ProfileName, Validation
 from sef_api.locks import lock_invoice_storage
 from sef_api.models import Organization, StoredInvoice
@@ -141,10 +142,13 @@ async def store(
     content: bytes,
     validation: Validation,
     quota: int,
+    terms: CreditTerms | None = None,
 ) -> StoredInvoice:
-    """Store ``content`` with its validation and commit, or raise :class:`StorageFullError`
-    when the organization would then store more than ``quota`` bytes; the caller's session
-    then ends the transaction, and with it the lock."""
+    """Store ``content`` with its validation and commit, spending one of the organization's
+    credits on ``terms`` where billing is on (ADR-0059). :class:`StorageFullError` when the
+    organization would then store more than ``quota`` bytes,
+    :class:`~sef_api.billing.ledger.NoCreditsError` when it has no credit left: the caller's
+    session then ends the transaction, and with it the lock, and nothing is stored or spent."""
     invoice = StoredInvoice(
         organization_id=organization_id,
         submitted_by=submitted_by,
@@ -160,6 +164,9 @@ async def store(
     await lock_invoice_storage(session, organization_id)
     if await stored_bytes(session, organization_id) + invoice.size + invoice.report_size > quota:
         raise StorageFullError
+    if terms is not None:
+        invoice.id = uuid.uuid4()
+        await spend(session, organization_id, terms, invoice_id=invoice.id)
     session.add(invoice)
     await session.commit()
     return invoice

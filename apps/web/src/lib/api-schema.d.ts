@@ -219,7 +219,7 @@ export interface paths {
         put?: never;
         /**
          * Store an invoice
-         * @description Validates the UBL 2.1 invoice or credit note in the request body as `POST /invoices/validate` does, then keeps it for the caller's organization with the validator's report, byte for byte. A document the validator cannot read is stored too, with the report that says why. `Location` names the stored invoice.
+         * @description Validates the UBL 2.1 invoice or credit note in the request body as `POST /invoices/validate` does, then keeps it for the caller's organization with the validator's report, byte for byte. A document the validator cannot read is stored too, with the report that says why. `Location` names the stored invoice. Where billing is on, storing spends one of the organization's credits (`GET /billing`).
          */
         post: operations["store_invoice_invoices_post"];
         delete?: never;
@@ -701,6 +701,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * See the organization's credits
+         * @description Whether storing an invoice costs a credit on this server, and if so how many the organization holds. Anyone who may store invoices sees it, an API key that may too.
+         */
+        get: operations["get_billing_billing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the changes of the organization's credits
+         * @description The organization's ledger, newest first: its starting credits, each stored invoice's spend and each grant. The owner sees it; it is empty where billing is off or before the organization first spent a credit.
+         */
+        get: operations["list_entries_billing_entries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invoices/{invoice_id}/sef": {
         parameters: {
             query?: never;
@@ -1015,6 +1055,29 @@ export interface components {
              */
             client_id_metadata_document_supported: boolean;
         };
+        /** Billing */
+        Billing: {
+            /**
+             * Enabled
+             * @description Whether storing an invoice costs a credit on this server; when not, every other field is null.
+             */
+            enabled: boolean;
+            /**
+             * Balance
+             * @description The credits the organization holds.
+             */
+            balance: number | null;
+            /**
+             * Starting
+             * @description The credits an organization starts with.
+             */
+            starting: number | null;
+            /**
+             * Per Invoice
+             * @description The credits one stored invoice costs.
+             */
+            per_invoice: number | null;
+        };
         /**
          * CatalogueRule
          * @description One rule a profile applies, or sets aside.
@@ -1099,6 +1162,35 @@ export interface components {
             valid_to: string | null;
             /** Source Url */
             source_url: string;
+        };
+        /** CreditEntryOut */
+        CreditEntryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Kind
+             * @description `opening`, the starting credits; `spend`, a stored invoice; `grant`, credits the operator gave.
+             * @enum {string}
+             */
+            kind: "opening" | "spend" | "grant";
+            /**
+             * Delta
+             * @description The change of the balance: negative for a spend.
+             */
+            delta: number;
+            /**
+             * Invoice Id
+             * @description The stored invoice a spend paid for, which may since have been deleted.
+             */
+            invoice_id: string | null;
         };
         /**
          * Decision
@@ -3078,6 +3170,15 @@ export interface operations {
                     "application/json": components["schemas"]["StoredInvoiceOut"];
                 };
             };
+            /** @description Billing is on, and the organization has no credit left (ADR-0059). */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             /** @description The invoice was not received in time. */
             408: {
                 headers: {
@@ -4489,6 +4590,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_billing_billing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Billing"];
+                };
+            };
+        };
+    };
+    list_entries_billing_entries_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditEntryOut"][];
                 };
             };
             /** @description Validation Error */

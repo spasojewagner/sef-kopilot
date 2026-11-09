@@ -114,6 +114,11 @@ system are marked as such.
 - [x] The work one repair causes is bounded: 100 patches, a path of 1 000 characters whose
       positions have six digits at most, a value of 1 000 characters; a path costs as many
       steps as it has, and `einvoice patch` reads 1 MiB of patches at most.
+- [x] Where billing is on, credits cannot be spent twice or go below zero: a spend is one
+      conditional update under a CHECK that the balance stays non-negative, written with its
+      ledger entry in the storing transaction; two invoices stored on one last credit store
+      one (tested). A grant gives 1 to 100 000 credits, from the operator's command only
+      (ADR-0059).
 
 ### V3 Web frontend security
 

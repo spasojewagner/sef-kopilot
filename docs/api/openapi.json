@@ -704,7 +704,7 @@
           "invoices"
         ],
         "summary": "Store an invoice",
-        "description": "Validates the UBL 2.1 invoice or credit note in the request body as `POST /invoices/validate` does, then keeps it for the caller's organization with the validator's report, byte for byte. A document the validator cannot read is stored too, with the report that says why. `Location` names the stored invoice.",
+        "description": "Validates the UBL 2.1 invoice or credit note in the request body as `POST /invoices/validate` does, then keeps it for the caller's organization with the validator's report, byte for byte. A document the validator cannot read is stored too, with the report that says why. `Location` names the stored invoice. Where billing is on, storing spends one of the organization's credits (`GET /billing`).",
         "operationId": "store_invoice_invoices_post",
         "security": [
           {
@@ -793,6 +793,16 @@
           },
           "503": {
             "description": "The validator is busy (retry after `Retry-After` seconds) or not available on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Billing is on, and the organization has no credit left (ADR-0059).",
             "content": {
               "application/json": {
                 "schema": {
@@ -2917,6 +2927,88 @@
         }
       }
     },
+    "/billing": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "See the organization's credits",
+        "description": "Whether storing an invoice costs a credit on this server, and if so how many the organization holds. Anyone who may store invoices sees it, an API key that may too.",
+        "operationId": "get_billing_billing_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Billing"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
+    "/billing/entries": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "List the changes of the organization's credits",
+        "description": "The organization's ledger, newest first: its starting credits, each stored invoice's spend and each grant. The owner sees it; it is empty where billing is off or before the organization first spent a credit.",
+        "operationId": "list_entries_billing_entries_get",
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CreditEntryOut"
+                  },
+                  "title": "Response List Entries Billing Entries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/invoices/{invoice_id}/sef": {
       "post": {
         "tags": [
@@ -3847,6 +3939,59 @@
         "title": "AuthorizationServer",
         "description": "The authorization server, as RFC 8414 §2 describes it."
       },
+      "Billing": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether storing an invoice costs a credit on this server; when not, every other field is null."
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance",
+            "description": "The credits the organization holds."
+          },
+          "starting": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starting",
+            "description": "The credits an organization starts with."
+          },
+          "per_invoice": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Invoice",
+            "description": "The credits one stored invoice costs."
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "balance",
+          "starting",
+          "per_invoice"
+        ],
+        "title": "Billing"
+      },
       "CatalogueRule": {
         "properties": {
           "id": {
@@ -3992,6 +4137,57 @@
         ],
         "title": "Citation",
         "description": "A stored passage of the corpus that an explanation cites."
+      },
+      "CreditEntryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "opening",
+              "spend",
+              "grant"
+            ],
+            "title": "Kind",
+            "description": "`opening`, the starting credits; `spend`, a stored invoice; `grant`, credits the operator gave."
+          },
+          "delta": {
+            "type": "integer",
+            "title": "Delta",
+            "description": "The change of the balance: negative for a spend."
+          },
+          "invoice_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Id",
+            "description": "The stored invoice a spend paid for, which may since have been deleted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "kind",
+          "delta",
+          "invoice_id"
+        ],
+        "title": "CreditEntryOut"
       },
       "Decision": {
         "properties": {

@@ -19,6 +19,7 @@ from einvoice_core.pipeline import ValidationReport
 from sef_api.auth.dependencies import Principal, check_again, require
 from sef_api.auth.permissions import Permission
 from sef_api.auth.routes import Problem
+from sef_api.billing.ledger import NO_CREDITS, CreditTerms, NoCreditsError
 from sef_api.db import get_session
 from sef_api.invoices import explanations as kept_explanations
 from sef_api.invoices import store
@@ -335,15 +336,20 @@ async def explain(
         "Validates the UBL 2.1 invoice or credit note in the request body as "
         "`POST /invoices/validate` does, then keeps it for the caller's organization with the "
         "validator's report, byte for byte. A document the validator cannot read is stored "
-        "too, with the report that says why. `Location` names the stored invoice."
+        "too, with the report that says why. `Location` names the stored invoice. Where "
+        "billing is on, storing spends one of the organization's credits (`GET /billing`)."
     ),
     openapi_extra=_DOCUMENT,
     responses=_VALIDATION_RESPONSES
     | {
+        status.HTTP_402_PAYMENT_REQUIRED: {
+            "model": Problem,
+            "description": "Billing is on, and the organization has no credit left (ADR-0059).",
+        },
         status.HTTP_507_INSUFFICIENT_STORAGE: {
             "model": Problem,
             "description": "The organization stores as much as it may; delete invoices first.",
-        }
+        },
     },
 )
 async def store_invoice(
@@ -367,11 +373,14 @@ async def store_invoice(
             content=content,
             validation=validation,
             quota=settings.max_stored_bytes,
+            terms=cast(CreditTerms | None, request.app.state.credit_terms),
         )
     except store.StorageFullError:
         raise HTTPException(
             status.HTTP_507_INSUFFICIENT_STORAGE, "the organization stores as much as it may"
         ) from None
+    except NoCreditsError:
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, NO_CREDITS) from None
     response.headers["Location"] = f"/invoices/{invoice.id}"
     response.headers["Cache-Control"] = "no-store"
     return present_stored(invoice)
