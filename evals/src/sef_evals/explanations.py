@@ -132,7 +132,7 @@ async def explain(
         report = validate(root / document, "srb")
         for language in golden.languages:
             if progress is not None:
-                progress(f"{document} [{language}]")
+                progress(f"the rules of {document} [{language}]")
             async with database.sessions() as session:
                 explanations, _ = await explain_report(
                     session,

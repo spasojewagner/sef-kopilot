@@ -199,4 +199,5 @@ class Recording:
         )
 
     async def aclose(self) -> None:
-        await self._llm.aclose()
+        """Nothing: the model recorded from is its owner's to close, and may record for more
+        than one cassette."""

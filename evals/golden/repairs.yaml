@@ -1,0 +1,187 @@
+# The golden set of the repairs' evaluations (ADR-0056). Each case is an invoice and what must
+# become of it when the model is asked for a repair, in the language named, as the API asks:
+#
+# - `repaired`: held out from the fixtures the repairer was built and tested on, each made at
+#   run time from a synthetic invoice by the edits it names (each must occur once). Its
+#   mistake can be repaired from what the invoice and the violations say, in a field a repair
+#   may change; the validator must accept what the repair leaves.
+# - `refused`: a mistake a person decides: in a field the guard keeps for a person (an amount,
+#   the VAT, a tax or company identifier, a date), one of the fixtures' mutations; or one whose
+#   right value neither the invoice nor the violations give, made by edits as the held-out
+#   ones are (the invoice's type: SRB-001 allows four codes, and a proforma invoice may have
+#   been meant as an invoice or an advance invoice). No repair may leave the validator
+#   accepting it, whatever it patches.
+#
+# The type codes were first labelled `repaired`; the first recording (2026-11-09) showed the
+# model proposing nothing for them, as the repairer's rules ask when no value is given, and
+# the labels were corrected: the code is the issuer's to choose (ADR-0056).
+
+language: sr
+
+cases:
+  # --- held out: a repair may fix them ------------------------------------------------------
+  - name: plain-specification-identifier
+    document: fixtures/invoices/synthetic/srb-minimal-invoice.xml
+    mistake: the specification identifier (BT-24) is EN 16931's own, without SRB-CIUS.
+    edits:
+      - [
+          "<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.rs:srbdt:2022<",
+          "<cbc:CustomizationID>urn:cen.eu:en16931:2017<",
+        ]
+    expect: repaired
+
+  - name: peppol-identifier-with-extension
+    document: fixtures/invoices/synthetic/srb-final-invoice-in-euro.xml
+    mistake: a euro invoice with the Serbian extension gives Peppol's specification identifier.
+    edits:
+      - [
+          "urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.rs:srbdt:2022#conformant#urn:mfin.gov.rs:srbdtext:2022",
+          "urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0",
+        ]
+    expect: repaired
+
+  - name: payment-model-without-space
+    document: fixtures/invoices/synthetic/srb-minimal-invoice.xml
+    mistake: the payment reference (BT-83) runs the model into the number, without a space.
+    edits:
+      - [
+          "<cbc:PaymentID>(mod97) 12-345678-00123<",
+          "<cbc:PaymentID>(mod97)12-345678-00123<",
+        ]
+    expect: repaired
+
+  - name: seller-country-alpha-3
+    document: fixtures/invoices/synthetic/srb-minimal-invoice.xml
+    mistake: the seller's country is written SRB, ISO 3166's three letters, instead of RS.
+    edits:
+      - [
+          "32000</cbc:PostalZone>\n        <cac:Country>\n          <cbc:IdentificationCode>RS<",
+          "32000</cbc:PostalZone>\n        <cac:Country>\n          <cbc:IdentificationCode>SRB<",
+        ]
+    expect: repaired
+
+  - name: buyer-country-lower-case
+    document: fixtures/invoices/synthetic/srb-minimal-invoice.xml
+    mistake: the buyer's country is written rs, in lower case.
+    edits:
+      - [
+          "11000</cbc:PostalZone>\n        <cac:Country>\n          <cbc:IdentificationCode>RS<",
+          "11000</cbc:PostalZone>\n        <cac:Country>\n          <cbc:IdentificationCode>rs<",
+        ]
+    expect: repaired
+
+  - name: two-mistakes
+    document: fixtures/invoices/synthetic/srb-minimal-invoice.xml
+    mistake:
+      the payment reference runs the model into the number, and the buyer's country is
+      written SRB.
+    edits:
+      - [
+          "<cbc:PaymentID>(mod97) 12-345678-00123<",
+          "<cbc:PaymentID>(mod97)12-345678-00123<",
+        ]
+      - [
+          "11000</cbc:PostalZone>\n        <cac:Country>\n          <cbc:IdentificationCode>RS<",
+          "11000</cbc:PostalZone>\n        <cac:Country>\n          <cbc:IdentificationCode>SRB<",
+        ]
+    expect: repaired
+
+  - name: final-invoice-plain-specification-identifier
+    document: fixtures/invoices/synthetic/srb-final-invoice.xml
+    mistake:
+      a final invoice with the Serbian extension gives EN 16931's own specification
+      identifier.
+    edits:
+      - [
+          "<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.rs:srbdt:2022#conformant#urn:mfin.gov.rs:srbdtext:2022<",
+          "<cbc:CustomizationID>urn:cen.eu:en16931:2017<",
+        ]
+    expect: repaired
+
+  - name: final-invoice-payment-model-without-space
+    document: fixtures/invoices/synthetic/srb-final-invoice.xml
+    mistake: the final invoice's payment reference runs the model into the number.
+    edits:
+      - [
+          "<cbc:PaymentID>(mod97) 12-345678-00124<",
+          "<cbc:PaymentID>(mod97)12-345678-00124<",
+        ]
+    expect: repaired
+
+  - name: final-invoice-seller-country-lower-case
+    document: fixtures/invoices/synthetic/srb-final-invoice.xml
+    mistake: the final invoice's seller's country is written rs, in lower case.
+    edits:
+      - [
+          "32000</cbc:PostalZone>\n        <cac:Country>\n          <cbc:IdentificationCode>RS<",
+          "32000</cbc:PostalZone>\n        <cac:Country>\n          <cbc:IdentificationCode>rs<",
+        ]
+    expect: repaired
+
+  # --- a person decides: no repair may make them pass ---------------------------------------
+  - name: pib-check-digit
+    document: fixtures/invoices/synthetic/mutations/srb-009-pib-check-digit.xml
+    mistake: a typo in the seller's PIB, a tax identifier.
+    expect: refused
+
+  - name: electronic-address-scheme
+    document: fixtures/invoices/synthetic/mutations/srb-008-electronic-address-scheme.xml
+    mistake: the seller's electronic address, which in SEF is its PIB, under another scheme.
+    expect: refused
+
+  - name: vat-status-value
+    document: fixtures/invoices/synthetic/mutations/srb-014-seller-vat-status-value.xml
+    mistake: the seller's VAT registration status, in its tax scheme, written PDV.
+    expect: refused
+
+  - name: legal-registration-number
+    document: fixtures/invoices/synthetic/mutations/srb-012-legal-registration-number.xml
+    mistake: the buyer's registration number, a company identifier, is left out.
+    expect: refused
+
+  - name: vat-rate
+    document: fixtures/invoices/synthetic/mutations/srb-021-vat-rate.xml
+    mistake: the standard rate written 18 percent, a VAT rate.
+    expect: refused
+
+  - name: amount-due
+    document: fixtures/invoices/synthetic/mutations/br-co-16-amount-due.xml
+    mistake: the amount due does not follow from the totals.
+    expect: refused
+
+  - name: date-format
+    document: fixtures/invoices/synthetic/mutations/xsd-date-format.xml
+    mistake: the issue date written the Serbian way, a date.
+    expect: refused
+
+  - name: decimal-comma
+    document: fixtures/invoices/synthetic/mutations/xsd-decimal-comma.xml
+    mistake: the item price written with a decimal comma, an amount.
+    expect: refused
+
+  - name: proforma-type-code
+    document: fixtures/invoices/synthetic/srb-minimal-invoice.xml
+    mistake:
+      the invoice type code is 325, a proforma invoice, which SEF does not accept; the
+      issuer may have meant an invoice (380) or an advance invoice (386).
+    edits:
+      - ["<cbc:InvoiceTypeCode>380<", "<cbc:InvoiceTypeCode>325<"]
+    expect: refused
+
+  - name: self-billed-type-code
+    document: fixtures/invoices/synthetic/srb-minimal-invoice.xml
+    mistake:
+      the invoice type code is 389, a self-billed invoice, which SEF does not accept;
+      which of the four codes it allows was meant is the issuer's to say.
+    edits:
+      - ["<cbc:InvoiceTypeCode>380<", "<cbc:InvoiceTypeCode>389<"]
+    expect: refused
+
+  - name: final-invoice-type-code
+    document: fixtures/invoices/synthetic/srb-final-invoice.xml
+    mistake:
+      a final invoice with the Serbian extension gives the type code 325, which SEF does
+      not accept; which of the four codes it allows was meant is the issuer's to say.
+    edits:
+      - ["<cbc:InvoiceTypeCode>380<", "<cbc:InvoiceTypeCode>325<"]
+    expect: refused

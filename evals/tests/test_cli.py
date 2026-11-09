@@ -22,6 +22,7 @@ from sef_evals.measures import Measure
 from .conftest import REPOSITORY_ROOT, Explaining, needs_database
 
 CASSETTE = Path("evals/cassettes/explanations.json")
+REPAIRS = Path("evals/cassettes/repairs.json")
 ARTICLE_2 = "pib-rulebook/article-2/2018-10-01"
 NOWHERE = "postgresql+asyncpg://nobody@nowhere.invalid/none"
 
@@ -70,13 +71,19 @@ def test_says_when_there_is_no_database_server(
 def test_records_once_then_replays_offline(small_root: Path) -> None:
     status, out = run(small_root, "--record")
     assert status == EXIT_MET, out
-    assert out.startswith("sef-evals: 1 requests to test/explaining\n\n# Evaluation report")
+    # One explanation; the repair of the type code in one answer; for the PIB, an answer
+    # refused for the value it makes up, then none proposed.
+    assert out.startswith("sef-evals: 4 requests to test/explaining\n\n# Evaluation report")
     assert "and the answers of test/explaining recorded in evals/cassettes/." in out
     assert "| `explained` | Rules of the golden documents that the model explained | 100.0%" in out
     assert "| Citations of a passage labelled relevant to the rule | 100.0% (1 of 1) |" in out
     cassette = recorded(small_root)
     assert cassette.model == "test/explaining"
     assert ARTICLE_2 in next(iter(cassette.answers.values()))
+    assert len(Cassette.load(small_root / REPAIRS).answers) == 3
+    assert (
+        "| Held-out invoices that a repair leaves the validator accepting | 100.0% (1 of 1)" in out
+    )
     # Replayed, without the model: the same answers, the same report, nothing stale.
     status, out = run(small_root, "--check", model=lambda: None)
     assert (status, out) == (
@@ -95,6 +102,7 @@ def test_records_only_what_the_cassette_lacks(small_root: Path) -> None:
     status, out = run(small_root, "--record", model=lambda: model)
     assert (status, model.asked) == (EXIT_MET, 0)
     assert out.startswith("sef-evals: 0 requests to test/explaining\n")
+    assert model.asked == 0
 
 
 @needs_database
@@ -131,10 +139,10 @@ def test_a_recording_stopped_by_the_limit_keeps_what_it_has(
     assert status == EXIT_NOT_MET
     assert out == (
         "sef-evals: the model answered 429 5 times: its provider's limit is reached; record "
-        "again later to continue; what was recorded is kept in "
-        "evals/cassettes/explanations.json\n"
+        "again later to continue; what was recorded is kept in evals/cassettes/\n"
     )
     assert recorded(small_root) == Cassette("test/explaining", {})
+    assert Cassette.load(small_root / REPAIRS) == Cassette("test/explaining", {})
     assert not (small_root / "evals" / "reports").exists()
 
 

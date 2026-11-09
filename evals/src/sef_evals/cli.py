@@ -1,16 +1,16 @@
-"""``sef-evals``: run the evaluations, write their report, or check it (ADR-0054, ADR-0055).
+"""``sef-evals``: run the evaluations, write their report, or check it (ADR-0054 to ADR-0056).
 
     sef-evals               # measure, print the table, write evals/reports/latest.{json,md}
     sef-evals --check       # measure, and fail if a threshold is not met or the report is stale
-    sef-evals --record      # ask the real model what the cassette lacks, then measure and write
+    sef-evals --record      # ask the real model what the cassettes lack, then measure and write
     sef-evals --unlabelled  # list the passages retrieval finds that no label names
 
 Run from the repository or below it: the root is the nearest directory up that holds
 ``evals/thresholds.yaml``. The validator needs the fetched rule sets (``make rulesets``); the
 explanations, a PostgreSQL server for a database of their own (``SEF_TEST_DATABASE_URL``,
-``make up``). They are explained with the answers recorded in
-``evals/cassettes/explanations.json``, offline; ``--record`` asks the model the settings name
-(``LLM_PROVIDER=groq``, ``GROQ_API_KEY``) only what the cassette does not hold.
+``make up``). The explanations and the repairs are written with the model's answers recorded
+in ``evals/cassettes/``, offline; ``--record`` asks the model the settings name
+(``LLM_PROVIDER=groq``, ``GROQ_API_KEY``) only what the cassettes do not hold.
 
 Exit status: 0 when every threshold is met (and, with ``--check``, the committed report is what
 the run gives); 1 when one is not, the report is stale, or a recording stopped at the
@@ -24,7 +24,8 @@ import argparse
 import asyncio
 import logging
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal, TextIO
 
@@ -33,7 +34,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from einvoice_core.rulesets import RulesetNotFoundError
 from sef_api.llm import GroqClient, LLMClient
-from sef_evals import __version__, explanations, verdicts
+from sef_evals import __version__, explanations, repairs, verdicts
 from sef_evals.cassettes import (
     Cassette,
     CassetteError,
@@ -56,7 +57,12 @@ EXIT_ERROR: Final = 2
 THRESHOLDS: Final = Path("evals/thresholds.yaml")
 DOCUMENTS: Final = Path("evals/golden/documents.yaml")
 EXPLANATIONS: Final = Path("evals/golden/explanations.yaml")
-CASSETTE: Final = Path("evals/cassettes/explanations.json")
+REPAIRS: Final = Path("evals/golden/repairs.yaml")
+#: The model's recorded answers, by what they answer: one cassette each, reviewed apart.
+CASSETTES: Final = {
+    "explanations": Path("evals/cassettes/explanations.json"),
+    "repairs": Path("evals/cassettes/repairs.json"),
+}
 REPORTS: Final = Path("evals/reports")
 CORPUS: Final = Path("corpus")
 #: The model named by a run with no cassette: no answer is recorded.
@@ -131,19 +137,27 @@ def model_named_in(env_file: Path) -> LLMClient | None:
     return GroqClient(named.groq_api_key, model=named.llm_model or GroqClient.MODEL)
 
 
-async def _explained(
+@dataclass(frozen=True)
+class _Golden:
+    explanations: explanations.ExplanationGolden
+    repairs: repairs.RepairGolden
+
+
+async def _measured(
     root: Path,
-    golden: explanations.ExplanationGolden,
+    golden: _Golden,
     server: str,
-    llm: LLMClient,
+    models: Mapping[str, LLMClient],
     progress: Callable[[str], None] | None,
 ) -> list[Measure]:
-    try:
-        async with corpus_database(server, root / CORPUS) as database:
-            asked = await explanations.explain(root, golden, database, llm, progress=progress)
-            return await explanations.measure(golden, database, asked)
-    finally:
-        await llm.aclose()
+    """The model's measures: the explanations, on a database of their own, then the repairs."""
+    async with corpus_database(server, root / CORPUS) as database:
+        asked = await explanations.explain(
+            root, golden.explanations, database, models["explanations"], progress=progress
+        )
+        measures = await explanations.measure(golden.explanations, database, asked)
+    tried = await repairs.repair(root, golden.repairs, models["repairs"], progress=progress)
+    return measures + repairs.measure(tried)
 
 
 async def _list_unlabelled(
@@ -165,24 +179,22 @@ class _UsageError(Exception):
     """What the command cannot do, said to the person who ran it; ends with exit status 2."""
 
 
-def _model_to_use(
-    record: bool, cassette: Cassette | None, model: Callable[[], LLMClient | None]
-) -> tuple[LLMClient, Recording | None]:
-    """The model the explanations are asked of: the cassette's, or, recording, the settings'
-    one behind the cassette."""
-    if not record:
-        # A replayed explanation that has no answer is a measure, not a warning to print.
-        logging.getLogger("sef_api").setLevel(logging.ERROR)
-        return Replaying(cassette or Cassette(NOT_RECORDED)), None
-    recorded_with = model()
-    if recorded_with is None:
-        raise _UsageError("set LLM_PROVIDER=groq and GROQ_API_KEY to record")
-    recording = Recording(recorded_with, cassette, pause=PAUSE, patience=PATIENCE)
-    return recording, recording
+def _replaying(cassettes: dict[str, Cassette | None]) -> dict[str, LLMClient]:
+    # A replayed request that has no answer is a measure, not a warning to print.
+    logging.getLogger("sef_api").setLevel(logging.ERROR)
+    return {
+        name: Replaying(cassette or Cassette(NOT_RECORDED)) for name, cassette in cassettes.items()
+    }
+
+
+def _recorded_model(cassettes: dict[str, Cassette | None]) -> str | None:
+    """The model whose answers the cassettes hold, as a report names it; None for none."""
+    models = sorted({cassette.model for cassette in cassettes.values() if cassette is not None})
+    return " and ".join(models) or None
 
 
 def _tell(asking: str) -> None:
-    sys.stderr.write(f"sef-evals: explaining {asking}\n")
+    sys.stderr.write(f"sef-evals: asking about {asking}\n")
     sys.stderr.flush()
 
 
@@ -214,29 +226,71 @@ def _run(
     root: Path, args: argparse.Namespace, out: TextIO, model: Callable[[], LLMClient | None]
 ) -> int:
     load_thresholds(root / THRESHOLDS)  # a file that cannot be read stops the run first
-    golden = explanations.load_golden(root / EXPLANATIONS)
+    golden = _Golden(
+        explanations.load_golden(root / EXPLANATIONS), repairs.load_golden(root / REPAIRS)
+    )
     server = server_url(root / ".env")
     if args.unlabelled:
-        asyncio.run(_list_unlabelled(root, golden, server, out))
+        asyncio.run(_list_unlabelled(root, golden.explanations, server, out))
         return EXIT_MET
-    cassette = Cassette.load(root / CASSETTE) if (root / CASSETTE).is_file() else None
+    cassettes = {
+        name: Cassette.load(root / path) if (root / path).is_file() else None
+        for name, path in CASSETTES.items()
+    }
     measures = verdicts.measure(root, load_cases(root, root / DOCUMENTS))
-    llm, recording = _model_to_use(args.record, cassette, model)
+    if not args.record:
+        measures += asyncio.run(_measured(root, golden, server, _replaying(cassettes), None))
+        return _report(root, measures, _recorded_model(cassettes), args.check, out)
+    return _record(
+        root,
+        args,
+        out,
+        golden=golden,
+        server=server,
+        cassettes=cassettes,
+        measures=measures,
+        model=model,
+    )
+
+
+def _record(
+    root: Path,
+    args: argparse.Namespace,
+    out: TextIO,
+    *,
+    golden: _Golden,
+    server: str,
+    cassettes: dict[str, Cassette | None],
+    measures: list[Measure],
+    model: Callable[[], LLMClient | None],
+) -> int:
+    """Ask the real model what the cassettes lack, keep its answers, then report."""
+    real = model()
+    if real is None:
+        raise _UsageError("set LLM_PROVIDER=groq and GROQ_API_KEY to record")
+    recordings = {
+        name: Recording(real, cassette, pause=PAUSE, patience=PATIENCE)
+        for name, cassette in cassettes.items()
+    }
+
+    async def measured() -> list[Measure]:
+        try:
+            return await _measured(root, golden, server, recordings, _tell)
+        finally:
+            await real.aclose()
+
     try:
-        measures += asyncio.run(
-            _explained(root, golden, server, llm, _tell if recording is not None else None)
-        )
+        measures += asyncio.run(measured())
     except RecordingStoppedError as error:
-        if recording is None:  # pragma: no cover - only a recording stops
-            raise
-        recording.cassette(finished=False).save(root / CASSETTE)
-        print(f"sef-evals: {error}; what was recorded is kept in {CASSETTE.as_posix()}", file=out)
+        for name, recording in recordings.items():
+            recording.cassette(finished=False).save(root / CASSETTES[name])
+        print(f"sef-evals: {error}; what was recorded is kept in evals/cassettes/", file=out)
         return EXIT_NOT_MET
-    if recording is not None:
-        recording.cassette(finished=True).save(root / CASSETTE)
-        print(f"sef-evals: {recording.asked} requests to {recording.model}\n", file=out)
-        return _report(root, measures, recording.model, args.check, out)
-    return _report(root, measures, cassette.model if cassette else None, args.check, out)
+    for name, recording in recordings.items():
+        recording.cassette(finished=True).save(root / CASSETTES[name])
+    asked = sum(recording.asked for recording in recordings.values())
+    print(f"sef-evals: {asked} requests to {real.model}\n", file=out)
+    return _report(root, measures, real.model, args.check, out)
 
 
 def main(
