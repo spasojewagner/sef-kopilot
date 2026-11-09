@@ -9,6 +9,21 @@ is tagged.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-10
+
+Evaluations, a quality gate and sandbox billing (milestone M6). The validator is measured on
+every document of the corpus against labels from outside it and against the published rule
+sets; the model's explanations and repairs are measured on answers recorded once against Groq's
+free tier and replayed offline, their citations held to the corpus and a person's labels, and a
+repair held to never making a person's decision pass; every threshold gates CI in a job of its
+own, and the README's badge reads the committed report. OpenAI and Anthropic answer beside Groq,
+chosen by the operator or by an organization with its own key, sealed as its SEF key. Credits
+per stored invoice are kept in the API's own ledger, never below zero, and bought through
+Stripe Checkout in its sandbox only, its events verified by their signature and counted once;
+billing is off by default and in the public demo. Neither paid provider nor Stripe was tried
+against a real account here: each follows its documented API, and Stripe's requests are checked
+against `stripe-mock`, at the maintainer's decision that the project stays free.
+
 ### Added
 
 - `evals`: the evaluations' runner, `sef-evals` (`make evals`, `make evals-check`), which
@@ -768,7 +783,8 @@ whose verdicts the tests pin.
 - Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
   backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
-[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.2.0...v0.3.0
