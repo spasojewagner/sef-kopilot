@@ -397,6 +397,35 @@
         "failed": "The period was not changed. Try again a little later."
       }
     },
+    "sefKey": {
+      "title": "Key to SEF",
+      "description": "The API key of your organization's SEF demo account, with which SEF Kopilot sends its invoices to SEF and asks where they stand. It is kept sealed and never shown to anyone again.",
+      "none": "No key is set: the organization's invoices cannot be sent to SEF.",
+      "set": "A key was set on {moment}.",
+      "ownersOnly": "The organization's owner sets the key to SEF.",
+      "label": "API key from SEF",
+      "newLabel": "New API key from SEF",
+      "hint": "Generate it in your SEF demo account's settings (API management). Once you save it, not even you will see it here again.",
+      "save": "Save the key",
+      "replace": "Replace the key",
+      "saving": "Saving…",
+      "saved": "The key is saved.",
+      "remove": "Remove the key",
+      "confirmRemove": "Without a key, SEF Kopilot cannot send your organization's invoices to SEF or ask where they stand. The key in SEF stays as it is: revoke it in SEF's settings. Remove the key?",
+      "removeNow": "Yes, remove the key",
+      "cancel": "Cancel",
+      "removed": "The key is removed.",
+      "errors": {
+        "invalid": "An API key from SEF is 8 to 200 visible characters, without spaces.",
+        "signedOut": "The session has expired. Sign in again.",
+        "forbidden": "The key was not changed: you are no longer the organization's owner.",
+        "tooMany": "Too many requests. Try again in {seconds} s.",
+        "unavailable": "This server cannot keep keys to SEF: an administrator has to set SEF_FERNET_KEY.",
+        "unreachable": "The API does not answer. The organization is being read again: check the key before you try again.",
+        "uncertain": "The API gave no clear answer. The organization has been read again: check the key before you try again.",
+        "failed": "The key was not changed. Try again a little later."
+      }
+    },
     "keys": {
       "title": "API keys",
       "description": "A key is for a machine that acts for you, such as an ERP: it sends invoices to be checked and stores them, with the permissions of yours you give it. A key is shown only once, when it is issued.",

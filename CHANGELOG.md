@@ -38,6 +38,9 @@ is tagged.
   invoices to SEF with an owner's or an accountant's key; the audit log names the key that sent
   (ADR-0053, migration 0022).
 - `apps/web`: the API keys page offers sending to SEF to owners and accountants.
+- `apps/web`: the organization's page shows every member since when the organization has a key
+  to SEF, and lets its owner set one, in a field that forgets it once saved, replace it, or
+  remove it after a second press.
 
 ### Fixed
 

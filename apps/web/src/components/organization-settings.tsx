@@ -10,6 +10,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { ApiKeys } from "@/components/api-keys";
+import { SefKey } from "@/components/sef-key";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +43,8 @@ const KEEP = "keep";
 
 /**
  * The visitor's organization: its name, who the visitor is in it, how long it keeps its stored
- * invoices, which its owner sets here (ADR-0039), and the visitor's API keys.
+ * invoices, which its owner sets here (ADR-0039), its key to SEF, which its owner sets here too
+ * (ADR-0050), and the visitor's API keys.
  */
 export function OrganizationSettings() {
   const t = useTranslations("organization");
@@ -67,6 +69,10 @@ export function OrganizationSettings() {
     <div className="grid gap-8">
       <Who organization={organization.data} identity={identity} />
       <Retention
+        organization={organization.data}
+        owner={identity?.role === "owner"}
+      />
+      <SefKey
         organization={organization.data}
         owner={identity?.role === "owner"}
       />

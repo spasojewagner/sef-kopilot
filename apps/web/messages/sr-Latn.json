@@ -397,6 +397,35 @@
         "failed": "Rok čuvanja nije promenjen. Pokušajte ponovo malo kasnije."
       }
     },
+    "sefKey": {
+      "title": "Ključ za SEF",
+      "description": "API ključ sa SEF demo naloga vaše organizacije, kojim SEF Kopilot šalje njene fakture na SEF i pita gde su. Čuva se zaključan i više se nikome ne prikazuje.",
+      "none": "Ključ nije postavljen: fakture organizacije se ne mogu slati na SEF.",
+      "set": "Ključ je postavljen {moment}.",
+      "ownersOnly": "Ključ za SEF postavlja vlasnik organizacije.",
+      "label": "API ključ sa SEF-a",
+      "newLabel": "Novi API ključ sa SEF-a",
+      "hint": "Generišete ga na SEF demo nalogu, u podešavanjima (upravljanje API-jem). Kad ga sačuvate, ni vi ga ovde više nećete videti.",
+      "save": "Sačuvaj ključ",
+      "replace": "Zameni ključ",
+      "saving": "Čuvanje…",
+      "saved": "Ključ je sačuvan.",
+      "remove": "Ukloni ključ",
+      "confirmRemove": "Bez ključa SEF Kopilot ne može da šalje fakture vaše organizacije na SEF niti da pita gde su. Ključ na SEF-u ostaje kakav je: opozovite ga u podešavanjima SEF-a. Ukloniti ključ?",
+      "removeNow": "Da, ukloni ključ",
+      "cancel": "Odustani",
+      "removed": "Ključ je uklonjen.",
+      "errors": {
+        "invalid": "API ključ sa SEF-a ima od 8 do 200 vidljivih znakova, bez razmaka.",
+        "signedOut": "Sesija je istekla. Prijavite se ponovo.",
+        "forbidden": "Ključ nije promenjen: više niste vlasnik organizacije.",
+        "tooMany": "Previše zahteva. Pokušajte ponovo za {seconds} s.",
+        "unavailable": "Ovaj server ne može da čuva ključeve za SEF: administrator treba da postavi SEF_FERNET_KEY.",
+        "unreachable": "API ne odgovara. Organizacija se ponovo čita: proverite ključ pre nego što pokušate ponovo.",
+        "uncertain": "API nije dao jasan odgovor. Organizacija je ponovo pročitana: proverite ključ pre nego što pokušate ponovo.",
+        "failed": "Ključ nije promenjen. Pokušajte ponovo malo kasnije."
+      }
+    },
     "keys": {
       "title": "API ključevi",
       "description": "Ključ služi mašini koja radi za vas, na primer ERP-u: šalje fakture na proveru i čuva ih, sa onim od vaših dozvola koje mu date. Ključ se vidi samo jednom, kada se izda.",
