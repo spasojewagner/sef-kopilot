@@ -2599,3 +2599,27 @@ end-to-end test; the seeded faults, each caught after a clean baseline (see the 
 ruff, mypy, eslint, tsc; each commit checked on its own; the migration undone and applied again.
 
 Next: the organization's page, where an owner sets the key to SEF (`feat/web-sef-key`).
+
+## 2026-11-09 — `feat/web-sef-key` (3 commits, stacked on `feat/api-keys-send-to-sef`)
+
+Outcome: the organization's page shows every member since when the organization has a key to
+SEF, and lets its owner set one, replace it, or remove it after a second press; the key is
+typed into a password field that forgets it once saved, and one that cannot be a key is not
+sent.
+
+Findings:
+
+- The key never reaches the query cache: the page writes the time the API answers into the
+  cached organization, and empties the field.
+- DEPLOY's step for the key now points at the page instead of a request by hand.
+- The screenshots against a local API showed the key not saved: the browser refused PUT in the
+  preflight, the first route the API answers with PUT and the first page that sends it. PUT
+  joined the methods a page may send, and a test holds every method of the routes, read from
+  the OpenAPI document, to them; the unit tests, which stub the API, could not see it.
+
+Verification: the web application's tests, build and end-to-end test; the seeded faults, each
+caught after a clean baseline (see the pull request); eslint, tsc; each commit checked on its
+own; screenshots against a local API.
+
+Next: the report's page, where an owner or an accountant sends a valid stored invoice to SEF
+and sees what SEF answered (`feat/web-sef-send`).

@@ -99,3 +99,4 @@ per branch, to keep them with the code they describe.
 | `feat/sef-demo-client` | [m5-sef-demo-client.md](m5-sef-demo-client.md) |
 | `feat/mcp-send-to-sef` | [m5-mcp-send-to-sef.md](m5-mcp-send-to-sef.md) |
 | `feat/api-keys-send-to-sef` | [m5-api-keys-send-to-sef.md](m5-api-keys-send-to-sef.md) |
+| `feat/web-sef-key` | [m5-web-sef-key.md](m5-web-sef-key.md) |
