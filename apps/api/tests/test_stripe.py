@@ -1,7 +1,7 @@
-"""Stripe's sandbox as the provider of payments (ADR-0060): a Checkout Session asked for as
-Stripe's API reference shows, and against ``stripe-mock`` where it runs; events verified by
-their signature, as Stripe signs them, before anything is read; live keys and live payments
-refused."""
+"""Credits bought through Stripe's sandbox (ADR-0060): a Checkout Session asked for as Stripe's
+API reference shows, and against ``stripe-mock`` where it runs; events verified by their
+signature, as Stripe signs them, before anything is read; a payment counted once, however often
+it is reported; live keys and live payments refused."""
 
 from __future__ import annotations
 
@@ -9,20 +9,29 @@ import json
 import logging
 import re
 import uuid
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from typing import Any
 from urllib.parse import parse_qsl
 
 import httpx
 import pytest
+from fastapi import FastAPI
 from pydantic import SecretStr, ValidationError
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api.billing import ledger
 from sef_api.billing.payments import Pack, Paid, PaymentError, UnverifiedReportError
 from sef_api.billing.stripe import API_VERSION, StripeCheckout, sign
+from sef_api.main import create_app
+from sef_api.models import CreditEntry
 from sef_api.settings import Settings
 
 from .conftest import TEST_STRIPE_URL as STRIPE_MOCK
 from .conftest import settings_for
+from .factories import Office, office
+from .test_invoices_validate import application
 
 #: Plainly fake: a sandbox key's shape, and an endpoint's signing secret's.
 SECRET_KEY = SecretStr("sk_test_not-a-real-key")
@@ -326,6 +335,180 @@ def test_the_settings_refuse_a_live_key_and_what_cannot_be_sold(
 def test_the_packs_are_read_as_credits_and_cents() -> None:
     settings = settings_for(**STRIPE, SEF_CREDIT_PACKS=" 50:600 , 1000:7500")
     assert settings.credit_packs == ((50, 600), (1000, 7500))
+
+
+# --- the routes --------------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def primer(session: AsyncSession) -> Office:
+    return await office(session, "Primer Računovodstvo", "primer.example")
+
+
+@asynccontextmanager
+async def selling(
+    session: AsyncSession, provider: StripeCheckout | None = None, **variables: str
+) -> AsyncIterator[httpx.AsyncClient]:
+    """A client of an application that sells credits through ``provider``."""
+
+    def change(app: FastAPI) -> None:
+        app.state.payments = provider or stripe()
+
+    async with application(session, change, **(STRIPE | variables)) as api:
+        yield api
+
+
+async def test_whoever_may_store_sees_the_packs_on_sale(
+    session: AsyncSession, primer: Office
+) -> None:
+    async with selling(session) as api:
+        shown = await api.get("/billing", headers=primer.as_client())
+
+    assert shown.json()["packs"] == [
+        {"credits": 100, "price": 1000, "currency": "eur"},
+        {"credits": 500, "price": 4000, "currency": "eur"},
+    ]
+
+
+async def test_an_owner_opens_a_checkout_for_a_pack_on_sale(
+    session: AsyncSession, primer: Office
+) -> None:
+    asked: list[httpx.Request] = []
+    async with selling(session, stripe(asked=asked)) as api:
+        opened = await api.post(
+            "/billing/checkout", json={"credits": 500}, headers=primer.as_owner()
+        )
+        unknown = await api.post(
+            "/billing/checkout", json={"credits": 7}, headers=primer.as_owner()
+        )
+
+    assert (opened.status_code, opened.json()) == (
+        201,
+        {"url": "https://checkout.stripe.com/c/pay/cs_test_4711"},
+    )
+    (request,) = asked
+    form = dict(parse_qsl(request.content.decode()))
+    assert form["metadata[organization_id]"] == str(primer.organization.id)
+    assert form["success_url"] == f"{WEB}/organization?checkout=paid"
+    assert form["cancel_url"] == f"{WEB}/organization?checkout=cancelled"
+    assert (unknown.status_code, unknown.json()["detail"]) == (
+        422,
+        "no pack gives 7 credits: 100, 500",
+    )
+
+
+async def test_a_checkout_stripe_refuses_answers_502(session: AsyncSession, primer: Office) -> None:
+    refusing = stripe(lambda _: httpx.Response(401, json={"error": {"type": "invalid_request"}}))
+    async with selling(session, refusing) as api:
+        response = await api.post(
+            "/billing/checkout", json={"credits": 100}, headers=primer.as_owner()
+        )
+
+    assert (response.status_code, response.json()["detail"]) == (
+        502,
+        "Stripe answered 401 (invalid_request)",
+    )
+
+
+async def test_a_server_that_sells_nothing_says_so(
+    api: httpx.AsyncClient, session: AsyncSession, primer: Office
+) -> None:
+    checkout = await api.post("/billing/checkout", json={"credits": 100}, headers=primer.as_owner())
+    reported = await api.post("/billing/stripe-events", content=b"{}")
+
+    assert (checkout.status_code, reported.status_code) == (503, 503)
+    assert checkout.json()["detail"] == "this server sells no credits"
+
+
+async def credits_of(session: AsyncSession, primer: Office) -> int:
+    return await ledger.balance(session, primer.organization.id, ledger.CreditTerms(starting=2))
+
+
+async def test_a_paid_checkout_adds_its_credits_once(session: AsyncSession, primer: Office) -> None:
+    payload = event(primer.organization.id, count=100)
+    async with selling(session) as api:
+        first = await api.post(
+            "/billing/stripe-events",
+            content=payload,
+            headers={"Stripe-Signature": sign(payload, WEBHOOK_SECRET, NOW)},
+        )
+        again = await api.post(
+            "/billing/stripe-events",
+            content=payload,
+            headers={"Stripe-Signature": sign(payload, WEBHOOK_SECRET, NOW + 30)},
+        )
+        listed = await api.get("/billing/entries", headers=primer.as_owner())
+
+    assert (first.json(), again.json()) == ({"counted": True}, {"counted": False})
+    assert await credits_of(session, primer) == 102
+    bought, opened = listed.json()
+    assert (bought["kind"], bought["delta"]) == ("purchase", 100)
+    assert opened["kind"] == "opening"
+    entry = await session.scalar(select(CreditEntry).where(CreditEntry.kind == "purchase"))
+    assert entry is not None
+    assert entry.reference == "cs_test_4711"
+
+
+async def test_an_event_that_is_not_stripe_s_changes_nothing(
+    session: AsyncSession, primer: Office
+) -> None:
+    payload = event(primer.organization.id, count=100_000)
+    async with selling(session) as api:
+        forged = await api.post(
+            "/billing/stripe-events",
+            content=payload,
+            headers={"Stripe-Signature": sign(payload, "whsec_guessed-wrong", NOW)},
+        )
+        unsigned = await api.post("/billing/stripe-events", content=payload)
+
+    assert (forged.status_code, unsigned.status_code) == (400, 400)
+    assert forged.json()["detail"] == "no signature of the event is Stripe's"
+    assert await credits_of(session, primer) == 2
+
+
+async def test_a_payment_for_an_organization_that_is_gone_is_acknowledged(
+    session: AsyncSession, primer: Office
+) -> None:
+    payload = event(uuid.uuid4())
+    async with selling(session) as api:
+        response = await api.post(
+            "/billing/stripe-events",
+            content=payload,
+            headers={"Stripe-Signature": sign(payload, WEBHOOK_SECRET, NOW)},
+        )
+
+    assert (response.status_code, response.json()) == (200, {"counted": False})
+
+
+async def test_other_events_are_acknowledged_and_ignored(
+    session: AsyncSession, primer: Office
+) -> None:
+    payload = event(primer.organization.id, paid="unpaid")
+    async with selling(session) as api:
+        response = await api.post(
+            "/billing/stripe-events",
+            content=payload,
+            headers={"Stripe-Signature": sign(payload, WEBHOOK_SECRET, NOW)},
+        )
+
+    assert (response.status_code, response.json()) == (200, {"counted": False})
+    assert await credits_of(session, primer) == 2
+
+
+def test_the_application_sells_through_stripe_where_its_keys_are_set() -> None:
+    assert create_app(settings_for()).state.payments is None
+    assert isinstance(create_app(settings_for(**STRIPE)).state.payments, StripeCheckout)
+
+
+async def test_a_purchase_buys_at_least_one_credit(session: AsyncSession, primer: Office) -> None:
+    with pytest.raises(ValueError, match="at least one credit"):
+        await ledger.purchase(
+            session,
+            primer.organization.id,
+            ledger.CreditTerms(starting=0),
+            count=0,
+            reference="cs_test_0",
+        )
 
 
 def test_the_scheme_is_the_one_stripe_documents() -> None:

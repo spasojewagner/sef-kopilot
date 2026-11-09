@@ -3009,6 +3009,147 @@
         }
       }
     },
+    "/billing/checkout": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Open a checkout to buy credits",
+        "description": "Opens a Stripe Checkout, in Stripe's sandbox, for one of the packs `GET /billing` names; the answer is the page where the owner pays, with a test card only. When Stripe reports the payment, the pack's credits are added to the organization's. The owner opens it, signed in.",
+        "operationId": "open_checkout_billing_checkout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutOut"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Stripe did not open it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "This server sells no credits (`STRIPE_SECRET_KEY`, `SEF_WEB_URL`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
+    "/billing/stripe-events": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Receive Stripe's events",
+        "description": "Where Stripe sends its events, each signed with the endpoint's secret (`Stripe-Signature`): a checkout paid adds its pack's credits to the organization's, once, however often the event comes; any other event is acknowledged and ignored. An event whose signature is not Stripe's, or older than five minutes, answers 400 and changes nothing.",
+        "operationId": "receive_stripe_event_billing_stripe_events_post",
+        "parameters": [
+          {
+            "name": "stripe-signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stripe-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Receive Stripe Event Billing Stripe Events Post"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not Stripe's event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "This server sells no credits.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/invoices/{invoice_id}/sef": {
       "post": {
         "tags": [
@@ -3944,7 +4085,7 @@
           "enabled": {
             "type": "boolean",
             "title": "Enabled",
-            "description": "Whether storing an invoice costs a credit on this server; when not, every other field is null."
+            "description": "Whether storing an invoice costs a credit on this server; when not, every other field is null and nothing is sold."
           },
           "balance": {
             "anyOf": [
@@ -3981,6 +4122,14 @@
             ],
             "title": "Per Invoice",
             "description": "The credits one stored invoice costs."
+          },
+          "packs": {
+            "items": {
+              "$ref": "#/components/schemas/PackOut"
+            },
+            "type": "array",
+            "title": "Packs",
+            "description": "The packs an owner may buy (`POST /billing/checkout`); none where the server sells no credits, and its operator grants them."
           }
         },
         "type": "object",
@@ -3988,7 +4137,8 @@
           "enabled",
           "balance",
           "starting",
-          "per_invoice"
+          "per_invoice",
+          "packs"
         ],
         "title": "Billing"
       },
@@ -4061,6 +4211,35 @@
         ],
         "title": "CatalogueRule",
         "description": "One rule a profile applies, or sets aside."
+      },
+      "CheckoutOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "Stripe's page where the owner pays, in its sandbox."
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "CheckoutOut"
+      },
+      "CheckoutRequest": {
+        "properties": {
+          "credits": {
+            "type": "integer",
+            "title": "Credits",
+            "description": "The pack to buy, by the credits it gives."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "credits"
+        ],
+        "title": "CheckoutRequest"
       },
       "Citation": {
         "properties": {
@@ -4155,10 +4334,11 @@
             "enum": [
               "opening",
               "spend",
-              "grant"
+              "grant",
+              "purchase"
             ],
             "title": "Kind",
-            "description": "`opening`, the starting credits; `spend`, a stored invoice; `grant`, credits the operator gave."
+            "description": "`opening`, the starting credits; `spend`, a stored invoice; `grant`, credits the operator gave; `purchase`, credits the organization bought."
           },
           "delta": {
             "type": "integer",
@@ -5456,6 +5636,31 @@
         ],
         "title": "Outcome",
         "description": "What became of a patch. For an applied one, ``before`` is the text or attribute value\nits place had, and ``after`` the one it has now; either is ``None`` where there is none."
+      },
+      "PackOut": {
+        "properties": {
+          "credits": {
+            "type": "integer",
+            "title": "Credits"
+          },
+          "price": {
+            "type": "integer",
+            "title": "Price",
+            "description": "In the currency's smallest unit (cents)."
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "ISO 4217, in lower case."
+          }
+        },
+        "type": "object",
+        "required": [
+          "credits",
+          "price",
+          "currency"
+        ],
+        "title": "PackOut"
       },
       "Passage": {
         "properties": {

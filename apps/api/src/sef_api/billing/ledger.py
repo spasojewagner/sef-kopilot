@@ -1,7 +1,7 @@
 """An organization's credits, where billing is on (ADR-0059): one is spent for each invoice it
 stores, and none is spent anywhere else.
 
-The account is opened the first time the organization spends or is given credits, with the
+The account is opened the first time the organization spends, buys or is given credits, with the
 credits the settings start an organization with; until then its balance is that number, written
 nowhere. Every change is an entry of the ledger, written in the transaction that changes the
 balance, so that the balance is always the sum of the entries. A spend takes a credit only from
@@ -30,6 +30,7 @@ __all__ = [
     "balance",
     "entries",
     "grant",
+    "purchase",
     "spend",
     "terms_for",
 ]
@@ -130,6 +131,41 @@ async def grant(
     assert held is not None  # the account was opened above
     session.add(CreditEntry(organization_id=organization_id, kind=CreditKind.GRANT, delta=count))
     return held
+
+
+async def purchase(
+    session: AsyncSession,
+    organization_id: uuid.UUID,
+    terms: CreditTerms,
+    *,
+    count: int,
+    reference: str,
+) -> bool:
+    """Add the ``count`` credits the payment ``reference`` bought to the organization's, once:
+    False, and nothing changed, when that payment was counted before. The caller commits."""
+    if count <= 0:
+        raise ValueError("a purchase buys at least one credit")
+    await _open(session, organization_id, terms)
+    counted = await session.scalar(
+        insert(CreditEntry)
+        .values(
+            organization_id=organization_id,
+            kind=CreditKind.PURCHASE,
+            delta=count,
+            reference=reference,
+        )
+        .on_conflict_do_nothing(index_elements=[CreditEntry.reference])
+        .returning(CreditEntry.id)
+    )
+    if counted is None:
+        return False
+    await session.execute(
+        update(CreditAccount)
+        .where(CreditAccount.organization_id == organization_id)
+        .values(balance=CreditAccount.balance + count)
+        .execution_options(synchronize_session=False)
+    )
+    return True
 
 
 async def entries(

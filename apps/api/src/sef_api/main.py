@@ -24,6 +24,8 @@ from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
 from sef_api.billing import routes as billing
 from sef_api.billing.ledger import terms_for
+from sef_api.billing.payments import PaymentProvider
+from sef_api.billing.stripe import StripeCheckout
 from sef_api.bodies import LimitBodies
 from sef_api.charset import DeclareUTF8
 from sef_api.cors import Cors
@@ -144,8 +146,9 @@ def _runner(app: FastAPI, settings: Settings) -> JobRunner:
     return InlineRunner(run)
 
 
-async def _close_models(application: FastAPI) -> None:
-    """Close the server's language model, the models' traces and the embedder."""
+async def _close_clients(application: FastAPI) -> None:
+    """Close what speaks to services outside: the server's language model, the models' traces,
+    the embedder and the provider of payments."""
     explainer: Explainer | None = application.state.explainer
     if explainer is not None:
         await explainer.aclose()
@@ -155,6 +158,21 @@ async def _close_models(application: FastAPI) -> None:
     embedder: Embedder | None = application.state.embedder
     if embedder is not None:
         await embedder.aclose()
+    payments: PaymentProvider | None = application.state.payments
+    if payments is not None:
+        await payments.aclose()
+
+
+def _payments(settings: Settings) -> PaymentProvider | None:
+    """Stripe's sandbox, where its keys are set; the application closes it when it stops."""
+    if settings.stripe_secret_key is None or settings.stripe_webhook_secret is None:
+        return None
+    return StripeCheckout(
+        settings.stripe_secret_key,
+        settings.stripe_webhook_secret,
+        currency=settings.credit_currency,
+        base_url=settings.stripe_api_url,
+    )
 
 
 def _model_traces(settings: Settings) -> ModelTraces | None:
@@ -265,7 +283,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             yield
         await application.state.jobs.stop()
         await validator.stop()
-        await _close_models(application)
+        await _close_clients(application)
         await application.state.sef_http.aclose()
         await database.engine.dispose()
 
@@ -307,8 +325,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.model_traces = _model_traces(settings)
     app.state.explainer, app.state.repairer = _model_users(settings, app.state.model_traces)
     app.state.embedder = embedder_for(settings)
-    # What storing an invoice costs, where billing is on (ADR-0059).
+    # What storing an invoice costs, where billing is on (ADR-0059), and where credits are
+    # bought, where Stripe's sandbox keys are set (ADR-0060).
     app.state.credit_terms = terms_for(settings)
+    app.state.payments = _payments(settings)
     # Seals and opens the organizations' SEF keys, where SEF_FERNET_KEY is set (ADR-0050).
     app.state.sef_keys = keyring_for(settings)
     # Speaks to SEF for every organization, each request with that organization's key.

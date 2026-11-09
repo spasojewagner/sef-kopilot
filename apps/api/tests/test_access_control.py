@@ -95,6 +95,8 @@ PUBLIC: set[Endpoint] = {
     ("GET", "/.well-known/oauth-protected-resource/mcp"),
     ("GET", "/.well-known/oauth-protected-resource"),
     ("GET", "/.well-known/oauth-authorization-server"),
+    # Where Stripe sends its events, each verified by its signature before anything is read.
+    ("POST", "/billing/stripe-events"),
 }
 #: Endpoints for any signed-in caller, about the caller only.
 SIGNED_IN: set[Endpoint] = {
@@ -516,7 +518,14 @@ async def _billing_is_off(response: Response, session: AsyncSession, w: World) -
         "balance": None,
         "starting": None,
         "per_invoice": None,
+        "packs": [],
     }
+
+
+async def _sells_nothing(response: Response, session: AsyncSession, w: World) -> None:
+    """The audit's server sells no credits; a checkout is for the caller's own organization,
+    tested with Stripe (test_stripe.py)."""
+    assert response.status_code == 503
 
 
 async def _lists_none_of_primers_credits(
@@ -772,6 +781,13 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda _: "/billing/entries",
         None,
         _lists_none_of_primers_credits,
+    ),
+    ("POST", "/billing/checkout"): Guarded(
+        Permission.ORGANIZATION_MANAGE,
+        False,
+        lambda _: "/billing/checkout",
+        {"credits": 100},
+        _sells_nothing,
     ),
 }
 

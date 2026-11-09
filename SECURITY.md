@@ -119,6 +119,12 @@ system are marked as such.
       ledger entry in the storing transaction; two invoices stored on one last credit store
       one (tested). A grant gives 1 to 100 000 credits, from the operator's command only
       (ADR-0059).
+- [x] Credits are bought only through Stripe's sandbox: a live key refuses to start and a live
+      event adds nothing. Stripe's events are read only when a `v1` signature of the
+      `Stripe-Signature` header is the HMAC-SHA256 of the time and the body under the
+      endpoint's secret, compared in constant time, and the time is less than five minutes old
+      (no replay, no downgrade to other schemes); a payment is credited once, under its unique
+      reference, however often it is reported. No card data reaches the API (ADR-0060; tested).
 
 ### V3 Web frontend security
 
