@@ -49,3 +49,4 @@ just used. New notes are added in the pull request that introduces the concept.
 | 41 | [Asking for more scope: the step-up](41-asking-for-more-scope.md) | M4 |
 | 42 | [A secret at rest: sealing a tenant's key so that a copy of the database opens nothing](42-a-secret-at-rest.md) | M5 |
 | 43 | [Sending once over a network that loses answers: the request id](43-sending-once-over-a-network-that-loses-answers.md) | M5 |
+| 44 | [A measure is only as good as its labels: golden sets and the reference](44-a-measure-is-only-as-good-as-its-labels.md) | M6 |

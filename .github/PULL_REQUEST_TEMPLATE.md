@@ -39,6 +39,7 @@ make test
 ## Checklist
 
 - [ ] Tests added or updated; coverage gates hold (core ≥ 90 %, API ≥ 80 %)
+- [ ] `make evals-check` passes: every threshold met, and a changed measure written with `make evals`
 - [ ] `pre-commit run --all-files` clean (ruff, mypy --strict, eslint, prettier, gitleaks)
 - [ ] Documentation updated (README / ARCHITECTURE / docs)
 - [ ] `CHANGELOG.md` entry under `[Unreleased]`

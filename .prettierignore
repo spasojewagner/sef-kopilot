@@ -17,3 +17,5 @@ next-env.d.ts
 # Generated: written by scripts/export_openapi.py and openapi-typescript, checked by tests.
 docs/api/openapi.json
 apps/web/src/lib/api-schema.d.ts
+# Generated: written by `make evals` (sef-evals), checked by `make evals-check`.
+evals/reports/latest.json

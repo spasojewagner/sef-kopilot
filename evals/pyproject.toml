@@ -18,6 +18,9 @@ dependencies = [
   "pyyaml>=6.0.3",
 ]
 
+[project.scripts]
+sef-evals = "sef_evals.cli:console"
+
 [tool.uv.sources]
 einvoice-core = { workspace = true }
 

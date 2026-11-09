@@ -95,6 +95,10 @@ Guardrails that are encoded as tests, not as comments:
   invoice entirely in memory.
 - A self-hosted Docker deployment works with zero external calls except the LLM provider the
   operator configures (bring your own key).
+- The validator is measured on every document of the corpus, against golden labels and against
+  the published rule sets applied as published: the same verdicts, no false accept, every
+  mistake reported by its rule ([`evals/reports/latest.md`](evals/reports/latest.md)); CI fails
+  below the thresholds in [`evals/thresholds.yaml`](evals/thresholds.yaml).
 
 ## Roadmap
 
@@ -156,6 +160,7 @@ make migrate      # apply the database migrations (Alembic) to the database of `
 make ingest       # load the regulation corpus (corpus/) into that database
 make test         # core, api and web test suites with their coverage gates
 make e2e          # the golden path in Chromium (Playwright), against the API and a build
+make evals        # measure on the golden sets and write evals/reports/latest.{json,md}
 make lint         # ruff, Prettier, ESLint — no changes
 make typecheck    # mypy --strict and tsc --noEmit
 make api          # FastAPI with auto-reload → http://127.0.0.1:8000/docs
