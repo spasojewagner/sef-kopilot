@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
+from sef_api.db import Base
 from sef_api.migrations import alembic_config
 from sef_api.models import StoredInvoice
 
@@ -266,3 +267,35 @@ def test_the_corpus_is_searched_through_indexes_of_its_own_kinds(database_url: s
 
     assert any("USING hnsw (embedding vector_cosine_ops)" in str(d) for d in definitions)
     assert any("USING gin (search_text gin_trgm_ops)" in str(d) for d in definitions)
+
+
+#: Every CHECK constraint of the public schema, as PostgreSQL writes it back.
+CHECKS = (
+    "SELECT conrelid::regclass::text || '.' || conname || ': ' || pg_get_constraintdef(oid)"
+    " FROM pg_constraint WHERE contype = 'c' AND connamespace = 'public'::regnamespace"
+)
+
+
+def test_the_models_check_what_the_migrations_check(
+    database_url: str, empty_database_url: str
+) -> None:
+    """Autogenerate does not compare CHECK constraints: a model's and a migration's may drift
+    apart unseen. The models build a database of their own, and PostgreSQL writes both sets
+    back in its own words, which compare."""
+
+    async def built_from_the_models() -> None:
+        engine = create_async_engine(empty_database_url, poolclass=NullPool)
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                await connection.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+                await connection.run_sync(Base.metadata.create_all)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(built_from_the_models())
+
+    migrated = {str(check) for check in asyncio.run(run(database_url, CHECKS))}
+    modelled = {str(check) for check in asyncio.run(run(empty_database_url, CHECKS))}
+    assert migrated - modelled == modelled - migrated == set()
+    assert any("permissions_known" in check for check in migrated)
