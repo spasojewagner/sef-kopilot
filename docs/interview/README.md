@@ -110,3 +110,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-organization-model-key` | [m6-web-organization-model-key.md](m6-web-organization-model-key.md) |
 | `feat/api-credits` | [m6-api-credits.md](m6-api-credits.md) |
 | `feat/api-stripe-checkout` | [m6-api-stripe-checkout.md](m6-api-stripe-checkout.md) |
+| `feat/web-billing` | [m6-web-billing.md](m6-web-billing.md) |
