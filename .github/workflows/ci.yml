@@ -205,6 +205,60 @@ jobs:
           --cov=sef_evals --cov-report=term-missing --cov-report=xml:coverage-evals.xml
           --cov-fail-under=90
 
+  evals:
+    name: evaluations (thresholds and report)
+    runs-on: ubuntu-latest
+    # The gate of M6 (ADR-0054, ADR-0055): the validator measured on the corpus, the model's
+    # explanations and repairs replayed from the cassettes, offline, on a database of their own,
+    # each measure held to evals/thresholds.yaml and the committed report held to the run.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sef
+          POSTGRES_PASSWORD: sef
+          POSTGRES_DB: sef_kopilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sef -d sef_kopilot"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      SEF_TEST_DATABASE_URL: postgresql+asyncpg://sef:sef@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python workspace
+        run: uv sync --all-packages --locked
+
+      - name: Cache fetched rule sets
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            third_party/*
+            !third_party/README.md
+            !third_party/manifest.json
+            !third_party/_compiled
+          key: rulesets-${{ hashFiles('third_party/manifest.json') }}
+
+      - name: Fetch rule sets (UBL 2.1, EN 16931, Peppol BIS, ISO Schematron)
+        run: python scripts/fetch_rulesets.py
+
+      # Fails when a measure misses its threshold, or when the committed report (and the README's
+      # badge) is not what the run gives.
+      - name: Every threshold met, and the report as committed
+        run: uv run sef-evals --check
+
   web:
     name: web lint, types, tests, build
     runs-on: ubuntu-latest
