@@ -103,3 +103,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-sef-send` | [m5-web-sef-send.md](m5-web-sef-send.md) |
 | `chore/release-0.5.0` | [m5-release-0.5.0.md](m5-release-0.5.0.md) |
 | `feat/evals-harness` | [m6-evals-harness.md](m6-evals-harness.md) |
+| `feat/evals-explanations` | [m6-evals-explanations.md](m6-evals-explanations.md) |
