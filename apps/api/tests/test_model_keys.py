@@ -1,6 +1,7 @@
 """An organization's own key to a language model's provider (ADR-0058): an owner sets, replaces
-and removes it, sealed under ``SEF_FERNET_KEY`` for that purpose and rotated with it; every
-member sees which provider and model are set, and nobody the key."""
+and removes it, sealed under ``SEF_FERNET_KEY`` for that purpose; every member sees whose model
+writes; the organization's explanations and repairs are then asked of that model, never of the
+server's, and a key that cannot be opened stops them rather than send the invoice elsewhere."""
 
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from pydantic import SecretStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sef_api import model_choice
 from sef_api.db import Database, get_session
 from sef_api.main import create_app
 from sef_api.models import AuditAction, AuditEvent, ModelKey
@@ -26,8 +28,13 @@ from sef_api.sef import rotate
 from sef_api.sef.keys import Keyring, UnreadableKeyError
 
 from .conftest import TEST_FERNET_KEY, settings_for
-from .corpora import QuotingModel, ScriptedModel
-from .factories import KEYRING, Office, model_key, office, sef_key
+from .corpora import QuotingModel, ScriptedModel, repository_corpus, store_corpus
+from .factories import KEYRING, Office, model_key, office, sef_key, stored_invoice
+from .test_invoices_explain import WRONG_PIB
+from .test_invoices_validate import XML
+from .test_mcp import NO_MODEL, connected, serving, text_of
+from .test_repair_suggestions import FIX_TYPE, answer, suggestion
+from .test_repairs import MISTAKE
 
 KEY = "sk-own-4711-4711-4711"
 OTHER_FERNET_KEY = base64.urlsafe_b64encode(b"else" * 8).decode()
@@ -36,6 +43,40 @@ OTHER_FERNET_KEY = base64.urlsafe_b64encode(b"else" * 8).decode()
 @pytest.fixture
 async def primer(session: AsyncSession) -> Office:
     return await office(session, "Primer Računovodstvo", "primer.example")
+
+
+class OwnModel(QuotingModel):
+    """The organization's own model, as a stand-in: it explains as the test application's model
+    does, repairs as it is told, and notes the key and the model it was made with."""
+
+    def __init__(self, provider: str, api_key: SecretStr, model: str | None) -> None:
+        super().__init__()
+        self.model = f"{provider}/{model or 'its-default'}"
+        self.made_with = (provider, api_key.get_secret_value(), model)
+        self.closed = False
+
+    async def answer(self, messages: Any, *, name: str, schema: Any, max_tokens: Any = None) -> str:
+        if name == "repair":
+            return answer(FIX_TYPE)
+        return await super().answer(messages, name=name, schema=schema, max_tokens=max_tokens)
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+@pytest.fixture
+def own_models(monkeypatch: pytest.MonkeyPatch) -> list[OwnModel]:
+    """The organizations' models made while the test runs, each a stand-in."""
+    made: list[OwnModel] = []
+
+    def make(provider: str, api_key: SecretStr | None, model: str | None) -> OwnModel:
+        assert api_key is not None
+        own = OwnModel(provider, api_key, model)
+        made.append(own)
+        return own
+
+    monkeypatch.setattr(model_choice, "client_for", make)
+    return made
 
 
 @asynccontextmanager
@@ -210,6 +251,113 @@ async def test_without_fernet_keys_the_server_keeps_no_key(
     assert response.json()["detail"] == (
         "keys to a model cannot be set on this server: SEF_FERNET_KEY is not set"
     )
+
+
+# --- whose model writes ------------------------------------------------------------------------
+
+
+async def test_the_organization_s_explanations_are_written_by_its_own_model(
+    session: AsyncSession, primer: Office, own_models: list[OwnModel]
+) -> None:
+    await store_corpus(session, repository_corpus())
+    await model_key(session, primer.organization, KEY, provider="anthropic", model="claude-x")
+    elsewhere = await office(session, "Ogledni Kupac", "kupac.example")
+
+    async with application(session) as api:
+        own = await api.post(
+            "/invoices/explain", content=WRONG_PIB, headers=XML | primer.as_accountant()
+        )
+        servers = await api.post(
+            "/invoices/explain", content=WRONG_PIB, headers=XML | elsewhere.as_accountant()
+        )
+
+    assert (own.status_code, servers.status_code) == (200, 200)
+    assert own.json()["model"] == "anthropic/claude-x"
+    assert servers.json()["model"] == "test/quoting"
+    assert [explanation["text"] for explanation in own.json()["explanations"]]
+    assert [(own.made_with, own.closed) for own in own_models] == [
+        (("anthropic", KEY, "claude-x"), True)
+    ]
+
+
+async def test_a_server_without_a_model_explains_with_the_organization_s(
+    session: AsyncSession, primer: Office, own_models: list[OwnModel]
+) -> None:
+    await store_corpus(session, repository_corpus())
+    await model_key(session, primer.organization, KEY, provider="groq")
+    invoice = await stored_invoice(session, primer.organization, primer.client, WRONG_PIB)
+
+    async with application(session, servers_model=False) as api:
+        explained = await api.post(
+            f"/invoices/{invoice.id}/explanations", headers=primer.as_client()
+        )
+
+    assert explained.status_code == 200, explained.text
+    assert explained.json()["model"] == "groq/its-default"
+    assert len(own_models) == 1
+
+
+async def test_the_organization_s_repairs_are_proposed_by_its_own_model(
+    session: AsyncSession, primer: Office, own_models: list[OwnModel]
+) -> None:
+    await model_key(session, primer.organization, KEY, provider="openai")
+    invoice = await stored_invoice(session, primer.organization, primer.client, MISTAKE)
+
+    async with application(session) as api:
+        proposed = await api.post(suggestion(invoice), headers=primer.as_client())
+
+    assert proposed.status_code == 201, proposed.text
+    assert proposed.json()["model"] == "openai/its-default"
+    assert own_models[0].closed
+
+
+async def test_a_key_the_server_cannot_open_stops_the_model_rather_than_send_elsewhere(
+    session: AsyncSession, primer: Office, own_models: list[OwnModel]
+) -> None:
+    await store_corpus(session, repository_corpus())
+    await model_key(session, primer.organization, KEY, keyring=Keyring((OTHER_FERNET_KEY,)))
+    invoice = await stored_invoice(session, primer.organization, primer.client, MISTAKE)
+
+    async with application(session) as api:
+        explaining = await api.post(
+            "/invoices/explain", content=WRONG_PIB, headers=XML | primer.as_accountant()
+        )
+        repairing = await api.post(suggestion(invoice), headers=primer.as_client())
+    async with application(session, fernet_keys=False) as api:
+        unkept = await api.post(
+            "/invoices/explain", content=WRONG_PIB, headers=XML | primer.as_accountant()
+        )
+
+    detail = (
+        "the organization's key to its model cannot be opened on this server: an owner sets it "
+        "again"
+    )
+    for answered in (explaining, repairing, unkept):
+        assert (answered.status_code, answered.json()["detail"]) == (503, detail)
+    assert own_models == []
+
+
+async def test_an_mcp_client_of_the_organization_is_answered_by_its_own_model(
+    committed_database: Database, database_url: str, own_models: list[OwnModel]
+) -> None:
+    async with (
+        serving(committed_database, database_url, model=NO_MODEL, corpus=True) as served,
+        connected(served.app, served.key) as client,
+    ):
+        refused = await client.call_tool("explain_errors", {"xml": WRONG_PIB})
+        async with committed_database.sessions() as setup:
+            primer = served.primer.organization
+            await model_key(setup, primer, KEY, provider="openai", model="gpt-x")
+            await setup.commit()
+        answered = await client.call_tool("explain_errors", {"xml": WRONG_PIB})
+
+    assert text_of(refused) == (
+        "Error executing tool explain_errors: no language model is configured on this server"
+    )
+    assert not answered.is_error, text_of(answered)
+    assert answered.structured_content is not None
+    assert answered.structured_content["model"] == "openai/gpt-x"
+    assert [own.closed for own in own_models] == [True]
 
 
 # --- rotation ----------------------------------------------------------------------------------

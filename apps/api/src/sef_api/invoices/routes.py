@@ -39,9 +39,10 @@ from sef_api.jobs import store as job_store
 from sef_api.jobs.routes import JobOut, job_out
 from sef_api.jobs.runners import JobRunner
 from sef_api.llm import Language
+from sef_api.model_choice import explainer_for
 from sef_api.models import Job, JobKind, StoredInvoice
 from sef_api.rag.embeddings import Embedder
-from sef_api.rag.explainer import Explainer, Explanation, explain_report
+from sef_api.rag.explainer import Explanation, explain_report
 from sef_api.rate_limits import Counted, Limit, RateLimiter, Rule, too_many
 from sef_api.settings import Settings
 
@@ -294,25 +295,26 @@ async def explain(
     profile: Profile = "srb",
     language: Explaining = "sr",
 ) -> Explained:
-    explainer = cast(Explainer | None, request.app.state.explainer)
-    if explainer is None:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "no language model is configured on this server"
+    async with explainer_for(request, session, caller.organization_id) as explainer:
+        if explainer is None:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "no language model is configured on this server",
+            )
+        settings = cast(Settings, request.app.state.settings)
+        _, validation = await _validated(request, session, caller, profile, asks_model=True)
+        summary = validation.summary
+        day = summary.issue_date if summary is not None else datetime.now(UTC).date()
+        explanations, unexplained = await explain_report(
+            session,
+            validation.report,
+            day=day,
+            language=language,
+            explainer=explainer,
+            embedder=cast(Embedder | None, request.app.state.embedder),
+            max_rules=settings.max_explanations,
+            seconds=settings.explanation_seconds,
         )
-    settings = cast(Settings, request.app.state.settings)
-    _, validation = await _validated(request, session, caller, profile, asks_model=True)
-    summary = validation.summary
-    day = summary.issue_date if summary is not None else datetime.now(UTC).date()
-    explanations, unexplained = await explain_report(
-        session,
-        validation.report,
-        day=day,
-        language=language,
-        explainer=explainer,
-        embedder=cast(Embedder | None, request.app.state.embedder),
-        max_rules=settings.max_explanations,
-        seconds=settings.explanation_seconds,
-    )
     response.headers["Cache-Control"] = "no-store"
     return Explained(
         report=validation.report,
@@ -605,23 +607,25 @@ async def explain_stored(
     )
     if kept is not None:
         return _kept(stored, day, language, kept)
-    explainer = cast(Explainer | None, request.app.state.explainer)
-    if explainer is None:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "no language model is configured on this server"
+    async with explainer_for(request, session, caller.organization_id) as explainer:
+        if explainer is None:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "no language model is configured on this server",
+            )
+        count(request, caller, MODEL_REQUEST)
+        settings = cast(Settings, request.app.state.settings)
+        explanations, unexplained = await explain_report(
+            session,
+            stored.report,
+            day=day,
+            language=language,
+            explainer=explainer,
+            embedder=cast(Embedder | None, request.app.state.embedder),
+            max_rules=settings.max_explanations,
+            seconds=settings.explanation_seconds,
         )
-    count(request, caller, MODEL_REQUEST)
-    settings = cast(Settings, request.app.state.settings)
-    explanations, unexplained = await explain_report(
-        session,
-        stored.report,
-        day=day,
-        language=language,
-        explainer=explainer,
-        embedder=cast(Embedder | None, request.app.state.embedder),
-        max_rules=settings.max_explanations,
-        seconds=settings.explanation_seconds,
-    )
+        model = explainer.model
     written_at = datetime.now(UTC)
     if all(explanation.problem is None for explanation in explanations):
         written_at = (
@@ -631,7 +635,7 @@ async def explain_stored(
                 language,
                 report_sha256=digest,
                 day=day,
-                model=explainer.model,
+                model=model,
                 explanations=explanations,
                 unexplained=unexplained,
             )
@@ -641,7 +645,7 @@ async def explain_stored(
         report=stored.report,
         day=day,
         language=language,
-        model=explainer.model,
+        model=model,
         explanations=explanations,
         unexplained=unexplained,
         written_at=written_at,

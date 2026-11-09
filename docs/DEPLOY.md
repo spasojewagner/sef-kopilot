@@ -193,6 +193,20 @@ To replace it, set `SEF_FERNET_KEY` to the new key, a comma and the old one; onc
 `make rotate-sef-keys` from a clone with `DATABASE_URL` set as in section 3, which seals every
 stored key again under the new one or changes nothing; then remove the old key.
 
+## 10. Organizations' keys to a model (optional)
+
+An organization may have its explanations and repairs written by a provider of its choice, with
+its own key, instead of the server's model (ADR-0058). The key is sealed under the same
+`SEF_FERNET_KEY` (section 9, steps 1 and 2) and rotated with the same command.
+
+1. As the organization's owner: `PUT /organization/model-key` with the provider (`groq`,
+   `openai` or `anthropic`), the model if not the provider's default, and the key. Check:
+   `GET /organization` shows `model_key` with the provider and the model, never the key.
+2. Explain a report: the answer's `model` names the organization's provider and model. A key the
+   provider refuses shows there as the provider's error code (502); a key the server cannot open
+   answers 503 until the owner sets it again.
+3. `DELETE /organization/model-key` returns the organization to the server's model.
+
 ## Rolling back
 
 - The API: Render > the service > **Events**, and **Rollback** to an earlier deploy. A migration

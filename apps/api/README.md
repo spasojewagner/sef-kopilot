@@ -187,6 +187,27 @@ To replace `SEF_FERNET_KEY`, put the new key first and the old one after a comma
 `make rotate-sef-keys`, which seals every stored key again under the new one or, when one
 does not open, changes nothing; then remove the old key.
 
+## An organization's own key to a model
+
+An organization may have its explanations and repairs written by a provider of its choice, under
+its own contract, instead of the server's model (ADR-0058). An owner, signed in:
+
+```bash
+curl -s -X PUT localhost:8000/organization/model-key -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"provider": "anthropic", "model": "claude-haiku-5-5", "api_key": "the key"}'
+```
+
+`provider` is `groq`, `openai` or `anthropic`; `model` is optional (the provider's default). The
+key is sealed as the SEF key is, for this organization and this purpose alone, rotated by the same
+command, and never shown: `GET /organization` shows every member the provider, the model and
+since when (`model_key`); the audit log records who set, replaced or removed it (`DELETE
+/organization/model-key`). From then on every explanation and repair the organization asks for,
+from the routes or from MCP, is written by its own model, made for the request and closed after
+it; the answer's `model` names it. A key the server cannot open answers 503 and the invoice is
+not sent to the server's model instead; a key the provider refuses answers as the provider's
+error (502). The key is not tried when it is set.
+
 ## Sending an invoice to SEF
 
 An owner or an accountant (`invoices:send`) sends a stored invoice to SEF's demo environment
@@ -562,7 +583,7 @@ its question contains: the model invents none and computes none (ADR-0022).
 
 | `LLM_PROVIDER` | What explains, and proposes repairs |
 | --- | --- |
-| `none` (default) | nothing: `/invoices/explain` and `/repairs/suggestion` answer 503, and nothing leaves the server |
+| `none` (default) | nothing: `/invoices/explain` and `/repairs/suggestion` answer 503, and nothing leaves the server, except for an organization with a key of its own |
 | `groq` | with `GROQ_API_KEY`: Groq's `openai/gpt-oss-120b`, on the free tier |
 | `openai` | with `OPENAI_API_KEY`: OpenAI's `gpt-6-luna`, by chat completions |
 | `anthropic` | with `ANTHROPIC_API_KEY`: Anthropic's `claude-haiku-5-5`, by the Messages API |
@@ -583,7 +604,7 @@ The answers are those of a validation, and:
 
 | Answer | When | Setting (default) |
 | --- | --- | --- |
-| 503 | no model is configured; answered before the body is read | `LLM_PROVIDER` |
+| 503 | no model is configured, neither the server's nor the organization's, or the organization's key cannot be opened; answered before the body is read | `LLM_PROVIDER`, `SEF_FERNET_KEY` |
 | 429 + `Retry-After` | the caller, or their organization, has made as many requests to the language model this minute as allowed, for explanations or a repair | `SEF_EXPLANATIONS_PER_MINUTE` (10), `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE` (30) |
 
 Without the model's answers, a request for a synthetic invoice takes 100 to 170 ms. With Groq's
