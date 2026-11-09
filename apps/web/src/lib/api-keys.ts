@@ -9,13 +9,14 @@ export type IssuedKey = Schemas["IssuedKey"];
 
 /** A permission a key may hold. */
 export type KeyPermission =
-  "invoices:validate" | "invoices:submit" | "invoices:manage";
+  "invoices:validate" | "invoices:submit" | "invoices:manage" | "invoices:send";
 
 /** The permissions a key may hold, in the order the page offers them. */
 export const KEY_PERMISSIONS: readonly KeyPermission[] = [
   "invoices:validate",
   "invoices:submit",
   "invoices:manage",
+  "invoices:send",
 ];
 
 /** The permissions of a key that each role grants (the API's `ROLE_PERMISSIONS`). */

@@ -37,6 +37,7 @@ is tagged.
 - `apps/api`: an API key may hold `invoices:send`, for an ERP that sends its organization's
   invoices to SEF with an owner's or an accountant's key; the audit log names the key that sent
   (ADR-0053, migration 0022).
+- `apps/web`: the API keys page offers sending to SEF to owners and accountants.
 
 ### Security
 
