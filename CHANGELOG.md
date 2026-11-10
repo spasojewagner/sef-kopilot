@@ -39,6 +39,12 @@ is tagged.
   organization's explanations and repairs, the server's or its own provider's and model; an
   owner chooses the provider and the model and gives the key, in a field that forgets it once
   it is saved, or removes it after a second press (ADR-0058).
+- `apps/api`: credits, where the operator turns billing on (`SEF_BILLING=credits`; off by
+  default and in the public demo): each organization starts with `SEF_STARTING_CREDITS`, and
+  storing an invoice, from the routes or from MCP, spends one or answers 402 without one; a
+  balance and an append-only ledger in one transaction, never below zero; `GET /billing` for
+  whoever may store, `GET /billing/entries` for the owner, and `make grant-credits` for the
+  operator (ADR-0059).
 
 ## [0.5.0] - 2026-11-09
 

@@ -32,6 +32,7 @@ from starlette.routing import BaseRoute, Route
 
 from sef_api.auth.dependencies import current_principal, require
 from sef_api.auth.permissions import KEY_PERMISSIONS, ROLE_PERMISSIONS, Permission
+from sef_api.billing import ledger
 from sef_api.main import create_app
 from sef_api.mcp.access import RequireCredential
 from sef_api.members import invitations
@@ -170,8 +171,8 @@ def app() -> FastAPI:
 @dataclass(frozen=True)
 class World:
     """Two organizations. Primer has an open invitation, a stored invoice, its client's API key,
-    a job the client started and a key to SEF; Ogled's owner has a key with every permission a
-    key may hold."""
+    a job the client started, a key to SEF, its own key to a model and credits the operator
+    gave; Ogled's owner has a key with every permission a key may hold."""
 
     primer: Office
     ogled: Office
@@ -205,6 +206,7 @@ async def world(session: AsyncSession) -> World:
     started = await job(session, primer.organization, primer.client)
     await sef_key(session, primer.organization, PRIMER_SEF_KEY)
     await model_key(session, primer.organization, PRIMER_MODEL_KEY)
+    await ledger.grant(session, primer.organization.id, ledger.CreditTerms(starting=0), count=5)
     return World(primer, ogled, issued.invitation, invoice, key, ogled_key, started)
 
 
@@ -505,6 +507,26 @@ async def _primers_model_key_stays(response: Response, session: AsyncSession, w:
     assert await model_keys(session) == {"Primer Računovodstvo": PRIMER_MODEL_KEY}
 
 
+async def _billing_is_off(response: Response, session: AsyncSession, w: World) -> None:
+    """Billing is off on the audit's server: no organization's credits are shown; whose are
+    shown where it is on is tested with billing (test_billing.py)."""
+    assert response.status_code == 200
+    assert response.json() == {
+        "enabled": False,
+        "balance": None,
+        "starting": None,
+        "per_invoice": None,
+    }
+
+
+async def _lists_none_of_primers_credits(
+    response: Response, session: AsyncSession, w: World
+) -> None:
+    """Ogled's owner lists Ogled's ledger, which is empty, and none of Primer's grant."""
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 GUARDED: dict[Endpoint, Guarded] = {
     ("GET", "/jobs/{job_id}"): Guarded(
         Permission.INVOICES_SUBMIT,
@@ -736,6 +758,20 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda _: "/organization/model-key",
         None,
         _primers_model_key_stays,
+    ),
+    ("GET", "/billing"): Guarded(
+        Permission.INVOICES_SUBMIT,
+        False,
+        lambda _: "/billing",
+        None,
+        _billing_is_off,
+    ),
+    ("GET", "/billing/entries"): Guarded(
+        Permission.ORGANIZATION_MANAGE,
+        False,
+        lambda _: "/billing/entries",
+        None,
+        _lists_none_of_primers_credits,
     ),
 }
 

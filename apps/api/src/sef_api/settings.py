@@ -276,6 +276,22 @@ class Settings(BaseSettings):
             "with their own keys (ADR-0051); the address of the Ministry of Finance's by default."
         ),
     )
+    billing: Literal["off", "credits"] = Field(
+        default="off",
+        validation_alias="SEF_BILLING",
+        description=(
+            "Whether storing an invoice costs a credit (ADR-0059): `off`, the default and the "
+            "public demo's, or `credits`, where an organization holds credits and storing an "
+            "invoice without one answers 402."
+        ),
+    )
+    starting_credits: int = Field(
+        default=25,
+        ge=0,
+        le=1_000_000,
+        validation_alias="SEF_STARTING_CREDITS",
+        description="The credits an organization starts with, where billing is on.",
+    )
     llm_model: str | None = Field(
         default=None,
         min_length=1,

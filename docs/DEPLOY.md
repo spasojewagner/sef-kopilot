@@ -207,6 +207,21 @@ its own key, instead of the server's model (ADR-0058). The key is sealed under t
    answers 503 until the owner sets it again.
 3. `DELETE /organization/model-key` returns the organization to the server's model.
 
+## 11. Credits (optional, off in the public demo)
+
+The public demo stores invoices for nothing. A deployment that meters its organizations turns
+billing on (ADR-0059):
+
+1. Render > the API > **Environment**: `SEF_BILLING=credits`, and `SEF_STARTING_CREDITS` if 25
+   is not the number each organization should start with.
+2. Check: `GET /billing` answers `"enabled": true` and the balance; storing an invoice lowers
+   it by one, and without a credit `POST /invoices` answers 402.
+3. To give an organization more, from a clone with `DATABASE_URL` and `SEF_BILLING` set as in
+   section 3: `make grant-credits ORGANIZATION=<its id> COUNT=<n>`.
+
+Turning it off again (`SEF_BILLING=off`) stores without counting; the balances and the ledger
+stay, and count again when it is turned back on.
+
 ## Rolling back
 
 - The API: Render > the service > **Events**, and **Rollback** to an earlier deploy. A migration

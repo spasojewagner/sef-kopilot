@@ -22,6 +22,7 @@ from einvoice_core.patches import MAX_PATCHES, Patch
 from einvoice_core.pipeline import ValidationReport
 from sef_api.auth.dependencies import Principal, check_again
 from sef_api.auth.permissions import Permission
+from sef_api.billing.ledger import NO_CREDITS, CreditTerms, NoCreditsError
 from sef_api.db import Database
 from sef_api.invoices import store
 from sef_api.invoices.routes import (
@@ -457,9 +458,12 @@ async def store_invoice(
                 content=xml.encode(),
                 validation=validation,
                 quota=settings.max_stored_bytes,
+                terms=cast(CreditTerms | None, request.app.state.credit_terms),
             )
         except store.StorageFullError:
             raise ToolError("the organization stores as much as it may") from None
+        except NoCreditsError:
+            raise ToolError(NO_CREDITS) from None
         return present_stored(invoice)
 
 

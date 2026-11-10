@@ -22,6 +22,8 @@ from sef_api import __version__
 from sef_api.api_keys import routes as api_keys
 from sef_api.auth import routes as auth
 from sef_api.auth.service import TokenSettings
+from sef_api.billing import routes as billing
+from sef_api.billing.ledger import terms_for
 from sef_api.bodies import LimitBodies
 from sef_api.charset import DeclareUTF8
 from sef_api.cors import Cors
@@ -305,6 +307,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.model_traces = _model_traces(settings)
     app.state.explainer, app.state.repairer = _model_users(settings, app.state.model_traces)
     app.state.embedder = embedder_for(settings)
+    # What storing an invoice costs, where billing is on (ADR-0059).
+    app.state.credit_terms = terms_for(settings)
     # Seals and opens the organizations' SEF keys, where SEF_FERNET_KEY is set (ADR-0050).
     app.state.sef_keys = keyring_for(settings)
     # Speaks to SEF for every organization, each request with that organization's key.
@@ -322,6 +326,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         members.invitations_router,
         organization.router,
         api_keys.router,
+        billing.router,
         sef.router,
         oauth.router,
         oauth_metadata.router,
