@@ -4,6 +4,7 @@ stand-in for the language model."""
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -49,9 +50,20 @@ needs_database = pytest.mark.skipif(
 )
 
 
+#: What the stand-in writes for the rules it repairs, at each violation's place.
+REPAIRS: dict[str, str] = {
+    "SRB-001": "380",
+    "BR-CL-14": "RS",
+    "SRB-009": "RS100000024",
+    "SRB-014": "VAT",
+}
+_VIOLATION = re.compile(r"<violation>\nrule: (?P<rule>\S+)\nlayer: \S+\nplace: (?P<place>.+)")
+
+
 class Explaining:
     """A stand-in for the language model: it explains every rule in the same words and cites
-    the first passage it may, or fails as ``failures`` say, in turn."""
+    the first passage it may; it repairs the rules of :data:`REPAIRS` by writing their value
+    at each violation's place, and nothing else; or it fails as ``failures`` say, in turn."""
 
     model = "test/explaining"
 
@@ -61,7 +73,7 @@ class Explaining:
 
     async def answer(
         self,
-        messages: Sequence[Message],  # noqa: ARG002
+        messages: Sequence[Message],
         *,
         name: str,
         schema: Mapping[str, Any],
@@ -70,8 +82,18 @@ class Explaining:
         self.asked += 1
         if self.failures:
             raise LLMError(self.failures.pop(0))
-        if name != "explanation":
-            raise LLMError("the stand-in explains, and writes nothing else")
+        if name == "repair":
+            patches = [
+                {
+                    "xpath": found["place"],
+                    "op": "replace",
+                    "value": REPAIRS[found["rule"]],
+                    "reason": "Pravilo traži ovu vrednost.",
+                }
+                for found in _VIOLATION.finditer(messages[-1].content)
+                if found["rule"] in REPAIRS
+            ]
+            return json.dumps({"patches": patches})
         allowed = schema["properties"]["citations"]["items"]["enum"]
         return json.dumps(
             {
@@ -90,6 +112,8 @@ agreement: {min: 1.0}
 false_accept_rate: {max: 0.0}
 detection: {min: 1.0}
 citation_relevance: {min: 1.0}
+repair_success: {min: 1.0}
+overreach_rate: {max: 0.0}
 """
 
 DOCUMENTS = """\
@@ -105,6 +129,20 @@ groups:
     profile: srb
     expect: reject
     reports: header
+"""
+
+REPAIRS_GOLDEN = """\
+language: sr
+cases:
+  - name: proforma-type-code
+    document: docs/srb-minimal-invoice.xml
+    mistake: the type code is 325.
+    edits: [["<cbc:InvoiceTypeCode>380<", "<cbc:InvoiceTypeCode>325<"]]
+    expect: repaired
+  - name: pib-check-digit
+    document: docs/srb-009-pib-check-digit.xml
+    mistake: a typo in the seller's PIB.
+    expect: refused
 """
 
 EXPLANATIONS = """\
@@ -134,6 +172,7 @@ def small_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (tmp_path / "evals" / "thresholds.yaml").write_text(THRESHOLDS, encoding="utf-8")
     (golden / "documents.yaml").write_text(DOCUMENTS, encoding="utf-8")
     (golden / "explanations.yaml").write_text(EXPLANATIONS, encoding="utf-8")
+    (golden / "repairs.yaml").write_text(REPAIRS_GOLDEN, encoding="utf-8")
     if SERVER is not None:
         monkeypatch.setenv("SEF_TEST_DATABASE_URL", SERVER)
     return tmp_path

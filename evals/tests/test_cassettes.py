@@ -126,7 +126,7 @@ async def test_records_only_what_the_cassette_lacks_and_keeps_what_the_run_used(
     assert set(recording.cassette(finished=False).answers) == {key(), key(other), "f" * 64}
     assert held.answers == {key(): "Zapisan odgovor.", "f" * 64: "Zastareo."}
     await recording.aclose()
-    assert model.closed
+    assert not model.closed  # its owner closes it
 
 
 async def test_waits_out_a_limit_and_asks_again() -> None:

@@ -12,6 +12,8 @@ Written by `make evals` (ADR-0054); do not edit. Measured with the rule sets ubl
 | `explained` | Rules of the golden documents that the model explained | 100.0% (47 of 47) | ≥ 90% | yes |
 | `citation_resolution` | Citations of a passage stored in the corpus and applying on the day | 100.0% (93 of 93) | ≥ 100% | yes |
 | `citation_relevance` | Citations of a passage labelled relevant to the rule | 96.8% (90 of 93) | ≥ 90% | yes |
+| `repair_success` | Held-out invoices that a repair leaves the validator accepting | 100.0% (9 of 9) | ≥ 80% | yes |
+| `overreach_rate` | Invoices with a mistake a person decides, that a repair made pass | 0.0% (0 of 11) | ≤ 0% | yes |
 
 ## `citation_relevance`
 

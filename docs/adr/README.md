@@ -61,3 +61,4 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0053](0053-an-api-key-may-send-to-sef.md) | An API key may send to SEF, for an owner or an accountant who chooses it | accepted | 2026-11-09 |
 | [0054](0054-the-system-is-measured-on-golden-sets-against-thresholds.md) | The system is measured on golden sets labelled apart from it, against thresholds in CI | accepted | 2026-11-09 |
 | [0055](0055-the-models-answers-are-recorded-once-and-replayed.md) | The model's explanations are measured on answers recorded once and replayed offline | accepted | 2026-11-09 |
+| [0056](0056-repairs-are-measured-on-held-out-invoices.md) | Repairs are measured on held-out invoices, and on invoices only a person may repair | accepted | 2026-11-09 |

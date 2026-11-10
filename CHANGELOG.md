@@ -22,6 +22,9 @@ is tagged.
   that resolve to a stored passage, and those of a passage labelled relevant to the rule (90 %
   at least). The model's answers are recorded once with `make evals-record` and replayed
   offline, so CI never calls the model (ADR-0055).
+- `evals`: the repairs' evaluations: nine held-out invoices, made at run time from the synthetic
+  ones, which a repair must leave the validator accepting (80 % at least), and eleven whose
+  mistake a person decides, which no repair may make pass (ADR-0056).
 
 ## [0.5.0] - 2026-11-09
 

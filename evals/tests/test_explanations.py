@@ -159,7 +159,7 @@ async def test_tells_the_progress_and_names_what_the_model_did_not_explain(
     told: list[str] = []
     model = Explaining("Groq answered 503, 3 times")
     asked = await explain(REPOSITORY_ROOT, golden(), database, model, progress=told.append)
-    assert told == [f"{PIB} [sr]", f"{SELLER} [sr]"]
+    assert told == [f"the rules of {PIB} [sr]", f"the rules of {SELLER} [sr]"]
     explained = (await measure(golden(), database, asked))[0]
     assert explained.failures == (
         f"{PIB} [sr] SRB-009: the model gave no answer (Groq answered 503, 3 times)",

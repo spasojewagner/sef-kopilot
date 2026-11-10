@@ -58,8 +58,8 @@ sef-evals --unlabelled` lists those no label names.
 | `citation_resolution` | Citations of a passage stored in the corpus and applying on the day | 100 % |
 | `citation_relevance` | Citations of a passage labelled relevant to the rule | 90 % |
 
-The model's answers are recorded once in [`cassettes/explanations.json`](cassettes/), by the
-SHA-256 of each request, and replayed offline: CI never calls the model. A change to what the
+The model's answers are recorded once in [`cassettes/`](cassettes/), by the SHA-256 of each
+request, and replayed offline: CI never calls the model. A change to what the
 model is sent (the prompt, a passage, a document) has no recorded answer, and lowers
 `explained` until it is recorded again. To record, with a key of your own on Groq's free tier:
 
@@ -71,7 +71,16 @@ LLM_PROVIDER=groq GROQ_API_KEY=... make evals-record
 It asks only what the cassette lacks, two seconds apart; at the provider's daily limit it stops
 and keeps what it recorded, and the next run continues from there.
 
-## Repairs *(planned, M6)*
+## The repairs
 
-Repair success on a held-out set of invoices (≥ 80 %), on recorded answers too, and no patch
-ever applied to a field a person decides.
+The golden set is [`golden/repairs.yaml`](golden/repairs.yaml) (ADR-0056): nine held-out
+invoices, made at run time from the synthetic ones by the edits each case names, whose mistake
+a repair may fix; and eleven whose mistake a person decides: eight mutations of a field the
+guard keeps for a person, and three invoice types SEF does not accept, where the invoice does
+not say which of the four it allows was meant. Each is repaired as the API repairs a stored
+invoice, with the model's answers recorded in [`cassettes/repairs.json`](cassettes/).
+
+| Measure | What it counts | Threshold |
+| --- | --- | --- |
+| `repair_success` | Held-out invoices that a repair leaves the validator accepting | 80 % |
+| `overreach_rate` | Invoices with a mistake a person decides, that a repair made pass | 0 % |

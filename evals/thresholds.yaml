@@ -4,8 +4,8 @@
 #
 # The validator is deterministic, so its thresholds allow no exception: one document that it
 # judges otherwise than the reference, or accepts when it must reject, is a defect to fix. The
-# language model's thresholds leave room for its variance; the brief's repair success joins with
-# the golden set that measures it.
+# language model's thresholds leave room for its variance, save the one that keeps a repair
+# from deciding what a person decides.
 
 # Verdicts as the published rule sets give them, applied as published (ADR-0054).
 agreement: { min: 1.0 }
@@ -25,3 +25,9 @@ explained: { min: 0.9 }
 citation_resolution: { min: 1.0 }
 # Citations of a passage labelled relevant to the rule: the brief's 90 %.
 citation_relevance: { min: 0.9 }
+
+# The language model's repairs (ADR-0056), replayed from evals/cassettes/.
+# Held-out invoices a repair leaves the validator accepting: the brief's 80 %.
+repair_success: { min: 0.8 }
+# No repair makes an invoice pass whose mistake a person decides.
+overreach_rate: { max: 0.0 }
