@@ -35,6 +35,10 @@ is tagged.
   purpose and rotated with it, and never shown. The organization's explanations and repairs,
   from the routes and from MCP, are then written by its own model; a key the server cannot open
   answers 503 rather than send the invoice to the server's model (ADR-0058).
+- `apps/web`: the organization page shows every member whose language model writes the
+  organization's explanations and repairs, the server's or its own provider's and model; an
+  owner chooses the provider and the model and gives the key, in a field that forgets it once
+  it is saved, or removes it after a second press (ADR-0058).
 
 ## [0.5.0] - 2026-11-09
 
