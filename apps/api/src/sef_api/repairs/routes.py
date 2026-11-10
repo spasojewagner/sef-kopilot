@@ -30,6 +30,7 @@ from sef_api.invoices.store import StorageFullError
 from sef_api.invoices.validation import Patched, ProfileName
 from sef_api.llm import Language
 from sef_api.logs import security_event
+from sef_api.model_choice import repairer_for
 from sef_api.models import Repair, RepairStatus
 from sef_api.repairs import store
 from sef_api.repairs.repairer import (
@@ -396,11 +397,31 @@ async def repair_suggested(
     """The repair the language model proposes for a stored invoice, kept as the caller's until
     a person decides, the routes and MCP tools alike; an HTTP error or a
     :class:`ConflictError` that says why not."""
-    repairer = cast(Repairer | None, request.app.state.repairer)
-    if repairer is None:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "no language model is configured on this server"
+    async with repairer_for(request, session, caller.organization_id) as repairer:
+        if repairer is None:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "no language model is configured on this server",
+            )
+        return await _suggested(
+            request,
+            caller,
+            session,
+            invoice_id=invoice_id,
+            language=language,
+            repairer=repairer,
         )
+
+
+async def _suggested(
+    request: Request,
+    caller: Principal,
+    session: AsyncSession,
+    *,
+    invoice_id: uuid.UUID,
+    language: Language,
+    repairer: Repairer,
+) -> Repair:
     count_validation(request, caller, asks_model=True)
     scope = scope_of(caller)
     invoice = await invoice_store.find(session, scope, invoice_id)

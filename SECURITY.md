@@ -292,6 +292,11 @@ system are marked as such.
       rotate-sef-keys` seals every stored key again in one transaction, or changes nothing. An
       owner sets or removes a key, in person; it is answered, logged and recorded nowhere
       (tested).
+- [x] Tenants' keys to a model's provider sealed the same way, with their purpose sealed beside
+      the organization's id, so that a token opens neither for another organization nor as a
+      SEF key, and rotated by the same command (ADR-0058). A key the server cannot open stops
+      the organization's explanations and repairs with 503; the invoice is never sent to the
+      server's model instead (tested).
 - [ ] No home-grown cryptography; randomness from `secrets`.
 
 ### V12 Secure communication
@@ -386,8 +391,8 @@ system are marked as such.
 - [x] Security events are logged under `sef_api.security`, each with fields that identify and
       nothing a person wrote: a sign-in, succeeded or refused and why (never the address or
       password tried), a refresh token or a code presented again, an API key refused, a
-      consent approved or refused, a repair approved or rejected, an organization's SEF key set
-      or removed (tested).
+      consent approved or refused, a repair approved or rejected, an organization's SEF key or
+      key to a model set or removed (tested).
 - [x] An API key's use is a security event, and the time each key was last used is kept and
       listed with the keys, both written at most once a minute (tested).
 - [x] Security events for sending to SEF: each invoice sent, by whom, as which submission and

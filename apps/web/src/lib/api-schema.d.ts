@@ -594,7 +594,7 @@ export interface paths {
         };
         /**
          * See the organization
-         * @description The caller's organization: its name, how long it keeps its stored invoices, and since when it has an API key to SEF, if it has one.
+         * @description The caller's organization: its name, how long it keeps its stored invoices, since when it has an API key to SEF, if it has one, and its own key to a language model's provider, if it has one: whose, and which model.
          */
         get: operations["show_organization_get"];
         put?: never;
@@ -628,6 +628,30 @@ export interface paths {
          * @description Nothing is sent to SEF for the organization until an owner sets a key again. Removing a key the organization does not have changes nothing. The audit log records who removed it. SEF's own key stays as it is: revoke it in SEF's settings.
          */
         delete: operations["remove_sef_key_organization_sef_key_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/model-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the organization's own key to a language model
+         * @description A key the organization holds with Groq, OpenAI or Anthropic (BYOK): from then on, its explanations and the repairs its members ask for are written by that provider's model, billed to the organization, instead of the server's. The model is sent what the server's would be: each rule's first violation and the passages, or the fields around the violations to repair. The key replaces the one the organization had, is sealed with Fernet under `SEF_FERNET_KEY` (ADR-0058), and is never shown again, logged or reported; the audit log records who set it, and for which provider. It is not tried when it is set: a key the provider refuses shows in the first explanation. An owner, signed in, sets it: no API key or MCP client may.
+         */
+        put: operations["set_model_key_organization_model_key_put"];
+        post?: never;
+        /**
+         * Remove the organization's own key to a language model
+         * @description The organization's explanations and repairs go back to the server's model, if it has one. Removing a key the organization does not have changes nothing. The audit log records who removed it. The provider's own key stays as it is: revoke it there.
+         */
+        delete: operations["remove_model_key_organization_model_key_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1616,6 +1640,48 @@ export interface components {
             role: components["schemas"]["Role"];
         };
         /**
+         * ModelKeyChange
+         * @description The organization's own key to a language model's provider, which replaces the one it had.
+         */
+        ModelKeyChange: {
+            /**
+             * Provider
+             * @description Whose model writes: Groq, OpenAI or Anthropic.
+             * @enum {string}
+             */
+            provider: "groq" | "openai" | "anthropic";
+            /**
+             * Model
+             * @description The provider's model, which must support structured outputs; null for its default (`openai/gpt-oss-120b`, `gpt-6-luna`, `claude-haiku-5-5`).
+             */
+            model?: string | null;
+            /**
+             * Api Key
+             * Format: password
+             * @description The key the provider issued, 8 to 300 visible ASCII characters without spaces; spaces around it are left out. It is sealed, and never shown again.
+             */
+            api_key: string;
+        };
+        /** ModelKeyState */
+        ModelKeyState: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "groq" | "openai" | "anthropic";
+            /**
+             * Model
+             * @description The provider's model; null for its default.
+             */
+            model: string | null;
+            /**
+             * Set At
+             * Format: date-time
+             * @description When the key was set.
+             */
+            set_at: string;
+        };
+        /**
          * OrganizationChange
          * @description What to change; what is left out stays as it is.
          */
@@ -1662,6 +1728,8 @@ export interface components {
              * @description When an owner set the organization's API key to SEF; null when it has none. The key itself is never shown.
              */
             sef_key_set_at: string | null;
+            /** @description The organization's own key to a language model's provider, with which its explanations and repairs are written; null when the server's model writes them. The key itself is never shown. */
+            model_key: components["schemas"]["ModelKeyState"] | null;
         };
         /**
          * Outcome
@@ -4248,6 +4316,66 @@ export interface operations {
         };
     };
     remove_sef_key_organization_sef_key_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_model_key_organization_model_key_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelKeyChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelKeyState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description This server cannot keep keys (`SEF_FERNET_KEY`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    remove_model_key_organization_model_key_delete: {
         parameters: {
             query?: never;
             header?: never;

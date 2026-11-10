@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator, Mapping
-from contextlib import contextmanager
+from contextlib import AsyncExitStack, contextmanager
 from datetime import UTC, date, datetime
 from types import MappingProxyType
 from typing import Annotated, Final, cast
@@ -45,8 +45,9 @@ from sef_api.jobs.routes import JobOut, job_out
 from sef_api.jobs.routes import scope as jobs_scope
 from sef_api.llm import Language
 from sef_api.mcp.access import admitted, as_tool_errors
+from sef_api.model_choice import explainer_for
 from sef_api.rag.embeddings import Embedder
-from sef_api.rag.explainer import Explainer, explain_report
+from sef_api.rag.explainer import explain_report
 from sef_api.repairs import store as repair_store
 from sef_api.repairs.routes import (
     ConflictError,
@@ -665,15 +666,19 @@ async def explain_errors(
     """What ``POST /invoices/explain`` does: count a validation and a request to the model,
     validate the document in memory only, then explain the rules its report names."""
     request, caller = admitted(context, Permission.INVOICES_VALIDATE)
-    explainer = cast(Explainer | None, request.app.state.explainer)
-    if explainer is None:
-        raise ToolError("no language model is configured on this server")
     settings = cast(Settings, request.app.state.settings)
-    with as_tool_errors():
-        validation = await _validated(request, caller, xml, profile, asks_model=True)
-    summary = validation.summary
-    day = summary.issue_date if summary is not None else datetime.now(UTC).date()
-    async with cast(Database, request.app.state.database).sessions() as session:
+    database = cast(Database, request.app.state.database)
+    async with database.sessions() as session, AsyncExitStack() as model:
+        with as_tool_errors():
+            explainer = await model.enter_async_context(
+                explainer_for(request, session, caller.organization_id)
+            )
+        if explainer is None:
+            raise ToolError("no language model is configured on this server")
+        with as_tool_errors():
+            validation = await _validated(request, caller, xml, profile, asks_model=True)
+        summary = validation.summary
+        day = summary.issue_date if summary is not None else datetime.now(UTC).date()
         explanations, unexplained = await explain_report(
             session,
             validation.report,

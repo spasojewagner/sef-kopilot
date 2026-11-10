@@ -298,7 +298,7 @@ async def test_a_key_that_does_not_open_stops_the_rotation_and_nothing_changes(
         await session.commit()
     before = await stored_tokens(committed_database)
 
-    with pytest.raises(UnreadableKeyError, match="1 of 2 stored SEF keys cannot be opened"):
+    with pytest.raises(UnreadableKeyError, match="1 of 2 stored keys cannot be opened"):
         await rotate.reseal_every_key(
             committed_database, Keyring((NEXT_FERNET_KEY, TEST_FERNET_KEY))
         )
@@ -324,7 +324,7 @@ def test_the_rotation_command_says_what_it_did(
 
     assert rotate.main() == 0
     assert capsys.readouterr().out == (
-        "sealed 2 SEF keys again under the first key of SEF_FERNET_KEY\n"
+        "sealed 2 keys again under the first key of SEF_FERNET_KEY\n"
     )
 
 

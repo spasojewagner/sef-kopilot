@@ -112,9 +112,10 @@ class ModelTraces:
 class TracedClient:
     """A language model whose every answer is traced, as :mod:`sef_api.model_traces` says."""
 
-    def __init__(self, inner: LLMClient, traces: ModelTraces) -> None:
+    def __init__(self, inner: LLMClient, traces: ModelTraces, *, owns_traces: bool = True) -> None:
         self._inner = inner
         self._traces = traces
+        self._owns_traces = owns_traces
 
     @property
     def model(self) -> str:
@@ -197,7 +198,10 @@ class TracedClient:
         }
 
     async def aclose(self) -> None:
-        await self._traces.aclose()
+        """Close the model, and the traces when they are this client's own rather than shared
+        with other clients, whose owner closes them."""
+        if self._owns_traces:
+            await self._traces.aclose()
         await self._inner.aclose()
 
 

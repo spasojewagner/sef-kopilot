@@ -29,6 +29,12 @@ is tagged.
   operator names them, `LLM_PROVIDER=openai` with `OPENAI_API_KEY` (`gpt-6-luna` by default) or
   `anthropic` with `ANTHROPIC_API_KEY` (`claude-haiku-5-5`), each asked for structured outputs
   and its answers checked as Groq's; Groq's free tier stays the default (ADR-0057).
+- `apps/api`: an organization's own key to a model's provider (Groq, OpenAI or Anthropic), with
+  the model if its owner names one: set and removed by an owner (`PUT` and
+  `DELETE /organization/model-key`), recorded in the audit log, sealed as its SEF key for that
+  purpose and rotated with it, and never shown. The organization's explanations and repairs,
+  from the routes and from MCP, are then written by its own model; a key the server cannot open
+  answers 503 rather than send the invoice to the server's model (ADR-0058).
 
 ## [0.5.0] - 2026-11-09
 

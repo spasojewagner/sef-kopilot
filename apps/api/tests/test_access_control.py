@@ -41,6 +41,7 @@ from sef_api.models import (
     Invitation,
     Job,
     Membership,
+    ModelKey,
     Organization,
     RefreshToken,
     Repair,
@@ -52,7 +53,18 @@ from sef_api.models import (
 )
 
 from .conftest import REPOSITORY_ROOT, settings_for
-from .factories import KEYRING, Key, Office, api_key, bearer, job, office, sef_key, stored_invoice
+from .factories import (
+    KEYRING,
+    Key,
+    Office,
+    api_key,
+    bearer,
+    job,
+    model_key,
+    office,
+    sef_key,
+    stored_invoice,
+)
 
 Endpoint = tuple[str, str]
 
@@ -61,6 +73,8 @@ INVOICE = REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic" / "srb-final-i
 
 #: Primer's key to SEF, and the one Ogled's owner sets for Ogled.
 PRIMER_SEF_KEY, OGLED_SEF_KEY = "primer-sef-key-4711", "ogled-sef-key-0815"
+#: Primer's own key to a model, and the one Ogled's owner sets for Ogled.
+PRIMER_MODEL_KEY, OGLED_MODEL_KEY = "primer-model-key-4711", "ogled-model-key-0815"
 
 #: Endpoints anyone may call: probes, and the ways to obtain or end a session.
 PUBLIC: set[Endpoint] = {
@@ -190,6 +204,7 @@ async def world(session: AsyncSession) -> World:
     ogled_key = await api_key(session, ogled.organization, ogled.owner)
     started = await job(session, primer.organization, primer.client)
     await sef_key(session, primer.organization, PRIMER_SEF_KEY)
+    await model_key(session, primer.organization, PRIMER_MODEL_KEY)
     return World(primer, ogled, issued.invitation, invoice, key, ogled_key, started)
 
 
@@ -464,6 +479,32 @@ async def _primers_sef_key_stays(response: Response, session: AsyncSession, w: W
     assert await sef_keys(session) == {"Primer Računovodstvo": PRIMER_SEF_KEY}
 
 
+async def model_keys(session: AsyncSession) -> dict[str, str]:
+    """The organizations' own keys to a model, opened, by the organizations' names."""
+    stored = await session.execute(
+        select(Organization.id, Organization.name, ModelKey.token).join(ModelKey)
+    )
+    return {
+        name: KEYRING.open(organization_id, token, "model").get_secret_value()
+        for organization_id, name, token in stored.all()
+    }
+
+
+async def _primer_keeps_its_model_key(response: Response, session: AsyncSession, w: World) -> None:
+    """Ogled's owner sets Ogled's key to a model; Primer's is as it was."""
+    assert response.status_code == 200
+    assert await model_keys(session) == {
+        "Primer Računovodstvo": PRIMER_MODEL_KEY,
+        "Ogled": OGLED_MODEL_KEY,
+    }
+
+
+async def _primers_model_key_stays(response: Response, session: AsyncSession, w: World) -> None:
+    """Ogled's owner removes Ogled's key to a model, which it has not; Primer's stays."""
+    assert response.status_code == 204
+    assert await model_keys(session) == {"Primer Računovodstvo": PRIMER_MODEL_KEY}
+
+
 GUARDED: dict[Endpoint, Guarded] = {
     ("GET", "/jobs/{job_id}"): Guarded(
         Permission.INVOICES_SUBMIT,
@@ -681,6 +722,20 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda _: "/organization/sef-key",
         None,
         _primers_sef_key_stays,
+    ),
+    ("PUT", "/organization/model-key"): Guarded(
+        Permission.ORGANIZATION_MANAGE,
+        False,
+        lambda _: "/organization/model-key",
+        {"provider": "openai", "api_key": OGLED_MODEL_KEY},
+        _primer_keeps_its_model_key,
+    ),
+    ("DELETE", "/organization/model-key"): Guarded(
+        Permission.ORGANIZATION_MANAGE,
+        False,
+        lambda _: "/organization/model-key",
+        None,
+        _primers_model_key_stays,
     ),
 }
 

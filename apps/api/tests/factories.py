@@ -21,6 +21,7 @@ from sef_api.models import (
     Job,
     JobKind,
     Membership,
+    ModelKey,
     Organization,
     Role,
     SefKey,
@@ -183,6 +184,28 @@ async def sef_key(session: AsyncSession, organization: Organization, api_key: st
     """``api_key`` as ``organization``'s key to SEF, sealed as the test applications seal it."""
     sealed = SefKey(
         organization_id=organization.id, token=KEYRING.seal(organization.id, SecretStr(api_key))
+    )
+    session.add(sealed)
+    await session.flush()
+    return sealed
+
+
+async def model_key(
+    session: AsyncSession,
+    organization: Organization,
+    api_key: str,
+    *,
+    provider: str = "anthropic",
+    model: str | None = None,
+    keyring: Keyring = KEYRING,
+) -> ModelKey:
+    """``api_key`` as ``organization``'s own key to ``provider``'s ``model``, sealed as the
+    test applications seal it, or with ``keyring``."""
+    sealed = ModelKey(
+        organization_id=organization.id,
+        provider=provider,
+        model=model,
+        token=keyring.seal(organization.id, SecretStr(api_key), "model"),
     )
     session.add(sealed)
     await session.flush()

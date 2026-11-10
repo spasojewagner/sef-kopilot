@@ -142,21 +142,43 @@ def _runner(app: FastAPI, settings: Settings) -> JobRunner:
     return InlineRunner(run)
 
 
-def _model_users(settings: Settings) -> tuple[Explainer | None, Repairer | None]:
+async def _close_models(application: FastAPI) -> None:
+    """Close the server's language model, the models' traces and the embedder."""
+    explainer: Explainer | None = application.state.explainer
+    if explainer is not None:
+        await explainer.aclose()
+    traces: ModelTraces | None = application.state.model_traces
+    if traces is not None:
+        await traces.aclose()
+    embedder: Embedder | None = application.state.embedder
+    if embedder is not None:
+        await embedder.aclose()
+
+
+def _model_traces(settings: Settings) -> ModelTraces | None:
+    """Where the language models' requests are traced, where Langfuse's keys are set
+    (ADR-0049); the application closes it when it stops."""
+    if settings.langfuse_public_key is None or settings.langfuse_secret_key is None:
+        return None
+    return ModelTraces(
+        settings.langfuse_host,
+        settings.langfuse_public_key,
+        settings.langfuse_secret_key,
+        environment=settings.environment,
+    )
+
+
+def _model_users(
+    settings: Settings, traces: ModelTraces | None
+) -> tuple[Explainer | None, Repairer | None]:
     """The explainer and the repairer, sharing the language model the settings name, traced
-    where Langfuse's keys are set (ADR-0049), or neither without one. The explainer closes the
-    model when the application stops."""
+    to ``traces`` if any, or neither without one. The explainer closes the model when the
+    application stops."""
     llm = llm_for(settings)
     if llm is None:
         return None, None
-    if settings.langfuse_public_key is not None and settings.langfuse_secret_key is not None:
-        traces = ModelTraces(
-            settings.langfuse_host,
-            settings.langfuse_public_key,
-            settings.langfuse_secret_key,
-            environment=settings.environment,
-        )
-        llm = TracedClient(llm, traces)
+    if traces is not None:
+        llm = TracedClient(llm, traces, owns_traces=False)
     return Explainer(llm), Repairer(llm)
 
 
@@ -241,12 +263,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             yield
         await application.state.jobs.stop()
         await validator.stop()
-        explainer: Explainer | None = application.state.explainer
-        if explainer is not None:
-            await explainer.aclose()
-        embedder: Embedder | None = application.state.embedder
-        if embedder is not None:
-            await embedder.aclose()
+        await _close_models(application)
         await application.state.sef_http.aclose()
         await database.engine.dispose()
 
@@ -284,7 +301,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.limiter = RateLimiter()
     app.state.limits = limits(settings)
     app.state.jobs = _runner(app, settings)
-    app.state.explainer, app.state.repairer = _model_users(settings)
+    # The language models' traces, shared by every model the application asks.
+    app.state.model_traces = _model_traces(settings)
+    app.state.explainer, app.state.repairer = _model_users(settings, app.state.model_traces)
     app.state.embedder = embedder_for(settings)
     # Seals and opens the organizations' SEF keys, where SEF_FERNET_KEY is set (ADR-0050).
     app.state.sef_keys = keyring_for(settings)

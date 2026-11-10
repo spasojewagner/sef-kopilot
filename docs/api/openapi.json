@@ -2553,7 +2553,7 @@
           "organization"
         ],
         "summary": "See the organization",
-        "description": "The caller's organization: its name, how long it keeps its stored invoices, and since when it has an API key to SEF, if it has one.",
+        "description": "The caller's organization: its name, how long it keeps its stored invoices, since when it has an API key to SEF, if it has one, and its own key to a language model's provider, if it has one: whose, and which model.",
         "operationId": "show_organization_get",
         "responses": {
           "200": {
@@ -2682,6 +2682,81 @@
         "summary": "Remove the organization's API key to SEF",
         "description": "Nothing is sent to SEF for the organization until an owner sets a key again. Removing a key the organization does not have changes nothing. The audit log records who removed it. SEF's own key stays as it is: revoke it in SEF's settings.",
         "operationId": "remove_sef_key_organization_sef_key_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
+    "/organization/model-key": {
+      "put": {
+        "tags": [
+          "organization"
+        ],
+        "summary": "Set the organization's own key to a language model",
+        "description": "A key the organization holds with Groq, OpenAI or Anthropic (BYOK): from then on, its explanations and the repairs its members ask for are written by that provider's model, billed to the organization, instead of the server's. The model is sent what the server's would be: each rule's first violation and the passages, or the fields around the violations to repair. The key replaces the one the organization had, is sealed with Fernet under `SEF_FERNET_KEY` (ADR-0058), and is never shown again, logged or reported; the audit log records who set it, and for which provider. It is not tried when it is set: a key the provider refuses shows in the first explanation. An owner, signed in, sets it: no API key or MCP client may.",
+        "operationId": "set_model_key_organization_model_key_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelKeyChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelKeyState"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "This server cannot keep keys (`SEF_FERNET_KEY`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "organization"
+        ],
+        "summary": "Remove the organization's own key to a language model",
+        "description": "The organization's explanations and repairs go back to the server's model, if it has one. Removing a key the organization does not have changes nothing. The audit log records who removed it. The provider's own key stays as it is: revoke it there.",
+        "operationId": "remove_model_key_organization_model_key_delete",
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -4929,6 +5004,86 @@
         ],
         "title": "MembershipOut"
       },
+      "ModelKeyChange": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "groq",
+              "openai",
+              "anthropic"
+            ],
+            "title": "Provider",
+            "description": "Whose model writes: Groq, OpenAI or Anthropic."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "The provider's model, which must support structured outputs; null for its default (`openai/gpt-oss-120b`, `gpt-6-luna`, `claude-haiku-5-5`)."
+          },
+          "api_key": {
+            "type": "string",
+            "format": "password",
+            "title": "Api Key",
+            "description": "The key the provider issued, 8 to 300 visible ASCII characters without spaces; spaces around it are left out. It is sealed, and never shown again.",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider",
+          "api_key"
+        ],
+        "title": "ModelKeyChange",
+        "description": "The organization's own key to a language model's provider, which replaces the one it had."
+      },
+      "ModelKeyState": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "groq",
+              "openai",
+              "anthropic"
+            ],
+            "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "The provider's model; null for its default."
+          },
+          "set_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Set At",
+            "description": "When the key was set."
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "model",
+          "set_at"
+        ],
+        "title": "ModelKeyState"
+      },
       "OrganizationChange": {
         "properties": {
           "invoice_retention_days": {
@@ -5026,6 +5181,17 @@
             ],
             "title": "Sef Key Set At",
             "description": "When an owner set the organization's API key to SEF; null when it has none. The key itself is never shown."
+          },
+          "model_key": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelKeyState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The organization's own key to a language model's provider, with which its explanations and repairs are written; null when the server's model writes them. The key itself is never shown."
           }
         },
         "type": "object",
@@ -5033,7 +5199,8 @@
           "id",
           "name",
           "invoice_retention_days",
-          "sef_key_set_at"
+          "sef_key_set_at",
+          "model_key"
         ],
         "title": "OrganizationSettings"
       },

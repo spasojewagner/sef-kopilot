@@ -12,7 +12,8 @@ work done in the background for an organization, such as validating its invoices
 a person decides, and the audit log records who proposed and decided what (ADR-0024). The
 explanations of a stored invoice's report are kept with it, one set a language (ADR-0040). An
 organization may keep its API key to SEF, sealed under a key that only the environment holds
-(ADR-0050), and a stored invoice sent to SEF with it keeps what SEF answered (ADR-0051).
+(ADR-0050), and a stored invoice sent to SEF with it keeps what SEF answered (ADR-0051); its
+own key to a language model's provider is sealed the same way (ADR-0058).
 
 The corpus, the official documents an explanation cites, is the same for every organization
 and belongs to none (ADR-0020): its passages are public text, written only by the command that
@@ -59,6 +60,7 @@ __all__ = [
     "JobKind",
     "JobStatus",
     "Membership",
+    "ModelKey",
     "Organization",
     "RefreshToken",
     "Repair",
@@ -141,6 +143,30 @@ class SefKey(Base):
     organization_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
     )
+    token: Mapped[str] = mapped_column(Text)
+    set_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ModelKey(Base):
+    """An organization's own key to a language model's provider (BYOK), sealed with Fernet
+    under ``SEF_FERNET_KEY`` for that organization and that purpose (ADR-0058): the provider,
+    the model if not its default, and the token, never the key itself; deleted with the
+    organization."""
+
+    __tablename__ = "model_keys"
+    __table_args__ = (
+        CheckConstraint("token ~ '^gAAAAA[A-Za-z0-9_-]+={0,2}$'", name="token_is_fernet"),
+        CheckConstraint("provider IN ('groq', 'openai', 'anthropic')", name="provider_known"),
+        CheckConstraint(
+            "model IS NULL OR model ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$'", name="model_named"
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    provider: Mapped[str] = mapped_column(Text)
+    model: Mapped[str | None] = mapped_column(Text)
     token: Mapped[str] = mapped_column(Text)
     set_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
@@ -779,6 +805,8 @@ class AuditAction(StrEnum):
     SEF_KEY_SET = "sef.key_set"
     SEF_KEY_REMOVED = "sef.key_removed"
     SEF_INVOICE_SENT = "sef.invoice_sent"
+    MODEL_KEY_SET = "model.key_set"
+    MODEL_KEY_REMOVED = "model.key_removed"
 
 
 class AuditEvent(Base):
@@ -799,7 +827,7 @@ class AuditEvent(Base):
         CheckConstraint(
             "action IN ('repair.proposed', 'repair.approved', 'repair.rejected', "
             "'organization.retention_set', 'oauth.client_authorized', 'sef.key_set', "
-            "'sef.key_removed', 'sef.invoice_sent')",
+            "'sef.key_removed', 'sef.invoice_sent', 'model.key_set', 'model.key_removed')",
             name="action_known",
         ),
         Index("ix_audit_events_organization_id_at_id", "organization_id", "at", "id"),
