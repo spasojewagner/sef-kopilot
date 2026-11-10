@@ -111,3 +111,4 @@ per branch, to keep them with the code they describe.
 | `feat/api-credits` | [m6-api-credits.md](m6-api-credits.md) |
 | `feat/api-stripe-checkout` | [m6-api-stripe-checkout.md](m6-api-stripe-checkout.md) |
 | `feat/web-billing` | [m6-web-billing.md](m6-web-billing.md) |
+| `ci/evals-gate` | [m6-ci-evals-gate.md](m6-ci-evals-gate.md) |

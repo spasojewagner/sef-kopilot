@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from sef_evals.measures import Measure
-from sef_evals.report import as_json, as_markdown, versions
+from sef_evals.report import as_badge, as_json, as_markdown, versions
 from sef_evals.thresholds import Threshold, judge
 
 from .conftest import REPOSITORY_ROOT
@@ -69,3 +69,17 @@ def test_names_the_pinned_rule_sets() -> None:
     assert set(pinned) == {"ubl-2.1", "en16931", "peppol-bis-billing-3", "iso-schematron"}
     assert pinned["ubl-2.1"].startswith("sha256:")
     assert not pinned["en16931"].startswith("sha256:")
+
+
+def test_the_badge_counts_the_thresholds_met_and_is_red_short_of_all() -> None:
+    assert json.loads(as_badge(judged())) == {
+        "schemaVersion": 1,
+        "label": "evals",
+        "message": "1 of 3 thresholds met",
+        "color": "red",
+    }
+    met = judge(
+        [Measure("agreement", "Same verdict", "share", 3, ())], {"agreement": Threshold(min=1.0)}
+    )
+    assert json.loads(as_badge(met))["message"] == "1 of 1 thresholds met"
+    assert json.loads(as_badge(met))["color"] == "brightgreen"

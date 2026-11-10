@@ -1,6 +1,7 @@
-"""The report of a run: ``latest.json`` for machines, ``latest.md`` for people.
+"""The report of a run: ``latest.json`` for machines, ``latest.md`` for people, and
+``badge.json``, the README's badge, in the form shields.io reads from an endpoint.
 
-Both hold only what the run measured and the rule sets it measured with, never a time, a
+They hold only what the run measured and the rule sets it measured with, never a time, a
 machine or a version of the code, which the commit names: the same code and rule sets write
 the same report, and a change in it shows up as a diff to review.
 """
@@ -14,10 +15,19 @@ from typing import Any
 
 from sef_evals.thresholds import Judgement
 
-__all__ = ["JSON_NAME", "MARKDOWN_NAME", "as_json", "as_markdown", "versions"]
+__all__ = [
+    "BADGE_NAME",
+    "JSON_NAME",
+    "MARKDOWN_NAME",
+    "as_badge",
+    "as_json",
+    "as_markdown",
+    "versions",
+]
 
 JSON_NAME = "latest.json"
 MARKDOWN_NAME = "latest.md"
+BADGE_NAME = "badge.json"
 
 _COMMENT = (
     "Written by `make evals` (sef-evals, ADR-0054); do not edit. The measures of the latest "
@@ -105,3 +115,17 @@ def as_markdown(judgements: Sequence[Judgement], measured: Mapping[str, Any]) ->
             lines += ["", f"## `{judgement.name}`", ""]
             lines += [f"- {failure}" for failure in measure.failures]
     return "\n".join(lines) + "\n"
+
+
+def as_badge(judgements: Sequence[Judgement]) -> str:
+    """The README's badge: how many thresholds the run met, green when it met them all, as
+    shields.io's endpoint badge reads it (schema version 1)."""
+    judged = [judgement for judgement in judgements if judgement.met is not None]
+    met = sum(1 for judgement in judged if judgement.met)
+    badge = {
+        "schemaVersion": 1,
+        "label": "evals",
+        "message": f"{met} of {len(judged)} thresholds met",
+        "color": "brightgreen" if met == len(judged) else "red",
+    }
+    return json.dumps(badge, indent=2) + "\n"

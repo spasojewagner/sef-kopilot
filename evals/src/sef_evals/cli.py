@@ -46,7 +46,15 @@ from sef_evals.cassettes import (
 from sef_evals.database import DatabaseError, corpus_database, server_url
 from sef_evals.golden import GoldenError, load_cases
 from sef_evals.measures import Measure
-from sef_evals.report import JSON_NAME, MARKDOWN_NAME, as_json, as_markdown, versions
+from sef_evals.report import (
+    BADGE_NAME,
+    JSON_NAME,
+    MARKDOWN_NAME,
+    as_badge,
+    as_json,
+    as_markdown,
+    versions,
+)
 from sef_evals.thresholds import ThresholdError, judge, load_thresholds
 
 __all__ = ["EXIT_ERROR", "EXIT_MET", "EXIT_NOT_MET", "main"]
@@ -213,6 +221,7 @@ def _report(
     written = {
         JSON_NAME: as_json(judgements, measured),
         MARKDOWN_NAME: as_markdown(judgements, measured),
+        BADGE_NAME: as_badge(judgements),
     }
     out.write(written[MARKDOWN_NAME])
     met = all(judgement.met is not False for judgement in judgements)

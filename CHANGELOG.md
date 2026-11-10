@@ -54,6 +54,9 @@ is tagged.
   balance for every member who stores invoices; for the owner, the latest changes and the packs
   on sale, each bought on Stripe's page in its sandbox, the credits read again after a payment;
   the upload page says when there is no credit left to store an invoice.
+- `ci`: the evaluations gate CI as a job of their own, `evaluations (thresholds and report)`,
+  which replays the cassettes offline and fails on a missed threshold or a stale report; the
+  README's badge reads `evals/reports/badge.json`, which the same run writes (ADR-0061).
 
 ## [0.5.0] - 2026-11-09
 
