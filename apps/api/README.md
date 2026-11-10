@@ -563,7 +563,13 @@ its question contains: the model invents none and computes none (ADR-0022).
 | `LLM_PROVIDER` | What explains, and proposes repairs |
 | --- | --- |
 | `none` (default) | nothing: `/invoices/explain` and `/repairs/suggestion` answer 503, and nothing leaves the server |
-| `groq` | with `GROQ_API_KEY`: Groq's `openai/gpt-oss-120b`, or the model `SEF_LLM_MODEL` names |
+| `groq` | with `GROQ_API_KEY`: Groq's `openai/gpt-oss-120b`, on the free tier |
+| `openai` | with `OPENAI_API_KEY`: OpenAI's `gpt-6-luna`, by chat completions |
+| `anthropic` | with `ANTHROPIC_API_KEY`: Anthropic's `claude-haiku-5-5`, by the Messages API |
+
+`SEF_LLM_MODEL` names another model of the provider, which must support structured outputs
+(ADR-0057). Every provider is asked the same questions, with the same schema, and its answers are
+checked the same way.
 
 The model is sent the rule's first violation (its rule, place and message, which may quote a
 value of the invoice) and the passages; nothing else of the invoice. With

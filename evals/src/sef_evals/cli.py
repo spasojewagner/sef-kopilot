@@ -10,7 +10,8 @@ Run from the repository or below it: the root is the nearest directory up that h
 explanations, a PostgreSQL server for a database of their own (``SEF_TEST_DATABASE_URL``,
 ``make up``). The explanations and the repairs are written with the model's answers recorded
 in ``evals/cassettes/``, offline; ``--record`` asks the model the settings name
-(``LLM_PROVIDER=groq``, ``GROQ_API_KEY``) only what the cassettes do not hold.
+(``LLM_PROVIDER`` and its key, Groq's free tier for the committed cassettes) only what the
+cassettes do not hold.
 
 Exit status: 0 when every threshold is met (and, with ``--check``, the committed report is what
 the run gives); 1 when one is not, the report is stale, or a recording stopped at the
@@ -27,13 +28,13 @@ import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, Literal, TextIO
+from typing import Final, TextIO
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from einvoice_core.rulesets import RulesetNotFoundError
-from sef_api.llm import GroqClient, LLMClient
+from sef_api.llm import LLMClient, client_for
 from sef_evals import __version__, explanations, repairs, verdicts
 from sef_evals.cassettes import (
     Cassette,
@@ -119,22 +120,27 @@ def _stale(root: Path, written: dict[str, str]) -> list[str]:
 
 class _ModelSettings(BaseSettings):
     """The model to record with, as the API's settings name it, and nothing else of them: a
-    developer's ``.env`` is read for these three names only."""
+    developer's ``.env`` is read for these names only."""
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    llm_provider: Literal["none", "groq"] = Field(default="none", alias="LLM_PROVIDER")
+    llm_provider: str = Field(default="none", alias="LLM_PROVIDER")
     groq_api_key: SecretStr | None = Field(default=None, alias="GROQ_API_KEY")
+    openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY")
+    anthropic_api_key: SecretStr | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     llm_model: str | None = Field(default=None, alias="SEF_LLM_MODEL")
 
 
 def model_named_in(env_file: Path) -> LLMClient | None:
-    """The model ``LLM_PROVIDER``, ``GROQ_API_KEY`` and ``SEF_LLM_MODEL`` name, from the
-    environment or ``env_file``, as the API would ask it; None when they name none."""
+    """The model ``LLM_PROVIDER``, its key and ``SEF_LLM_MODEL`` name, from the environment or
+    ``env_file``, as the API would ask it; None when they name none."""
     named = _ModelSettings(_env_file=env_file)  # type: ignore[call-arg]
-    if named.llm_provider != "groq" or named.groq_api_key is None:
-        return None
-    return GroqClient(named.groq_api_key, model=named.llm_model or GroqClient.MODEL)
+    keys = {
+        "groq": named.groq_api_key,
+        "openai": named.openai_api_key,
+        "anthropic": named.anthropic_api_key,
+    }
+    return client_for(named.llm_provider, keys.get(named.llm_provider), named.llm_model)
 
 
 @dataclass(frozen=True)
@@ -267,7 +273,7 @@ def _record(
     """Ask the real model what the cassettes lack, keep its answers, then report."""
     real = model()
     if real is None:
-        raise _UsageError("set LLM_PROVIDER=groq and GROQ_API_KEY to record")
+        raise _UsageError("set LLM_PROVIDER and its key (GROQ_API_KEY, say) to record")
     recordings = {
         name: Recording(real, cassette, pause=PAUSE, patience=PATIENCE)
         for name, cassette in cassettes.items()
