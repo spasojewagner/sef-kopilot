@@ -60,3 +60,4 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0052](0052-sending-to-sef-is-a-scope-asked-for-when-needed.md) | Sending to SEF is a scope of its own, which an assistant asks for when it first sends | accepted | 2026-11-09 |
 | [0053](0053-an-api-key-may-send-to-sef.md) | An API key may send to SEF, for an owner or an accountant who chooses it | accepted | 2026-11-09 |
 | [0054](0054-the-system-is-measured-on-golden-sets-against-thresholds.md) | The system is measured on golden sets labelled apart from it, against thresholds in CI | accepted | 2026-11-09 |
+| [0055](0055-the-models-answers-are-recorded-once-and-replayed.md) | The model's explanations are measured on answers recorded once and replayed offline | accepted | 2026-11-09 |

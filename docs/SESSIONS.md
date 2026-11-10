@@ -2689,3 +2689,24 @@ pull request); ruff, mypy; each commit checked on its own.
 
 Next: the model's measures, starting with the explanations and their cassettes
 (`feat/evals-explanations`).
+
+## 2026-11-09 — `feat/evals-explanations` (3 commits, stacked on `feat/evals-harness`)
+
+Outcome: the explanations are measured as the API writes them, on a database of the
+evaluations' own, with the model's answers recorded once against Groq's free tier and replayed
+offline (ADR-0055). First recording: 47 of 47 rules explained, 93 of 93 citations resolved, 90
+of 93 relevant; every threshold met.
+
+Findings:
+
+- Alembic runs its own event loop, so the runner migrates its database in a thread of its own.
+- The recording first stopped before a request: Docker was not running on the maintainer's
+  machine. `sef-evals` now names the server it cannot reach, without its password, and how to
+  start it, instead of a traceback.
+- The three citations labelled not relevant name a neighbouring field of the same table of
+  SRB-CIUS (BT-129 for a unit code, BG-7 and BG-4 for a party's identifiers).
+
+Verification: the runner's tests; the measures replayed from the cassette here are those the
+recording wrote on the maintainer's machine; ruff, mypy; each commit checked on its own.
+
+Next: the repairs' measures (`feat/evals-repairs`).

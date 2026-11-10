@@ -17,6 +17,11 @@ is tagged.
   accept or reject, every mistake reported by the rules it must be. The measures are judged
   against `evals/thresholds.yaml` and written to a committed report, `evals/reports/latest.md`
   (ADR-0054).
+- `evals`: the explanations' evaluations: every rule the mutations break, explained as the API
+  explains a report, on a database of the evaluations' own; the rules explained, the citations
+  that resolve to a stored passage, and those of a passage labelled relevant to the rule (90 %
+  at least). The model's answers are recorded once with `make evals-record` and replayed
+  offline, so CI never calls the model (ADR-0055).
 
 ## [0.5.0] - 2026-11-09
 

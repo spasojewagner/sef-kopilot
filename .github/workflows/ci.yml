@@ -112,13 +112,6 @@ jobs:
           --cov=einvoice_core --cov-report=term-missing --cov-report=xml:coverage-core.xml
           --cov-fail-under=90
 
-      # The runner of the evaluations (ADR-0054) measures the validator on the same rule sets.
-      - name: Test the evaluation runner with coverage gate (>= 90 %)
-        run: >-
-          uv run pytest evals
-          --cov=sef_evals --cov-report=term-missing --cov-report=xml:coverage-evals.xml
-          --cov-fail-under=90
-
   api:
     name: api tests
     runs-on: ubuntu-latest
@@ -197,6 +190,14 @@ jobs:
 
       - name: Test the helper scripts
         run: uv run pytest scripts
+
+      # The runner of the evaluations (ADR-0054, ADR-0055) measures the validator on the rule
+      # sets and the explanations on a database of its own on this job's PostgreSQL.
+      - name: Test the evaluation runner with coverage gate (>= 90 %)
+        run: >-
+          uv run pytest evals
+          --cov=sef_evals --cov-report=term-missing --cov-report=xml:coverage-evals.xml
+          --cov-fail-under=90
 
   web:
     name: web lint, types, tests, build
