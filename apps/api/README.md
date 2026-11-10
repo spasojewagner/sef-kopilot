@@ -262,6 +262,43 @@ a large document would stall every other request; in a child, a validation that 
 can be stopped, and the child is replaced at once. `SEF_VALIDATOR=thread` validates in a thread
 of the API's process instead, without a time limit, for tests and tools.
 
+## Reading an invoice from a PDF or a picture (beta)
+
+An invoice that is a PDF or a photograph is read in two steps, with a person between them
+(ADR-0062). `POST /invoices/extract` takes the document as the request body, a PDF of at most
+three pages or a JPEG, PNG or WebP picture, and answers its fields as the reading model read
+them: the parties, the dates, the lines, the VAT recapitulation, the totals and the payment,
+null where the document shows none. The person checks them against the document and corrects
+them; `POST /invoices/draft` then writes the UBL invoice of those fields, in code and without a
+model, for the endpoints above to validate and store.
+
+```bash
+curl -s localhost:8000/invoices/extract -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: image/jpeg' --data-binary @racun.jpg > read.json
+jq .fields read.json > fields.json   # check them, correct them
+curl -s localhost:8000/invoices/draft -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' --data-binary @fields.json > draft.xml
+```
+
+The model is shown each page as a picture, drawn anew without the document's metadata, with its
+text where the PDF has a text layer; nothing is stored or logged. It is the provider's reading
+model, `qwen/qwen3.8-27b` on Groq, the provider's default elsewhere, or the one
+`SEF_EXTRACTION_MODEL` names; with an organization's own key (below), its provider's reading
+model. The draft writes every element from a field, or from SRB-CIUS where the profile fixes
+it, and computes nothing: a field left empty leaves its element out, and the validator says so.
+Not read yet: advance settlements, the VAT in dinars of an invoice in another currency, a credit
+note's reference to its invoice and the codes of VAT exemptions.
+
+| Answer | When | Setting (default) |
+| --- | --- | --- |
+| 413 | the document is larger than the limit, or has more than three pages or 40 million pixels | `SEF_MAX_DOCUMENT_BYTES` (10 MiB) |
+| 415 | not a PDF, a JPEG, a PNG or a WebP picture | |
+| 422 | the document cannot be opened, is not what its media type says, or the model's answers never had the fields' form | |
+| 502 | the model gave no answer | |
+| 503 | no model on this server, or the organization's key cannot be opened | |
+| 504 | the model did not read the document in time | `SEF_EXTRACTION_SECONDS` (90) |
+| 429 + `Retry-After` | as for explanations: a reading is a request to the language model | `SEF_EXPLANATIONS_PER_MINUTE` (10) |
+
 ## Stored invoices
 
 `POST /invoices` validates the invoice in the body exactly as `POST /invoices/validate` does,
@@ -515,9 +552,9 @@ what was counted (ADR-0018):
 | `POST /auth/refresh` and `/auth/logout` | address | 60 a minute, together |
 | `POST /auth/accept-invitation` | address | 10 a minute |
 | wrong passwords, at sign-in and when accepting an invitation | e-mail address | 10 in 15 minutes |
-| `POST /invoices/validate`, `/invoices/explain`, `POST /invoices`, and a repair's proposal, suggestion and approval | caller: a member, or one API key | `SEF_VALIDATIONS_PER_MINUTE` (60) |
+| `POST /invoices/validate`, `/invoices/explain`, `/invoices/draft`, `POST /invoices`, and a repair's proposal, suggestion and approval | caller: a member, or one API key | `SEF_VALIDATIONS_PER_MINUTE` (60) |
 | the same | organization | `SEF_ORGANIZATION_VALIDATIONS_PER_MINUTE` (300) |
-| requests to the language model, `/invoices/explain` and `/repairs/suggestion`, beside the validations | caller | `SEF_EXPLANATIONS_PER_MINUTE` (10) |
+| requests to the language model, `/invoices/explain` and `/repairs/suggestion`, beside the validations, and `/invoices/extract` | caller | `SEF_EXPLANATIONS_PER_MINUTE` (10) |
 | the same | organization | `SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE` (30) |
 
 A limit allows its count at once, then one request every period divided by the count. Wrong
@@ -529,9 +566,10 @@ The address is the one the server saw. Behind a reverse proxy, tell uvicorn whic
 trust, so that the address is the client's and not the proxy's:
 `uvicorn sef_api.main:create_app --factory --proxy-headers --forwarded-allow-ips=<proxy address>`.
 
-Every request body other than an invoice, the JSON of a request, is read at most to
-`SEF_MAX_BODY_BYTES` (1 MiB) before the application sees it: a longer one, declared or counted
-while it is read, answers 413. An invoice has its limit of its own (`SEF_MAX_INVOICE_BYTES`).
+Every request body other than an invoice or a document, the JSON of a request, is read at most
+to `SEF_MAX_BODY_BYTES` (1 MiB) before the application sees it: a longer one, declared or counted
+while it is read, answers 413. An invoice has its limit of its own (`SEF_MAX_INVOICE_BYTES`), and
+so has a PDF or a picture to read one from (`SEF_MAX_DOCUMENT_BYTES`).
 
 ## The corpus
 
@@ -842,14 +880,18 @@ src/sef_api/
   auth/          passwords, tokens, the sign-in service, `/auth` routes, `current_principal`
   invoices/      upload limits, the validator and its child process (validating and patching),
                  stored invoices and validating them again, `/invoices` routes
+  extraction/    invoices read from PDFs and pictures (beta): opening documents, the fields,
+                 the reading model, the UBL drafted from the fields, `/invoices/extract` and
+                 `/invoices/draft` routes
   repairs/       repairs of stored invoices: proposals and their outcomes, the repairer
                  that has the language model propose patches, `/invoices/{id}/repairs` routes
   audit.py       the audit log's events: who did what, without the invoice's content
   billing/       an organization's credits and their ledger, granting them
                  (`python -m sef_api.billing.grant`), buying them through Stripe's sandbox
                  behind a provider's interface, `/billing` routes
-  bodies.py      the limit on every request body other than an invoice
-  llm.py         the language model behind an adapter (Groq), and the languages it writes in
+  bodies.py      the limit on every request body other than an invoice or a document
+  llm.py         the language models behind an adapter (Groq, OpenAI, Anthropic), the pictures
+                 they are shown, and the languages they write in
   values.py      the dates and numbers a model's answer names, and those it made up
   jobs/          running a job, the inline runner, the Redis queue and its worker, `/jobs`
                  routes with the event stream

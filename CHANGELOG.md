@@ -9,6 +9,15 @@ is tagged.
 
 ## [Unreleased]
 
+### Added
+
+- `apps/api` (beta): `POST /invoices/extract` reads an invoice's fields from a PDF of up to
+  three pages or a JPEG, PNG or WebP picture with the provider's reading model (`qwen/qwen3.8-27b`
+  on Groq's free tier, `SEF_EXTRACTION_MODEL` for another), shown each page as a picture with a
+  PDF's text layer, pictures drawn anew without their metadata, nothing stored; and
+  `POST /invoices/draft` writes the UBL invoice of the fields a person confirmed, in code,
+  nothing computed or filled in (ADR-0062).
+
 ### Changed
 
 - Roadmap: SEF's error codes, its internal technical instruction and what the demo would
