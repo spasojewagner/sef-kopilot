@@ -110,6 +110,30 @@
         "fixtures/invoices/synthetic/mutations/srb-012-legal-registration-number.xml [sr] SRB-012: cites srb-cius/1-3-table-1-bg-7/2025-06-06, labelled not relevant",
         "fixtures/invoices/synthetic/mutations/srb-013-seller-vat-status-missing.xml [sr] SRB-013: cites srb-cius/1-3-table-1-bg-4/2025-06-06, labelled not relevant"
       ]
+    },
+    "repair_success": {
+      "title": "Held-out invoices that a repair leaves the validator accepting",
+      "kind": "share",
+      "value": 1.0,
+      "passed": 9,
+      "total": 9,
+      "threshold": {
+        "min": 0.8
+      },
+      "met": true,
+      "failures": []
+    },
+    "overreach_rate": {
+      "title": "Invoices with a mistake a person decides, that a repair made pass",
+      "kind": "rate",
+      "value": 0.0,
+      "passed": 11,
+      "total": 11,
+      "threshold": {
+        "max": 0.0
+      },
+      "met": true,
+      "failures": []
     }
   }
 }
