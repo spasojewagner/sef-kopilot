@@ -2886,3 +2886,13 @@ Verification: the runner's tests; the workflow validated against GitHub's schema
 command run here on the stack's tip, every threshold met.
 
 Next: `v0.6.0`.
+
+## 2026-11-09 — `chore/release-0.6.0` (2 commits, stacked on `ci/evals-gate`)
+
+Outcome: every package moves to 0.6.0; the changelog's Unreleased section becomes 0.6.0, opened
+by a summary that says which providers were not tried against real accounts and why; the
+README's roadmap marks M6 done and M7 next.
+
+Verification: the version checks; each commit checked on its own.
+
+Next: M7, the PDF extraction beta and the SEF items that wait for a demo account.

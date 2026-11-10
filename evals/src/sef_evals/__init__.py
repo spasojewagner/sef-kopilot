@@ -11,4 +11,4 @@ report is not what the run gives.
 __all__ = ["__version__"]
 
 # Kept in sync with ``pyproject.toml`` by ``tests/test_package.py``.
-__version__ = "0.5.0"
+__version__ = "0.6.0"

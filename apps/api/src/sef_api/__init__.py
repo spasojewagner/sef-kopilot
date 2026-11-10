@@ -9,4 +9,4 @@ deployments can construct it with explicit settings.
 __all__ = ["__version__"]
 
 # Kept in sync with ``pyproject.toml`` by ``tests/test_health.py``.
-__version__ = "0.5.0"
+__version__ = "0.6.0"

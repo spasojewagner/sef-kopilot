@@ -1,6 +1,6 @@
 [project]
 name = "sef-kopilot-evals"
-version = "0.5.0"
+version = "0.6.0"
 description = "Evaluations of SEF Kopilot: golden sets, a runner and the thresholds that gate CI."
 readme = "README.md"
 requires-python = ">=3.12"

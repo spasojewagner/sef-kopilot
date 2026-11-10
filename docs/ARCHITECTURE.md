@@ -5,7 +5,7 @@ where each concern lives in the repository. It is kept current in the pull reque
 changes the architecture; decisions and their trade-offs are recorded separately in
 [`adr/`](adr/README.md). The product and engineering charter is [`BRIEF.md`](BRIEF.md).
 
-Status: milestones M0 to M5 done (`v0.5.0`), M6 next. Sections marked *planned* describe the
+Status: milestones M0 to M6 done (`v0.6.0`), M7 next. Sections marked *planned* describe the
 target shape and are filled in as the milestones land.
 
 ## System context
