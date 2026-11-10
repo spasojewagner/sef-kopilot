@@ -315,6 +315,21 @@ at once cannot take an organization below zero. The operator gives credits:
 make grant-credits ORGANIZATION=<the organization's id> COUNT=100
 ```
 
+Where Stripe's sandbox keys are set, an owner buys credits too (ADR-0060). `GET /billing` lists
+the packs on sale (`SEF_CREDIT_PACKS`); `POST /billing/checkout` with `{"credits": 100}` answers
+the page of Stripe Checkout where the owner pays, in the sandbox, with a test card. Stripe tells
+the API at `POST /billing/stripe-events`, the one request no one signs in for: an event is read
+only when its `Stripe-Signature` is Stripe's, under `STRIPE_WEBHOOK_SECRET`, and less than five
+minutes old (400 otherwise), and a paid checkout's credits are added once, under its reference,
+however often the event comes. A live key refuses to start, and a live event adds nothing.
+
+| Answer | When |
+| --- | --- |
+| 201 | the checkout's page |
+| 422 | no pack gives that many credits |
+| 502 | Stripe did not open the checkout (its error's kind, never its message) |
+| 503 | this server sells no credits: no Stripe keys, or no `SEF_WEB_URL` to come back to |
+
 ## Repairs
 
 A repair is a list of patches for a stored invoice (ADR-0023, ADR-0024), proposed by a member
@@ -831,7 +846,8 @@ src/sef_api/
                  that has the language model propose patches, `/invoices/{id}/repairs` routes
   audit.py       the audit log's events: who did what, without the invoice's content
   billing/       an organization's credits and their ledger, granting them
-                 (`python -m sef_api.billing.grant`), `/billing` routes
+                 (`python -m sef_api.billing.grant`), buying them through Stripe's sandbox
+                 behind a provider's interface, `/billing` routes
   bodies.py      the limit on every request body other than an invoice
   llm.py         the language model behind an adapter (Groq), and the languages it writes in
   values.py      the dates and numbers a model's answer names, and those it made up

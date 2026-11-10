@@ -53,11 +53,15 @@ class _TestServer(BaseSettings):
 
     sef_test_database_url: str | None = None
     sef_test_redis_url: str | None = None
+    sef_test_stripe_url: str | None = None
 
 
 TEST_SERVER_URL = _TestServer().sef_test_database_url
 #: The Redis server of the worker tests, whose database they empty; without it they are skipped.
 TEST_REDIS_URL = _TestServer().sef_test_redis_url
+#: ``stripe-mock``, Stripe's API as its OpenAPI description has it; without it, the test that
+#: sends it a checkout is skipped.
+TEST_STRIPE_URL = _TestServer().sef_test_stripe_url
 
 
 def settings_for(database_url: str = UNREACHABLE_DATABASE, **variables: str) -> Settings:

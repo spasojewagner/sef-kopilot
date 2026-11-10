@@ -222,6 +222,21 @@ billing on (ADR-0059):
 Turning it off again (`SEF_BILLING=off`) stores without counting; the balances and the ledger
 stay, and count again when it is turned back on.
 
+To let owners buy credits through Stripe's sandbox (ADR-0060), with a Stripe account in test
+mode, which the public demo does not have:
+
+4. Stripe's dashboard, in test mode, > **Developers** > **API keys**: a secret key that starts
+   `sk_test_` (a live key makes the API refuse to start). Render > the API > **Environment**:
+   `STRIPE_SECRET_KEY`.
+5. Stripe's dashboard > **Webhooks** > a new destination: the URL
+   `https://<the API>/billing/stripe-events`, the events `checkout.session.completed` and
+   `checkout.session.async_payment_succeeded`; its signing secret, `whsec_…`, goes into
+   `STRIPE_WEBHOOK_SECRET`. `SEF_WEB_URL` must be set (section 6), where Stripe sends the owner
+   back.
+6. Check: `GET /billing` lists the packs; `POST /billing/checkout` with `{"credits": 100}` answers
+   a page of Stripe Checkout; pay with Stripe's test card 4242 4242 4242 4242; the balance grows
+   by 100, and the ledger shows a `purchase`.
+
 ## Rolling back
 
 - The API: Render > the service > **Events**, and **Rollback** to an earlier deploy. A migration

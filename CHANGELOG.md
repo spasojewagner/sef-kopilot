@@ -45,6 +45,11 @@ is tagged.
   balance and an append-only ledger in one transaction, never below zero; `GET /billing` for
   whoever may store, `GET /billing/entries` for the owner, and `make grant-credits` for the
   operator (ADR-0059).
+- `apps/api`: credits bought through Stripe Checkout, in Stripe's sandbox only: the packs of
+  `SEF_CREDIT_PACKS`, `POST /billing/checkout` for an owner, and `POST /billing/stripe-events`,
+  whose events are read only when signed by Stripe less than five minutes before, a paid
+  checkout counted once under its reference; live keys refuse to start, live events add
+  nothing; tested in CI against `stripe-mock` (ADR-0060).
 
 ## [0.5.0] - 2026-11-09
 

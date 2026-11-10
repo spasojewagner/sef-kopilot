@@ -141,10 +141,16 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 12
+      # Stripe's API as its OpenAPI description has it, for the checkout's request (ADR-0060).
+      stripe-mock:
+        image: stripe/stripe-mock:v0.206.0
+        ports:
+          - 12111:12111
     env:
       DATABASE_URL: postgresql+asyncpg://sef:sef@localhost:5432/sef_kopilot
       SEF_TEST_DATABASE_URL: postgresql+asyncpg://sef:sef@localhost:5432/postgres
       SEF_TEST_REDIS_URL: redis://localhost:6379/15
+      SEF_TEST_STRIPE_URL: http://localhost:12111
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

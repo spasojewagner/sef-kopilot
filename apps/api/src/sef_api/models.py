@@ -201,25 +201,30 @@ class CreditKind(StrEnum):
     """One credit, for an invoice the organization stored."""
     GRANT = "grant"
     """Credits the operator gave the organization, with the command that grants them."""
+    PURCHASE = "purchase"
+    """Credits the organization bought, through the provider of payments (ADR-0060), once a
+    payment's reference."""
 
 
 class CreditEntry(Base):
     """A change of an organization's credits (ADR-0059): only ever added, so that the balance is
     always the sum of its entries. ``number`` orders the entries as they were written, those of
     one transaction too, whose times are the same. A spend names the invoice it paid for by id,
-    without a foreign key, so that the entry outlives the invoice; it is deleted with the
-    organization."""
+    without a foreign key, so that the entry outlives the invoice; a purchase names the payment
+    by the provider's reference, which no two purchases share, so that a payment reported twice
+    is counted once. Entries are deleted with the organization."""
 
     __tablename__ = "credit_entries"
     #: The time and the number of a new entry, set by the database, come back with its insert.
     __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
     __table_args__ = (
-        CheckConstraint("kind IN ('opening', 'spend', 'grant')", name="kind_known"),
+        CheckConstraint("kind IN ('opening', 'spend', 'grant', 'purchase')", name="kind_known"),
         CheckConstraint(
             "(kind = 'spend' AND delta < 0 AND invoice_id IS NOT NULL) "
             "OR (kind <> 'spend' AND delta > 0 AND invoice_id IS NULL)",
             name="delta_follows_kind",
         ),
+        CheckConstraint("(kind = 'purchase') = (reference IS NOT NULL)", name="purchase_named"),
         Index("ix_credit_entries_organization_id_number", "organization_id", "number"),
     )
 
@@ -232,6 +237,8 @@ class CreditEntry(Base):
     kind: Mapped[str] = mapped_column(Text)
     delta: Mapped[int]
     invoice_id: Mapped[uuid.UUID | None]
+    #: The provider's reference of the payment a purchase counts.
+    reference: Mapped[str | None] = mapped_column(Text, unique=True)
 
 
 class User(Base):

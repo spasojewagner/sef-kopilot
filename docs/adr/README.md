@@ -65,3 +65,4 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0057](0057-openai-and-anthropic-answer-through-the-same-client.md) | OpenAI and Anthropic answer through the same client, chosen by the operator | accepted | 2026-11-09 |
 | [0058](0058-an-organization-may-bring-its-own-model-key.md) | An organization may bring its own key to a model's provider, sealed as its SEF key | accepted | 2026-11-09 |
 | [0059](0059-credits-are-a-ledger-in-the-apis-own-database.md) | Credits are a ledger in the API's own database, spent one for each stored invoice, off by default | accepted | 2026-11-09 |
+| [0060](0060-credits-are-bought-through-stripes-sandbox-behind-an-interface.md) | Credits are bought through Stripe's sandbox, behind an interface, and counted once a payment | accepted | 2026-11-09 |

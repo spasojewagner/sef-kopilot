@@ -78,6 +78,7 @@ async def test_with_billing_off_storing_costs_nothing_and_the_server_says_so(
         "balance": None,
         "starting": None,
         "per_invoice": None,
+        "packs": [],
     }
     assert listed.json() == []
     assert await session.scalar(select(func.count()).select_from(CreditAccount)) == 0
@@ -95,7 +96,13 @@ async def test_each_stored_invoice_spends_a_credit_written_to_the_ledger(
         after = await api.get("/billing", headers=primer.as_client())
         listed = await api.get("/billing/entries", headers=primer.as_owner())
 
-    assert before.json() == {"enabled": True, "balance": 2, "starting": 2, "per_invoice": 1}
+    assert before.json() == {
+        "enabled": True,
+        "balance": 2,
+        "starting": 2,
+        "per_invoice": 1,
+        "packs": [],
+    }
     # Nothing is written until the organization first spends.
     assert response.status_code == 201
     assert after.json()["balance"] == 1

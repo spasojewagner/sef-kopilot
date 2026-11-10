@@ -741,6 +741,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/billing/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open a checkout to buy credits
+         * @description Opens a Stripe Checkout, in Stripe's sandbox, for one of the packs `GET /billing` names; the answer is the page where the owner pays, with a test card only. When Stripe reports the payment, the pack's credits are added to the organization's. The owner opens it, signed in.
+         */
+        post: operations["open_checkout_billing_checkout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/stripe-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive Stripe's events
+         * @description Where Stripe sends its events, each signed with the endpoint's secret (`Stripe-Signature`): a checkout paid adds its pack's credits to the organization's, once, however often the event comes; any other event is acknowledged and ignored. An event whose signature is not Stripe's, or older than five minutes, answers 400 and changes nothing.
+         */
+        post: operations["receive_stripe_event_billing_stripe_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invoices/{invoice_id}/sef": {
         parameters: {
             query?: never;
@@ -1059,7 +1099,7 @@ export interface components {
         Billing: {
             /**
              * Enabled
-             * @description Whether storing an invoice costs a credit on this server; when not, every other field is null.
+             * @description Whether storing an invoice costs a credit on this server; when not, every other field is null and nothing is sold.
              */
             enabled: boolean;
             /**
@@ -1077,6 +1117,11 @@ export interface components {
              * @description The credits one stored invoice costs.
              */
             per_invoice: number | null;
+            /**
+             * Packs
+             * @description The packs an owner may buy (`POST /billing/checkout`); none where the server sells no credits, and its operator grants them.
+             */
+            packs: components["schemas"]["PackOut"][];
         };
         /**
          * CatalogueRule
@@ -1117,6 +1162,22 @@ export interface components {
              * @default []
              */
             replaced_by: string[];
+        };
+        /** CheckoutOut */
+        CheckoutOut: {
+            /**
+             * Url
+             * @description Stripe's page where the owner pays, in its sandbox.
+             */
+            url: string;
+        };
+        /** CheckoutRequest */
+        CheckoutRequest: {
+            /**
+             * Credits
+             * @description The pack to buy, by the credits it gives.
+             */
+            credits: number;
         };
         /**
          * Citation
@@ -1177,10 +1238,10 @@ export interface components {
             at: string;
             /**
              * Kind
-             * @description `opening`, the starting credits; `spend`, a stored invoice; `grant`, credits the operator gave.
+             * @description `opening`, the starting credits; `spend`, a stored invoice; `grant`, credits the operator gave; `purchase`, credits the organization bought.
              * @enum {string}
              */
-            kind: "opening" | "spend" | "grant";
+            kind: "opening" | "spend" | "grant" | "purchase";
             /**
              * Delta
              * @description The change of the balance: negative for a spend.
@@ -1841,6 +1902,21 @@ export interface components {
             before?: string | null;
             /** After */
             after?: string | null;
+        };
+        /** PackOut */
+        PackOut: {
+            /** Credits */
+            credits: number;
+            /**
+             * Price
+             * @description In the currency's smallest unit (cents).
+             */
+            price: number;
+            /**
+             * Currency
+             * @description ISO 4217, in lower case.
+             */
+            currency: string;
         };
         /**
          * Passage
@@ -4650,6 +4726,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_checkout_billing_checkout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Stripe did not open it. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description This server sells no credits (`STRIPE_SECRET_KEY`, `SEF_WEB_URL`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    receive_stripe_event_billing_stripe_events_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "stripe-signature"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description Not Stripe's event. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description This server sells no credits. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };
