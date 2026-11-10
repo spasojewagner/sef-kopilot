@@ -9,6 +9,12 @@ is tagged.
 
 ## [Unreleased]
 
+### Changed
+
+- Roadmap: SEF's error codes, its internal technical instruction and what the demo would
+  confirm move after 1.0; the demo's sign-up takes an eID registration the project does not
+  have.
+
 ### Fixed
 
 - `evals`: an empty `SEF_TEST_DATABASE_URL`, as `.env.example` leaves it, is read as not set

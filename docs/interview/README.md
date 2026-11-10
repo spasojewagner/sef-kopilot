@@ -113,3 +113,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-billing` | [m6-web-billing.md](m6-web-billing.md) |
 | `ci/evals-gate` | [m6-ci-evals-gate.md](m6-ci-evals-gate.md) |
 | `chore/release-0.6.0` | [m6-release-0.6.0.md](m6-release-0.6.0.md) |
+| `fix/evals-empty-database-url` | [m7-fix-evals-empty-database-url.md](m7-fix-evals-empty-database-url.md) |

@@ -110,9 +110,9 @@ Guardrails that are encoded as tests, not as comments:
 | M2 | API, persistence, auth, jobs with SSE progress, regulation corpus, explanations with citations | done — v0.2.0 |
 | M3 | Repair loop with approval and audit log, web UI (sr-Latn / en), public demo | done — v0.3.0 |
 | M4 | MCP server with OAuth 2.1, shown from Claude and ChatGPT | done — v0.4.0 |
-| M5 | SEF demo round trip; SEF error mapping waits for a SEF demo account | done — v0.5.0 |
+| M5 | SEF demo round trip; SEF error mapping after 1.0, once there is a SEF demo account | done — v0.5.0 |
 | M6 | Evaluation harness with CI quality gate, sandbox billing | done — v0.6.0 |
-| M7 | PDF extraction (beta), case study, 1.0 | next |
+| M7 | PDF and picture extraction (beta), case study, 1.0 | next |
 
 The detailed backlog lives in [`docs/BACKLOG.md`](docs/BACKLOG.md); the full product and
 engineering charter is [`docs/BRIEF.md`](docs/BRIEF.md).
