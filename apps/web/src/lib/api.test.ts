@@ -169,6 +169,20 @@ describe("A request to the API", () => {
     });
   });
 
+  it("reads an answer as text when it is asked to, an XML document say", async () => {
+    stubFetch(
+      () =>
+        new Response("<Invoice/>", {
+          status: 200,
+          headers: { "Content-Type": "application/xml" },
+        }),
+    );
+
+    await expect(
+      request<string>("/invoices/draft", { method: "POST", text: true }),
+    ).resolves.toBe("<Invoice/>");
+  });
+
   it("reads no body from an answer that has none", async () => {
     stubFetch(() => new Response(null, { status: 204 }));
 
