@@ -54,6 +54,7 @@ from sef_api.models import (
 )
 
 from .conftest import REPOSITORY_ROOT, settings_for
+from .documents import picture
 from .factories import (
     KEYRING,
     Key,
@@ -243,11 +244,13 @@ class Guarded:
     url: Callable[[World], str]
     body: dict[str, Any] | bytes | None
     cross_tenant: CrossTenantCheck
+    media_type: str = "application/xml"
 
     async def send(self, api: AsyncClient, method: str, world: World, **headers: str) -> Response:
-        """The request, with a JSON body or an XML document."""
+        """The request, with a JSON body, or a document of its media type: an XML invoice, or
+        a PDF or a picture of one."""
         if isinstance(self.body, bytes):
-            headers["Content-Type"] = "application/xml"
+            headers["Content-Type"] = self.media_type
             return await api.request(method, self.url(world), content=self.body, headers=headers)
         return await api.request(method, self.url(world), json=self.body, headers=headers)
 
@@ -310,6 +313,22 @@ async def _explanation_keeps_nothing(response: Response, session: AsyncSession, 
     """An explanation answers with the report and its explanations, and leaves no trace."""
     assert response.status_code == 200
     assert response.json()["report"]["profile"] == "srb"
+    await _the_world_as_it_was(session)
+
+
+async def _reading_keeps_nothing(response: Response, session: AsyncSession, w: World) -> None:
+    """A document read answers with its fields, read by the server's model, not by the model of
+    the organization whose key that is, and leaves no trace."""
+    assert response.status_code == 200
+    assert response.json()["model"] == "test/reading"
+    assert response.json()["fields"]["number"] == "RF-2026-000123"
+    await _the_world_as_it_was(session)
+
+
+async def _drafting_keeps_nothing(response: Response, session: AsyncSession, w: World) -> None:
+    """A draft answers with the invoice its fields make, and leaves no trace."""
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/xml"
     await _the_world_as_it_was(session)
 
 
@@ -689,6 +708,21 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda _: "/invoices/explain",
         INVOICE.read_bytes(),
         _explanation_keeps_nothing,
+    ),
+    ("POST", "/invoices/extract"): Guarded(
+        Permission.INVOICES_VALIDATE,
+        False,
+        lambda _: "/invoices/extract",
+        picture(),
+        _reading_keeps_nothing,
+        media_type="image/jpeg",
+    ),
+    ("POST", "/invoices/draft"): Guarded(
+        Permission.INVOICES_VALIDATE,
+        False,
+        lambda _: "/invoices/draft",
+        {"number": "RF-2026-000123", "issue_date": "2026-10-05"},
+        _drafting_keeps_nothing,
     ),
     ("GET", "/rules"): Guarded(
         Permission.INVOICES_VALIDATE, False, lambda _: "/rules?q=BR-01", None, _rules_are_everyones

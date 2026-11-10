@@ -351,6 +351,21 @@ class Settings(BaseSettings):
             "outputs (ADR-0062)."
         ),
     )
+    max_document_bytes: int = Field(
+        default=10 * 1024 * 1024,
+        ge=64 * 1024,
+        le=20 * 1024 * 1024,
+        validation_alias="SEF_MAX_DOCUMENT_BYTES",
+        description="The largest PDF or picture an invoice is read from, in bytes; larger ones "
+        "answer 413.",
+    )
+    extraction_seconds: float = Field(
+        default=90.0,
+        gt=0,
+        le=300,
+        validation_alias="SEF_EXTRACTION_SECONDS",
+        description="Seconds the reading of one document by the model may take.",
+    )
     max_explanations: int = Field(
         default=5,
         ge=1,
@@ -379,16 +394,16 @@ class Settings(BaseSettings):
         ge=1,
         le=100_000,
         validation_alias="SEF_EXPLANATIONS_PER_MINUTE",
-        description="Requests to the language model, for explanations or a repair, one caller "
-        "may make a minute; 429 beyond.",
+        description="Requests to the language model, for explanations, a repair or the reading "
+        "of a document, one caller may make a minute; 429 beyond.",
     )
     organization_explanations_per_minute: int = Field(
         default=30,
         ge=1,
         le=1_000_000,
         validation_alias="SEF_ORGANIZATION_EXPLANATIONS_PER_MINUTE",
-        description="Requests to the language model, for explanations or a repair, all the "
-        "callers of one organization may make a minute; 429 beyond.",
+        description="Requests to the language model, for explanations, a repair or the reading "
+        "of a document, all the callers of one organization may make a minute; 429 beyond.",
     )
 
     web_origins: Annotated[tuple[str, ...], NoDecode] = Field(

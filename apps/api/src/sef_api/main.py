@@ -31,6 +31,8 @@ from sef_api.charset import DeclareUTF8
 from sef_api.cors import Cors
 from sef_api.db import Database
 from sef_api.error_tracking import track_errors
+from sef_api.extraction import routes as extraction
+from sef_api.extraction.reader import Reader
 from sef_api.invoices import routes as invoices
 from sef_api.invoices.validator import Admission, Validator, validator_for
 from sef_api.jobs import routes as jobs
@@ -39,7 +41,7 @@ from sef_api.jobs.kinds import HANDLERS
 from sef_api.jobs.queue import ArqRunner, redis_settings
 from sef_api.jobs.runners import InlineRunner, JobRunner
 from sef_api.jobs.runs import JobContext, run_job
-from sef_api.llm import llm_for
+from sef_api.llm import llm_for, reading_llm_for
 from sef_api.logs import RequestIds
 from sef_api.mcp import server as mcp
 from sef_api.members import routes as members
@@ -147,11 +149,14 @@ def _runner(app: FastAPI, settings: Settings) -> JobRunner:
 
 
 async def _close_clients(application: FastAPI) -> None:
-    """Close what speaks to services outside: the server's language model, the models' traces,
+    """Close what speaks to services outside: the server's language models, the models' traces,
     the embedder and the provider of payments."""
     explainer: Explainer | None = application.state.explainer
     if explainer is not None:
         await explainer.aclose()
+    reader: Reader | None = application.state.reader
+    if reader is not None:
+        await reader.aclose()
     traces: ModelTraces | None = application.state.model_traces
     if traces is not None:
         await traces.aclose()
@@ -200,6 +205,17 @@ def _model_users(
     if traces is not None:
         llm = TracedClient(llm, traces, owns_traces=False)
     return Explainer(llm), Repairer(llm)
+
+
+def _reader(settings: Settings, traces: ModelTraces | None) -> Reader | None:
+    """The reader of PDFs and pictures, with the provider's reading model (ADR-0062), traced to
+    ``traces`` if any; None without a model. The application closes it when it stops."""
+    llm = reading_llm_for(settings)
+    if llm is None:
+        return None
+    if traces is not None:
+        llm = TracedClient(llm, traces, owns_traces=False)
+    return Reader(llm)
 
 
 @asynccontextmanager
@@ -324,6 +340,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # The language models' traces, shared by every model the application asks.
     app.state.model_traces = _model_traces(settings)
     app.state.explainer, app.state.repairer = _model_users(settings, app.state.model_traces)
+    app.state.reader = _reader(settings, app.state.model_traces)
     app.state.embedder = embedder_for(settings)
     # What storing an invoice costs, where billing is on (ADR-0059), and where credits are
     # bought, where Stripe's sandbox keys are set (ADR-0060).
@@ -339,6 +356,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         health.router,
         auth.router,
         invoices.router,
+        extraction.router,
         repairs.router,
         rules.router,
         jobs.router,

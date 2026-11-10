@@ -1307,6 +1307,200 @@
         }
       }
     },
+    "/invoices/extract": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Read an invoice from a PDF or a picture (beta)",
+        "description": "Reads the fields of the invoice that a PDF or a picture shows, with a language model that reads pictures: the parties, the dates, the lines, the VAT and the totals, null where the document shows none. A person checks them against the document; `POST /invoices/draft` then makes a UBL invoice of them. The model is shown each page as a picture, with its text where the PDF has a text layer; nothing is stored, and the pictures are made anew without the document's metadata. Beta: the model can misread, which is why a person confirms and the validator judges.",
+        "operationId": "extract_invoices_extract_post",
+        "requestBody": {
+          "description": "The document: a PDF of at most three pages, or a JPEG, PNG or WebP picture of an invoice.",
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Extraction"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "The document was not received in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The document has more bytes, pages or pixels than this server reads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Not a PDF, a JPEG, a PNG or a WebP picture.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The document cannot be opened (damaged, protected by a password, or not what its media type says), or the model's answers never had the form of an invoice's fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests to the language model by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The language model gave no answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No language model is configured on this server, or the organization's own key to one cannot be opened.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The model did not read the document in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
+    "/invoices/draft": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Make a UBL invoice of an invoice's fields (beta)",
+        "description": "Writes the UBL 2.1 invoice, or credit note for type code 381, that the fields describe, as `POST /invoices/extract` answers them and a person corrected them. It is written in code, without a model: every element comes from a field, or from SRB-CIUS where the profile fixes it, and nothing is computed or filled in, so a field left empty leaves its element out. Validate it with `POST /invoices/validate`, store it with `POST /invoices`. Nothing is stored here.",
+        "operationId": "make_draft_invoices_draft_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoiceFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The UBL 2.1 invoice or credit note.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many validations by the caller, or in their organization; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ]
+      }
+    },
     "/invoices/{invoice_id}/repairs": {
       "post": {
         "tags": [
@@ -4384,6 +4578,37 @@
         "title": "Decision",
         "description": "Where to send the person once they have decided."
       },
+      "DocumentRead": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "picture"
+            ],
+            "title": "Kind",
+            "description": "A PDF, or a picture of an invoice."
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages",
+            "description": "The pages shown to the model."
+          },
+          "text": {
+            "type": "boolean",
+            "title": "Text",
+            "description": "Whether a page had a text layer, which the model was given with its picture; a scanned PDF and a picture have none."
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "pages",
+          "text"
+        ],
+        "title": "DocumentRead",
+        "description": "What the document was."
+      },
       "Explained": {
         "properties": {
           "report": {
@@ -4510,6 +4735,30 @@
         "title": "Explanation",
         "description": "What one rule of a report asks and how to meet it, with the passages it rests on; or why\nthere is no explanation."
       },
+      "Extraction": {
+        "properties": {
+          "fields": {
+            "$ref": "#/components/schemas/InvoiceFields",
+            "description": "The fields, null where the model saw none; to be checked against the document before `POST /invoices/draft` makes an invoice of them."
+          },
+          "document": {
+            "$ref": "#/components/schemas/DocumentRead"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "The provider and the model that read the document."
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields",
+          "document",
+          "model"
+        ],
+        "title": "Extraction",
+        "description": "An invoice's fields as the reading model read them from a document, for a person to\nconfirm."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4625,6 +4874,149 @@
           "role"
         ],
         "title": "InvitationRequest"
+      },
+      "InvoiceFields": {
+        "properties": {
+          "type_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "380",
+                  "381",
+                  "383",
+                  "386"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type Code",
+            "description": "What the document is: 380 an invoice (račun, faktura), 386 an advance invoice (avansni račun), 381 a credit note (knjižno odobrenje), 383 a debit note (knjižno zaduženje)."
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number",
+            "description": "The invoice's number (broj računa)."
+          },
+          "issue_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issue Date",
+            "description": "The date of issue (datum izdavanja)."
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date",
+            "description": "The payment due date (rok plaćanja, valuta)."
+          },
+          "delivery_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Date",
+            "description": "The date of supply (datum prometa), if printed."
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency",
+            "description": "The currency of the amounts as an ISO 4217 code: RSD, EUR."
+          },
+          "buyer_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buyer Reference",
+            "description": "The buyer's reference or order number (broj narudžbenice), if printed."
+          },
+          "seller": {
+            "$ref": "#/components/schemas/Party",
+            "description": "Who issues the invoice."
+          },
+          "seller_in_vat_register": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller In Vat Register",
+            "description": "Whether the seller is in the VAT register: true where the invoice charges VAT or says so (obveznik PDV-a), false where it says it is not (nije u sistemu PDV-a)."
+          },
+          "buyer": {
+            "$ref": "#/components/schemas/Party",
+            "description": "Who is invoiced."
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Lines",
+            "description": "The lines, in the order printed."
+          },
+          "vat_breakdown": {
+            "items": {
+              "$ref": "#/components/schemas/VatSubtotal"
+            },
+            "type": "array",
+            "title": "Vat Breakdown",
+            "description": "The VAT recapitulation, one row a category and rate."
+          },
+          "totals": {
+            "$ref": "#/components/schemas/Totals",
+            "description": "The totals."
+          },
+          "payment": {
+            "$ref": "#/components/schemas/Payment",
+            "description": "How to pay."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "InvoiceFields",
+        "description": "An invoice's fields as a document prints them; null where it does not show one."
       },
       "InvoiceOut": {
         "properties": {
@@ -5288,6 +5680,109 @@
         "title": "LayerOutcome",
         "description": "Whether a layer ran, what it found, and why it did not run."
       },
+      "Line": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "What was sold or done, as the line names it."
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity",
+            "description": "The quantity, a number: 8."
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit",
+            "description": "The unit as a UN/ECE Recommendation 20 code: H87 for a piece (kom), HUR for an hour (sat), DAY for a day, KGM for a kilogram, LTR for a litre, MTR for a metre, C62 when no unit is printed."
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price",
+            "description": "The price of one unit without VAT, a number: 1500.00."
+          },
+          "net_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Amount",
+            "description": "The line's amount without VAT, as printed (osnovica): 12000.00."
+          },
+          "vat_category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "Z",
+                  "E",
+                  "AE",
+                  "R",
+                  "O",
+                  "OE",
+                  "SS",
+                  "N"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vat Category",
+            "description": "The VAT category: S where VAT is charged at 20 or 10 percent; AE where the buyer owes it (reverse charge); Z, E, R, O, OE, SS or N where the line names an exemption or VAT does not apply."
+          },
+          "vat_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vat Rate",
+            "description": "The VAT rate in percent, a number: 20, 10 or 0."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Line",
+        "description": "A line of the invoice's table of goods and services."
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -5662,6 +6157,110 @@
         ],
         "title": "PackOut"
       },
+      "Party": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Its name as printed, with its legal form (d.o.o., a.d., preduzetnik)."
+          },
+          "tax_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Id",
+            "description": "Its PIB, the tax identification number: nine digits, without RS before them."
+          },
+          "company_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Id",
+            "description": "Its matični broj (MB), the registration number: eight digits."
+          },
+          "street": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Street",
+            "description": "Its street and number."
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City",
+            "description": "Its city or place."
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code",
+            "description": "Its postal code: five digits in Serbia."
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country",
+            "description": "Its country as an ISO 3166-1 alpha-2 code: RS for Serbia, also when the address names none."
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Its email address, if printed."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Party",
+        "description": "A party to the invoice, as its header or its footer prints it."
+      },
       "Passage": {
         "properties": {
           "id": {
@@ -5788,6 +6387,50 @@
         ],
         "title": "Patch",
         "description": "One change to one place of an invoice."
+      },
+      "Payment": {
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account",
+            "description": "The seller's bank account (tekući račun) as printed: 160-0000000123456-78."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "The payment model (model plaćanja), two digits: 97."
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference",
+            "description": "The payment reference (poziv na broj), without the model: 12-345678-00123."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Payment",
+        "description": "How the invoice is to be paid."
       },
       "Permission": {
         "type": "string",
@@ -6831,6 +7474,86 @@
         "title": "TokenResponse",
         "description": "A new pair of tokens and what they are for."
       },
+      "Totals": {
+        "properties": {
+          "line_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Total",
+            "description": "The sum of the lines' amounts without VAT."
+          },
+          "tax_exclusive": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Exclusive",
+            "description": "The total without VAT (ukupna osnovica)."
+          },
+          "tax": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax",
+            "description": "The total VAT (ukupan PDV)."
+          },
+          "tax_inclusive": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Inclusive",
+            "description": "The total with VAT (ukupno sa PDV-om)."
+          },
+          "prepaid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prepaid",
+            "description": "What was paid in advance (avans), if printed."
+          },
+          "payable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payable",
+            "description": "The amount due for payment (za uplatu, za plaćanje)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Totals",
+        "description": "The invoice's totals, as its foot prints them."
+      },
       "UserOut": {
         "properties": {
           "id": {
@@ -6947,6 +7670,73 @@
         ],
         "title": "ValidationReport",
         "description": "The verdict on one document under one profile."
+      },
+      "VatSubtotal": {
+        "properties": {
+          "vat_category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "Z",
+                  "E",
+                  "AE",
+                  "R",
+                  "O",
+                  "OE",
+                  "SS",
+                  "N"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vat Category",
+            "description": "The VAT category, as for a line: S, AE, Z, E, R, O, OE, SS, N."
+          },
+          "vat_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vat Rate",
+            "description": "The VAT rate in percent: 20, 10 or 0."
+          },
+          "taxable_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taxable Amount",
+            "description": "The amount the VAT is charged on (osnovica): 12000.00."
+          },
+          "tax_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Amount",
+            "description": "The VAT itself (iznos PDV): 2400.00."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "VatSubtotal",
+        "description": "A row of the VAT recapitulation: the amounts of one category and rate."
       },
       "Violation": {
         "properties": {
