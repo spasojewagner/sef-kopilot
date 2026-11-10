@@ -158,7 +158,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [~] PDF or picture → UBL extraction with a review step, clearly marked beta (pictures added on 2026-11-08 at the maintainer's request; kept after the evaluations, which can measure it), in three branches (ADR-0062):
   - [x] `feat/api-invoice-extraction` — the API reads a document into an invoice's fields with a reading model, and drafts the UBL of the fields a person confirms
-  - [ ] `feat/web-invoice-extraction` — the upload page takes a PDF or a picture, shows it beside the fields read, and makes the invoice of them once corrected
+  - [x] `feat/web-invoice-extraction` — the upload page takes a PDF or a picture, shows it beside the fields read, and makes the invoice of them once corrected
   - [ ] `feat/evals-extraction` — the reading measured on PDFs and pictures made from known invoices, against thresholds
 - [ ] `docs/readme-case-study` — final README (problem, demo GIF, architecture diagram, numbers, how to run, how to self-host), 90-second demo video script, `docs/CASE_STUDY.md`
 - [ ] `chore/release-1.0` — security review pass, `v1.0.0`

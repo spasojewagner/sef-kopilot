@@ -103,6 +103,10 @@ time, a document that could not be opened. A reading can take a minute: the page
 150 s, for the API gives the document 30 s and the model 90 s, and a free instance may first
 have to wake.
 
+![A photograph of an invoice read: the picture beside the fields, the buyer's PIB marked as missing](../../docs/demo/reading-a-photograph.png)
+
+![The invoice made of the corrected fields, valid, on its report](../../docs/demo/reading-made-into-an-invoice.png)
+
 What these pages show comes from an uploaded document: the parties' names, the number, and the
 rules' messages, which quote the document's values. It is rendered as text, which React
 escapes; the lint rule `react/no-danger` keeps anyone from setting HTML from it.

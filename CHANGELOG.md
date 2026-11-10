@@ -17,6 +17,10 @@ is tagged.
   PDF's text layer, pictures drawn anew without their metadata, nothing stored; and
   `POST /invoices/draft` writes the UBL invoice of the fields a person confirmed, in code,
   nothing computed or filled in (ADR-0062).
+- `apps/web` (beta): the upload page takes a PDF or a JPEG, PNG or WebP picture of an
+  invoice, has the API read it and shows the fields beside the document, every one editable,
+  the ones SEF needs and the model did not find marked; the invoice is made of them, stored and
+  validated only when the visitor asks, or its XML downloaded; the document stays in the page.
 
 ### Changed
 
