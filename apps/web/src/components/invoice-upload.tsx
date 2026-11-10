@@ -2,8 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
+import { InvoiceReading } from "@/components/invoice-reading";
+import { useReadingErrorMessage } from "@/components/reading-errors";
 import { useUploadErrorMessage } from "@/components/upload-errors";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,13 @@ import {
 } from "@/components/ui/native-select";
 import { useRouter } from "@/i18n/navigation";
 import {
+  documentTypeOf,
+  MAX_DOCUMENT_BYTES,
+  readInvoice,
+  type DocumentType,
+  type Extraction,
+} from "@/lib/extraction";
+import {
   PROFILES,
   renderingOf,
   storeInvoice,
@@ -23,15 +32,29 @@ import {
 import { SYNTHETIC_INVOICES_URL } from "@/lib/links";
 import { healthQuery, invoiceQuery, invoicesQuery } from "@/lib/queries";
 
-/** Why the chosen file was not sent: there is none, or it is a picture or a PDF of an invoice. */
-type Unsent = "missing" | "picture" | "pdf";
+/**
+ * Why the chosen file was not sent: there is none, it is a picture in a format that is not read,
+ * or it is larger than a document may be.
+ */
+type Unsent = "missing" | "unreadable" | "tooLarge";
+
+/**
+ * A document read into an invoice's fields, for the visitor to check, with the address of its
+ * bytes in this page, given back to the browser once it is no longer shown.
+ */
+type Read = {
+  url: string;
+  type: DocumentType;
+  extraction: Extraction;
+  profile: Profile;
+};
 
 /**
  * Sends an invoice to be validated and stored for the organization, then shows its report. The
  * report comes with the answer, so the report's page does not ask for it again. On a public
- * demo it first asks for a synthetic invoice (ADR-0037). A picture or a PDF of an invoice is not
- * sent: the validator checks the XML, and a rendering, perhaps of a real invoice, would only be
- * stored on the server to be called unreadable.
+ * demo it first asks for a synthetic invoice (ADR-0037). A PDF or a picture of an invoice is
+ * read instead (ADR-0062, beta): the API's model reads its fields, which the visitor checks
+ * beside the document before the invoice is made of them.
  */
 export function InvoiceUpload() {
   const t = useTranslations("upload");
@@ -40,11 +63,13 @@ export function InvoiceUpload() {
   const health = useQuery({ ...healthQuery, enabled: false });
   const profiles = useTranslations("profiles");
   const messageFor = useUploadErrorMessage();
+  const readingMessageFor = useReadingErrorMessage();
   const router = useRouter();
   const client = useQueryClient();
   // Said here rather than by the browser's `required`, whose check of a file input differs
   // from one browser to another.
   const [unsent, setUnsent] = useState<Unsent | null>(null);
+  const [read, setRead] = useState<Read | null>(null);
   const uploading = useMutation({
     mutationFn: ({ document, profile }: { document: File; profile: Profile }) =>
       storeInvoice(document, profile),
@@ -54,6 +79,29 @@ export function InvoiceUpload() {
       router.push(`/invoices/${stored.id}`);
     },
   });
+  const reading = useMutation({
+    mutationFn: async ({
+      document,
+      type,
+      profile,
+    }: {
+      document: File;
+      type: DocumentType;
+      profile: Profile;
+    }): Promise<Read> => {
+      const extraction = await readInvoice(document, type);
+      return { url: URL.createObjectURL(document), type, profile, extraction };
+    },
+    onSuccess: setRead,
+  });
+  // The document's address is given back when another is read, or the page is left.
+  useEffect(() => {
+    return () => {
+      if (read !== null) {
+        URL.revokeObjectURL(read.url);
+      }
+    };
+  }, [read]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,15 +112,40 @@ export function InvoiceUpload() {
       setUnsent("missing");
       return;
     }
-    // The file picker offers XML files, but lets a person choose any other, as dropping does.
-    const rendering = renderingOf(document);
-    setUnsent(rendering);
-    if (rendering !== null) {
+    const profile = (fields.namedItem("profile") as HTMLSelectElement)
+      .value as Profile;
+    // A PDF or a picture is read; any other file is the validator's to judge.
+    if (renderingOf(document) !== null) {
+      const type = documentTypeOf(document);
+      if (type === null) {
+        setUnsent("unreadable");
+      } else if (document.size > MAX_DOCUMENT_BYTES) {
+        setUnsent("tooLarge");
+      } else {
+        setUnsent(null);
+        reading.mutate({ document, type, profile });
+      }
       return;
     }
-    const profile = (fields.namedItem("profile") as HTMLSelectElement).value;
-    uploading.mutate({ document, profile: profile as Profile });
+    setUnsent(null);
+    uploading.mutate({ document, profile });
   }
+
+  if (read !== null) {
+    return (
+      <InvoiceReading
+        url={read.url}
+        type={read.type}
+        extraction={read.extraction}
+        profile={read.profile}
+        onDiscard={() => {
+          setRead(null);
+          reading.reset();
+        }}
+      />
+    );
+  }
+  const pending = uploading.isPending || reading.isPending;
 
   return (
     <form className="grid gap-4" onSubmit={submit}>
@@ -103,7 +176,7 @@ export function InvoiceUpload() {
           id="invoice"
           name="invoice"
           type="file"
-          accept=".xml,application/xml,text/xml"
+          accept=".xml,application/xml,text/xml,.pdf,application/pdf,.jpg,.jpeg,image/jpeg,.png,image/png,.webp,image/webp"
           // The browser's own button, drawn as the page's: a box with room to aim at.
           className="h-auto cursor-pointer border-dashed bg-muted/40 py-2.5 file:mr-4 file:h-8 file:cursor-pointer file:rounded-md file:bg-primary file:px-3 file:text-primary-foreground hover:file:bg-primary/90 dark:bg-muted/40"
           aria-describedby="invoice-hint"
@@ -134,9 +207,20 @@ export function InvoiceUpload() {
           <AlertDescription>{messageFor(uploading.error)}</AlertDescription>
         </Alert>
       )}
+      {reading.isError && unsent === null && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {readingMessageFor(reading.error)}
+          </AlertDescription>
+        </Alert>
+      )}
       <div>
-        <Button type="submit" disabled={uploading.isPending}>
-          {uploading.isPending ? t("pending") : t("submit")}
+        <Button type="submit" disabled={pending}>
+          {reading.isPending
+            ? t("reading")
+            : uploading.isPending
+              ? t("pending")
+              : t("submit")}
         </Button>
       </div>
     </form>

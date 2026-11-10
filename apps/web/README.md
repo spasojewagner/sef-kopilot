@@ -84,11 +84,24 @@ English, and are marked so. Amounts keep every decimal the invoice states. The r
 page is the same for every invoice and is built once; the id is read when the page is asked
 for, and the report is fetched in the browser (ADR-0028).
 
-The form sends XML. A picture or a PDF chosen instead, a photo of an invoice or its rendering,
-is not sent: the page says that SEF Kopilot checks the e-invoice itself and where to get its
-XML (`renderingOf` in `src/lib/invoices.ts`). The server would only store it to report it as not
-well-formed, and on the public demo it might be a real invoice. The browser's media type tells,
-or else the file's name; a file that slips past is still judged by the validator.
+The form sends XML. A PDF or a picture of an invoice, a JPEG, PNG or WebP photograph or scan, is
+read instead (ADR-0062, beta): `POST /invoices/extract` has the API's reading model read its
+fields, and the page shows them beside the document, every one editable (`InvoiceReading` in
+`src/components/invoice-reading.tsx`). The fields SEF cannot do without and the model did not
+find are named above the form and marked; the visitor checks the rest against the document,
+which stays in view beside them on a wide screen, and opens at its full size on a phone. A PDF
+is shown in the browser's own viewer, with a link to open it where the browser has none.
+Making the invoice has `POST /invoices/draft` write the UBL invoice of the fields, in code, then
+stores and validates it as an upload, and opens its report; downloading the XML saves the drafted
+invoice and keeps nothing. Nothing is stored until then, and the document never is: it
+stays in the page, at an object URL given back when it is no longer shown. Which files are read
+is told by the browser's media type, or else by the file's name (`documentTypeOf` in
+`src/lib/extraction.ts`); a picture in another format, HEIC say, or a document over 10 MB is
+refused before it is sent. A reading that fails says why, by the status the API answers
+(`src/components/reading-errors.ts`): no model on the server, a model that did not answer in
+time, a document that could not be opened. A reading can take a minute: the page waits up to
+150 s, for the API gives the document 30 s and the model 90 s, and a free instance may first
+have to wake.
 
 What these pages show comes from an uploaded document: the parties' names, the number, and the
 rules' messages, which quote the document's values. It is rendered as text, which React
@@ -316,18 +329,21 @@ src/app/icon.svg   the favicon, and the icons rendered from it: `apple-icon.png`
 src/components/    components shared by the pages: the logo, the header with its sections and
                    its account, the footer, the language switcher, the API's status, the cache
                    of the API's answers, the sign-in and registration forms and their frame,
-                   the upload, the list, the report, the repairs and the diff, the way back
-                   to a page's parent, the organization's page
+                   the upload and the reading of a PDF or a picture, the list, the report, the
+                   repairs and the diff, the way back to a page's parent, the organization's
+                   page
 src/components/landing/  the home page's sections, its example of a report and its backdrop
 src/components/ui/ shadcn/ui components, with their origin and license in a README
 src/i18n/          the languages and the routing, the request's messages, navigation that keeps
                    the language, the messages' types
 src/hooks/         hooks shared by the components: the session
 src/lib/           the API client and its generated types, the session, the questions the pages
-                   ask, the reader of a repair's diff; `cn()`
+                   ask, the reader of a repair's diff, the fields read from a document;
+                   `cn()`
 src/proxy.ts       sends a path without a language to the visitor's
 src/test/          what the tests share: rendering in a language, with a cache of its own; an
-                   API that answers as the test says; invoices and repairs to answer with
+                   API that answers as the test says; invoices, repairs and readings to answer
+                   with
 vitest.config.mts  Vitest with React plugin, jsdom and tsconfig path aliases
 vitest.setup.ts    jest-dom matchers, automatic cleanup, no request to the network
 ```

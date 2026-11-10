@@ -29,9 +29,10 @@ const PICTURE_NAME = /\.(png|jpe?g|gif|webp|avif|heic|heif|tiff?|bmp)$/i;
 
 /**
  * What a chosen file is when it shows an invoice rather than being one: a picture, such as a
- * photo or a screenshot, or a PDF. The validator checks the XML, so neither is worth sending;
- * null for any other file, which the validator judges. The browser's media type says, or else
- * the file's name.
+ * photo or a screenshot, or a PDF. The validator checks the XML, so neither is sent to it: one
+ * is read into an invoice's fields instead, when it is in a format the API reads
+ * (`documentTypeOf`, ADR-0062); null for any other file, which the validator judges. The
+ * browser's media type says, or else the file's name.
  */
 export function renderingOf(file: File): "picture" | "pdf" | null {
   if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {

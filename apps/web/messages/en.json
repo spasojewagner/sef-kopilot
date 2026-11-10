@@ -150,18 +150,19 @@
     "more": "Show more"
   },
   "upload": {
-    "file": "Invoice (UBL 2.1 XML)",
-    "fileHint": "An invoice or a credit note in XML, as you send it to SEF.",
-    "missing": "Choose an invoice in XML.",
-    "picture": "You chose a picture. SEF Kopilot checks the e-invoice itself, the XML (UBL 2.1) that is sent to SEF, not a picture of it. The picture was not sent: download the XML from SEF or from the program the invoice was issued in.",
-    "pdf": "You chose a PDF. SEF Kopilot checks the e-invoice itself, the XML (UBL 2.1) that is sent to SEF, not a PDF of it. The PDF was not sent: download the XML from SEF or from the program the invoice was issued in.",
+    "file": "Invoice (XML, PDF or picture)",
+    "fileHint": "An invoice or a credit note in XML (UBL 2.1), as you send it to SEF; or a PDF or a picture of one, which a model reads for you to check (beta).",
+    "missing": "Choose an invoice: XML, a PDF or a picture.",
     "profile": "Profile",
     "submit": "Check and keep",
     "pending": "Checking…",
     "demo": {
       "title": "A public demo: synthetic invoices only",
-      "description": "What you upload is stored on this server, and explanations and repairs send the rules' messages and the invoice's fields to the language model's provider. Do not upload a real invoice: take <examples>one of the synthetic ones</examples>, with made-up companies and tax numbers."
-    }
+      "description": "What you upload is stored on this server; a PDF or a picture you have read is sent whole to the language model's provider, and explanations and repairs send it the rules' messages and the invoice's fields. Do not upload a real invoice: take <examples>one of the synthetic ones</examples>, with made-up companies and tax numbers."
+    },
+    "unreadable": "This picture's format is not read: choose a JPEG, a PNG, a WebP picture or a PDF.",
+    "tooLarge": "The document is larger than 10 MB: choose a smaller picture or PDF.",
+    "reading": "The model is reading the document…"
   },
   "uploadErrors": {
     "signedOut": "The session has expired. Sign in again.",
@@ -760,5 +761,19 @@
     "download": "Download the XML",
     "discard": "Discard",
     "draftRefused": "A field is not in the form asked for: a date as 2026-10-05, an amount as 14400.00, codes in capitals."
+  },
+  "readingErrors": {
+    "signedOut": "The session has expired. Sign in again.",
+    "forbidden": "You may not check invoices.",
+    "tooSlow": "The document was not received in time. Try again.",
+    "tooLarge": "The document is too large: 10 MB and three pages at most.",
+    "notDocument": "Send a PDF, or a JPEG, PNG or WebP picture.",
+    "unreadable": "The document could not be read: it is damaged, protected by a password, or the model found no invoice in it.",
+    "tooMany": "Too many readings. Try again in {seconds} s.",
+    "modelAway": "The language model did not answer. Try again.",
+    "noModel": "No language model is set up on this server, so documents are not read.",
+    "modelSlow": "The model did not read the document in time. Try a smaller picture or PDF.",
+    "unreachable": "The API is not answering. Try again a little later.",
+    "failed": "The document was not read. Try again."
   }
 }
