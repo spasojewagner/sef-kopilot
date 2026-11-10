@@ -54,6 +54,10 @@ describe("Why an invoice was not kept", () => {
         "Validator trenutno nije dostupan. Pokušajte ponovo malo kasnije.",
       ],
       [
+        new ApiError(402, "no credits"),
+        "Organizacija nema više kredita za čuvanje fakture. Vlasnik ih dokupljuje na stranici organizacije, ili ih daje operater servera.",
+      ],
+      [
         new ApiError(507, "full"),
         "Organizacija je popunila prostor za fakture. Obrišite neke, pa pokušajte ponovo.",
       ],

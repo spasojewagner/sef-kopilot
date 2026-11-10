@@ -15,6 +15,8 @@ export function useUploadErrorMessage(): (error: unknown) => string {
     switch (error.status) {
       case 401:
         return t("signedOut");
+      case 402:
+        return t("noCredits");
       case 403:
         return t("forbidden");
       case 408:

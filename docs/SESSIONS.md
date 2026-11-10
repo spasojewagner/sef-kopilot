@@ -2847,3 +2847,25 @@ the signature, the tolerance, the scheme, the counting once and the sandbox chec
 a test; ruff, mypy; each commit checked on its own.
 
 Next: the page that shows the credits and buys them (`feat/web-billing`).
+
+## 2026-11-09 — `feat/web-billing` (2 commits, stacked on `feat/api-stripe-checkout`)
+
+Outcome: the organization page shows the credits where the server counts them: the balance for
+every member who stores invoices; for the owner, the latest changes and the packs on sale, each
+bought on Stripe's page in its sandbox. Back from paying, the page says the payment is on its
+way and reads the credits again for a minute. The upload page says when there is no credit
+left. Where storing costs nothing, nothing changes.
+
+Findings:
+
+- The return from Stripe is read from the address with `useSyncExternalStore`: reading it in an
+  effect would set state there, which the React rules refuse, and on the server there is no
+  address to read.
+- One reading again right after the return is not enough: Stripe tells the API a moment after it
+  tells the visitor, so the page asks again every five seconds, a dozen times at most.
+
+Verification: the web application's tests, types, lint and build; each commit checked on its
+own.
+
+Next: the evaluations as CI's gate (`ci/evals-gate`), once the repairs' cassette is recorded,
+then `v0.6.0`.
