@@ -20,7 +20,7 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import ArgumentError, DBAPIError
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -41,20 +41,31 @@ class DatabaseError(Exception):
 
 def server_url(env_file: Path) -> str:
     """The URL of the tests' PostgreSQL server, ``SEF_TEST_DATABASE_URL`` from the environment
-    or ``env_file``, as the API's tests read it."""
+    or ``env_file``, as the API's tests read it: left empty, as ``.env.example`` leaves it, it is
+    not set."""
 
     class Server(BaseSettings):
         model_config = SettingsConfigDict(env_file=env_file, extra="ignore")
 
         sef_test_database_url: SecretStr | None = None
 
-    url = Server().sef_test_database_url
-    if url is None:
+    setting = Server().sef_test_database_url
+    url = setting.get_secret_value().strip() if setting is not None else ""
+    if not url:
         raise DatabaseError(
             "SEF_TEST_DATABASE_URL is not set: name the PostgreSQL server the explanations are "
             "measured on, as .env.example does (`make up` starts one)"
         )
-    return url.get_secret_value()
+    try:
+        make_url(url)
+    except ArgumentError:
+        # The value is not repeated: it may hold a password.
+        raise DatabaseError(
+            "SEF_TEST_DATABASE_URL is not a database URL: write it as "
+            "postgresql+asyncpg://user:password@localhost:5432/postgres, with the user, the "
+            "password and the port of the server `make up` starts"
+        ) from None
+    return url
 
 
 async def _execute(server: str, *statements: str) -> None:

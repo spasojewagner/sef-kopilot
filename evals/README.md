@@ -11,7 +11,8 @@ make evals-record   # ask the model what cassettes/ lacks, then measure (needs a
 ```
 
 They need the fetched rule sets (`make rulesets`) and PostgreSQL (`make up`, named by
-`SEF_TEST_DATABASE_URL`), on which the explanations get a database of their own; the runner is
+`SEF_TEST_DATABASE_URL`, which `.env.example` leaves empty: write the server's URL there, as
+its comment shows), on which the explanations get a database of their own; the runner is
 the workspace package `sef-kopilot-evals` (`uv run sef-evals`). A pull request that changes what the validator
 reports commits the report that `make evals` writes, as it commits `verdicts.json`: a changed
 measure is a changed behaviour, and its diff is reviewed like code.
