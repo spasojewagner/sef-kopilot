@@ -339,6 +339,18 @@ class Settings(BaseSettings):
             "structured outputs."
         ),
     )
+    extraction_model: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+        validation_alias="SEF_EXTRACTION_MODEL",
+        description=(
+            "The provider's model that reads PDFs and pictures into an invoice's fields, when "
+            "not its default (`qwen/qwen3.8-27b` on Groq, `gpt-6-luna` on OpenAI, "
+            "`claude-haiku-5-5` on Anthropic); it must read pictures and support structured "
+            "outputs (ADR-0062)."
+        ),
+    )
     max_explanations: int = Field(
         default=5,
         ge=1,

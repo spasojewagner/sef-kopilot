@@ -19,9 +19,11 @@ from sef_api.llm import (
     LLMError,
     Message,
     OpenAIClient,
+    Picture,
     client_for,
     last_usage,
     llm_for,
+    reading_llm_for,
 )
 
 from .conftest import settings_for
@@ -531,3 +533,100 @@ def test_each_provider_is_chosen_by_its_name_and_its_key() -> None:
         settings_for(LLM_PROVIDER="mistral")
     assert client_for("mistral", KEY, None) is None
     assert client_for("groq", None, None) is None
+
+
+PAGE = Picture("image/jpeg", b"\xff\xd8\xff page one")
+SHOWING = [
+    Message("system", "Answer in JSON."),
+    Message("user", "Read the fields.", pictures=(PAGE, Picture("image/png", b"\x89PNG two"))),
+]
+
+
+def test_a_picture_is_its_bytes_in_a_data_url() -> None:
+    assert PAGE.data_url == "data:image/jpeg;base64,/9j/IHBhZ2Ugb25l"
+
+
+async def test_chat_completions_are_shown_pictures_after_the_text() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(lambda _body: completion("{}"), requests, model="qwen/qwen3.8-27b")
+
+    await client.answer(SHOWING, name="reply", schema=SCHEMA)
+
+    assert json.loads(requests[0].content)["messages"] == [
+        {"role": "system", "content": "Answer in JSON."},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Read the fields."},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/jpeg;base64,/9j/IHBhZ2Ugb25l"},
+                },
+                {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORyB0d28="}},
+            ],
+        },
+    ]
+
+
+async def test_openai_is_shown_pictures_as_groq_is() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(lambda _body: completion("{}"), requests, provider=OpenAIClient)
+
+    await client.answer(SHOWING, name="reply", schema=SCHEMA)
+
+    parts = json.loads(requests[0].content)["messages"][1]["content"]
+    assert [part["type"] for part in parts] == ["text", "image_url", "image_url"]
+
+
+async def test_anthropic_is_shown_pictures_before_the_text() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(lambda _body: message(text("{}")), requests, provider=AnthropicClient)
+
+    await client.answer(SHOWING, name="reply", schema=SCHEMA)
+
+    assert json.loads(requests[0].content)["messages"] == [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": "/9j/IHBhZ2Ugb25l",
+                    },
+                },
+                {
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/png", "data": "iVBORyB0d28="},
+                },
+                {"type": "text", "text": "Read the fields."},
+            ],
+        }
+    ]
+
+
+def test_the_reading_model_is_the_provider_s_unless_the_settings_name_another() -> None:
+    assert reading_llm_for(settings_for()) is None
+    groq = reading_llm_for(settings_for(LLM_PROVIDER="groq", GROQ_API_KEY="gsk_key"))
+    assert isinstance(groq, GroqClient)
+    assert groq.model == "groq/qwen/qwen3.8-27b"
+    openai = reading_llm_for(settings_for(LLM_PROVIDER="openai", OPENAI_API_KEY="openai-key"))
+    assert openai is not None
+    assert openai.model == "openai/gpt-6-luna"
+    anthropic = reading_llm_for(
+        settings_for(LLM_PROVIDER="anthropic", ANTHROPIC_API_KEY="anthropic-key")
+    )
+    assert anthropic is not None
+    assert anthropic.model == "anthropic/claude-haiku-5-5"
+    chosen = reading_llm_for(
+        settings_for(
+            LLM_PROVIDER="groq",
+            GROQ_API_KEY="gsk_key",
+            SEF_LLM_MODEL="openai/gpt-oss-20b",
+            SEF_EXTRACTION_MODEL="meta-models/muse-spark-open",
+        )
+    )
+    assert chosen is not None
+    # The model that writes explanations does not read pictures; the reading model is apart.
+    assert chosen.model == "groq/meta-models/muse-spark-open"
