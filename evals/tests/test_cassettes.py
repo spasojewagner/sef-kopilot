@@ -206,6 +206,23 @@ async def test_stops_at_a_limit_that_does_not_lift_and_keeps_what_it_has() -> No
     assert recording.cassette(finished=False).answers == {"a" * 64: "Prva."}
 
 
+async def test_waits_out_a_busy_server_and_asks_again() -> None:
+    """Gemini answers 503 while it is overloaded; a minute later it answers."""
+    model = Model("Gemini answered 503, 3 times")
+    recording = Recording(model, pause=0, patience=0, tries=3)
+    answer = await recording.answer(ASKED, name="explanation", schema=SCHEMA)
+    assert json.loads(answer)["answer"] == "answer 2"
+    assert recording.asked == 2
+
+
+async def test_stops_at_a_server_that_stays_busy_and_says_so() -> None:
+    model = Model(*["Gemini answered 503, 3 times"] * 3)
+    recording = Recording(model, patience=0, tries=3)
+    with pytest.raises(RecordingStoppedError, match=r"503 3 times: its provider is busy; record"):
+        await recording.answer(ASKED, name="explanation", schema=SCHEMA)
+    assert recording.asked == 3
+
+
 async def test_another_failure_of_the_model_is_its_answer_now() -> None:
     model = Model("Groq answered 400 (json_validate_failed)")
     recording = Recording(model, patience=0)

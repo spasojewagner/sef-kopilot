@@ -87,9 +87,9 @@ CORPUS: Final = Path("corpus")
 #: The model named by a run with no cassette: no answer is recorded.
 NOT_RECORDED: Final = "none recorded"
 #: Seconds between two requests to the real model while recording, under a free tier's limits,
-#: and how long an answer of 429 is waited for before the request is sent again. A reading
-#: shows the model a page as a picture, some thousands of tokens: Groq's free tier takes one
-#: every forty-odd seconds.
+#: and how long an answer of 429 or 5xx is waited for before the request is sent again. A
+#: reading shows the model a page as a picture, some thousands of tokens: Groq's free tier
+#: takes one every forty-odd seconds.
 PAUSE = 2.0
 READING_PAUSE = 45.0
 PATIENCE = 60.0

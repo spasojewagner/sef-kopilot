@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -148,17 +149,24 @@ class Replaying:
 
 
 class RecordingStoppedError(Exception):
-    """The provider refuses more requests for now (its limit); what was recorded is kept."""
+    """The provider refuses more requests for now (its limit, or a server that stays busy); what
+    was recorded is kept."""
+
+
+#: What a model's error says when its provider refuses for now, which a wait may lift: its limit
+#: (429), or a server that is busy or down (5xx: Gemini answers 503 when it is overloaded).
+_BUSY: Final = re.compile(r"answered (429|5[0-9]{2})\b")
 
 
 class Recording:
     """A model that answers from a cassette what it holds, and asks ``llm`` the rest.
 
     ``pause`` seconds pass before each request to the real model, so that a provider's limit
-    per minute is not reached; an answer of 429 is waited for ``patience`` seconds and asked
-    again, up to ``tries`` times, after which the recording stops
-    (:class:`RecordingStoppedError`): a provider's daily limit is not waited out. ``names``
-    names the pictures of the requests, as :func:`request_key` does.
+    per minute is not reached; an answer of 429, or of 5xx from a server that is busy, is waited
+    for ``patience`` seconds and asked again, up to ``tries`` times, after which the recording
+    stops (:class:`RecordingStoppedError`): a provider's daily limit is not waited out. Any other
+    failure is the model's answer to that request, for now. ``names`` names the pictures of the
+    requests, as :func:`request_key` does.
     """
 
     def __init__(
@@ -213,6 +221,7 @@ class Recording:
         schema: Mapping[str, Any],
         max_tokens: int | None,
     ) -> str:
+        status = "429"
         for attempt in range(1, self._tries + 1):
             if attempt > 1:
                 await asyncio.sleep(self._patience)
@@ -223,11 +232,14 @@ class Recording:
                     messages, name=name, schema=schema, max_tokens=max_tokens
                 )
             except LLMError as error:
-                if "429" not in str(error):
+                busy = _BUSY.search(str(error))
+                if busy is None:
                     raise
+                status = busy.group(1)
+        why = "its provider's limit is reached" if status == "429" else "its provider is busy"
         raise RecordingStoppedError(
-            f"the model answered 429 {self._tries} times: its provider's limit is reached; "
-            "record again later to continue"
+            f"the model answered {status} {self._tries} times: {why}; record again later to "
+            "continue"
         )
 
     async def aclose(self) -> None:

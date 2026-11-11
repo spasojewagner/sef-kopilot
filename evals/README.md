@@ -75,8 +75,9 @@ make up                                   # PostgreSQL for the explanations' dat
 LLM_PROVIDER=groq GROQ_API_KEY=... make evals-record
 ```
 
-It asks only what the cassette lacks, two seconds apart; at the provider's daily limit it stops
-and keeps what it recorded, and the next run continues from there.
+It asks only what the cassette lacks, two seconds apart; a provider that is busy (429 or 5xx) is
+waited out a minute at a time, five times; at the provider's daily limit it stops and keeps what
+it recorded, and the next run continues from there.
 
 ## The repairs
 
