@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -9,13 +10,14 @@ from typing import Any
 
 import pytest
 
-from sef_api.llm import LLMError, Message
+from sef_api.llm import LLMError, Message, Picture
 from sef_evals.cassettes import (
     Cassette,
     CassetteError,
     Recording,
     RecordingStoppedError,
     Replaying,
+    picture_digest,
     request_key,
 )
 
@@ -64,6 +66,64 @@ def test_a_request_is_named_by_everything_sent_and_only_that() -> None:
     assert key(tokens=2048) != key()
     reordered = {"properties": SCHEMA["properties"], "type": "object"}
     assert request_key(ASKED, name="explanation", schema=reordered, max_tokens=None) == key()
+
+
+def test_a_request_without_pictures_keeps_the_name_it_had_before_pictures() -> None:
+    sent = {
+        "name": "explanation",
+        "schema": SCHEMA,
+        "max_tokens": None,
+        "messages": [[message.role, message.content] for message in ASKED],
+    }
+    canonical = json.dumps(sent, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    # The cassettes recorded before a model could be shown pictures still answer.
+    assert key() == hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+DRAWN = Picture("image/jpeg", b"\xff\xd8 drawn here")
+DRAWN_ELSEWHERE = Picture("image/jpeg", b"\xff\xd8 drawn on another machine")
+
+
+def shown(picture: Picture) -> Message:
+    return Message("user", "Read the invoice's fields.", pictures=(picture,))
+
+
+def test_a_picture_is_named_by_its_digest_or_by_the_name_given_to_it() -> None:
+    assert picture_digest(DRAWN) == hashlib.sha256(DRAWN.data).hexdigest()
+    assert picture_digest(DRAWN.data) == picture_digest(DRAWN)
+    assert key(shown(DRAWN)) != key(shown(DRAWN_ELSEWHERE))
+    assert key(shown(DRAWN)) != key(Message("user", "Read the invoice's fields."))
+    names = {
+        picture_digest(DRAWN): "racun.jpg page 1",
+        picture_digest(DRAWN_ELSEWHERE): "racun.jpg page 1",
+    }
+    named = [
+        request_key(
+            [shown(picture)], name="explanation", schema=SCHEMA, max_tokens=None, names=names
+        )
+        for picture in (DRAWN, DRAWN_ELSEWHERE)
+    ]
+    # The same page drawn on two machines is the same request.
+    assert named[0] == named[1]
+    assert named[0] != key(shown(DRAWN))
+
+
+async def test_a_recording_answers_the_same_page_drawn_on_another_machine() -> None:
+    names: dict[str, str] = {}
+    recording = Recording(Model(), names=names)
+    names[picture_digest(DRAWN)] = "racun.jpg page 1"
+    answer = await recording.answer([shown(DRAWN)], name="invoice_fields", schema=SCHEMA)
+    elsewhere: dict[str, str] = {}
+    replaying = Replaying(recording.cassette(finished=True), names=elsewhere)
+    elsewhere[picture_digest(DRAWN_ELSEWHERE)] = "racun.jpg page 1"
+    assert (
+        await replaying.answer([shown(DRAWN_ELSEWHERE)], name="invoice_fields", schema=SCHEMA)
+        == answer
+    )
+    with pytest.raises(LLMError):
+        await Replaying(recording.cassette(finished=True)).answer(
+            [shown(DRAWN_ELSEWHERE)], name="invoice_fields", schema=SCHEMA
+        )
 
 
 def test_a_cassette_is_saved_and_loaded_sorted(tmp_path: Path) -> None:
