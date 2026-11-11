@@ -16,8 +16,9 @@ An amount is asked for as a JSON number, the form a model writes one in. Asked f
 model that constrained decoding holds to the schema cannot write the digit it means to begin
 with, and writes null: every amount of the first recorded readings was null. The fields keep
 it as text, digit for digit, as the reader parses the answer's numbers as decimals, never as
-floats. A unit is written as the line prints it (kom, sat, kg), and :data:`UNITS` makes it its
-UN/ECE Recommendation 20 code, in code: the model reads, it does not look codes up.
+floats. Only the model's schema asks for a number: the API's document gives an amount as text,
+as the API answers it. A unit is written as the line prints it (kom, sat, kg), and :data:`UNITS`
+makes it its UN/ECE Recommendation 20 code, in code: the model reads, it does not look codes up.
 
 :data:`SCHEMA` is the answer's JSON schema, made from the models for structured outputs in
 strict mode: every key is required, every value may be null, nothing else is allowed.
@@ -38,7 +39,6 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
-    WithJsonSchema,
     model_validator,
 )
 
@@ -178,20 +178,11 @@ def _code(pattern: str, form: str) -> Any:
 
 
 Text = Annotated[str | None, AfterValidator(_text)]
-#: A number the model writes as a JSON number, kept as text (:func:`_number`).
-Amount = Annotated[
-    str | None,
-    BeforeValidator(_number),
-    AfterValidator(_amount),
-    WithJsonSchema({"anyOf": [{"type": "number"}, {"type": "null"}]}),
-]
+#: A number the model writes as a JSON number, kept as text (:func:`_number`): text in the
+#: API's document, as the API answers it, and a number in :data:`SCHEMA` alone (:func:`_strict`).
+Amount = Annotated[str | None, BeforeValidator(_number), AfterValidator(_amount)]
 #: A VAT rate in percent, a JSON number as :data:`Amount` is: a fraction (0.2) is refused.
-Rate = Annotated[
-    str | None,
-    BeforeValidator(_number),
-    AfterValidator(_rate),
-    WithJsonSchema({"anyOf": [{"type": "number"}, {"type": "null"}]}),
-]
+Rate = Annotated[str | None, BeforeValidator(_number), AfterValidator(_rate)]
 Day = Annotated[str | None, AfterValidator(_date)]
 Currency = Annotated[str | None, AfterValidator(_code(r"[A-Z]{3}", "an ISO 4217 code, RSD"))]
 Country = Annotated[str | None, AfterValidator(_code(r"[A-Z]{2}", "an ISO 3166 code, RS"))]
@@ -368,12 +359,30 @@ class InvoiceFields(_Fields):
     payment: Payment = Field(default_factory=Payment, description="How to pay.")
 
 
-def _strict(node: Any, definitions: dict[str, Any]) -> Any:
-    """``node`` of a model's JSON schema as structured outputs take it in strict mode."""
+def _numbers(model: type[BaseModel]) -> frozenset[str]:
+    """The fields of ``model`` that are amounts, which the model is asked for as JSON numbers."""
+    return frozenset(
+        name
+        for name, field in model.model_fields.items()
+        if any(getattr(each, "func", None) is _number for each in field.metadata)
+    )
+
+
+#: The amounts of each model, by the name its JSON schema gives it.
+_NUMBERS: Final[dict[str, frozenset[str]]] = {
+    model.__name__: _numbers(model)
+    for model in (InvoiceFields, Party, Line, VatSubtotal, Totals, Payment)
+}
+
+
+def _strict(node: Any, definitions: dict[str, Any], numbers: frozenset[str] = frozenset()) -> Any:
+    """``node`` of a model's JSON schema as structured outputs take it in strict mode, the
+    properties ``numbers`` names asked for as JSON numbers."""
     if not isinstance(node, dict):
         return node
     if "$ref" in node:
-        return _strict(definitions[node["$ref"].rsplit("/", 1)[1]], definitions)
+        name = node["$ref"].rsplit("/", 1)[1]
+        return _strict(definitions[name], definitions, _NUMBERS.get(name, frozenset()))
     if "anyOf" in node:
         options = [option for option in node["anyOf"] if option != {"type": "null"}]
         if len(options) != 1:  # pragma: no cover - the fields are a value or null
@@ -391,6 +400,8 @@ def _strict(node: Any, definitions: dict[str, Any]) -> Any:
         made["properties"] = {
             name: _strict(value, definitions) for name, value in properties.items()
         }
+        for name in numbers & set(properties):
+            made["properties"][name]["type"] = ["number", "null"]
         made["required"] = list(properties)
         made["additionalProperties"] = False
     if node.get("type") == "array":
@@ -400,7 +411,7 @@ def _strict(node: Any, definitions: dict[str, Any]) -> Any:
 
 def _schema() -> dict[str, Any]:
     full = InvoiceFields.model_json_schema()
-    made: dict[str, Any] = _strict(full, full.get("$defs", {}))
+    made: dict[str, Any] = _strict(full, full.get("$defs", {}), _NUMBERS["InvoiceFields"])
     made.pop("description", None)
     return made
 
