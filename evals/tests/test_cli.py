@@ -16,22 +16,43 @@ from einvoice_core.rulesets import RulesetNotFoundError
 from sef_api.llm import LLMClient
 from sef_evals import __version__, cli, verdicts
 from sef_evals.cassettes import Cassette
-from sef_evals.cli import EXIT_ERROR, EXIT_MET, EXIT_NOT_MET, find_root, main, model_named_in
+from sef_evals.cli import (
+    EXIT_ERROR,
+    EXIT_MET,
+    EXIT_NOT_MET,
+    find_root,
+    main,
+    model_named_in,
+    reading_model_named_in,
+)
 from sef_evals.measures import Measure
 
 from .conftest import REPOSITORY_ROOT, Explaining, needs_database
 
 CASSETTE = Path("evals/cassettes/explanations.json")
 REPAIRS = Path("evals/cassettes/repairs.json")
+READINGS = Path("evals/cassettes/extraction.json")
 ARTICLE_2 = "pib-rulebook/article-2/2018-10-01"
 NOWHERE = "postgresql+asyncpg://nobody@nowhere.invalid/none"
+
+
+@pytest.fixture(autouse=True)
+def _no_pause_between_readings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A stand-in has no limit to wait for: the readings are recorded at once."""
+    monkeypatch.setattr(cli, "READING_PAUSE", 0.0)
 
 
 def run(
     root: Path, *argv: str, model: Callable[[], LLMClient | None] = Explaining
 ) -> tuple[int, str]:
     out = io.StringIO()
-    status = main(list(argv), cwd=root, out=out, model=lambda _env_file: model())
+    status = main(
+        list(argv),
+        cwd=root,
+        out=out,
+        model=lambda _env_file: model(),
+        reading_model=lambda _env_file: model(),
+    )
     return status, out.getvalue()
 
 
@@ -72,8 +93,8 @@ def test_records_once_then_replays_offline(small_root: Path) -> None:
     status, out = run(small_root, "--record")
     assert status == EXIT_MET, out
     # One explanation; the repair of the type code in one answer; for the PIB, an answer
-    # refused for the value it makes up, then none proposed.
-    assert out.startswith("sef-evals: 4 requests to test/explaining\n\n# Evaluation report")
+    # refused for the value it makes up, then none proposed; a reading of each document.
+    assert out.startswith("sef-evals: 7 requests to test/explaining\n\n# Evaluation report")
     assert "and the answers of test/explaining recorded in evals/cassettes/." in out
     assert "| `explained` | Rules of the golden documents that the model explained | 100.0%" in out
     assert "| Citations of a passage labelled relevant to the rule | 100.0% (1 of 1) |" in out
@@ -84,6 +105,9 @@ def test_records_once_then_replays_offline(small_root: Path) -> None:
     assert (
         "| Held-out invoices that a repair leaves the validator accepting | 100.0% (1 of 1)" in out
     )
+    assert "| Fields read as the invoice has them, from a photograph | 100.0% (42 of 42) |" in out
+    assert "| Fields the invoice leaves empty that the reading filled in | 0.0% (0 of 6) |" in out
+    assert len(Cassette.load(small_root / READINGS).answers) == 3
     # Replayed, without the model: the same answers, the same report, nothing stale.
     status, out = run(small_root, "--check", model=lambda: None)
     assert (status, out) == (
@@ -93,6 +117,31 @@ def test_records_once_then_replays_offline(small_root: Path) -> None:
     report = json.loads((small_root / "evals/reports/latest.json").read_text("utf-8"))
     assert report["measured"]["model"] == "test/explaining"
     assert report["measures"]["citation_resolution"]["value"] == 1.0
+
+
+class Reading(Explaining):
+    """The stand-in, as the model that reads."""
+
+    model = "test/reading"
+
+
+@needs_database
+def test_records_the_readings_with_the_model_that_reads(small_root: Path) -> None:
+    out = io.StringIO()
+    status = main(
+        ["--record"],
+        cwd=small_root,
+        out=out,
+        model=lambda _: Explaining(),
+        reading_model=lambda _: Reading(),
+    )
+    assert status == EXIT_MET, out.getvalue()
+    assert out.getvalue().startswith(
+        "sef-evals: 4 requests to test/explaining and 3 requests to test/reading\n"
+    )
+    assert "the answers of test/explaining and test/reading recorded" in out.getvalue()
+    assert recorded(small_root).model == "test/explaining"
+    assert Cassette.load(small_root / READINGS).model == "test/reading"
 
 
 @needs_database
@@ -314,3 +363,24 @@ async def test_records_with_the_model_the_settings_name(
     await anthropic.aclose()
     monkeypatch.setenv("LLM_PROVIDER", "none")
     assert model_named_in(env_file) is None
+
+
+async def test_reads_with_the_reading_model_the_settings_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in ("LLM_PROVIDER", "GROQ_API_KEY", "SEF_EXTRACTION_MODEL", "SEF_LLM_MODEL"):
+        monkeypatch.delenv(name, raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("LLM_PROVIDER=groq\nGROQ_API_KEY=not-a-real-key\n", encoding="utf-8")
+    reading = reading_model_named_in(env_file)
+    assert reading is not None
+    # The provider's reading model, not the one that writes: GPT-OSS reads no picture.
+    assert reading.model == "groq/qwen/qwen3.8-27b"
+    await reading.aclose()
+    monkeypatch.setenv("SEF_EXTRACTION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+    named = reading_model_named_in(env_file)
+    assert named is not None
+    assert named.model == "groq/meta-llama/llama-4-scout-17b-16e-instruct"
+    await named.aclose()
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    assert reading_model_named_in(env_file) is None

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from einvoice_core.rulesets import RulesetNotFoundError, ruleset_path
 from sef_api.llm import LLMError, Message
@@ -19,6 +20,15 @@ from sef_evals.database import DatabaseError, server_url
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SYNTHETIC_DIR = REPOSITORY_ROOT / "fixtures" / "invoices" / "synthetic"
 MUTATIONS_DIR = SYNTHETIC_DIR / "mutations"
+DOCUMENTS_DIR = REPOSITORY_ROOT / "evals" / "golden" / "documents"
+#: The golden case the small repository reads, as the repository's golden set has it.
+READ_CASE: dict[str, Any] = next(
+    case
+    for case in yaml.safe_load(
+        (REPOSITORY_ROOT / "evals" / "golden" / "extraction.yaml").read_text(encoding="utf-8")
+    )["cases"]
+    if case["name"] == "consulting-hours"
+)
 
 
 def _fetched() -> bool:
@@ -63,7 +73,8 @@ _VIOLATION = re.compile(r"<violation>\nrule: (?P<rule>\S+)\nlayer: \S+\nplace: (
 class Explaining:
     """A stand-in for the language model: it explains every rule in the same words and cites
     the first passage it may; it repairs the rules of :data:`REPAIRS` by writing their value
-    at each violation's place, and nothing else; or it fails as ``failures`` say, in turn."""
+    at each violation's place, and nothing else; it reads every document as the fields of
+    :data:`READ_CASE`; or it fails as ``failures`` say, in turn."""
 
     model = "test/explaining"
 
@@ -82,6 +93,8 @@ class Explaining:
         self.asked += 1
         if self.failures:
             raise LLMError(self.failures.pop(0))
+        if name == "invoice_fields":
+            return json.dumps(READ_CASE["fields"])
         if name == "repair":
             patches = [
                 {
@@ -114,6 +127,8 @@ detection: {min: 1.0}
 citation_relevance: {min: 1.0}
 repair_success: {min: 1.0}
 overreach_rate: {max: 0.0}
+extraction_photo: {min: 1.0}
+extraction_invented: {max: 0.0}
 """
 
 DOCUMENTS = """\
@@ -145,6 +160,8 @@ cases:
     expect: refused
 """
 
+EXTRACTION = yaml.safe_dump({"cases": [READ_CASE]}, allow_unicode=True, sort_keys=False)
+
 EXPLANATIONS = """\
 day: 2026-11-09
 languages: [sr]
@@ -157,8 +174,9 @@ rules:
 
 @pytest.fixture
 def small_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A repository with two documents, the corpus, golden sets of them and thresholds, in
-    which the runner can be run and its report written. Its database server is the tests'."""
+    """A repository with two documents, the corpus, golden sets of them and thresholds, and an
+    invoice printed three ways to be read, in which the runner can be run and its report
+    written. Its database server is the tests'."""
     (tmp_path / "docs").mkdir()
     shutil.copy(SYNTHETIC_DIR / "srb-minimal-invoice.xml", tmp_path / "docs")
     shutil.copy(MUTATIONS_DIR / "srb-009-pib-check-digit.xml", tmp_path / "docs")
@@ -173,6 +191,10 @@ def small_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (golden / "documents.yaml").write_text(DOCUMENTS, encoding="utf-8")
     (golden / "explanations.yaml").write_text(EXPLANATIONS, encoding="utf-8")
     (golden / "repairs.yaml").write_text(REPAIRS_GOLDEN, encoding="utf-8")
+    (golden / "extraction.yaml").write_text(EXTRACTION, encoding="utf-8")
+    (golden / "documents").mkdir()
+    for document in DOCUMENTS_DIR.glob(f"{READ_CASE['name']}.*"):
+        shutil.copy(document, golden / "documents")
     if SERVER is not None:
         monkeypatch.setenv("SEF_TEST_DATABASE_URL", SERVER)
     return tmp_path
