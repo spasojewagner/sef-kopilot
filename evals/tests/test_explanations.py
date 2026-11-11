@@ -94,6 +94,32 @@ def test_needs_a_database_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert server_url(tmp_path / ".env") == "postgresql+asyncpg://x@y/z"
 
 
+@pytest.mark.parametrize("value", ["", "  "])
+def test_an_empty_database_server_is_one_not_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    # As .env.example leaves it, and as the API's tests read it: empty is not set.
+    monkeypatch.delenv("SEF_TEST_DATABASE_URL", raising=False)
+    (tmp_path / ".env").write_text(f"SEF_TEST_DATABASE_URL={value}\n")
+    with pytest.raises(DatabaseError, match="SEF_TEST_DATABASE_URL is not set"):
+        server_url(tmp_path / ".env")
+    monkeypatch.setenv("SEF_TEST_DATABASE_URL", value)
+    with pytest.raises(DatabaseError, match="SEF_TEST_DATABASE_URL is not set"):
+        server_url(tmp_path / ".env")
+
+
+def test_a_database_server_that_is_no_url_is_refused_without_repeating_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SEF_TEST_DATABASE_URL", '"not-a-real-password@localhost"')
+    with pytest.raises(DatabaseError) as refused:
+        server_url(tmp_path / ".env")
+    message = str(refused.value)
+    assert message.startswith("SEF_TEST_DATABASE_URL is not a database URL")
+    assert "postgresql+asyncpg://user:password@localhost:5432/postgres" in message
+    assert "not-a-real-password" not in message
+
+
 async def test_a_server_that_is_not_running_is_named_without_its_password(
     tmp_path: Path,
 ) -> None:

@@ -9,6 +9,18 @@ is tagged.
 
 ## [Unreleased]
 
+### Changed
+
+- Roadmap: SEF's error codes, its internal technical instruction and what the demo would
+  confirm move after 1.0; the demo's sign-up takes an eID registration the project does not
+  have.
+
+### Fixed
+
+- `evals`: an empty `SEF_TEST_DATABASE_URL`, as `.env.example` leaves it, is read as not set
+  and says so, as the API's tests read it, instead of failing with SQLAlchemy's traceback;
+  a value that is no database URL is refused without being repeated.
+
 ## [0.6.0] - 2026-11-10
 
 Evaluations, a quality gate and sandbox billing (milestone M6). The validator is measured on

@@ -75,7 +75,7 @@ the system without a green validator.
    it is final. An owner or an accountant sends it from the report's page, an assistant through
    the scope it asks for when it first sends (ADR-0052), an ERP with a key that holds sending
    (ADR-0053). SEF's error codes are to feed back into the same explanation pipeline
-   *(planned: they wait for a SEF demo account)*.
+   *(planned after 1.0: they wait for a SEF demo account)*.
 
 ## Repository map
 

@@ -2896,3 +2896,21 @@ README's roadmap marks M6 done and M7 next.
 Verification: the version checks; each commit checked on its own.
 
 Next: M7, the PDF extraction beta and the SEF items that wait for a demo account.
+
+## 2026-11-11 — `fix/evals-empty-database-url` (2 commits)
+
+Outcome: an empty `SEF_TEST_DATABASE_URL`, as `.env.example` leaves it, is read by the
+evaluations as not set, as the API's tests read it, and a value that is no database URL is
+refused without being repeated. The SEF items that wait for a demo account move after `v1.0.0`,
+at the maintainer's decision: the demo's sign-up takes an eID registration the project does not
+have.
+
+Findings:
+
+- Shipping 0.6.0 on the maintainer's machine stopped on SQLAlchemy's traceback for an empty URL:
+  the terminal of the first recording had named the server, the `.env` never had. The shipping
+  script now names the server from the container it starts, and the runner says what is wrong.
+
+Verification: the runner's tests, the new cases first failing; ruff, mypy.
+
+Next: M7, PDF and picture extraction (beta).
