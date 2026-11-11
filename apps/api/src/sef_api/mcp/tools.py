@@ -4,12 +4,14 @@ HTTP error of the route is the tool's error, in the same words."""
 
 from __future__ import annotations
 
+import base64
+import binascii
 import uuid
 from collections.abc import Iterator, Mapping
 from contextlib import AsyncExitStack, contextmanager
 from datetime import UTC, date, datetime
 from types import MappingProxyType
-from typing import Annotated, Final, cast
+from typing import Annotated, Final, Literal, cast
 
 from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
@@ -24,13 +26,19 @@ from sef_api.auth.dependencies import Principal, check_again
 from sef_api.auth.permissions import Permission
 from sef_api.billing.ledger import NO_CREDITS, CreditTerms, NoCreditsError
 from sef_api.db import Database
+from sef_api.extraction.draft import draft
+from sef_api.extraction.fields import InvoiceFields
+from sef_api.extraction.routes import Extraction, opened, read_by
 from sef_api.invoices import store
 from sef_api.invoices.routes import (
+    MODEL_REQUEST,
+    VALIDATION,
     Explained,
     InvoiceOut,
     InvoicePage,
     RevalidationUnderWayError,
     StoredInvoiceOut,
+    count,
     count_validation,
     explain_stored,
     judged,
@@ -46,7 +54,7 @@ from sef_api.jobs.routes import JobOut, job_out
 from sef_api.jobs.routes import scope as jobs_scope
 from sef_api.llm import Language
 from sef_api.mcp.access import admitted, as_tool_errors
-from sef_api.model_choice import explainer_for
+from sef_api.model_choice import explainer_for, reader_for
 from sef_api.rag.embeddings import Embedder
 from sef_api.rag.explainer import explain_report
 from sef_api.repairs import store as repair_store
@@ -64,8 +72,11 @@ from sef_api.settings import Settings
 
 __all__ = [
     "PERMISSIONS",
+    "Drafted",
+    "draft_invoice",
     "explain_errors",
     "explain_invoice",
+    "extract_from_pdf",
     "get_invoice",
     "get_job",
     "get_repair",
@@ -125,6 +136,26 @@ Reasons = Annotated[
     ),
 ]
 
+DocumentBytes = Annotated[
+    str,
+    Field(
+        min_length=4,
+        description="The document's bytes in base64 (RFC 4648, the standard alphabet): a PDF "
+        "of at most three pages, or a JPEG, PNG or WebP picture of an invoice.",
+    ),
+]
+MediaType = Annotated[
+    Literal["application/pdf", "image/jpeg", "image/png", "image/webp"],
+    Field(description="What the document is, as its first bytes must say."),
+]
+Fields = Annotated[
+    InvoiceFields,
+    Field(
+        description="The invoice's fields as extract_from_pdf answered them, with the person's "
+        "corrections: amounts as 14400.00, dates as 2026-10-05, null for a field left empty."
+    ),
+]
+
 #: The web application's language for each language a tool is asked in.
 _LOCALES: Final[Mapping[Language, str]] = MappingProxyType({"sr": "sr-Latn", "en": "en"})
 
@@ -134,6 +165,15 @@ class SefSubmissions(BaseModel):
     where the invoice stands in SEF, as SEF last said."""
 
     submissions: list[Submission]
+
+
+class Drafted(BaseModel):
+    """A UBL invoice made in code of an invoice's fields."""
+
+    xml: str = Field(
+        description="The UBL 2.1 invoice, or credit note for type code 381, as XML text: give "
+        "it to validate_invoice, explain_errors or store_invoice."
+    )
 
 
 class ProposedFix(BaseModel):
@@ -165,6 +205,8 @@ PERMISSIONS: Final[Mapping[str, Permission]] = MappingProxyType(
         "get_rule": Permission.INVOICES_VALIDATE,
         "send_to_sef_demo": Permission.INVOICES_SEND,
         "get_sef_status": Permission.INVOICES_SUBMIT,
+        "extract_from_pdf": Permission.INVOICES_VALIDATE,
+        "draft_invoice": Permission.INVOICES_VALIDATE,
     }
 )
 
@@ -415,6 +457,48 @@ def register(server: MCPServer) -> None:
             "`Sent`, `Approved`, `Rejected`, and so on, with the buyer's comment in `detail`). "
             "The server asks SEF until the status is final, every minute at first and less "
             "often as the invoice ages; this tool reads what SEF told it, and asks SEF nothing."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+        ),
+    )
+    server.add_tool(
+        extract_from_pdf,
+        name="extract_from_pdf",
+        title="Read an invoice from a PDF or a picture (beta)",
+        description=(
+            "Read the fields of the invoice a PDF or a picture shows, with this server's "
+            "language model that reads pictures: the parties, the dates, the lines, the VAT "
+            "recapitulation, the totals and how to pay, null where the document shows none. "
+            "Beta: the model can misread. Show the person the fields beside their document and "
+            "have them confirm or correct each one before draft_invoice makes an invoice of "
+            "them; never present the fields as checked. The document goes in base64, within "
+            "this server's limit on a request (1 MiB unless its operator set another, so a "
+            "document of about 750 KB: make a photograph smaller first). Nothing is stored, and "
+            "the pictures the model is shown are made anew, without the document's metadata. "
+            "Counts as a request to the language model against the caller's limit and their "
+            "organization's."
+        ),
+        annotations=ToolAnnotations(
+            read_only_hint=True,
+            destructive_hint=False,
+            idempotent_hint=False,
+            open_world_hint=False,
+        ),
+    )
+    server.add_tool(
+        draft_invoice,
+        name="draft_invoice",
+        title="Make a UBL invoice of an invoice's fields (beta)",
+        description=(
+            "Make the UBL 2.1 invoice, or credit note for type code 381, that an invoice's "
+            "fields describe, as extract_from_pdf answers them and the person confirmed or "
+            "corrected them. Written in code, without a model: every element comes from a field, "
+            "or from SRB-CIUS where the profile fixes it, and nothing is computed or filled in, "
+            "so a field left empty leaves its element out and the validator says what is "
+            "missing. Then validate_invoice judges it, explain_errors explains it and "
+            "store_invoice keeps it. Nothing is stored here. Counts as a validation against the "
+            "caller's limit and their organization's."
         ),
         annotations=ToolAnnotations(
             read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
@@ -702,6 +786,46 @@ async def explain_errors(
         unexplained=unexplained,
         written_at=datetime.now(UTC),
     )
+
+
+async def extract_from_pdf(
+    document: DocumentBytes, media_type: MediaType, context: Context
+) -> Extraction:
+    """What ``POST /invoices/extract`` does: the fields the reading model reads from the
+    document, counted as a request to the model; nothing is stored. A server without a model
+    says so before counting, as explain_errors does."""
+    request, caller = admitted(context, Permission.INVOICES_VALIDATE)
+    settings = cast(Settings, request.app.state.settings)
+    database = cast(Database, request.app.state.database)
+    async with (
+        database.sessions() as session,
+        reader_for(request, session, caller.organization_id) as reader,
+    ):
+        if reader is None:
+            raise ToolError("no language model is configured on this server")
+        # The organization's key to a model was this call's database work.
+        await session.commit()
+        with as_tool_errors():
+            count(request, caller, MODEL_REQUEST)
+        try:
+            data = base64.b64decode(document, validate=True)
+        except binascii.Error:
+            raise ToolError("the document is not base64") from None
+        if len(data) > settings.max_document_bytes:
+            raise ToolError(f"the document is larger than {settings.max_document_bytes} bytes")
+        with as_tool_errors():
+            pages = await opened(data, media_type)
+            del data
+            return await read_by(reader, pages, seconds=settings.extraction_seconds)
+
+
+async def draft_invoice(fields: Fields, context: Context) -> Drafted:
+    """What ``POST /invoices/draft`` does: the UBL invoice of ``fields``, written in code,
+    counted as a validation."""
+    request, caller = admitted(context, Permission.INVOICES_VALIDATE)
+    with as_tool_errors():
+        count(request, caller, VALIDATION)
+    return Drafted(xml=draft(fields).decode("utf-8"))
 
 
 async def _validated(

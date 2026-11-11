@@ -69,3 +69,4 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0061](0061-the-evaluations-gate-ci-and-the-badge-reads-the-committed-report.md) | The evaluations gate CI as a job of their own, and the badge reads the committed report | accepted | 2026-11-09 |
 | [0062](0062-invoices-are-read-from-pdfs-and-pictures-into-fields-a-person-confirms.md) | Invoices are read from PDFs and pictures into fields a person confirms, and code writes the UBL | accepted | 2026-11-11 |
 | [0063](0063-the-reading-is-measured-on-invoices-printed-three-ways.md) | The reading is measured on invoices printed three ways, by field, against thresholds | accepted | 2026-11-11 |
+| [0064](0064-an-assistant-sends-a-document-to-be-read-in-base64-within-the-limit-on-messages.md) | An assistant sends a document to be read in base64, within the limit on messages | accepted | 2026-11-11 |

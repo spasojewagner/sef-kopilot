@@ -156,11 +156,11 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## M7 — PDF beta, case study, 1.0 (week 10) · tag `v1.0.0`
 
-- [~] PDF or picture → UBL extraction with a review step, clearly marked beta (pictures added on 2026-11-08 at the maintainer's request; kept after the evaluations, which can measure it), in three branches (ADR-0062):
+- [x] PDF or picture → UBL extraction with a review step, clearly marked beta (pictures added on 2026-11-08 at the maintainer's request; kept after the evaluations, which can measure it), in four branches (ADR-0062 to ADR-0064):
   - [x] `feat/api-invoice-extraction` — the API reads a document into an invoice's fields with a reading model, and drafts the UBL of the fields a person confirms
   - [x] `feat/web-invoice-extraction` — the upload page takes a PDF or a picture, shows it beside the fields read, and makes the invoice of them once corrected
   - [x] `feat/evals-extraction` — the reading measured on PDFs and pictures made from known invoices, against thresholds
-  - [ ] `feat/mcp-extract-invoice` — the brief's `extract_from_pdf` tool: an assistant sends a PDF or a picture and gets the fields read, for the person to check, as the API answers them (found missing from the plan while measuring the reading)
+  - [x] `feat/mcp-extract-invoice` — the brief's `extract_from_pdf` tool: an assistant sends a PDF or a picture and gets the fields read, for the person to check, as the API answers them (found missing from the plan while measuring the reading)
 - [ ] `docs/readme-case-study` — final README (problem, demo GIF, architecture diagram, numbers, how to run, how to self-host), 90-second demo video script, `docs/CASE_STUDY.md`
 - [ ] `chore/release-1.0` — security review pass, `v1.0.0`
 
