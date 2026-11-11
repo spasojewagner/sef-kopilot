@@ -10,7 +10,7 @@ UV      ?= uv
 PNPM    ?= pnpm
 COMPOSE ?= docker compose --project-directory . -f infra/docker-compose.yml
 
-.PHONY: help setup sync lint format typecheck test test-core test-api test-web e2e api worker web build-web rulesets rulesets-check fixtures evals evals-check evals-record openapi corpus corpus-check ingest rotate-sef-keys grant-credits migrate up down logs psql clean
+.PHONY: help setup sync lint format typecheck test test-core test-api test-web e2e demo-gif api worker web build-web rulesets rulesets-check fixtures evals evals-check evals-record openapi corpus corpus-check ingest rotate-sef-keys grant-credits migrate up down logs psql clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -58,6 +58,18 @@ test-web: ## Vitest suite for apps/web
 # `pnpm --filter @sef-kopilot/web exec playwright install chromium`; so `make test` leaves it out.
 e2e: ## End-to-end smoke test of the golden path in a browser (Playwright)
 	$(PNPM) --filter @sef-kopilot/web e2e
+
+# The README's demo: the same golden path walked at a person's pace against the same API, its
+# frames recorded by Chromium (apps/web/playwright.demo.config.ts), then made into a GIF of 128
+# colours that keeps only what changes from frame to frame. Needs what `make e2e` needs, and
+# ffmpeg and gifsicle; the GIF is committed, so run it after the pages it shows change.
+DEMO := apps/web/test-results/demo
+demo-gif: ## Record the golden path and write docs/demo/golden-path.gif (needs ffmpeg, gifsicle)
+	$(PNPM) --filter @sef-kopilot/web demo
+	ffmpeg -y -loglevel error -f concat -i $(DEMO)/frames.txt -fps_mode vfr -loop 0 \
+		-vf "split[a][b];[a]palettegen=max_colors=128:stats_mode=full[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" \
+		$(DEMO)/golden-path.gif
+	gifsicle -O3 --lossy=20 $(DEMO)/golden-path.gif -o docs/demo/golden-path.gif
 
 api: ## Run the API locally with auto-reload (http://127.0.0.1:8000/docs)
 	$(UV) run uvicorn sef_api.main:create_app --factory --reload
