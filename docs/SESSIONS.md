@@ -3010,3 +3010,24 @@ the scans', 99.8 % of the photographs', 1.9 % invented, and all thirty documents
 
 Next: the brief's MCP tool `extract_from_pdf` (`feat/mcp-extract-invoice`), then the README
 case study.
+
+## 2026-11-11 — `feat/mcp-extract-invoice` (3 commits, stacked on `feat/evals-extraction`)
+
+Outcome: the brief's MCP tool `extract_from_pdf`, and `draft_invoice` beside it (ADR-0064). An
+assistant sends a PDF or a picture in base64 and gets the fields the reading model read, as
+`POST /invoices/extract` answers them; once the person confirmed them, `draft_invoice` makes
+the UBL, as `POST /invoices/draft` does, for `validate_invoice` or `store_invoice`. The
+route's two steps, opening a document and reading it, were split out first, so that the tool
+shares them and answers the same errors in the same words.
+
+Findings:
+
+- The brief named `extract_from_pdf` among M7's tools, and the plan had left it out; it was
+  found while measuring the reading.
+- The endpoint's limit on messages (1 MiB) holds a document of about 750 KB in base64; it is
+  kept, since raising it would raise it for every tool, and a photograph is made smaller first.
+
+Verification: the MCP tests, the new ones and the audit that every tool requires its
+permission; the extraction route's tests after the split; ruff, mypy.
+
+Next: the README case study (`docs/readme-case-study`), then the release of 1.0.

@@ -117,3 +117,4 @@ per branch, to keep them with the code they describe.
 | `feat/api-invoice-extraction` | [m7-api-invoice-extraction.md](m7-api-invoice-extraction.md) |
 | `feat/web-invoice-extraction` | [m7-web-invoice-extraction.md](m7-web-invoice-extraction.md) |
 | `feat/evals-extraction` | [m7-evals-extraction.md](m7-evals-extraction.md) |
+| `feat/mcp-extract-invoice` | [m7-mcp-extract-invoice.md](m7-mcp-extract-invoice.md) |

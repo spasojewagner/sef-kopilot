@@ -32,6 +32,10 @@ is tagged.
   invoice has them, per form; the fields it leaves empty that the reading filled in; and the
   documents read into an invoice the validator accepts; held to thresholds, with the reading
   model's answers recorded once and replayed, each picture named by its document (ADR-0063).
+- `apps/api` (beta): the MCP tools `extract_from_pdf`, which reads a PDF or a picture sent in
+  base64 (within the 1 MiB limit on messages, about 750 KB) as `POST /invoices/extract` does,
+  and `draft_invoice`, which makes the UBL of the fields the person confirmed as
+  `POST /invoices/draft` does; both need `invoices:validate` (ADR-0064).
 
 ### Changed
 
