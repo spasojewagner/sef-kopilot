@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { SYNTHETIC_INVOICES_URL } from "@/lib/links";
 import { healthQuery, invoiceQuery, invoicesQuery } from "@/lib/queries";
 import { json, keepSession, stubApi } from "@/test/api";
+import { extraction } from "@/test/extraction";
 import { storedInvoice } from "@/test/invoices";
 import { renderIn, testQueryClient } from "@/test/render";
 
@@ -32,7 +33,7 @@ const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 async function upload(profile?: string, content = XML) {
   const user = userEvent.setup();
   await user.upload(
-    screen.getByLabelText("Faktura (UBL 2.1 XML)"),
+    screen.getByLabelText("Faktura (XML, PDF ili slika)"),
     new File([content], "faktura.xml", { type: "text/xml" }),
   );
   if (profile) {
@@ -96,12 +97,11 @@ describe("Invoice upload", () => {
       .click(screen.getByRole("button", { name: "Proveri i sačuvaj" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Izaberite fakturu u XML-u.",
+      "Izaberite fakturu: XML, PDF ili sliku.",
     );
-    expect(screen.getByLabelText("Faktura (UBL 2.1 XML)")).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
+    expect(
+      screen.getByLabelText("Faktura (XML, PDF ili slika)"),
+    ).toHaveAttribute("aria-invalid", "true");
     expect(asked).toEqual([]);
   });
 
@@ -113,62 +113,133 @@ describe("Invoice upload", () => {
     await upload(undefined, "");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Izaberite fakturu u XML-u.",
+      "Izaberite fakturu: XML, PDF ili sliku.",
     );
     expect(asked).toEqual([]);
   });
 
-  it("tells a picture of an invoice from the invoice, and sends nothing", async () => {
+  it("reads a picture of an invoice, and shows its fields beside it", async () => {
+    keepSession();
+    const asked = stubApi(() => json(200, extraction()));
+    const made = vi.fn(() => "blob:racun");
+    const given = vi.fn();
+    vi.stubGlobal(
+      "URL",
+      Object.assign(URL, { createObjectURL: made, revokeObjectURL: given }),
+    );
+    renderIn("sr-Latn", <InvoiceUpload />);
+    const user = userEvent.setup({ applyAccept: false });
+    const picture = new File([PNG], "racun.png", { type: "image/png" });
+
+    await user.upload(
+      screen.getByLabelText("Faktura (XML, PDF ili slika)"),
+      picture,
+    );
+    await user.selectOptions(screen.getByLabelText("Profil"), "en16931");
+    await user.click(screen.getByRole("button", { name: "Proveri i sačuvaj" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Pročitano sa slike" }),
+    ).toBeInTheDocument();
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toMatchObject({
+      method: "POST",
+      path: "/invoices/extract",
+    });
+    expect(asked[0].headers.get("Content-Type")).toBe("image/png");
+    expect(asked[0].body).toBe(picture);
+    expect(made).toHaveBeenCalledWith(picture);
+    expect(screen.getByRole("img")).toHaveAttribute("src", "blob:racun");
+
+    await user.click(screen.getByRole("button", { name: "Odustani" }));
+
+    expect(
+      screen.getByLabelText("Faktura (XML, PDF ili slika)"),
+    ).toBeInTheDocument();
+    expect(given).toHaveBeenCalledWith("blob:racun");
+  });
+
+  it("says the model is reading while it reads, and reads one document at a time", async () => {
+    keepSession();
+    let answer: (response: Response) => void = () => undefined;
+    stubApi(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    renderIn("en", <InvoiceUpload />);
+    const user = userEvent.setup({ applyAccept: false });
+
+    await user.upload(
+      screen.getByLabelText("Invoice (XML, PDF or picture)"),
+      new File(["%PDF-1.7"], "invoice.pdf", { type: "application/pdf" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Check and keep" }));
+
+    expect(
+      await screen.findByRole("button", {
+        name: "The model is reading the document…",
+      }),
+    ).toBeDisabled();
+    answer(
+      json(503, { detail: "no language model is configured on this server" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No language model is set up on this server, so documents are not read.",
+    );
+  });
+
+  it("refuses a picture in a format that is not read, and sends the XML chosen next", async () => {
     keepSession();
     const asked = stubApi(() => json(201, storedInvoice()));
     renderIn("sr-Latn", <InvoiceUpload />);
-    // The file picker offers XML files, but lets a person choose any other.
     const user = userEvent.setup({ applyAccept: false });
-
-    await user.upload(
-      screen.getByLabelText("Faktura (UBL 2.1 XML)"),
-      new File([PNG], "racun.png", { type: "image/png" }),
-    );
-    await user.click(screen.getByRole("button", { name: "Proveri i sačuvaj" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Izabrali ste sliku. SEF Kopilot proverava samu e-fakturu, XML (UBL 2.1) koji se šalje SEF-u, a ne njenu sliku. Slika nije poslata: preuzmite XML iz SEF-a ili iz programa u kom je faktura izdata.",
-    );
-    expect(screen.getByLabelText("Faktura (UBL 2.1 XML)")).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
-    expect(asked).toEqual([]);
-  });
-
-  it("tells a PDF of one too, and sends the XML chosen next", async () => {
-    keepSession();
-    const asked = stubApi(() => json(201, storedInvoice()));
-    renderIn("en", <InvoiceUpload />);
-    const user = userEvent.setup({ applyAccept: false });
-    const file = screen.getByLabelText("Invoice (UBL 2.1 XML)");
-    const send = screen.getByRole("button", { name: "Check and keep" });
+    const file = screen.getByLabelText("Faktura (XML, PDF ili slika)");
+    const send = screen.getByRole("button", { name: "Proveri i sačuvaj" });
 
     await user.upload(
       file,
-      new File(["%PDF-1.7"], "invoice.pdf", { type: "application/pdf" }),
+      new File([PNG], "racun.heic", { type: "image/heic" }),
     );
     await user.click(send);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "You chose a PDF. SEF Kopilot checks the e-invoice itself, the XML (UBL 2.1) that is sent to SEF, not a PDF of it. The PDF was not sent: download the XML from SEF or from the program the invoice was issued in.",
+      "Ovaj format slike se ne čita: izaberite JPEG, PNG, WebP sliku ili PDF.",
     );
+    expect(file).toHaveAttribute("aria-invalid", "true");
     expect(asked).toEqual([]);
 
     await user.upload(
       file,
-      new File([XML], "invoice.xml", { type: "text/xml" }),
+      new File([XML], "faktura.xml", { type: "text/xml" }),
     );
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(file).not.toHaveAttribute("aria-invalid");
     await user.click(send);
     await waitFor(() => expect(asked).toHaveLength(1));
+    expect(asked[0].path).toBe("/invoices");
+  });
+
+  it("refuses a document larger than the API reads, before sending it", async () => {
+    keepSession();
+    const asked = stubApi(() => json(200, extraction()));
+    renderIn("sr-Latn", <InvoiceUpload />);
+    const user = userEvent.setup({ applyAccept: false });
+    const large = new File([PNG], "racun.jpg", { type: "image/jpeg" });
+    Object.defineProperty(large, "size", { value: 11 * 1024 * 1024 });
+
+    await user.upload(
+      screen.getByLabelText("Faktura (XML, PDF ili slika)"),
+      large,
+    );
+    await user.click(screen.getByRole("button", { name: "Proveri i sačuvaj" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Dokument je veći od 10 MB: izaberite manju sliku ili PDF.",
+    );
+    expect(asked).toEqual([]);
   });
 
   it("sends one invoice at a time", async () => {
@@ -226,7 +297,7 @@ describe("Invoice upload on a public demo", () => {
     const note = screen.getByRole("note");
     expect(note).toHaveTextContent("Javni demo: samo sintetičke fakture");
     expect(note).toHaveTextContent(
-      "Ono što otpremite čuva se na ovom serveru, a objašnjenja i popravke šalju poruke pravila i polja fakture dobavljaču jezičkog modela. Ne otpremajte pravu fakturu: uzmite neku od sintetičkih, sa izmišljenim firmama i PIB-ovima.",
+      "Ono što otpremite čuva se na ovom serveru; PDF ili slika koju date na čitanje šalje se cela dobavljaču jezičkog modela, a objašnjenja i popravke mu šalju poruke pravila i polja fakture. Ne otpremajte pravu fakturu: uzmite neku od sintetičkih, sa izmišljenim firmama i PIB-ovima.",
     );
     expect(
       screen.getByRole("link", { name: "neku od sintetičkih" }),

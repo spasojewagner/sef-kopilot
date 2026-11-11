@@ -115,3 +115,4 @@ per branch, to keep them with the code they describe.
 | `chore/release-0.6.0` | [m6-release-0.6.0.md](m6-release-0.6.0.md) |
 | `fix/evals-empty-database-url` | [m7-fix-evals-empty-database-url.md](m7-fix-evals-empty-database-url.md) |
 | `feat/api-invoice-extraction` | [m7-api-invoice-extraction.md](m7-api-invoice-extraction.md) |
+| `feat/web-invoice-extraction` | [m7-web-invoice-extraction.md](m7-web-invoice-extraction.md) |

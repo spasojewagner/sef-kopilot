@@ -109,7 +109,9 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
 
   await test.step("uploads an invoice, which the validator finds invalid", async () => {
     await page.getByRole("link", { name: "Proverite fakturu" }).click();
-    await page.getByLabel("Faktura (UBL 2.1 XML)").setInputFiles(INVOICE);
+    await page
+      .getByLabel("Faktura (XML, PDF ili slika)")
+      .setInputFiles(INVOICE);
     await page.getByRole("button", { name: "Proveri i sačuvaj" }).click();
 
     await expect(page).toHaveURL(new RegExp(`/sr-Latn/invoices/${UUID}$`));

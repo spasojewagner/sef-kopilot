@@ -2938,3 +2938,28 @@ Verification: the new tests first failing; the API's suite with PostgreSQL, Redi
 
 Next: the web application's side, the upload page that reads a PDF or a picture and shows it
 beside the fields (`feat/web-invoice-extraction`).
+
+## 2026-11-11 — `feat/web-invoice-extraction` (5 commits, stacked on `feat/api-invoice-extraction`)
+
+Outcome: the upload page reads a PDF or a picture of an invoice (ADR-0062, beta). The API's
+model reads the fields; the page shows them beside the document, every one editable, the ones
+SEF cannot do without and the model did not find named and marked; the visitor corrects them
+and has the invoice made of them, stored, validated and opened on its report, or downloads its
+XML. Nothing is stored before that, and the document stays in the page.
+
+Findings:
+
+- The document has to stay in view while the fields are checked: on a wide screen it sticks
+  beside them, below the header, and on a phone it opens at its full size in a tab.
+- A browser without a PDF viewer of its own (a phone's, a headless one) shows what is inside
+  the `<object>`: it is drawn as a notice with a link, not left as a bare one.
+- The VAT categories' names are long: the category takes two thirds of a line's width beside
+  its rate, so none is cut off. The fields set amounts in proportional figures; in tabular
+  ones the font's narrow 1 leaves a gap that reads as a space.
+
+Verification: the web application's suite (Vitest), ESLint, `tsc` and Prettier at every
+commit; the pages walked in Chromium against the API with a stand-in
+model, in Serbian and English, light and dark, on a desktop and a phone.
+
+Next: the reading measured on PDFs, scans and photographs made from known invoices, against
+thresholds (`feat/evals-extraction`).

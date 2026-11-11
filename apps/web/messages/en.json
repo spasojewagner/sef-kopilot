@@ -150,18 +150,19 @@
     "more": "Show more"
   },
   "upload": {
-    "file": "Invoice (UBL 2.1 XML)",
-    "fileHint": "An invoice or a credit note in XML, as you send it to SEF.",
-    "missing": "Choose an invoice in XML.",
-    "picture": "You chose a picture. SEF Kopilot checks the e-invoice itself, the XML (UBL 2.1) that is sent to SEF, not a picture of it. The picture was not sent: download the XML from SEF or from the program the invoice was issued in.",
-    "pdf": "You chose a PDF. SEF Kopilot checks the e-invoice itself, the XML (UBL 2.1) that is sent to SEF, not a PDF of it. The PDF was not sent: download the XML from SEF or from the program the invoice was issued in.",
+    "file": "Invoice (XML, PDF or picture)",
+    "fileHint": "An invoice or a credit note in XML (UBL 2.1), as you send it to SEF; or a PDF or a picture of one, which a model reads for you to check (beta).",
+    "missing": "Choose an invoice: XML, a PDF or a picture.",
     "profile": "Profile",
     "submit": "Check and keep",
     "pending": "Checking…",
     "demo": {
       "title": "A public demo: synthetic invoices only",
-      "description": "What you upload is stored on this server, and explanations and repairs send the rules' messages and the invoice's fields to the language model's provider. Do not upload a real invoice: take <examples>one of the synthetic ones</examples>, with made-up companies and tax numbers."
-    }
+      "description": "What you upload is stored on this server; a PDF or a picture you have read is sent whole to the language model's provider, and explanations and repairs send it the rules' messages and the invoice's fields. Do not upload a real invoice: take <examples>one of the synthetic ones</examples>, with made-up companies and tax numbers."
+    },
+    "unreadable": "This picture's format is not read: choose a JPEG, a PNG, a WebP picture or a PDF.",
+    "tooLarge": "The document is larger than 10 MB: choose a smaller picture or PDF.",
+    "reading": "The model is reading the document…"
   },
   "uploadErrors": {
     "signedOut": "The session has expired. Sign in again.",
@@ -662,5 +663,117 @@
   "apiWaking": {
     "title": "The API is waking up",
     "description": "A server that has been idle for a while takes about a minute to wake. Whatever you send waits, and goes as soon as it answers."
+  },
+  "reading": {
+    "title": "{kind, select, pdf {Read from a PDF} other {Read from a picture}}",
+    "beta": "beta",
+    "model": "Read by {model}",
+    "check": "Check every field against the document and correct it. The model can misread, and an empty field is one it did not find. Nothing is kept until you make the invoice.",
+    "missingTitle": "Missing what SEF needs",
+    "missingList": "Fill in: {fields}.",
+    "document": "The document",
+    "documentAlt": "The document the fields were read from",
+    "openPdf": "Open the PDF in a new tab",
+    "pdfNotShown": "This browser does not show a PDF within the page.",
+    "sections": {
+      "invoice": "Invoice",
+      "seller": "Seller",
+      "buyer": "Buyer",
+      "lines": "Lines",
+      "vat": "VAT recapitulation",
+      "totals": "Totals",
+      "payment": "Payment"
+    },
+    "fields": {
+      "type_code": "Document",
+      "number": "Number",
+      "issue_date": "Issue date",
+      "due_date": "Due date",
+      "delivery_date": "Date of supply",
+      "currency": "Currency",
+      "buyer_reference": "Buyer's reference (order number)",
+      "name": "Name",
+      "tax_id": "PIB (tax number)",
+      "company_id": "Registration number (MB)",
+      "street": "Street and number",
+      "city": "City",
+      "postal_code": "Postal code",
+      "country": "Country",
+      "email": "Email",
+      "seller_in_vat_register": "In the VAT register",
+      "item": "Item",
+      "quantity": "Quantity",
+      "unit": "Unit",
+      "unit_price": "Price without VAT",
+      "net_amount": "Amount without VAT",
+      "vat_category": "VAT category",
+      "vat_rate": "VAT rate (%)",
+      "taxable_amount": "Taxable amount",
+      "tax_amount": "VAT",
+      "line_total": "Sum of the lines",
+      "tax_exclusive": "Total without VAT",
+      "tax": "Total VAT",
+      "tax_inclusive": "Total with VAT",
+      "prepaid": "Paid in advance",
+      "payable": "Amount due",
+      "account": "Bank account",
+      "model": "Payment model",
+      "reference": "Payment reference"
+    },
+    "hints": {
+      "date": "YYYY-MM-DD",
+      "amount": "e.g. 14400.00",
+      "unit": "a code, e.g. H87 for a piece",
+      "country": "a code, e.g. RS"
+    },
+    "types": {
+      "380": "Invoice (380)",
+      "386": "Advance invoice (386)",
+      "381": "Credit note (381)",
+      "383": "Debit note (383)"
+    },
+    "notRead": "Not read",
+    "registered": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "categories": {
+      "S": "S — VAT charged",
+      "AE": "AE — reverse charge",
+      "Z": "Z — exempt, input VAT deductible",
+      "E": "E — exempt, input VAT not deductible",
+      "R": "R — excluded from VAT",
+      "O": "O — not subject to VAT",
+      "OE": "OE — not subject to VAT (second list)",
+      "SS": "SS — special procedure",
+      "N": "N — annulment"
+    },
+    "line": "Line {number}",
+    "addLine": "Add a line",
+    "removeLine": "Remove line {number}",
+    "noLines": "The model read no line.",
+    "vatRow": "Row {number}",
+    "addVat": "Add a row",
+    "removeVat": "Remove row {number}",
+    "noVat": "The model read no VAT recapitulation.",
+    "make": "Make the invoice and check it",
+    "making": "Making the invoice…",
+    "download": "Download the XML",
+    "discard": "Discard",
+    "draftRefused": "A field is not in the form asked for: a date as 2026-10-05, an amount as 14400.00, codes in capitals."
+  },
+  "readingErrors": {
+    "signedOut": "The session has expired. Sign in again.",
+    "forbidden": "You may not check invoices.",
+    "tooSlow": "The document was not received in time. Try again.",
+    "tooLarge": "The document is too large: 10 MB and three pages at most.",
+    "notDocument": "Send a PDF, or a JPEG, PNG or WebP picture.",
+    "unreadable": "The document could not be read: it is damaged, protected by a password, or the model found no invoice in it.",
+    "tooMany": "Too many readings. Try again in {seconds} s.",
+    "modelAway": "The language model did not answer. Try again.",
+    "noModel": "No language model is set up on this server, so documents are not read.",
+    "modelSlow": "The model did not read the document in time. Try a smaller picture or PDF.",
+    "unreachable": "The API is not answering. Try again a little later.",
+    "failed": "The document was not read. Try again."
   }
 }

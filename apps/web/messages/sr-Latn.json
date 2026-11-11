@@ -150,18 +150,19 @@
     "more": "Prikaži još"
   },
   "upload": {
-    "file": "Faktura (UBL 2.1 XML)",
-    "fileHint": "Faktura ili knjižno odobrenje u XML-u, kako ga šaljete SEF-u.",
-    "missing": "Izaberite fakturu u XML-u.",
-    "picture": "Izabrali ste sliku. SEF Kopilot proverava samu e-fakturu, XML (UBL 2.1) koji se šalje SEF-u, a ne njenu sliku. Slika nije poslata: preuzmite XML iz SEF-a ili iz programa u kom je faktura izdata.",
-    "pdf": "Izabrali ste PDF. SEF Kopilot proverava samu e-fakturu, XML (UBL 2.1) koji se šalje SEF-u, a ne njen PDF. PDF nije poslat: preuzmite XML iz SEF-a ili iz programa u kom je faktura izdata.",
+    "file": "Faktura (XML, PDF ili slika)",
+    "fileHint": "Faktura ili knjižno odobrenje u XML-u (UBL 2.1), kako ga šaljete SEF-u; ili PDF ili slika fakture, koju model pročita da biste je proverili (beta).",
+    "missing": "Izaberite fakturu: XML, PDF ili sliku.",
     "profile": "Profil",
     "submit": "Proveri i sačuvaj",
     "pending": "Provera…",
     "demo": {
       "title": "Javni demo: samo sintetičke fakture",
-      "description": "Ono što otpremite čuva se na ovom serveru, a objašnjenja i popravke šalju poruke pravila i polja fakture dobavljaču jezičkog modela. Ne otpremajte pravu fakturu: uzmite <examples>neku od sintetičkih</examples>, sa izmišljenim firmama i PIB-ovima."
-    }
+      "description": "Ono što otpremite čuva se na ovom serveru; PDF ili slika koju date na čitanje šalje se cela dobavljaču jezičkog modela, a objašnjenja i popravke mu šalju poruke pravila i polja fakture. Ne otpremajte pravu fakturu: uzmite <examples>neku od sintetičkih</examples>, sa izmišljenim firmama i PIB-ovima."
+    },
+    "unreadable": "Ovaj format slike se ne čita: izaberite JPEG, PNG, WebP sliku ili PDF.",
+    "tooLarge": "Dokument je veći od 10 MB: izaberite manju sliku ili PDF.",
+    "reading": "Model čita dokument…"
   },
   "uploadErrors": {
     "signedOut": "Sesija je istekla. Prijavite se ponovo.",
@@ -662,5 +663,117 @@
   "apiWaking": {
     "title": "API se budi",
     "description": "Server koji je neko vreme mirovao budi se za oko minut. Ono što pošaljete sačekaće i otići čim odgovori."
+  },
+  "reading": {
+    "title": "{kind, select, pdf {Pročitano iz PDF-a} other {Pročitano sa slike}}",
+    "beta": "beta",
+    "model": "Pročitao: {model}",
+    "check": "Proverite svako polje prema dokumentu i ispravite ga. Model može da pogreši, a prazno polje znači da ga nije našao. Ništa nije sačuvano dok ne napravite fakturu.",
+    "missingTitle": "Nedostaje ono bez čega SEF ne prima fakturu",
+    "missingList": "Popunite: {fields}.",
+    "document": "Dokument",
+    "documentAlt": "Dokument iz koga su polja pročitana",
+    "openPdf": "Otvorite PDF u novoj kartici",
+    "pdfNotShown": "Ovaj pregledač ne prikazuje PDF na stranici.",
+    "sections": {
+      "invoice": "Faktura",
+      "seller": "Prodavac",
+      "buyer": "Kupac",
+      "lines": "Stavke",
+      "vat": "Rekapitulacija PDV-a",
+      "totals": "Ukupno",
+      "payment": "Plaćanje"
+    },
+    "fields": {
+      "type_code": "Vrsta dokumenta",
+      "number": "Broj",
+      "issue_date": "Datum izdavanja",
+      "due_date": "Rok plaćanja",
+      "delivery_date": "Datum prometa",
+      "currency": "Valuta",
+      "buyer_reference": "Referenca kupca (broj narudžbenice)",
+      "name": "Naziv",
+      "tax_id": "PIB",
+      "company_id": "Matični broj",
+      "street": "Ulica i broj",
+      "city": "Mesto",
+      "postal_code": "Poštanski broj",
+      "country": "Država",
+      "email": "E-pošta",
+      "seller_in_vat_register": "U sistemu PDV-a",
+      "item": "Naziv",
+      "quantity": "Količina",
+      "unit": "Jedinica",
+      "unit_price": "Cena bez PDV-a",
+      "net_amount": "Iznos bez PDV-a",
+      "vat_category": "Kategorija PDV-a",
+      "vat_rate": "Stopa PDV-a (%)",
+      "taxable_amount": "Osnovica",
+      "tax_amount": "PDV",
+      "line_total": "Zbir stavki",
+      "tax_exclusive": "Ukupno bez PDV-a",
+      "tax": "Ukupan PDV",
+      "tax_inclusive": "Ukupno sa PDV-om",
+      "prepaid": "Plaćeno avansom",
+      "payable": "Za plaćanje",
+      "account": "Tekući račun",
+      "model": "Model",
+      "reference": "Poziv na broj"
+    },
+    "hints": {
+      "date": "GGGG-MM-DD",
+      "amount": "npr. 14400.00",
+      "unit": "kod, npr. H87 za komad",
+      "country": "kod, npr. RS"
+    },
+    "types": {
+      "380": "Račun (380)",
+      "386": "Avansni račun (386)",
+      "381": "Knjižno odobrenje (381)",
+      "383": "Knjižno zaduženje (383)"
+    },
+    "notRead": "Nije pročitano",
+    "registered": {
+      "yes": "Da",
+      "no": "Ne"
+    },
+    "categories": {
+      "S": "S — PDV se obračunava",
+      "AE": "AE — obrnuto obračunavanje",
+      "Z": "Z — oslobođeno sa pravom na odbitak",
+      "E": "E — oslobođeno bez prava na odbitak",
+      "R": "R — izuzeto od PDV-a",
+      "O": "O — nije predmet PDV-a",
+      "OE": "OE — nije predmet PDV-a (druga lista)",
+      "SS": "SS — poseban postupak",
+      "N": "N — anuliranje"
+    },
+    "line": "Stavka {number}",
+    "addLine": "Dodaj stavku",
+    "removeLine": "Ukloni stavku {number}",
+    "noLines": "Model nije pročitao nijednu stavku.",
+    "vatRow": "Red {number}",
+    "addVat": "Dodaj red",
+    "removeVat": "Ukloni red {number}",
+    "noVat": "Model nije pročitao rekapitulaciju PDV-a.",
+    "make": "Napravi fakturu i proveri",
+    "making": "Pravim fakturu…",
+    "download": "Preuzmi XML",
+    "discard": "Odustani",
+    "draftRefused": "Neko polje nije u obliku koji se traži: datum kao 2026-10-05, iznos kao 14400.00, kodovi velikim slovima."
+  },
+  "readingErrors": {
+    "signedOut": "Sesija je istekla. Prijavite se ponovo.",
+    "forbidden": "Nemate dozvolu da proveravate fakture.",
+    "tooSlow": "Dokument nije primljen na vreme. Pokušajte ponovo.",
+    "tooLarge": "Dokument je prevelik: najviše 10 MB i tri strane.",
+    "notDocument": "Pošaljite PDF, ili JPEG, PNG ili WebP sliku.",
+    "unreadable": "Dokument nije mogao da se pročita: oštećen je, zaštićen lozinkom, ili model u njemu nije našao fakturu.",
+    "tooMany": "Previše čitanja. Pokušajte ponovo za {seconds} s.",
+    "modelAway": "Jezički model nije odgovorio. Pokušajte ponovo.",
+    "noModel": "Na ovom serveru nije podešen jezički model, pa se dokumenti ne čitaju.",
+    "modelSlow": "Model nije stigao da pročita dokument. Pokušajte sa manjom slikom ili PDF-om.",
+    "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
+    "failed": "Dokument nije pročitan. Pokušajte ponovo."
   }
 }

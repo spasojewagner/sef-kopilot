@@ -15,10 +15,15 @@ const LOCAL_API_URL = "http://127.0.0.1:8000";
 export const REQUEST_TIMEOUT_MS = 10_000;
 
 /**
- * A request; how long it may take when that is not {@link REQUEST_TIMEOUT_MS}; and whether it
- * waits first while a sleeping API wakes (`wake`, by default), as every request of a page does.
+ * A request; how long it may take when that is not {@link REQUEST_TIMEOUT_MS}; whether it
+ * waits first while a sleeping API wakes (`wake`, by default), as every request of a page does;
+ * and whether its answer is read as text (`text`), an XML document say, rather than as JSON.
  */
-export type ApiRequest = RequestInit & { timeoutMs?: number; wake?: boolean };
+export type ApiRequest = RequestInit & {
+  timeoutMs?: number;
+  wake?: boolean;
+  text?: boolean;
+};
 
 /** The address of `path` on the API, as the build was given it in `NEXT_PUBLIC_API_URL`. */
 export function apiUrl(path: string): string {
@@ -114,6 +119,7 @@ export async function request<T>(
     headers,
     timeoutMs = REQUEST_TIMEOUT_MS,
     wake = true,
+    text = false,
     ...init
   }: ApiRequest = {},
 ): Promise<T> {
@@ -158,6 +164,9 @@ export async function request<T>(
     if (response.status === 204) {
       // No content: a sign-out, a deletion.
       return undefined as T;
+    }
+    if (text) {
+      return (await response.text()) as T;
     }
     return (await response.json()) as T;
   } finally {
