@@ -114,3 +114,4 @@ per branch, to keep them with the code they describe.
 | `ci/evals-gate` | [m6-ci-evals-gate.md](m6-ci-evals-gate.md) |
 | `chore/release-0.6.0` | [m6-release-0.6.0.md](m6-release-0.6.0.md) |
 | `fix/evals-empty-database-url` | [m7-fix-evals-empty-database-url.md](m7-fix-evals-empty-database-url.md) |
+| `feat/api-invoice-extraction` | [m7-api-invoice-extraction.md](m7-api-invoice-extraction.md) |

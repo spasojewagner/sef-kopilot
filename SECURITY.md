@@ -165,7 +165,13 @@ system are marked as such.
 
 - [x] XML uploads: a size limit counted while the body is read (413), the media type checked
       (415), and the content judged by the hardened parser, never by the declared type.
-- [ ] The same for PDF uploads (M7).
+- [x] PDFs and pictures to read an invoice from (ADR-0062): a size limit counted while the body
+      is read (413), the media type checked (415) and held to the document's first bytes (422),
+      at most three pages and 40 million pixels (413, a picture's refused from its header
+      before it is decoded). PDFium opens a PDF without running a script or fetching anything;
+      Pillow opens JPEG, PNG and WebP only. Each page is drawn anew as JPEG, so a photograph's
+      metadata (where it was taken) is never sent on; tested with a GPS position. PDFium serves
+      one thread at a time, under a lock, in a worker thread.
 - [x] Uploaded files are stored outside the web root (or not stored at all in no-store mode)
       and referenced by opaque ids: a stored invoice is a database row named by a random UUID,
       and its document is served back only as an attachment with `nosniff`.
@@ -349,7 +355,9 @@ system are marked as such.
       can quote a document, go to the null device (tested on the file descriptors); where that
       device cannot be opened, a log warning says that they reach the standard error instead.
 - [x] No-store mode: `POST /invoices/validate` and `POST /invoices/explain` keep the invoice
-      in memory for the length of the request, and tests check that they leave no row behind.
+      in memory for the length of the request, and tests check that they leave no row behind;
+      so do `POST /invoices/extract`, which keeps a PDF or a picture only while the model reads
+      it and logs nothing of it (tested with a marked document), and `POST /invoices/draft`.
       Explaining logs the rules, the model and the number of answers, never a message (tested
       with a message that quotes the invoice); so does a repair the model proposes, which logs
       the number of patches, rounds and answers, never a field, a value or a reason (tested).

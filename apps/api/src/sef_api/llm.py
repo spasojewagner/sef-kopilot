@@ -15,6 +15,10 @@ provider is the one the settings name:
 ``SEF_LLM_MODEL`` names another model of the provider. Each is asked for structured outputs, which
 hold an answer to the schema while it is written (ADR-0057).
 
+A message may show the model pictures as well as text: the pages of a PDF or the photograph of an
+invoice, which the reading model reads into an invoice's fields (ADR-0062). Each provider names
+the model that reads them (:attr:`_HTTPClient.READING_MODEL`), ``SEF_EXTRACTION_MODEL`` another.
+
 The model is never trusted. Whoever asks it parses and checks the answer: the explainer checks
 every citation against the passages it gave, the repairer every patch before code applies it.
 What is sent may quote an invoice, so an error says what went wrong, never what the
@@ -24,6 +28,7 @@ conversation was.
 from __future__ import annotations
 
 import asyncio
+import base64
 from collections.abc import Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -46,9 +51,11 @@ __all__ = [
     "Language",
     "Message",
     "OpenAIClient",
+    "Picture",
     "client_for",
     "last_usage",
     "llm_for",
+    "reading_llm_for",
 ]
 
 #: The languages a model writes in for people: Serbian in the Latin script, or English.
@@ -70,11 +77,25 @@ class LLMError(Exception):
 
 
 @dataclass(frozen=True)
+class Picture:
+    """A picture shown to a model: its bytes, encoded as its media type says."""
+
+    media_type: Literal["image/jpeg", "image/png"]
+    data: bytes
+
+    @property
+    def data_url(self) -> str:
+        """The picture as a ``data:`` URL, as chat completions take it."""
+        return f"data:{self.media_type};base64,{base64.b64encode(self.data).decode('ascii')}"
+
+
+@dataclass(frozen=True)
 class Message:
-    """One turn of a conversation with a model."""
+    """One turn of a conversation with a model, with the pictures it shows, if any."""
 
     role: Literal["system", "user", "assistant"]
     content: str
+    pictures: tuple[Picture, ...] = ()
 
 
 class LLMClient(Protocol):
@@ -116,6 +137,9 @@ class _HTTPClient:
     NAME: ClassVar[str]
     PREFIX: ClassVar[str]
     MODEL: ClassVar[str]
+    #: The model that reads pictures, unless ``SEF_EXTRACTION_MODEL`` names another: the
+    #: provider's default where it reads them.
+    READING_MODEL: ClassVar[str]
     ATTEMPTS: Final = 3
     TIMEOUT_SECONDS: Final = 30.0
     MAX_WAIT_SECONDS: Final = 10.0
@@ -230,7 +254,7 @@ class _ChatCompletions(_HTTPClient):
         return {
             "model": self._model,
             "messages": [
-                {"role": message.role, "content": message.content} for message in messages
+                {"role": message.role, "content": _parts(message)} for message in messages
             ],
             "max_completion_tokens": max_tokens,
             "response_format": {
@@ -264,12 +288,14 @@ class _ChatCompletions(_HTTPClient):
 
 class GroqClient(_ChatCompletions):
     """Groq's OpenAI-compatible chat completions. The GPT-OSS models reason before they answer:
-    briefly, and without sending the reasoning back."""
+    briefly, and without sending the reasoning back; they read no pictures. Qwen 3.8 reads
+    them, and by default answers without sending reasoning back."""
 
     URL: ClassVar[str] = "https://api.groq.com/openai/v1/chat/completions"
     NAME: ClassVar[str] = "Groq"
     PREFIX: ClassVar[str] = "groq"
     MODEL: ClassVar[str] = "openai/gpt-oss-120b"
+    READING_MODEL: ClassVar[str] = "qwen/qwen3.8-27b"
 
     def _body(
         self,
@@ -293,6 +319,7 @@ class OpenAIClient(_ChatCompletions):
     NAME: ClassVar[str] = "OpenAI"
     PREFIX: ClassVar[str] = "openai"
     MODEL: ClassVar[str] = "gpt-6-luna"
+    READING_MODEL: ClassVar[str] = "gpt-6-luna"
     #: The beginnings of the names of the models that reason before they answer.
     REASONING: ClassVar[tuple[str, ...]] = ("gpt-6", "gpt-5", "o3", "o4")
 
@@ -318,6 +345,7 @@ class AnthropicClient(_HTTPClient):
     NAME: ClassVar[str] = "Anthropic"
     PREFIX: ClassVar[str] = "anthropic"
     MODEL: ClassVar[str] = "claude-haiku-5-5"
+    READING_MODEL: ClassVar[str] = "claude-haiku-5-5"
     VERSION: ClassVar[str] = "2026-10-21"
 
     def _body(
@@ -331,7 +359,7 @@ class AnthropicClient(_HTTPClient):
             "model": self._model,
             "max_tokens": max_tokens,
             "messages": [
-                {"role": message.role, "content": message.content}
+                {"role": message.role, "content": _blocks(message)}
                 for message in messages
                 if message.role != "system"
             ],
@@ -374,6 +402,40 @@ class AnthropicClient(_HTTPClient):
         return texts[0], {"input": read, "output": written, "total": read + written}
 
 
+def _parts(message: Message) -> str | list[dict[str, Any]]:
+    """A message as chat completions take it: its text, or its text and its pictures."""
+    if not message.pictures:
+        return message.content
+    return [
+        {"type": "text", "text": message.content},
+        *(
+            {"type": "image_url", "image_url": {"url": picture.data_url}}
+            for picture in message.pictures
+        ),
+    ]
+
+
+def _blocks(message: Message) -> str | list[dict[str, Any]]:
+    """A message as Anthropic's Messages API takes it: its text, or its pictures, then its
+    text, which Anthropic advises."""
+    if not message.pictures:
+        return message.content
+    return [
+        *(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": picture.media_type,
+                    "data": base64.b64encode(picture.data).decode("ascii"),
+                },
+            }
+            for picture in message.pictures
+        ),
+        {"type": "text", "text": message.content},
+    ]
+
+
 def _usage(answer: Any) -> dict[str, int] | None:
     """The tokens a chat completion read and wrote, if it says."""
     try:
@@ -407,10 +469,23 @@ def client_for(provider: str, api_key: SecretStr | None, model: str | None) -> L
 
 def llm_for(settings: Settings) -> LLMClient | None:
     """The model the settings name, or None when no model is to write anything."""
+    provider = settings.llm_provider
+    return client_for(provider, _key(settings, provider), settings.llm_model)
+
+
+def reading_llm_for(settings: Settings) -> LLMClient | None:
+    """The model that reads pictures for the server: the provider's reading model, or the one
+    ``SEF_EXTRACTION_MODEL`` names; None when no model is to read anything."""
+    provider = settings.llm_provider
+    client = PROVIDERS.get(provider)
+    model = settings.extraction_model or (client.READING_MODEL if client is not None else None)
+    return client_for(provider, _key(settings, provider), model)
+
+
+def _key(settings: Settings, provider: str) -> SecretStr | None:
     keys = {
         "groq": settings.groq_api_key,
         "openai": settings.openai_api_key,
         "anthropic": settings.anthropic_api_key,
     }
-    provider = settings.llm_provider
-    return client_for(provider, keys.get(provider), settings.llm_model)
+    return keys.get(provider)

@@ -131,3 +131,29 @@ class QuotingModel:
 
     async def aclose(self) -> None:
         pass
+
+
+class ReadingModel:
+    """A language model that reads every document as the same invoice: what a test application
+    reads PDFs and pictures with."""
+
+    model = "test/reading"
+
+    def __init__(self) -> None:
+        self.asked: list[list[Message]] = []
+
+    async def answer(
+        self,
+        messages: Sequence[Message],
+        *,
+        name: str,  # noqa: ARG002
+        schema: Mapping[str, Any],  # noqa: ARG002
+        max_tokens: int | None = None,  # noqa: ARG002
+    ) -> str:
+        self.asked.append(list(messages))
+        return json.dumps(
+            {"number": "RF-2026-000123", "issue_date": "2026-10-05", "currency": "RSD"}
+        )
+
+    async def aclose(self) -> None:
+        pass

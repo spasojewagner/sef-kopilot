@@ -237,6 +237,19 @@ mode, which the public demo does not have:
    a page of Stripe Checkout; pay with Stripe's test card 4242 4242 4242 4242; the balance grows
    by 100, and the ledger shows a `purchase`.
 
+## 12. Invoices read from PDFs and pictures (beta)
+
+Nothing to set where the API has Groq's key: a PDF or a picture is read by Groq's reading model,
+`qwen/qwen3.8-27b`, on the same free plan as the explanations (ADR-0062); with OpenAI or
+Anthropic, by the provider's default model, which reads pictures too.
+
+1. Check, as a member: `POST /invoices/extract` with a picture of one of the synthetic invoices
+   (`Content-Type: image/jpeg`) answers its fields and `"model": "groq/qwen/qwen3.8-27b"`.
+2. Another model that reads pictures and keeps structured outputs: Render > the API >
+   **Environment**, `SEF_EXTRACTION_MODEL`.
+3. A picture costs Groq about two thousand tokens a page: on the free plan, a reading or two a
+   minute. A document is limited to 10 MiB (`SEF_MAX_DOCUMENT_BYTES`) and three pages.
+
 ## Rolling back
 
 - The API: Render > the service > **Events**, and **Rollback** to an earlier deploy. A migration

@@ -2914,3 +2914,27 @@ Findings:
 Verification: the runner's tests, the new cases first failing; ruff, mypy.
 
 Next: M7, PDF and picture extraction (beta).
+
+## 2026-11-11 — `feat/api-invoice-extraction` (5 commits, stacked on `fix/evals-empty-database-url`)
+
+Outcome: the API reads an invoice from a PDF or a picture, in two steps with a person between
+them (ADR-0062). `POST /invoices/extract` opens the document (PDFium, Pillow, within limits,
+pictures drawn anew without their metadata) and shows its pages, with a PDF's text layer, to the
+provider's reading model, which answers an invoice's fields in a fixed form; `POST
+/invoices/draft` writes the UBL of the fields a person confirmed, in code, nothing computed. A
+language model may now be shown pictures; on Groq the reading model is Qwen 3.8, on the free
+tier, since GPT-OSS reads none.
+
+Findings:
+
+- Groq's GPT-OSS models read no pictures; `qwen/qwen3.8-27b` does and keeps structured outputs
+  in strict mode, with the same free limits (checked in Groq's documentation, 2026-11-11).
+- PDFium is not thread-safe: PDFs are opened under one lock, in a worker thread.
+- The fields of the synthetic invoices draft valid invoices and read back as the same fields:
+  the draft and `fields_of` are each other's check, which the evaluations will use.
+
+Verification: the new tests first failing; the API's suite with PostgreSQL, Redis and
+`stripe-mock`; ruff, mypy, the OpenAPI document and the web application's types regenerated.
+
+Next: the web application's side, the upload page that reads a PDF or a picture and shows it
+beside the fields (`feat/web-invoice-extraction`).

@@ -316,6 +316,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invoices/extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read an invoice from a PDF or a picture (beta)
+         * @description Reads the fields of the invoice that a PDF or a picture shows, with a language model that reads pictures: the parties, the dates, the lines, the VAT and the totals, null where the document shows none. A person checks them against the document; `POST /invoices/draft` then makes a UBL invoice of them. The model is shown each page as a picture, with its text where the PDF has a text layer; nothing is stored, and the pictures are made anew without the document's metadata. Beta: the model can misread, which is why a person confirms and the validator judges.
+         */
+        post: operations["extract_invoices_extract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a UBL invoice of an invoice's fields (beta)
+         * @description Writes the UBL 2.1 invoice, or credit note for type code 381, that the fields describe, as `POST /invoices/extract` answers them and a person corrected them. It is written in code, without a model: every element comes from a field, or from SRB-CIUS where the profile fixes it, and nothing is computed or filled in, so a field left empty leaves its element out. Validate it with `POST /invoices/validate`, store it with `POST /invoices`. Nothing is stored here.
+         */
+        post: operations["make_draft_invoices_draft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invoices/{invoice_id}/repairs": {
         parameters: {
             query?: never;
@@ -1265,6 +1305,28 @@ export interface components {
             redirect_uri: string;
         };
         /**
+         * DocumentRead
+         * @description What the document was.
+         */
+        DocumentRead: {
+            /**
+             * Kind
+             * @description A PDF, or a picture of an invoice.
+             * @enum {string}
+             */
+            kind: "pdf" | "picture";
+            /**
+             * Pages
+             * @description The pages shown to the model.
+             */
+            pages: number;
+            /**
+             * Text
+             * @description Whether a page had a text layer, which the model was given with its picture; a scanned PDF and a picture have none.
+             */
+            text: boolean;
+        };
+        /**
          * Explained
          * @description The validator's report on an invoice, and the explanations of the rules it names.
          */
@@ -1334,6 +1396,21 @@ export interface components {
              */
             problem?: string | null;
         };
+        /**
+         * Extraction
+         * @description An invoice's fields as the reading model read them from a document, for a person to
+         *     confirm.
+         */
+        Extraction: {
+            /** @description The fields, null where the model saw none; to be checked against the document before `POST /invoices/draft` makes an invoice of them. */
+            fields: components["schemas"]["InvoiceFields"];
+            document: components["schemas"]["DocumentRead"];
+            /**
+             * Model
+             * @description The provider and the model that read the document.
+             */
+            model: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1402,6 +1479,70 @@ export interface components {
             email: string;
             /** @description The role the person will have. */
             role: components["schemas"]["Role"];
+        };
+        /**
+         * InvoiceFields
+         * @description An invoice's fields as a document prints them; null where it does not show one.
+         */
+        InvoiceFields: {
+            /**
+             * Type Code
+             * @description What the document is: 380 an invoice (račun, faktura), 386 an advance invoice (avansni račun), 381 a credit note (knjižno odobrenje), 383 a debit note (knjižno zaduženje).
+             */
+            type_code?: ("380" | "381" | "383" | "386") | null;
+            /**
+             * Number
+             * @description The invoice's number (broj računa).
+             */
+            number?: string | null;
+            /**
+             * Issue Date
+             * @description The date of issue (datum izdavanja).
+             */
+            issue_date?: string | null;
+            /**
+             * Due Date
+             * @description The payment due date (rok plaćanja, valuta).
+             */
+            due_date?: string | null;
+            /**
+             * Delivery Date
+             * @description The date of supply (datum prometa), if printed.
+             */
+            delivery_date?: string | null;
+            /**
+             * Currency
+             * @description The currency of the amounts as an ISO 4217 code: RSD, EUR.
+             */
+            currency?: string | null;
+            /**
+             * Buyer Reference
+             * @description The buyer's reference or order number (broj narudžbenice), if printed.
+             */
+            buyer_reference?: string | null;
+            /** @description Who issues the invoice. */
+            seller?: components["schemas"]["Party"];
+            /**
+             * Seller In Vat Register
+             * @description Whether the seller is in the VAT register: true where the invoice charges VAT or says so (obveznik PDV-a), false where it says it is not (nije u sistemu PDV-a).
+             */
+            seller_in_vat_register?: boolean | null;
+            /** @description Who is invoiced. */
+            buyer?: components["schemas"]["Party"];
+            /**
+             * Lines
+             * @description The lines, in the order printed.
+             */
+            lines?: components["schemas"]["Line"][];
+            /**
+             * Vat Breakdown
+             * @description The VAT recapitulation, one row a category and rate.
+             */
+            vat_breakdown?: components["schemas"]["VatSubtotal"][];
+            /** @description The totals. */
+            totals?: components["schemas"]["Totals"];
+            /** @description How to pay. */
+            payment?: components["schemas"]["Payment"];
         };
         /**
          * InvoiceOut
@@ -1756,6 +1897,47 @@ export interface components {
              */
             note?: string | null;
         };
+        /**
+         * Line
+         * @description A line of the invoice's table of goods and services.
+         */
+        Line: {
+            /**
+             * Name
+             * @description What was sold or done, as the line names it.
+             */
+            name?: string | null;
+            /**
+             * Quantity
+             * @description The quantity, a number: 8.
+             */
+            quantity?: string | null;
+            /**
+             * Unit
+             * @description The unit as a UN/ECE Recommendation 20 code: H87 for a piece (kom), HUR for an hour (sat), DAY for a day, KGM for a kilogram, LTR for a litre, MTR for a metre, C62 when no unit is printed.
+             */
+            unit?: string | null;
+            /**
+             * Unit Price
+             * @description The price of one unit without VAT, a number: 1500.00.
+             */
+            unit_price?: string | null;
+            /**
+             * Net Amount
+             * @description The line's amount without VAT, as printed (osnovica): 12000.00.
+             */
+            net_amount?: string | null;
+            /**
+             * Vat Category
+             * @description The VAT category: S where VAT is charged at 20 or 10 percent; AE where the buyer owes it (reverse charge); Z, E, R, O, OE, SS or N where the line names an exemption or VAT does not apply.
+             */
+            vat_category?: ("S" | "Z" | "E" | "AE" | "R" | "O" | "OE" | "SS" | "N") | null;
+            /**
+             * Vat Rate
+             * @description The VAT rate in percent, a number: 20, 10 or 0.
+             */
+            vat_rate?: string | null;
+        };
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -1919,6 +2101,52 @@ export interface components {
             currency: string;
         };
         /**
+         * Party
+         * @description A party to the invoice, as its header or its footer prints it.
+         */
+        Party: {
+            /**
+             * Name
+             * @description Its name as printed, with its legal form (d.o.o., a.d., preduzetnik).
+             */
+            name?: string | null;
+            /**
+             * Tax Id
+             * @description Its PIB, the tax identification number: nine digits, without RS before them.
+             */
+            tax_id?: string | null;
+            /**
+             * Company Id
+             * @description Its matični broj (MB), the registration number: eight digits.
+             */
+            company_id?: string | null;
+            /**
+             * Street
+             * @description Its street and number.
+             */
+            street?: string | null;
+            /**
+             * City
+             * @description Its city or place.
+             */
+            city?: string | null;
+            /**
+             * Postal Code
+             * @description Its postal code: five digits in Serbia.
+             */
+            postal_code?: string | null;
+            /**
+             * Country
+             * @description Its country as an ISO 3166-1 alpha-2 code: RS for Serbia, also when the address names none.
+             */
+            country?: string | null;
+            /**
+             * Email
+             * @description Its email address, if printed.
+             */
+            email?: string | null;
+        };
+        /**
          * Passage
          * @description A stored passage of the corpus, with its text.
          */
@@ -1981,6 +2209,27 @@ export interface components {
             value?: string | null;
             /** Reason */
             reason: string;
+        };
+        /**
+         * Payment
+         * @description How the invoice is to be paid.
+         */
+        Payment: {
+            /**
+             * Account
+             * @description The seller's bank account (tekući račun) as printed: 160-0000000123456-78.
+             */
+            account?: string | null;
+            /**
+             * Model
+             * @description The payment model (model plaćanja), two digits: 97.
+             */
+            model?: string | null;
+            /**
+             * Reference
+             * @description The payment reference (poziv na broj), without the model: 12-345678-00123.
+             */
+            reference?: string | null;
         };
         /**
          * Permission
@@ -2551,6 +2800,42 @@ export interface components {
             organization: components["schemas"]["OrganizationOut"];
             role: components["schemas"]["Role"];
         };
+        /**
+         * Totals
+         * @description The invoice's totals, as its foot prints them.
+         */
+        Totals: {
+            /**
+             * Line Total
+             * @description The sum of the lines' amounts without VAT.
+             */
+            line_total?: string | null;
+            /**
+             * Tax Exclusive
+             * @description The total without VAT (ukupna osnovica).
+             */
+            tax_exclusive?: string | null;
+            /**
+             * Tax
+             * @description The total VAT (ukupan PDV).
+             */
+            tax?: string | null;
+            /**
+             * Tax Inclusive
+             * @description The total with VAT (ukupno sa PDV-om).
+             */
+            tax_inclusive?: string | null;
+            /**
+             * Prepaid
+             * @description What was paid in advance (avans), if printed.
+             */
+            prepaid?: string | null;
+            /**
+             * Payable
+             * @description The amount due for payment (za uplatu, za plaćanje).
+             */
+            payable?: string | null;
+        };
         /** UserOut */
         UserOut: {
             /**
@@ -2610,6 +2895,32 @@ export interface components {
              * @default 0
              */
             set_aside_omitted: number;
+        };
+        /**
+         * VatSubtotal
+         * @description A row of the VAT recapitulation: the amounts of one category and rate.
+         */
+        VatSubtotal: {
+            /**
+             * Vat Category
+             * @description The VAT category, as for a line: S, AE, Z, E, R, O, OE, SS, N.
+             */
+            vat_category?: ("S" | "Z" | "E" | "AE" | "R" | "O" | "OE" | "SS" | "N") | null;
+            /**
+             * Vat Rate
+             * @description The VAT rate in percent: 20, 10 or 0.
+             */
+            vat_rate?: string | null;
+            /**
+             * Taxable Amount
+             * @description The amount the VAT is charged on (osnovica): 12000.00.
+             */
+            taxable_amount?: string | null;
+            /**
+             * Tax Amount
+             * @description The VAT itself (iznos PDV): 2400.00.
+             */
+            tax_amount?: string | null;
         };
         /**
          * Violation
@@ -3569,6 +3880,148 @@ export interface operations {
             };
             /** @description No language model is configured on this server, and no explanations are kept. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    extract_invoices_extract_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The document: a PDF of at most three pages, or a JPEG, PNG or WebP picture of an invoice. */
+        requestBody: {
+            content: {
+                "application/pdf": string;
+                "image/jpeg": string;
+                "image/png": string;
+                "image/webp": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Extraction"];
+                };
+            };
+            /** @description The document was not received in time. */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The document has more bytes, pages or pixels than this server reads. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not a PDF, a JPEG, a PNG or a WebP picture. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The document cannot be opened (damaged, protected by a password, or not what its media type says), or the model's answers never had the form of an invoice's fields. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many requests to the language model by the caller, or in their organization; try again after `Retry-After` seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The language model gave no answer. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No language model is configured on this server, or the organization's own key to one cannot be opened. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The model did not read the document in time. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    make_draft_invoices_draft_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvoiceFields"];
+            };
+        };
+        responses: {
+            /** @description The UBL 2.1 invoice or credit note. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many validations by the caller, or in their organization; try again after `Retry-After` seconds. */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

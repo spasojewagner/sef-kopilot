@@ -39,6 +39,14 @@ the system without a green validator.
 
 ## Request flow (target, M2–M3)
 
+0. Read (beta, ADR-0062) — an invoice that is a PDF or a picture is read before it is
+   uploaded. `POST /invoices/extract` opens the document (PDFium for a PDF, Pillow for a
+   picture, within limits on bytes, pages and pixels, pictures drawn anew without their
+   metadata) and shows its pages, with a PDF's text layer, to the provider's reading model,
+   which answers an invoice's fields in a fixed form, null where a page shows none. A person
+   checks the fields against the document; `POST /invoices/draft` writes the UBL invoice of
+   them in code, every element from a field or from SRB-CIUS, nothing computed. The model sits
+   between the person who confirms and the validator that judges what comes next.
 1. Upload (`POST /invoices`) — limits on bytes, time and elements, hardened XML parsing (no DTD,
    no external entities). In no-store mode (`POST /invoices/validate`, ADR-0015) the bytes
    never touch the database.

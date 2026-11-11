@@ -10,6 +10,10 @@ server has one.
 An organization's own key that cannot be opened (``SEF_FERNET_KEY`` no longer holds the key
 that sealed it) answers 503: its invoices are never sent to the server's model instead, which
 the organization did not choose.
+
+PDFs and pictures are read by the provider's reading model (ADR-0062), which must see pictures:
+with the organization's key, its provider's reading model, whatever model the organization
+chose to write; without one, the server's.
 """
 
 from __future__ import annotations
@@ -22,20 +26,22 @@ from typing import cast
 from fastapi import HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sef_api.llm import LLMClient, client_for
+from sef_api.extraction.reader import Reader
+from sef_api.llm import PROVIDERS, LLMClient, client_for
 from sef_api.model_traces import ModelTraces, TracedClient
 from sef_api.organization import service
 from sef_api.rag.explainer import Explainer
 from sef_api.repairs.repairer import Repairer
 from sef_api.sef.keys import Keyring, UnreadableKeyError
 
-__all__ = ["explainer_for", "repairer_for"]
+__all__ = ["explainer_for", "reader_for", "repairer_for"]
 
 
 async def _own_model(
-    request: Request, session: AsyncSession, organization_id: uuid.UUID
+    request: Request, session: AsyncSession, organization_id: uuid.UUID, *, reading: bool = False
 ) -> LLMClient | None:
-    """The organization's own model, for this request; None when it set no key."""
+    """The organization's own model, for this request, or its provider's reading model; None
+    when it set no key."""
     stored = await service.model_key(session, organization_id)
     if stored is None:
         return None
@@ -50,7 +56,8 @@ async def _own_model(
             "the organization's key to its model cannot be opened on this server: an owner sets "
             "it again",
         ) from None
-    client = client_for(stored.provider, api_key, stored.model)
+    model = PROVIDERS[stored.provider].READING_MODEL if reading else stored.model
+    client = client_for(stored.provider, api_key, model)
     if client is None:  # pragma: no cover - the table holds only the providers there are
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "unknown model provider")
     traces = cast(ModelTraces | None, request.app.state.model_traces)
@@ -85,5 +92,21 @@ async def repairer_for(
         return
     try:
         yield Repairer(own)
+    finally:
+        await own.aclose()
+
+
+@asynccontextmanager
+async def reader_for(
+    request: Request, session: AsyncSession, organization_id: uuid.UUID
+) -> AsyncIterator[Reader | None]:
+    """The reader of PDFs and pictures for the organization: its provider's reading model with
+    its own key, or the server's; None when there is neither."""
+    own = await _own_model(request, session, organization_id, reading=True)
+    if own is None:
+        yield cast(Reader | None, request.app.state.reader)
+        return
+    try:
+        yield Reader(own)
     finally:
         await own.aclose()

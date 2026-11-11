@@ -29,6 +29,7 @@ from sef_api.sef.keys import Keyring, UnreadableKeyError
 
 from .conftest import TEST_FERNET_KEY, settings_for
 from .corpora import QuotingModel, ScriptedModel, repository_corpus, store_corpus
+from .documents import picture
 from .factories import KEYRING, Office, model_key, office, sef_key, stored_invoice
 from .test_invoices_explain import WRONG_PIB
 from .test_invoices_validate import XML
@@ -58,6 +59,8 @@ class OwnModel(QuotingModel):
     async def answer(self, messages: Any, *, name: str, schema: Any, max_tokens: Any = None) -> str:
         if name == "repair":
             return answer(FIX_TYPE)
+        if name == "invoice_fields":
+            return json.dumps({"number": "RF-2026-000123"})
         return await super().answer(messages, name=name, schema=schema, max_tokens=max_tokens)
 
     async def aclose(self) -> None:
@@ -295,6 +298,28 @@ async def test_a_server_without_a_model_explains_with_the_organization_s(
     assert explained.status_code == 200, explained.text
     assert explained.json()["model"] == "groq/its-default"
     assert len(own_models) == 1
+
+
+async def test_the_organization_s_documents_are_read_by_its_provider_s_reading_model(
+    session: AsyncSession, primer: Office, own_models: list[OwnModel]
+) -> None:
+    # The model the organization chose writes; reading pictures takes its provider's reading
+    # model, with the organization's key.
+    await model_key(session, primer.organization, KEY, provider="groq", model="openai/gpt-oss-20b")
+
+    async with application(session, servers_model=False) as api:
+        read = await api.post(
+            "/invoices/extract",
+            content=picture(),
+            headers={"Content-Type": "image/jpeg"} | primer.as_client(),
+        )
+
+    assert read.status_code == 200, read.text
+    assert read.json()["model"] == "groq/qwen/qwen3.8-27b"
+    assert read.json()["fields"]["number"] == "RF-2026-000123"
+    assert [(own.made_with, own.closed) for own in own_models] == [
+        (("groq", KEY, "qwen/qwen3.8-27b"), True)
+    ]
 
 
 async def test_the_organization_s_repairs_are_proposed_by_its_own_model(
