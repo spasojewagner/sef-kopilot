@@ -2963,3 +2963,29 @@ model, in Serbian and English, light and dark, on a desktop and a phone.
 
 Next: the reading measured on PDFs, scans and photographs made from known invoices, against
 thresholds (`feat/evals-extraction`).
+
+## 2026-11-11 — `feat/evals-extraction` (4 commits and the recording, stacked on `feat/web-invoice-extraction`)
+
+Outcome: the reading of invoices is measured (ADR-0063). Ten synthetic invoices, by the fields
+they print, are printed three ways (a PDF with its text, a scan, a photograph) by
+`scripts/render_documents.py`; each document is opened and read as the API reads an upload,
+and the reading is measured field by field per form, with the fields it invents and the
+documents it makes into a valid invoice, against thresholds set before the first recording.
+The reading model's answers are recorded on the maintainer's machine and replayed offline in CI.
+
+Findings:
+
+- SRB-012 requires the buyer's registration number (MB): two golden invoices without one did
+  not validate, and now have one, as the validator's check of the golden set caught.
+- A page drawn from a PDF may differ in its last bits between platforms: a picture is named in
+  a cassette's key by the document it was drawn from, not by its bytes, so that a recording
+  made on Windows replays on Linux.
+- A photograph is printed no larger than the API reads one (1600 pixels), as a phone's picture
+  reaches the model.
+
+Verification: the evaluations' tests (99 % of the package covered), ruff, mypy; the runner
+against the repository with no reading recorded, which says every document is not read, as a
+missing answer must. The committed report and the evaluations' check wait for the recording.
+
+Next: the brief's MCP tool `extract_from_pdf` (`feat/mcp-extract-invoice`), then the README
+case study.

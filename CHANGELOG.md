@@ -21,6 +21,11 @@ is tagged.
   invoice, has the API read it and shows the fields beside the document, every one editable,
   the ones SEF needs and the model did not find marked; the invoice is made of them, stored and
   validated only when the visitor asks, or its XML downloaded; the document stays in the page.
+- `evals`: the reading of documents measured on ten synthetic invoices printed as a PDF with
+  its text, a scan and a photograph (`scripts/render_documents.py`): the fields read as the
+  invoice has them, per form; the fields it leaves empty that the reading filled in; and the
+  documents read into an invoice the validator accepts; held to thresholds, with the reading
+  model's answers recorded once and replayed, each picture named by its document (ADR-0063).
 
 ### Changed
 
