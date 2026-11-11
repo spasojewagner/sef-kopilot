@@ -36,9 +36,18 @@ is tagged.
   base64 (within the 1 MiB limit on messages, about 750 KB) as `POST /invoices/extract` does,
   and `draft_invoice`, which makes the UBL of the fields the person confirmed as
   `POST /invoices/draft` does; both need `invoices:validate` (ADR-0064).
+- `apps/web`: the README's demo, the golden path walked at a person's pace against the
+  end-to-end test's servers and recorded frame by frame by Chromium
+  (`pnpm --filter @sef-kopilot/web demo`); `make demo-gif` makes `docs/demo/golden-path.gif` of
+  its frames.
+- `docs`: the case study (`docs/CASE_STUDY.md`): the problem, the decisions and their
+  trade-offs, what went wrong, the numbers and how the project was built; and the script of the
+  90-second demo video (`docs/DEMO_VIDEO.md`).
 
 ### Changed
 
+- README: written for 1.0, with the demo, what the system does today, its architecture around
+  the three layers, its numbers, and how to self-host it.
 - Roadmap: SEF's error codes, its internal technical instruction and what the demo would
   confirm move after 1.0; the demo's sign-up takes an eID registration the project does not
   have.

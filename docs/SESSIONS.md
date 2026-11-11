@@ -3035,3 +3035,39 @@ Verification: the MCP tests, the new ones and the audit that every tool requires
 permission; the extraction route's tests after the split; ruff, mypy.
 
 Next: the README case study (`docs/readme-case-study`), then the release of 1.0.
+
+## 2026-11-11 — `docs/readme-case-study` (5 commits)
+
+Outcome: the README written for 1.0, the case study and the script of the demo video. The
+README opens on a GIF of the golden path, says what the system does today, draws its
+architecture around the three layers, gives its numbers from the evaluations' report and the
+test suites, and tells how to self-host it: the API's image, the corpus, the web application,
+and what leaves the server. `docs/CASE_STUDY.md` tells the problem, the decisions that shaped
+the system with their trade-offs, what went wrong, the results and how the project was built,
+each claim linked to its decision record or report. `docs/DEMO_VIDEO.md` is a 90-second script,
+shot by shot, with what the GIF cannot show: an explanation and its citations, the reading, and
+an assistant. The GIF is recorded by `make demo-gif`: the end-to-end test's golden path walked
+at a person's pace against the same servers and scripted model, its frames sent by Chromium.
+
+Findings:
+
+- The repository refuses a file above 512 KB. A GIF made from Playwright's video came out at 2
+  to 5 MB: the video is lossy, so every frame differed everywhere. Chromium's screencast sends
+  lossless frames, and only when the page changes; with less motion on the home page and jumps
+  instead of smooth scrolling, the 24-second GIF is 388 KB.
+- Recording found a flaw: after a repair is approved, the invoice's report shows its previous
+  verdict until the fresh one arrives, because the approval marks the invoice stale without
+  reading it again. It lasted 15 ms locally, and lasts longer against a distant API. In the
+  backlog as `fix/web-fresh-verdict-after-approval`, after which the GIF is recorded again.
+- The numbers, measured on `main` for the README: 1,770 tests of the core at
+  100 % coverage, 1,603 of the API at 99 %, 581 of the
+  web application; a typical invoice (`srb-final-invoice.xml`) validated in 6.5 ms
+  warm in the core and 12.7 ms through the API's no-store route, the median of thirty
+  on two CPUs.
+
+Verification: the demo recorded three times, green each time; Prettier, ESLint and `tsc` on the
+new code; every relative link of the changed documents resolves; the Mermaid diagrams render;
+each number compared with the report or the run it comes from.
+
+Next: `fix/web-fresh-verdict-after-approval`, then `chore/release-1.0`: the security review, and
+the version; the home page and `SECURITY.md` say pre-alpha until then.
