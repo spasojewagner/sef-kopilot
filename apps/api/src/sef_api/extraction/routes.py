@@ -21,20 +21,21 @@ from sef_api.auth.permissions import Permission
 from sef_api.auth.routes import Problem
 from sef_api.db import get_session
 from sef_api.extraction.documents import (
+    Document,
     DocumentTooLargeError,
     UnreadableDocumentError,
     open_document,
 )
 from sef_api.extraction.draft import draft
 from sef_api.extraction.fields import InvoiceFields
-from sef_api.extraction.reader import ReadingError, ReadingTimeoutError
+from sef_api.extraction.reader import Reader, ReadingError, ReadingTimeoutError
 from sef_api.invoices.routes import MODEL_REQUEST, VALIDATION, count
 from sef_api.invoices.upload import DOCUMENT_MEDIA_TYPES, read_document
 from sef_api.llm import LLMError
 from sef_api.model_choice import reader_for
 from sef_api.settings import Settings
 
-__all__ = ["DocumentRead", "Extraction", "router"]
+__all__ = ["DocumentRead", "Extraction", "opened", "read_by", "router"]
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -148,24 +149,37 @@ async def extract(
         media_type, data = await read_document(
             request, limit=settings.max_document_bytes, seconds=settings.upload_seconds
         )
-        try:
-            document = await open_document(data, media_type)
-        except DocumentTooLargeError as error:
-            raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, str(error)) from None
-        except UnreadableDocumentError as error:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
+        document = await opened(data, media_type)
         del data
-        try:
-            reading = await reader.read(document, seconds=settings.extraction_seconds)
-        except ReadingTimeoutError as error:
-            raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, str(error)) from None
-        except ReadingError as error:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
-        except LLMError as error:
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY, f"the language model did not answer: {error}"
-            ) from None
+        extraction = await read_by(reader, document, seconds=settings.extraction_seconds)
     response.headers["Cache-Control"] = "no-store"
+    return extraction
+
+
+async def opened(data: bytes, media_type: str) -> Document:
+    """The document in ``data``, opened into pages; the HTTP error ``extract`` answers when it
+    cannot be."""
+    try:
+        return await open_document(data, media_type)
+    except DocumentTooLargeError as error:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, str(error)) from None
+    except UnreadableDocumentError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
+
+
+async def read_by(reader: Reader, document: Document, *, seconds: float) -> Extraction:
+    """The fields ``reader`` reads from ``document`` within ``seconds``; the HTTP error
+    ``extract`` answers when it gives none."""
+    try:
+        reading = await reader.read(document, seconds=seconds)
+    except ReadingTimeoutError as error:
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, str(error)) from None
+    except ReadingError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
+    except LLMError as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, f"the language model did not answer: {error}"
+        ) from None
     return Extraction(
         fields=reading.fields,
         document=DocumentRead(
