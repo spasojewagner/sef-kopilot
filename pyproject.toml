@@ -85,6 +85,10 @@ docstring-code-format = true
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.12"
+# Checked as the platform the code runs and is tested on (Linux: Docker, Render, CI), on every
+# machine alike: on Windows, typeshed gives multiprocessing's pipes another class than
+# Connection, and the code after a test's skip on Windows would read as unreachable.
+platform = "linux"
 strict = true
 warn_unreachable = true
 pretty = true

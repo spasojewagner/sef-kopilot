@@ -35,6 +35,9 @@ is tagged.
 
 ### Fixed
 
+- `pyproject.toml`: mypy checks the workspace as Linux on every machine, as CI does; on
+  Windows it took multiprocessing's pipes for another class, and the code after a test skipped
+  there for unreachable.
 - `apps/api` (beta): a character XML cannot hold no longer reaches the fields read from a
   document, where one made drafting the invoice fail: PDFium's mark for a hyphen at a line
   break is shown to the reading model as a hyphen, and control characters are left out of a
