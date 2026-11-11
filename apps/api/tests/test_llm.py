@@ -199,6 +199,32 @@ async def test_a_service_that_keeps_failing_is_given_up_after_three_attempts() -
             httpx.Response(400, json={"error": {"message": "тајни рачун 4711", "code": "a b"}}),
             "Groq answered 400$",
         ),
+        (
+            httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "message": "Failed to generate JSON.",
+                        "code": "json_validate_failed",
+                        "failed_generation": '{"number": "4711", ' + " " * 50,
+                    }
+                },
+            ),
+            r"Groq answered 400 \(json_validate_failed; 69 characters, cut off, "
+            r"the last 51 blank\)$",
+        ),
+        (
+            httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "code": "json_validate_failed",
+                        "failed_generation": '{"number": 4711}',
+                    }
+                },
+            ),
+            r"Groq answered 400 \(json_validate_failed; 16 characters, whole JSON\)$",
+        ),
         (httpx.Response(404, text="not found"), "Groq answered 404$"),
         (httpx.Response(200, json={"choices": []}), "not a chat completion"),
         (httpx.Response(200, text="<html>"), "not a chat completion"),

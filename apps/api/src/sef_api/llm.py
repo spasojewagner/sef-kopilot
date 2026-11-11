@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 from collections.abc import Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -234,10 +235,17 @@ class _HTTPClient:
         """The error's code, which names what went wrong (``invalid_api_key``), and nothing of
         its message, which may repeat what was sent."""
         try:
-            code = self._code(response.json())
+            error = response.json()
+            code = self._code(error)
         except (ValueError, KeyError, TypeError):
             return ""
-        return f" ({code})" if isinstance(code, str) and code.isidentifier() else ""
+        if not (isinstance(code, str) and code.isidentifier()):
+            return ""
+        return f" ({code}{self._refused(error)})"
+
+    def _refused(self, error: Any) -> str:  # noqa: ARG002
+        """What the provider says of an answer it refused to send, without a word of it."""
+        return ""
 
 
 class _ChatCompletions(_HTTPClient):
@@ -308,6 +316,25 @@ class GroqClient(_ChatCompletions):
         if self._model.startswith("openai/gpt-oss"):
             body |= {"reasoning_effort": "low", "include_reasoning": False}
         return body
+
+    def _refused(self, error: Any) -> str:
+        """The shape of the answer Groq refused as not of the schema (``json_validate_failed``
+        with its ``failed_generation``): how long it was, whether it was whole JSON, and how
+        much of its end was blank, which tells an answer cut off at the most tokens it may
+        have from one of the wrong form. Never what it said, which repeats what was sent."""
+        refused = error.get("error") if isinstance(error, dict) else None
+        failed = refused.get("failed_generation") if isinstance(refused, dict) else None
+        if not isinstance(failed, str):
+            return ""
+        try:
+            json.loads(failed)
+        except ValueError:
+            whole = "cut off"
+        else:
+            whole = "whole JSON"
+        blank = len(failed) - len(failed.rstrip())
+        ending = f", the last {blank} blank" if blank else ""
+        return f"; {len(failed)} characters, {whole}{ending}"
 
 
 class OpenAIClient(_ChatCompletions):

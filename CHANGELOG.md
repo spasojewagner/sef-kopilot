@@ -49,6 +49,9 @@ is tagged.
   null as codes not printed, and under which labels a Serbian invoice prints the delivery date,
   the buyer's reference and the due date (found by the second recording, which read 24 % of
   the fields of the PDFs).
+- `apps/api`: Groq's refusal of an answer as not of the schema (`json_validate_failed`) says how
+  long the answer was, whether it was whole JSON and how much of its end was blank, which tells
+  an answer cut off from one of the wrong form, and never what it said.
 - `apps/api` (beta): a character XML cannot hold no longer reaches the fields read from a
   document, where one made drafting the invoice fail: PDFium's mark for a hyphen at a line
   break is shown to the reading model as a hyphen, and control characters are left out of a
