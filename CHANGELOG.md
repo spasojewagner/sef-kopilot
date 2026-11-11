@@ -35,6 +35,10 @@ is tagged.
 
 ### Fixed
 
+- `apps/api` (beta): a character XML cannot hold no longer reaches the fields read from a
+  document, where one made drafting the invoice fail: PDFium's mark for a hyphen at a line
+  break is shown to the reading model as a hyphen, and control characters are left out of a
+  page's text and of every field (found by the evaluations' first recording).
 - `evals`: an empty `SEF_TEST_DATABASE_URL`, as `.env.example` leaves it, is read as not set
   and says so, as the API's tests read it, instead of failing with SQLAlchemy's traceback;
   a value that is no database URL is refused without being repeated.

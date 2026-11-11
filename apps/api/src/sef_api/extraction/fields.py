@@ -6,7 +6,9 @@ the plain form a printed invoice gives them: names, the PIB and the registration
 amounts. They are not UBL: :mod:`sef_api.extraction.draft` writes the UBL from them, in code.
 
 Every value is text, or null where the document does not show it: the model writes what it
-reads, and invents nothing. A value must have the form its description gives (a date as
+reads, and invents nothing. A character XML cannot hold (a control character, as PDFium marks a
+hyphen at a line break) is dropped from a value, so that every value can be written into an
+invoice. A value must have the form its description gives (a date as
 ``2026-10-05``, an amount as ``14400.00``), which the models check: an answer that breaks one
 is sent back to the model with what is wrong, as the explainer's and the repairer's are.
 
@@ -30,6 +32,7 @@ from einvoice_core.srb.vat import CATEGORIES
 
 __all__ = [
     "MAX_LINES",
+    "NOT_IN_XML",
     "SCHEMA",
     "InvoiceFields",
     "Line",
@@ -45,6 +48,10 @@ MAX_LINES: Final = 200
 #: The longest value of a field, which no name, address or identifier needs to pass.
 MAX_TEXT: Final = 500
 
+#: What XML 1.0 cannot hold (its production ``Char``): control characters other than the tab
+#: and the line ends, U+FFFE, U+FFFF and lone surrogates.
+NOT_IN_XML: Final = re.compile("[^\t\n\r\x20-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]")
+
 _AMOUNT = re.compile(r"-?[0-9]+(\.[0-9]+)?")
 _DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
@@ -52,7 +59,7 @@ _DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 def _text(value: str | None) -> str | None:
     if value is None:
         return None
-    stripped = " ".join(value.split())
+    stripped = " ".join(NOT_IN_XML.sub("", value).split())
     if len(stripped) > MAX_TEXT:
         raise ValueError(f"at most {MAX_TEXT} characters")
     return stripped or None

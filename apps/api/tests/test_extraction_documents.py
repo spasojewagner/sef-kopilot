@@ -51,6 +51,18 @@ def test_a_pdf_with_a_text_layer_gives_its_text_and_a_picture_of_each_page() -> 
         assert shown.size == (1131, LONGEST_SIDE)  # A4, upright
 
 
+def test_a_hyphen_pdfium_marks_at_a_line_break_is_a_hyphen_and_controls_are_left_out() -> None:
+    """PDFium gives a hyphen where a word was broken at the end of a line as U+0002; shown to the
+    model as it is, the model copied it into a field, which no XML may hold."""
+    document = read_document(
+        text_pdf([*INVOICE_TEXT, "Cena bez PDV\x02a", "Iznos\x07 bez PDV-a"]), "application/pdf"
+    )
+
+    text = document.pages[0].text
+    assert text is not None
+    assert text.endswith("Cena bez PDV-a\nIznos bez PDV-a")
+
+
 def test_a_scanned_pdf_has_pictures_and_no_text() -> None:
     document = read_document(scanned_pdf(2), "application/pdf")
 

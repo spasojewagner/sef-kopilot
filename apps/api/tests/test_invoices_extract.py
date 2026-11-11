@@ -290,6 +290,21 @@ async def test_fields_of_the_wrong_form_are_refused_with_what_is_wrong(
     assert "write a number as digits with a decimal point" in found
 
 
+async def test_a_value_with_a_character_xml_cannot_hold_is_drafted_without_it(
+    session: AsyncSession, primer: Office
+) -> None:
+    async with reading(session) as api:
+        drafted = await api.post(
+            "/invoices/draft",
+            content='{"number": "RF\\u0000-1", "seller": {"name": "Primer\\u0002 d.o.o."}}',
+            headers={"Content-Type": "application/json"} | primer.as_client(),
+        )
+
+    assert drafted.status_code == 200, drafted.text
+    assert b"<cbc:ID>RF-1</cbc:ID>" in drafted.content
+    assert b"<cbc:Name>Primer d.o.o.</cbc:Name>" in drafted.content
+
+
 async def test_a_draft_needs_a_member(session: AsyncSession) -> None:
     async with reading(session) as api:
         drafted = await api.post("/invoices/draft", json={})

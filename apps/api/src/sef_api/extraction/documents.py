@@ -10,7 +10,8 @@ model reads more surely than text it must make out.
   opens nothing outside the file. One protected by a password is refused, and so is one of more
   than :data:`MAX_PAGES` pages. Each page is drawn so that its longer side is
   :data:`LONGEST_SIDE` pixels; its text is taken from its text layer, if it has one worth the
-  name (a scan has none).
+  name (a scan has none), with the hyphen PDFium marks at a line break written as a hyphen and
+  what XML cannot hold left out, so that the model is not shown it to copy.
 - A picture is opened by Pillow, as JPEG, PNG or WebP only, and refused above
   :data:`MAX_PIXELS`, before it is decoded. It is turned upright as its EXIF orientation says,
   made smaller to :data:`LONGEST_SIDE`, and encoded anew as JPEG, which leaves its metadata
@@ -33,6 +34,7 @@ from typing import Final, Literal
 import pypdfium2 as pdfium
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from sef_api.extraction.fields import NOT_IN_XML
 from sef_api.llm import Picture
 
 __all__ = [
@@ -120,7 +122,12 @@ def _jpeg(image: Image.Image) -> Picture:
     return Picture("image/jpeg", encoded.getvalue())
 
 
+#: PDFium's mark for a hyphen at the end of a line, where a word was broken: ``PDV-`` and ``a``.
+_LINE_BREAK_HYPHEN: Final = "\x02"
+
+
 def _text(raw: str) -> str | None:
+    raw = NOT_IN_XML.sub("", raw.replace(_LINE_BREAK_HYPHEN, "-"))
     text = "\n".join(line.rstrip() for line in raw.replace("\r\n", "\n").split("\n")).strip()
     if len("".join(text.split())) < MIN_TEXT:
         return None

@@ -10,6 +10,7 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from einvoice_core.ubl import parse_invoice
+from sef_api.extraction.draft import draft
 from sef_api.extraction.fields import (
     MAX_LINES,
     SCHEMA,
@@ -102,6 +103,23 @@ def test_values_are_tidied_and_codes_written_in_capitals() -> None:
     assert fields.seller.country == "RS"
     assert fields.seller.tax_id is None
     assert fields.lines[0].unit == "HUR"
+
+
+def test_a_character_xml_cannot_hold_is_dropped_so_every_value_can_be_written() -> None:
+    """A model copies what a PDF's text holds: PDFium marks a hyphen at a line break with a
+    control character, which no XML document may hold."""
+    fields = InvoiceFields.model_validate_json(
+        '{"number": "RF\\u0000-1", "buyer_reference": "\\ufffe", "seller": '
+        '{"name": "Primer\\u0002 Softver\\u0007 d.o.o.", "street": "Ulica\\u0085 Primera 1"}}'
+    )
+
+    assert fields.number == "RF-1"
+    # A value of nothing but such characters is a value not read.
+    assert fields.buyer_reference is None
+    assert fields.seller.name == "Primer Softver d.o.o."
+    # A character XML holds, a line's end in Unicode's other form, is whitespace as any.
+    assert fields.seller.street == "Ulica Primera 1"
+    assert b"<cbc:Name>Primer Softver d.o.o.</cbc:Name>" in draft(fields)
 
 
 @pytest.mark.parametrize(
