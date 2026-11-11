@@ -7,7 +7,7 @@
       "peppol-bis-billing-3": "3.0.21",
       "iso-schematron": "2020-10-01"
     },
-    "model": "groq/openai/gpt-oss-120b"
+    "model": "gemini/gemini-3.1-flash-lite and groq/openai/gpt-oss-120b"
   },
   "met": true,
   "measures": {
@@ -131,6 +131,75 @@
       "total": 11,
       "threshold": {
         "max": 0.0
+      },
+      "met": true,
+      "failures": []
+    },
+    "extraction_pdf": {
+      "title": "Fields read as the invoice has them, from a PDF with its text",
+      "kind": "share",
+      "value": 1.0,
+      "passed": 569,
+      "total": 569,
+      "threshold": {
+        "min": 0.97
+      },
+      "met": true,
+      "failures": []
+    },
+    "extraction_scan": {
+      "title": "Fields read as the invoice has them, from a scan",
+      "kind": "share",
+      "value": 0.9947,
+      "passed": 566,
+      "total": 569,
+      "threshold": {
+        "min": 0.95
+      },
+      "met": true,
+      "failures": [
+        "software-maintenance.scan.pdf: lines[1].unit read as 'H87', the invoice has 'C62'",
+        "software-maintenance.scan.pdf: lines[2].unit read as 'H87', the invoice has 'C62'",
+        "freight-transport.scan.pdf: lines[1].name read as 'Prevoz robe, relacija Beograd - Niš', the invoice has 'Prevoz robe, relacija Beograd – Niš'"
+      ]
+    },
+    "extraction_photo": {
+      "title": "Fields read as the invoice has them, from a photograph",
+      "kind": "share",
+      "value": 0.9982,
+      "passed": 568,
+      "total": 569,
+      "threshold": {
+        "min": 0.9
+      },
+      "met": true,
+      "failures": [
+        "freight-transport.jpg: lines[1].name read as 'Prevoz robe, relacija Beograd - Niš', the invoice has 'Prevoz robe, relacija Beograd – Niš'"
+      ]
+    },
+    "extraction_invented": {
+      "title": "Fields the invoice leaves empty that the reading filled in",
+      "kind": "rate",
+      "value": 0.0185,
+      "passed": 106,
+      "total": 108,
+      "threshold": {
+        "max": 0.05
+      },
+      "met": true,
+      "failures": [
+        "cyrillic-engineering.pdf: totals.prepaid filled in as '0.0'",
+        "cyrillic-engineering.scan.pdf: totals.prepaid filled in as '0.0'"
+      ]
+    },
+    "extraction_valid": {
+      "title": "Documents read into an invoice the validator accepts as it was read",
+      "kind": "share",
+      "value": 1.0,
+      "passed": 30,
+      "total": 30,
+      "threshold": {
+        "min": 0.6
       },
       "met": true,
       "failures": []
