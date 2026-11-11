@@ -118,3 +118,4 @@ per branch, to keep them with the code they describe.
 | `feat/web-invoice-extraction` | [m7-web-invoice-extraction.md](m7-web-invoice-extraction.md) |
 | `feat/evals-extraction` | [m7-evals-extraction.md](m7-evals-extraction.md) |
 | `feat/mcp-extract-invoice` | [m7-mcp-extract-invoice.md](m7-mcp-extract-invoice.md) |
+| `docs/readme-case-study` | [m7-docs-readme-case-study.md](m7-docs-readme-case-study.md) |

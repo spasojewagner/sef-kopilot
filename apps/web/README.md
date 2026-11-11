@@ -282,6 +282,7 @@ pnpm --filter @sef-kopilot/web typecheck   # next typegen + tsc --noEmit
 pnpm --filter @sef-kopilot/web test        # Vitest + Testing Library (jsdom)
 pnpm --filter @sef-kopilot/web build       # production build
 pnpm --filter @sef-kopilot/web e2e         # the golden path in a browser (Playwright), below
+pnpm --filter @sef-kopilot/web demo        # the golden path recorded for the README, below
 ```
 
 Formatting is handled by Prettier from the repository root (`pnpm format`).
@@ -314,14 +315,35 @@ A failure names its step, and keeps a screenshot and a trace of the page in `tes
 `pnpm --filter @sef-kopilot/web exec playwright show-report` opens them. The build the test
 makes sends the pages to its API: build again before `pnpm start`.
 
+## The demo
+
+`demo/golden-path.demo.ts` walks the same golden path at a person's pace, for the README's GIF
+(`docs/demo/golden-path.gif`): it uploads the invoice, reads its report, has the scripted model
+suggest the repair, reads its diff, approves it, and ends on the valid invoice. It runs with the
+end-to-end test's servers and database (`playwright.demo.config.ts`), so it needs what the test
+needs, and makes its account beforehand, outside the recording. Chromium sends the frames
+itself, lossless and only when the page changes, with a pointer drawn on the page, since a
+screencast shows none; they are written to `test-results/demo/` with the list of how long each
+is shown. CI does not run it.
+
+```bash
+pnpm --filter @sef-kopilot/web demo        # the frames alone
+make demo-gif                               # from the root: the frames, then the GIF
+```
+
+`make demo-gif` makes the GIF with ffmpeg and gifsicle. It is committed, within the repository's
+limit of 512 KB a file, so record it again after the pages it shows change.
+
 ## Layout
 
 ```text
 .env.example       the web application's settings: the API's address
 components.json    shadcn/ui's settings: style, stylesheet, aliases
+demo/              the README's demo of the golden path, recorded (Playwright)
 e2e/               the end-to-end test of the golden path (Playwright)
 messages/          the interface's texts, one file per language
 playwright.config.ts  the end-to-end test's browser, and the API and the build it starts
+playwright.demo.config.ts  the demo's: the end-to-end test's, on `demo/`
 scripts/           renders the brand's raster icons from the favicon (`pnpm brand:images`)
 src/app/[locale]/  routes (App Router) under the language: the root layout, the home page,
                    `sign-in`, `register`, `invoices`, `invoices/[id]` and its

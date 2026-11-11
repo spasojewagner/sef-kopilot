@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "demo": "playwright test --config playwright.demo.config.ts",
     "api:types": "openapi-typescript ../../docs/api/openapi.json -o src/lib/api-schema.d.ts",
     "brand:images": "node scripts/brand-images.mjs"
   },

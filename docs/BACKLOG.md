@@ -161,7 +161,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
   - [x] `feat/web-invoice-extraction` — the upload page takes a PDF or a picture, shows it beside the fields read, and makes the invoice of them once corrected
   - [x] `feat/evals-extraction` — the reading measured on PDFs and pictures made from known invoices, against thresholds
   - [x] `feat/mcp-extract-invoice` — the brief's `extract_from_pdf` tool: an assistant sends a PDF or a picture and gets the fields read, for the person to check, as the API answers them (found missing from the plan while measuring the reading)
-- [ ] `docs/readme-case-study` — final README (problem, demo GIF, architecture diagram, numbers, how to run, how to self-host), 90-second demo video script, `docs/CASE_STUDY.md`
+- [x] `docs/readme-case-study` — final README (problem, demo GIF, architecture diagram, numbers, how to run, how to self-host), 90-second demo video script, `docs/CASE_STUDY.md`; the GIF recorded by `make demo-gif`, the end-to-end test's golden path at a person's pace
+- [ ] `fix/web-fresh-verdict-after-approval` — found while recording the demo: after a repair is approved, the invoice's report shows its previous verdict until the fresh one arrives (the approval marks the invoice stale without reading it again); then `make demo-gif` again
 - [ ] `chore/release-1.0` — security review pass, `v1.0.0`
 
 ## After 1.0 — waits for a SEF demo account
