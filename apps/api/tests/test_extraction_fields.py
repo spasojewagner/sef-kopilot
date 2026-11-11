@@ -106,6 +106,20 @@ def test_amounts_are_asked_for_as_numbers_and_the_rest_as_text() -> None:
     assert SCHEMA["properties"]["seller"]["properties"]["tax_id"]["type"] == ["string", "null"]
 
 
+def test_the_api_gives_amounts_as_text_as_it_answers_them() -> None:
+    """Only the model is asked for numbers: the API's document, and the web client typed from
+    it, keep the amounts as text, as the API answers them."""
+    text = [{"type": "string"}, {"type": "null"}]
+    for schema in (
+        InvoiceFields.model_json_schema(mode="validation"),
+        InvoiceFields.model_json_schema(mode="serialization"),
+    ):
+        definitions = schema["$defs"]
+        assert definitions["Line"]["properties"]["quantity"]["anyOf"] == text
+        assert definitions["VatSubtotal"]["properties"]["vat_rate"]["anyOf"] == text
+        assert definitions["Totals"]["properties"]["payable"]["anyOf"] == text
+
+
 def test_an_empty_answer_is_an_invoice_with_nothing_read() -> None:
     nothing = InvoiceFields.model_validate_json("{}")
 

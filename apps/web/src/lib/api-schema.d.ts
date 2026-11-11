@@ -1914,7 +1914,7 @@ export interface components {
             quantity?: string | null;
             /**
              * Unit
-             * @description The unit as a UN/ECE Recommendation 20 code: H87 for a piece (kom), HUR for an hour (sat), DAY for a day, KGM for a kilogram, LTR for a litre, MTR for a metre, C62 when no unit is printed.
+             * @description The unit as the line prints it: kom, sat, dan, kg, l, m, km; or its UN/ECE Recommendation 20 code where that is printed, H87; C62 where the line prints no unit.
              */
             unit?: string | null;
             /**
@@ -1934,7 +1934,7 @@ export interface components {
             vat_category?: ("S" | "Z" | "E" | "AE" | "R" | "O" | "OE" | "SS" | "N") | null;
             /**
              * Vat Rate
-             * @description The VAT rate in percent, a number: 20, 10 or 0.
+             * @description The VAT rate in percent, as printed: 20 for 20 %, 10 or 0; never 0.2.
              */
             vat_rate?: string | null;
         };
@@ -2908,7 +2908,7 @@ export interface components {
             vat_category?: ("S" | "Z" | "E" | "AE" | "R" | "O" | "OE" | "SS" | "N") | null;
             /**
              * Vat Rate
-             * @description The VAT rate in percent: 20, 10 or 0.
+             * @description The VAT rate in percent: 20 for 20 %, 10 or 0; never 0.2.
              */
             vat_rate?: string | null;
             /**

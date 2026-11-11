@@ -2964,7 +2964,7 @@ model, in Serbian and English, light and dark, on a desktop and a phone.
 Next: the reading measured on PDFs, scans and photographs made from known invoices, against
 thresholds (`feat/evals-extraction`).
 
-## 2026-11-11 — `feat/evals-extraction` (11 commits and the recording, stacked on `feat/web-invoice-extraction`)
+## 2026-11-11 — `feat/evals-extraction` (12 commits and the recording, stacked on `feat/web-invoice-extraction`)
 
 Outcome: the reading of invoices is measured (ADR-0063). Ten synthetic invoices, by the fields
 they print, are printed three ways (a PDF with its text, a scan, a photograph) by
@@ -3001,6 +3001,10 @@ Findings:
   time, as it waits out a limit.
 - mypy on the maintainer's Windows reported three errors CI never sees (multiprocessing's
   pipes, a test skipped on Windows); it checks the workspace as Linux everywhere now.
+- CI found that asking for amounts as numbers had made them numbers in the API's own OpenAPI
+  document too, and in the web client typed from it, while the API answers them as text. Only
+  the model's schema asks for numbers now, what the model is sent unchanged, so the recording
+  still holds.
 
 Verification: the evaluations' tests (99 % of the package covered), ruff, mypy; the runner
 against the repository with no reading recorded, which says every document is not read, as a
