@@ -12,6 +12,13 @@ invoice. A value must have the form its description gives (a date as
 ``2026-10-05``, an amount as ``14400.00``), which the models check: an answer that breaks one
 is sent back to the model with what is wrong, as the explainer's and the repairer's are.
 
+An amount is asked for as a JSON number, the form a model writes one in. Asked for as text, a
+model that constrained decoding holds to the schema cannot write the digit it means to begin
+with, and writes null: every amount of the first recorded readings was null. The fields keep
+it as text, digit for digit, as the reader parses the answer's numbers as decimals, never as
+floats. A unit is written as the line prints it (kom, sat, kg), and :data:`UNITS` makes it its
+UN/ECE Recommendation 20 code, in code: the model reads, it does not look codes up.
+
 :data:`SCHEMA` is the answer's JSON schema, made from the models for structured outputs in
 strict mode: every key is required, every value may be null, nothing else is allowed.
 :func:`fields_of` reads the same fields from an invoice the validator parsed, for the tests
@@ -25,7 +32,15 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated, Any, Final, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    WithJsonSchema,
+    model_validator,
+)
 
 from einvoice_core import model
 from einvoice_core.srb.vat import CATEGORIES
@@ -34,6 +49,7 @@ __all__ = [
     "MAX_LINES",
     "NOT_IN_XML",
     "SCHEMA",
+    "UNITS",
     "InvoiceFields",
     "Line",
     "Party",
@@ -54,6 +70,31 @@ NOT_IN_XML: Final = re.compile("[^\t\n\r\x20-\ud7ff\ue000-\ufffd\U00010000-\U001
 
 _AMOUNT = re.compile(r"-?[0-9]+(\.[0-9]+)?")
 _DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+_UNIT = re.compile(r"[A-Z0-9]{2,3}")
+_PIB = re.compile(r"[0-9]{9}")
+_MB = re.compile(r"[0-9]{8}")
+
+#: The units a Serbian invoice prints, in Latin and in Cyrillic, lower case, by the
+#: UN/ECE Recommendation 20 code each stands for.
+UNITS: Final[dict[str, str]] = {
+    printed: code
+    for code, forms in {
+        "H87": ("kom", "kom.", "ком", "ком."),
+        "HUR": ("sat", "sati", "h", "сат", "сати"),
+        "DAY": ("dan", "dana", "дан", "дана"),
+        "MON": ("mes", "mes.", "mesec", "мес", "мес.", "месец"),
+        "KGM": ("kg", "кг"),
+        "GRM": ("g", "gr", "г", "гр"),
+        "TNE": ("t", "т", "tona", "тона"),
+        "LTR": ("l", "lit", "lit.", "л", "лит", "лит."),
+        "MTR": ("m", "м"),
+        "KMT": ("km", "км"),
+        "MTK": ("m2", "m²", "м2", "м²"),
+        "MTQ": ("m3", "m³", "м3", "м³"),
+        "KWH": ("kwh",),
+    }.items()
+    for printed in forms
+}
 
 
 def _text(value: str | None) -> str | None:
@@ -73,6 +114,40 @@ def _amount(value: str | None) -> str | None:
             "or a currency"
         )
     return value
+
+
+def _number(value: object) -> object:
+    """An amount the model wrote as a JSON number, as text: digit for digit where the answer's
+    numbers were parsed as decimals, as the reader parses them. Text is left to the form's
+    check, and true or false to the type's."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, Decimal):
+        return format(value, "f")
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return format(Decimal(repr(value)), "f")
+    return value
+
+
+def _rate(value: str | None) -> str | None:
+    value = _amount(value)
+    if value is not None and 0 < Decimal(value) < 1:
+        raise ValueError("write the rate in percent, 20 for 20 %, not 0.2")
+    return value
+
+
+def _unit(value: str | None) -> str | None:
+    value = _text(value)
+    if value is None:
+        return None
+    code = UNITS.get(value.casefold(), value.upper())
+    if _UNIT.fullmatch(code) is None:
+        raise ValueError(
+            "write the unit as the line prints it, kom, or as a UN/ECE Recommendation 20 code, H87"
+        )
+    return code
 
 
 def _date(value: str | None) -> str | None:
@@ -103,13 +178,24 @@ def _code(pattern: str, form: str) -> Any:
 
 
 Text = Annotated[str | None, AfterValidator(_text)]
-Amount = Annotated[str | None, AfterValidator(_amount)]
+#: A number the model writes as a JSON number, kept as text (:func:`_number`).
+Amount = Annotated[
+    str | None,
+    BeforeValidator(_number),
+    AfterValidator(_amount),
+    WithJsonSchema({"anyOf": [{"type": "number"}, {"type": "null"}]}),
+]
+#: A VAT rate in percent, a JSON number as :data:`Amount` is: a fraction (0.2) is refused.
+Rate = Annotated[
+    str | None,
+    BeforeValidator(_number),
+    AfterValidator(_rate),
+    WithJsonSchema({"anyOf": [{"type": "number"}, {"type": "null"}]}),
+]
 Day = Annotated[str | None, AfterValidator(_date)]
 Currency = Annotated[str | None, AfterValidator(_code(r"[A-Z]{3}", "an ISO 4217 code, RSD"))]
 Country = Annotated[str | None, AfterValidator(_code(r"[A-Z]{2}", "an ISO 3166 code, RS"))]
-Unit = Annotated[
-    str | None, AfterValidator(_code(r"[A-Z0-9]{2,3}", "a UN/ECE Recommendation 20 code, H87"))
-]
+Unit = Annotated[str | None, AfterValidator(_unit)]
 TypeCode = Literal["380", "381", "383", "386"]
 Category = Literal["S", "Z", "E", "AE", "R", "O", "OE", "SS", "N"]
 
@@ -142,6 +228,22 @@ class Party(_Fields):
     )
     email: Text = Field(default=None, description="Its email address, if printed.")
 
+    @model_validator(mode="after")
+    def _not_swapped(self) -> Party:
+        """A PIB of eight digits beside a matični broj of nine is the two the other way round,
+        which a reading of a scan does; it goes back to the model, as any wrong form."""
+        if (
+            self.tax_id is not None
+            and self.company_id is not None
+            and _MB.fullmatch(self.tax_id)
+            and _PIB.fullmatch(self.company_id)
+        ):
+            raise ValueError(
+                "the PIB (tax_id) has nine digits and the matični broj (company_id) eight: "
+                "write each in its own field"
+            )
+        return self
+
 
 class Line(_Fields):
     """A line of the invoice's table of goods and services."""
@@ -150,9 +252,9 @@ class Line(_Fields):
     quantity: Amount = Field(default=None, description="The quantity, a number: 8.")
     unit: Unit = Field(
         default=None,
-        description="The unit as a UN/ECE Recommendation 20 code: H87 for a piece (kom), HUR "
-        "for an hour (sat), DAY for a day, KGM for a kilogram, LTR for a litre, MTR for a metre, "
-        "C62 when no unit is printed.",
+        description="The unit as the line prints it: kom, sat, dan, kg, l, m, km; or its "
+        "UN/ECE Recommendation 20 code where that is printed, H87; C62 where the line prints "
+        "no unit.",
     )
     unit_price: Amount = Field(
         default=None, description="The price of one unit without VAT, a number: 1500.00."
@@ -167,8 +269,9 @@ class Line(_Fields):
         "the buyer owes it (reverse charge); Z, E, R, O, OE, SS or N where the line names an "
         "exemption or VAT does not apply.",
     )
-    vat_rate: Amount = Field(
-        default=None, description="The VAT rate in percent, a number: 20, 10 or 0."
+    vat_rate: Rate = Field(
+        default=None,
+        description="The VAT rate in percent, as printed: 20 for 20 %, 10 or 0; never 0.2.",
     )
 
 
@@ -178,7 +281,9 @@ class VatSubtotal(_Fields):
     vat_category: Category | None = Field(
         default=None, description="The VAT category, as for a line: S, AE, Z, E, R, O, OE, SS, N."
     )
-    vat_rate: Amount = Field(default=None, description="The VAT rate in percent: 20, 10 or 0.")
+    vat_rate: Rate = Field(
+        default=None, description="The VAT rate in percent: 20 for 20 %, 10 or 0; never 0.2."
+    )
     taxable_amount: Amount = Field(
         default=None, description="The amount the VAT is charged on (osnovica): 12000.00."
     )

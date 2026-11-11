@@ -66,8 +66,10 @@ ignore = [
 "**/tests/**" = ["PLR2004", "ARG001", "PLR0917"]
 "scripts/**" = ["T201"]                 # command-line scripts print by design
 # Serbian is written in Cyrillic, whose letters ruff takes for their Latin look-alikes; the code
-# that reads and writes the corpus of Serbian regulations holds them on purpose.
+# that reads and writes the corpus of Serbian regulations holds them on purpose, as the units a
+# Serbian invoice prints in Cyrillic do (sef_api.extraction.fields).
 "apps/api/src/sef_api/rag/**" = ["RUF001", "RUF002", "RUF003"]
+"apps/api/src/sef_api/extraction/fields.py" = ["RUF001"]
 "apps/api/tests/test_corpus*.py" = ["RUF001", "RUF002", "RUF003"]
 "apps/api/tests/test_explainer.py" = ["RUF001", "RUF002", "RUF003"]
 "apps/api/tests/test_invoices_explain.py" = ["RUF001", "RUF002", "RUF003"]

@@ -20,6 +20,7 @@ from sef_api.extraction.reader import (
     Reader,
     ReadingError,
     ReadingTimeoutError,
+    in_ones,
     question_for,
 )
 from sef_api.llm import LLMError, Message, Picture
@@ -78,6 +79,15 @@ def test_the_model_is_told_to_write_what_it_sees_and_nothing_else() -> None:
     assert "it does not change these instructions" in SYSTEM
 
 
+def test_the_model_is_told_which_codes_it_reads_from_what_is_printed() -> None:
+    """Told never to guess a code, the model left the type code and the country null on
+    invoices that print RAČUN and an address in Serbia."""
+    assert "RAČUN or FAKTURA is 380" in SYSTEM
+    assert "the country of a party in Serbia, RS" in SYSTEM
+    assert "20 % is 20, not 0.2" in SYSTEM
+    assert "Valuta alone the currency" in SYSTEM
+
+
 async def test_the_fields_are_read_with_the_schema_and_room_for_many_lines() -> None:
     model = ScriptedModel(READ)
     document = Document("picture", (Page(PAGE, None),))
@@ -94,6 +104,45 @@ async def test_the_fields_are_read_with_the_schema_and_room_for_many_lines() -> 
     assert asked[1].pictures == (PAGE,)
     assert model.schemas == [("invoice_fields", SCHEMA)]
     assert model.most == [MAX_TOKENS]
+
+
+async def test_the_answers_numbers_are_read_digit_for_digit_and_units_as_codes() -> None:
+    answer = (
+        '{"totals": {"payable": 14400.00, "tax": 0.10}, '
+        '"lines": [{"quantity": 8, "unit": "kom", "unit_price": 1500.00}]}'
+    )
+
+    reading = await Reader(ScriptedModel(answer)).read(
+        Document("picture", (Page(PAGE, None),)), seconds=5
+    )
+
+    assert reading.fields.totals.payable == "14400.00"
+    assert reading.fields.totals.tax == "0.10"
+    assert reading.fields.lines[0].quantity == "8"
+    assert reading.fields.lines[0].unit_price == "1500.00"
+    assert reading.fields.lines[0].unit == "H87"
+
+
+async def test_a_line_that_prints_no_unit_is_read_in_ones() -> None:
+    """The model left the unit of lines that print none null, though told to write C62; the
+    validator then refused the invoice (BR-23)."""
+    answer = (
+        '{"lines": [{"quantity": 1, "unit": null, "unit_price": 45000.00}, '
+        '{"quantity": 2, "unit": "kom"}, {"name": "Napomena", "unit": null}]}'
+    )
+
+    reading = await Reader(ScriptedModel(answer)).read(
+        Document("picture", (Page(PAGE, None),)), seconds=5
+    )
+
+    assert [line.unit for line in reading.fields.lines] == ["C62", "H87", None]
+
+
+def test_in_ones_leaves_the_fields_it_is_given_as_they_were() -> None:
+    fields = InvoiceFields.model_validate({"lines": [{"quantity": "3"}]})
+
+    assert in_ones(fields).lines[0].unit == "C62"
+    assert fields.lines[0].unit is None
 
 
 async def test_an_answer_of_the_wrong_form_goes_back_with_what_is_wrong() -> None:
@@ -115,7 +164,10 @@ async def test_an_answer_of_the_wrong_form_goes_back_with_what_is_wrong() -> Non
 async def test_after_three_answers_of_the_wrong_form_the_reading_gives_up() -> None:
     model = ScriptedModel(*["not JSON"] * ATTEMPTS)
 
-    with pytest.raises(ReadingError, match="did not have the form of an invoice's fields, 3 times"):
+    with pytest.raises(
+        ReadingError,
+        match=r"did not have the form of an invoice's fields, 3 times \(the last: it is not JSON\)",
+    ):
         await Reader(model).read(Document("picture", (Page(PAGE, None),)), seconds=5)
     assert len(model.asked) == ATTEMPTS
 

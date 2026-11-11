@@ -38,6 +38,17 @@ is tagged.
 - `pyproject.toml`: mypy checks the workspace as Linux on every machine, as CI does; on
   Windows it took multiprocessing's pipes for another class, and the code after a test skipped
   there for unreachable.
+- `apps/api` (beta): the reading model is asked for amounts, quantities and VAT rates as JSON
+  numbers, kept as text digit for digit (the answer's numbers are parsed as decimals): asked for
+  text, the model held to the schema by constrained decoding wrote every one of them as null. A
+  unit is read as the line prints it (kom, sat, kg, l, km, in Latin or Cyrillic) and made its
+  UN/ECE Recommendation 20 code in code, and a line with a quantity and no unit counts in ones
+  (C62). A VAT rate written as a fraction (0.2), and a PIB and a matični broj the other way
+  round, go back to the model as answers of the wrong form. The model is told that the type
+  code is read from the document's title and a Serbian party's country is RS, which it had left
+  null as codes not printed, and under which labels a Serbian invoice prints the delivery date,
+  the buyer's reference and the due date (found by the second recording, which read 24 % of
+  the fields of the PDFs).
 - `apps/api` (beta): a character XML cannot hold no longer reaches the fields read from a
   document, where one made drafting the invoice fail: PDFium's mark for a hyphen at a line
   break is shown to the reading model as a hyphen, and control characters are left out of a

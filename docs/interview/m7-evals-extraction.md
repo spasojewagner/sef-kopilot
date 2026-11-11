@@ -33,3 +33,14 @@ new one. Messages without pictures keep the key they always had, so older casset
 **Measure a model the way it can fail**: separate how often it is wrong from how often it makes
 things up, split by the kinds of input that are hard in different ways, and keep one end-to-end
 number for the user's view, each failure naming the case and the field.
+
+## Found by the recordings
+
+**"Every amount came back null, while the names and the dates were right. Why?"**
+
+The schema asked for every value as text, and strict structured outputs hold a model to it by
+constrained decoding: at each token, only what keeps the answer valid against the schema may be
+written. A value typed as text or null may begin only with a quote or with null; a model about
+to write 14400.00 as a number had its likeliest token forbidden, and null was always allowed.
+Asked for a JSON number, it writes the digits, which the API parses as decimals, never floats,
+and keeps as text. The measure said 24 %; the recorded answers said why.

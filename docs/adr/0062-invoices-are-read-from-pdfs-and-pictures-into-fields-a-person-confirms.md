@@ -47,9 +47,16 @@ Serbian invoice prints, in its plain form: the parties' names, PIB, registration
 address, the dates, the lines, the VAT recapitulation, the totals, the bank account and the
 payment reference, and whether the seller is in the VAT register. Every value is text or null,
 in a form the model can check (`2026-10-05`, `14400.00`); their JSON schema is made from the
-models for structured outputs in strict mode. The model is told to write what the page shows and
-nothing more: no amount computed, no field guessed. An answer of the wrong form goes back with
-what is wrong, at most three times, as the explainer's and the repairer's do.
+models for structured outputs in strict mode. Amounts, quantities and rates alone are asked for
+as JSON numbers, the form a model writes them in, and kept as text digit for digit: asked for as
+text, the model held to the schema by constrained decoding wrote every one of them as null. A
+unit is read as printed and made its UN/ECE code in code; a line with a quantity and no unit
+read counts in ones (C62), the code of a line that prints none, which the model leaves null as
+often as it writes it, and the person changes it where a printed unit was missed. The model is
+told to write what the page shows and nothing more: no amount computed, no field guessed. What
+the page shows includes two codes it does not print: the type code, read from the title, and
+the country of a party in Serbia, RS. An answer of the wrong form goes back with what is wrong,
+at most three times, as the explainer's and the repairer's do.
 
 **The UBL in code** (`sef_api.extraction.draft`). Deterministic: every element comes from a
 field, or from SRB-CIUS where the profile fixes it (the specification identifier, the payment
