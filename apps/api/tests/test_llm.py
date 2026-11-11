@@ -15,6 +15,7 @@ from pydantic import SecretStr, ValidationError
 import sef_api.llm as llm_module
 from sef_api.llm import (
     AnthropicClient,
+    GeminiClient,
     GroqClient,
     LLMError,
     Message,
@@ -38,7 +39,7 @@ SCHEMA: dict[str, Any] = {
 CONVERSATION = [Message("system", "Answer in JSON."), Message("user", "тајни рачун 4711")]
 
 
-def answering[Client: (GroqClient, OpenAIClient, AnthropicClient)](
+def answering[Client: (GroqClient, OpenAIClient, AnthropicClient, GeminiClient)](
     handler: Callable[[dict[str, Any]], httpx.Response],
     requests: list[httpx.Request],
     *,
@@ -374,6 +375,103 @@ async def test_openai_s_failures_say_what_went_wrong_and_nothing_sent(
     assert "4711" not in str(raised.value)
 
 
+# --- Gemini -------------------------------------------------------------------------------------
+
+
+async def test_gemini_is_asked_through_its_openai_compatible_chat_completions() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(
+        lambda _body: completion('{"answer": "da"}'), requests, provider=GeminiClient
+    )
+
+    answer = await client.answer(CONVERSATION, name="reply", schema=SCHEMA)
+
+    assert answer == '{"answer": "da"}'
+    assert client.model == "gemini/gemini-3.1-flash-lite"
+    (request,) = requests
+    assert request.url == (
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    )
+    assert request.headers["Authorization"] == "Bearer gsk_test_key"
+    # No temperature: Google advises against lowering it for Gemini 3 models.
+    assert json.loads(request.content) == {
+        "model": "gemini-3.1-flash-lite",
+        "messages": [
+            {"role": "system", "content": "Answer in JSON."},
+            {"role": "user", "content": "тајни рачун 4711"},
+        ],
+        "max_completion_tokens": GeminiClient.MAX_TOKENS,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {"name": "reply", "strict": True, "schema": SCHEMA},
+        },
+        "reasoning_effort": "low",
+    }
+
+
+async def test_gemini_is_sent_an_enum_that_holds_null_as_any_of_the_enum_and_null() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(lambda _body: completion("{}"), requests, provider=GeminiClient)
+    nullable: dict[str, Any] = {
+        "type": "object",
+        "properties": {
+            "code": {"type": ["string", "null"], "enum": ["380", "381", None], "description": "d"},
+            "name": {"type": ["string", "null"]},
+        },
+        "required": ["code", "name"],
+        "additionalProperties": False,
+    }
+
+    await client.answer(CONVERSATION, name="reply", schema=nullable)
+
+    sent = json.loads(requests[0].content)["response_format"]["json_schema"]["schema"]
+    assert sent["properties"] == {
+        "code": {
+            "anyOf": [{"type": "string", "enum": ["380", "381"]}, {"type": "null"}],
+            "description": "d",
+        },
+        "name": {"type": ["string", "null"]},
+    }
+    assert nullable["properties"]["code"]["enum"] == ["380", "381", None]  # left as it was
+
+
+@pytest.mark.parametrize(
+    ("answer", "problem"),
+    [
+        (
+            httpx.Response(
+                400,
+                json=[
+                    {
+                        "error": {
+                            "code": 400,
+                            "message": "тајни рачун 4711",
+                            "status": "INVALID_ARGUMENT",
+                        }
+                    }
+                ],
+            ),
+            r"Gemini answered 400 \(INVALID_ARGUMENT\)$",
+        ),
+        (
+            httpx.Response(403, json={"error": {"code": 403, "status": "PERMISSION_DENIED"}}),
+            r"Gemini answered 403 \(PERMISSION_DENIED\)$",
+        ),
+        (httpx.Response(400, json=[]), "Gemini answered 400$"),
+    ],
+)
+async def test_gemini_s_failures_name_google_s_status_and_nothing_sent(
+    answer: httpx.Response, problem: str
+) -> None:
+    requests: list[httpx.Request] = []
+
+    with pytest.raises(LLMError, match=problem) as raised:
+        await answering(lambda _body: answer, requests, provider=GeminiClient).answer(
+            CONVERSATION, name="reply", schema=SCHEMA
+        )
+    assert "4711" not in str(raised.value)
+
+
 # --- Anthropic ----------------------------------------------------------------------------------
 
 
@@ -604,6 +702,16 @@ async def test_openai_is_shown_pictures_as_groq_is() -> None:
     assert [part["type"] for part in parts] == ["text", "image_url", "image_url"]
 
 
+async def test_gemini_is_shown_pictures_as_groq_is() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(lambda _body: completion("{}"), requests, provider=GeminiClient)
+
+    await client.answer(SHOWING, name="reply", schema=SCHEMA)
+
+    parts = json.loads(requests[0].content)["messages"][1]["content"]
+    assert [part["type"] for part in parts] == ["text", "image_url", "image_url"]
+
+
 async def test_anthropic_is_shown_pictures_before_the_text() -> None:
     requests: list[httpx.Request] = []
     client = answering(lambda _body: message(text("{}")), requests, provider=AnthropicClient)
@@ -656,3 +764,26 @@ def test_the_reading_model_is_the_provider_s_unless_the_settings_name_another() 
     assert chosen is not None
     # The model that writes explanations does not read pictures; the reading model is apart.
     assert chosen.model == "groq/meta-models/muse-spark-open"
+
+
+def test_another_provider_may_read_while_the_first_writes() -> None:
+    settings = settings_for(
+        LLM_PROVIDER="groq",
+        GROQ_API_KEY="gsk_key",
+        SEF_EXTRACTION_PROVIDER="gemini",
+        GEMINI_API_KEY="gemini-key",
+    )
+
+    writing, reading = llm_for(settings), reading_llm_for(settings)
+
+    assert isinstance(writing, GroqClient)
+    assert writing.model == "groq/openai/gpt-oss-120b"
+    assert isinstance(reading, GeminiClient)
+    assert reading.model == "gemini/gemini-3.1-flash-lite"
+
+
+def test_the_reading_provider_needs_its_key() -> None:
+    with pytest.raises(
+        ValidationError, match="GEMINI_API_KEY must be set when SEF_EXTRACTION_PROVIDER is gemini"
+    ):
+        settings_for(LLM_PROVIDER="groq", GROQ_API_KEY="gsk_key", SEF_EXTRACTION_PROVIDER="gemini")

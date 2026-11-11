@@ -393,7 +393,13 @@ async def test_records_with_the_model_the_settings_name(
 async def test_reads_with_the_reading_model_the_settings_name(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    for name in ("LLM_PROVIDER", "GROQ_API_KEY", "SEF_EXTRACTION_MODEL", "SEF_LLM_MODEL"):
+    for name in (
+        "LLM_PROVIDER",
+        "GROQ_API_KEY",
+        "SEF_EXTRACTION_PROVIDER",
+        "SEF_EXTRACTION_MODEL",
+        "SEF_LLM_MODEL",
+    ):
         monkeypatch.delenv(name, raising=False)
     env_file = tmp_path / ".env"
     env_file.write_text("LLM_PROVIDER=groq\nGROQ_API_KEY=not-a-real-key\n", encoding="utf-8")
@@ -409,3 +415,32 @@ async def test_reads_with_the_reading_model_the_settings_name(
     await named.aclose()
     monkeypatch.setenv("LLM_PROVIDER", "none")
     assert reading_model_named_in(env_file) is None
+
+
+async def test_reads_with_another_provider_than_the_one_that_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in (
+        "LLM_PROVIDER",
+        "GROQ_API_KEY",
+        "GEMINI_API_KEY",
+        "SEF_EXTRACTION_PROVIDER",
+        "SEF_EXTRACTION_MODEL",
+        "SEF_LLM_MODEL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "LLM_PROVIDER=groq\nGROQ_API_KEY=not-a-real-key\n"
+        "SEF_EXTRACTION_PROVIDER=gemini\nGEMINI_API_KEY=not-a-real-key-either\n",
+        encoding="utf-8",
+    )
+    writing = model_named_in(env_file)
+    reading = reading_model_named_in(env_file)
+    assert writing is not None
+    assert reading is not None
+    # Groq writes the explanations and repairs; Gemini reads the documents.
+    assert writing.model == "groq/openai/gpt-oss-120b"
+    assert reading.model == "gemini/gemini-3.1-flash-lite"
+    await writing.aclose()
+    await reading.aclose()

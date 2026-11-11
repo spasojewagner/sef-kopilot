@@ -66,7 +66,10 @@ was drawn from: the file's SHA-256, the page, the picture's size and its JPEG qu
 changed document, page size or quality is a new request; the same document drawn on another
 machine is the same one. A message without pictures keeps the key it always had, so the
 cassettes recorded before stay valid. The reading is recorded with the provider's reading model,
-forty-five seconds apart, under Groq's free tier's tokens a minute.
+forty-five seconds apart, under Groq's free tier's tokens a minute. Groq's daily limit stopped
+the first recordings before the thirty documents were read, so the reading is recorded with
+Gemini's `gemini-3.1-flash-lite` on its free tier (`SEF_EXTRACTION_PROVIDER=gemini`,
+ADR-0062), while Groq writes the explanations and repairs.
 
 ### Consequences
 

@@ -119,7 +119,11 @@ that does not is the reading's fault.
 A page is shown to the model as a picture, and drawing a page may differ in its last bits from
 one machine to another; a request is named by the documents its pictures were drawn from (the
 document's SHA-256, the page, its size), so that answers recorded on one machine replay on
-another. Recording uses the reading model (`qwen/qwen3.8-27b` on Groq, `SEF_EXTRACTION_MODEL`
-for another), forty-five seconds apart, under the free tier's tokens a minute. The documents
-are drawn by [`scripts/render_documents.py`](../scripts/render_documents.py), with Playwright for
-Python installed apart; a document drawn again is a new request, to be recorded again.
+another. Recording uses the reading model of `SEF_EXTRACTION_PROVIDER`, or of `LLM_PROVIDER`
+when it names none (`qwen/qwen3.8-27b` on Groq, `gemini-3.1-flash-lite` on Gemini,
+`SEF_EXTRACTION_MODEL` for another), forty-five seconds apart, under a free tier's tokens a
+minute. The cassette holds Gemini's answers, recorded on its free tier while Groq wrote
+(`SEF_EXTRACTION_PROVIDER=gemini` with `GEMINI_API_KEY`): Groq's daily limit stopped the first
+recordings. The documents are drawn by
+[`scripts/render_documents.py`](../scripts/render_documents.py), with Playwright for Python
+installed apart; a document drawn again is a new request, to be recorded again.

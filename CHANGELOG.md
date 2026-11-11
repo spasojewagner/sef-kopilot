@@ -17,6 +17,12 @@ is tagged.
   PDF's text layer, pictures drawn anew without their metadata, nothing stored; and
   `POST /invoices/draft` writes the UBL invoice of the fields a person confirmed, in code,
   nothing computed or filled in (ADR-0062).
+- `apps/api`: Google's Gemini as a provider (`LLM_PROVIDER=gemini` with `GEMINI_API_KEY`), by its
+  OpenAI-compatible chat completions with structured outputs, `gemini-3.1-flash-lite` by default,
+  on Google's free tier; and `SEF_EXTRACTION_PROVIDER`, which has one provider read documents
+  while another writes explanations and repairs (Gemini reading while Groq writes, say). An enum
+  that holds null is sent to Gemini as `anyOf` the enum and null; Google's errors are named by
+  their status. The evaluations record the reading with the same settings.
 - `apps/web` (beta): the upload page takes a PDF or a JPEG, PNG or WebP picture of an
   invoice, has the API read it and shows the fields beside the document, every one editable,
   the ones SEF needs and the model did not find marked; the invoice is made of them, stored and

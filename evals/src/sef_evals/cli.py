@@ -149,16 +149,20 @@ class _ModelSettings(BaseSettings):
     groq_api_key: SecretStr | None = Field(default=None, alias="GROQ_API_KEY")
     openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY")
     anthropic_api_key: SecretStr | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    gemini_api_key: SecretStr | None = Field(default=None, alias="GEMINI_API_KEY")
     llm_model: str | None = Field(default=None, alias="SEF_LLM_MODEL")
+    extraction_provider: str | None = Field(default=None, alias="SEF_EXTRACTION_PROVIDER")
     extraction_model: str | None = Field(default=None, alias="SEF_EXTRACTION_MODEL")
 
-    def key(self) -> SecretStr | None:
+    def key(self, provider: str | None = None) -> SecretStr | None:
+        """The key of ``provider``, or of ``LLM_PROVIDER``'s when none is named."""
         keys = {
             "groq": self.groq_api_key,
             "openai": self.openai_api_key,
             "anthropic": self.anthropic_api_key,
+            "gemini": self.gemini_api_key,
         }
-        return keys.get(self.llm_provider)
+        return keys.get(provider or self.llm_provider)
 
 
 def _named_in(env_file: Path) -> _ModelSettings:
@@ -173,12 +177,14 @@ def model_named_in(env_file: Path) -> LLMClient | None:
 
 
 def reading_model_named_in(env_file: Path) -> LLMClient | None:
-    """The model that reads documents, as the API would ask it: the provider's reading model,
-    or the one ``SEF_EXTRACTION_MODEL`` names; None when no provider is named."""
+    """The model that reads documents, as the API would ask it: the reading model of
+    ``SEF_EXTRACTION_PROVIDER``, or of ``LLM_PROVIDER`` when it names none, or the one
+    ``SEF_EXTRACTION_MODEL`` names; None when no provider is named."""
     named = _named_in(env_file)
-    provider = PROVIDERS.get(named.llm_provider)
+    name = named.extraction_provider or named.llm_provider
+    provider = PROVIDERS.get(name)
     model = named.extraction_model or (provider.READING_MODEL if provider is not None else None)
-    return client_for(named.llm_provider, named.key(), model)
+    return client_for(name, named.key(name), model)
 
 
 @dataclass(frozen=True)

@@ -207,14 +207,14 @@ class Settings(BaseSettings):
         validation_alias="JINA_API_KEY",
         description="The key to Jina's embeddings API: required with `EMBEDDINGS_PROVIDER=jina`.",
     )
-    llm_provider: Literal["none", "groq", "openai", "anthropic"] = Field(
+    llm_provider: Literal["none", "groq", "openai", "anthropic", "gemini"] = Field(
         default="none",
         validation_alias="LLM_PROVIDER",
         description=(
             "The language model that writes explanations and proposes repairs (ADR-0057). "
             "`none`: no model, and both answer 503; `groq`: Groq's API, with `GROQ_API_KEY`, "
             "free; `openai`: OpenAI's, with `OPENAI_API_KEY`; `anthropic`: Anthropic's, with "
-            "`ANTHROPIC_API_KEY`."
+            "`ANTHROPIC_API_KEY`; `gemini`: Google's Gemini API, with `GEMINI_API_KEY`."
         ),
     )
     groq_api_key: SecretStr | None = Field(
@@ -231,6 +231,14 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="ANTHROPIC_API_KEY",
         description="The key to Anthropic's API: required with `LLM_PROVIDER=anthropic`.",
+    )
+    gemini_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="GEMINI_API_KEY",
+        description=(
+            "The key to Google's Gemini API: required with `LLM_PROVIDER=gemini` or "
+            "`SEF_EXTRACTION_PROVIDER=gemini`."
+        ),
     )
     langfuse_public_key: str | None = Field(
         default=None,
@@ -339,16 +347,24 @@ class Settings(BaseSettings):
             "structured outputs."
         ),
     )
+    extraction_provider: Literal["groq", "openai", "anthropic", "gemini"] | None = Field(
+        default=None,
+        validation_alias="SEF_EXTRACTION_PROVIDER",
+        description=(
+            "The provider whose model reads PDFs and pictures, when not `LLM_PROVIDER`'s "
+            "(ADR-0062): `gemini` reads with Gemini while Groq writes, say. Its key must be set."
+        ),
+    )
     extraction_model: str | None = Field(
         default=None,
         min_length=1,
         max_length=200,
         validation_alias="SEF_EXTRACTION_MODEL",
         description=(
-            "The provider's model that reads PDFs and pictures into an invoice's fields, when "
-            "not its default (`qwen/qwen3.8-27b` on Groq, `gpt-6-luna` on OpenAI, "
-            "`claude-haiku-5-5` on Anthropic); it must read pictures and support structured "
-            "outputs (ADR-0062)."
+            "The reading provider's model that reads PDFs and pictures into an invoice's "
+            "fields, when not its default (`qwen/qwen3.8-27b` on Groq, `gpt-6-luna` on OpenAI, "
+            "`claude-haiku-5-5` on Anthropic, `gemini-3.1-flash-lite` on Gemini); it must read "
+            "pictures and support structured outputs (ADR-0062)."
         ),
     )
     max_document_bytes: int = Field(
@@ -588,11 +604,16 @@ class Settings(BaseSettings):
             "groq": ("GROQ_API_KEY", self.groq_api_key),
             "openai": ("OPENAI_API_KEY", self.openai_api_key),
             "anthropic": ("ANTHROPIC_API_KEY", self.anthropic_api_key),
+            "gemini": ("GEMINI_API_KEY", self.gemini_api_key),
         }
-        if self.llm_provider in keys:
-            name, key = keys[self.llm_provider]
-            if key is None:
-                raise ValueError(f"{name} must be set when LLM_PROVIDER is {self.llm_provider}")
+        for setting, provider in (
+            ("LLM_PROVIDER", self.llm_provider),
+            ("SEF_EXTRACTION_PROVIDER", self.extraction_provider),
+        ):
+            if provider in keys:
+                name, key = keys[provider]
+                if key is None:
+                    raise ValueError(f"{name} must be set when {setting} is {provider}")
         return self
 
     @model_validator(mode="after")
