@@ -14,7 +14,7 @@ import pytest
 
 from einvoice_core.rulesets import RulesetNotFoundError
 from sef_api.llm import LLMClient
-from sef_evals import __version__, cli, verdicts
+from sef_evals import __version__, cli, extraction, verdicts
 from sef_evals.cassettes import Cassette
 from sef_evals.cli import (
     EXIT_ERROR,
@@ -193,6 +193,31 @@ def test_a_recording_stopped_by_the_limit_keeps_what_it_has(
     assert recorded(small_root) == Cassette("test/explaining", {})
     assert Cassette.load(small_root / REPAIRS) == Cassette("test/explaining", {})
     assert not (small_root / "evals" / "reports").exists()
+
+
+@needs_database
+def test_a_recording_that_fails_keeps_what_the_model_answered(
+    small_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first recording of the readings failed after them, in drafting; its half an hour of
+    answers is not to be asked again."""
+
+    def failing(done: object) -> list[Measure]:
+        raise RuntimeError("the measures failed")
+
+    monkeypatch.setattr(extraction, "measure", failing)
+    with pytest.raises(RuntimeError, match="the measures failed"):
+        run(small_root, "--record")
+
+    assert len(Cassette.load(small_root / READINGS).answers) == 3
+    assert len(recorded(small_root).answers) == 1
+    assert not (small_root / "evals" / "reports").exists()
+    # The next run asks the model nothing it answered.
+    monkeypatch.undo()
+    model = Explaining()
+    status, out = run(small_root, "--record", model=lambda: model)
+    assert status == EXIT_MET, out
+    assert out.startswith("sef-evals: 0 requests to test/explaining\n")
 
 
 @needs_database

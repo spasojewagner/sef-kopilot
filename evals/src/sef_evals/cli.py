@@ -357,12 +357,15 @@ def _record(
     try:
         measures += asyncio.run(measured())
     except RecordingStoppedError as error:
-        for name, recording in recordings.items():
-            recording.cassette(finished=False).save(root / CASSETTES[name])
+        _keep(root, recordings, finished=False)
         print(f"sef-evals: {error}; what was recorded is kept in evals/cassettes/", file=out)
         return EXIT_NOT_MET
-    for name, recording in recordings.items():
-        recording.cassette(finished=True).save(root / CASSETTES[name])
+    except BaseException:
+        # Whatever else stops the run, what the model answered is kept for the next one: a
+        # recording spends minutes of a provider's limit, which a failure must not waste.
+        _keep(root, recordings, finished=False)
+        raise
+    _keep(root, recordings, finished=True)
     asked = {
         model: sum(r.asked for r in recordings.values() if r.model == model)
         for model in dict.fromkeys(r.model for r in recordings.values())
@@ -370,6 +373,13 @@ def _record(
     said = " and ".join(f"{count} requests to {model}" for model, count in asked.items())
     print(f"sef-evals: {said}\n", file=out)
     return _report(root, measures, _recorded_model(_kept(recordings)), args.check, out)
+
+
+def _keep(root: Path, recordings: Mapping[str, Recording], *, finished: bool) -> None:
+    """Save each recording's cassette: the answers its run used, once it finished; every answer
+    it holds, when it stopped before."""
+    for name, recording in recordings.items():
+        recording.cassette(finished=finished).save(root / CASSETTES[name])
 
 
 def _kept(recordings: Mapping[str, Recording]) -> dict[str, Cassette | None]:

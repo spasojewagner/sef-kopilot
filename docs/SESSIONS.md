@@ -2964,7 +2964,7 @@ model, in Serbian and English, light and dark, on a desktop and a phone.
 Next: the reading measured on PDFs, scans and photographs made from known invoices, against
 thresholds (`feat/evals-extraction`).
 
-## 2026-11-11 — `feat/evals-extraction` (4 commits and the recording, stacked on `feat/web-invoice-extraction`)
+## 2026-11-11 — `feat/evals-extraction` (6 commits and the recording, stacked on `feat/web-invoice-extraction`)
 
 Outcome: the reading of invoices is measured (ADR-0063). Ten synthetic invoices, by the fields
 they print, are printed three ways (a PDF with its text, a scan, a photograph) by
@@ -2982,6 +2982,11 @@ Findings:
   made on Windows replays on Linux.
 - A photograph is printed no larger than the API reads one (1600 pixels), as a phone's picture
   reaches the model.
+- The first recording, on the maintainer's machine, read the thirty documents and then failed
+  in drafting: PDFium gives a hyphen at a line break as U+0002, the model copied it into a
+  field, and lxml refuses it. Fixed in the reading (the mark shown as a hyphen, every character
+  XML cannot hold left out of a page's text and of the fields), and in the runner, which lost
+  the half hour of answers: a failed recording now keeps them.
 
 Verification: the evaluations' tests (99 % of the package covered), ruff, mypy; the runner
 against the repository with no reading recorded, which says every document is not read, as a
