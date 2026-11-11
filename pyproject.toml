@@ -96,6 +96,12 @@ explicit_package_bases = true
 mypy_path = "packages/einvoice_core/src:packages/einvoice_core/stubs:apps/api/src:evals/src:scripts:scripts/hooks"
 exclude = ["third_party/", "node_modules/", "\\.venv/"]
 
+[[tool.mypy.overrides]]
+# scripts/render_documents.py draws the evaluations' documents with Playwright for Python,
+# installed apart for it alone: the workspace does not need a browser.
+module = ["playwright.*"]
+ignore_missing_imports = true
+
 # ---------------------------------------------------------------------------
 # pytest and coverage
 # ---------------------------------------------------------------------------
