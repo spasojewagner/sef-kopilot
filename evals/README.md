@@ -75,8 +75,9 @@ make up                                   # PostgreSQL for the explanations' dat
 LLM_PROVIDER=groq GROQ_API_KEY=... make evals-record
 ```
 
-It asks only what the cassette lacks, two seconds apart; at the provider's daily limit it stops
-and keeps what it recorded, and the next run continues from there.
+It asks only what the cassette lacks, two seconds apart; a provider that is busy (429 or 5xx) is
+waited out a minute at a time, five times; at the provider's daily limit it stops and keeps what
+it recorded, and the next run continues from there.
 
 ## The repairs
 
@@ -91,3 +92,39 @@ invoice, with the model's answers recorded in [`cassettes/repairs.json`](cassett
 | --- | --- | --- |
 | `repair_success` | Held-out invoices that a repair leaves the validator accepting | 80 % |
 | `overreach_rate` | Invoices with a mistake a person decides, that a repair made pass | 0 % |
+
+## The reading of documents
+
+The golden set is [`golden/extraction.yaml`](golden/extraction.yaml) (ADR-0063): ten synthetic
+invoices by the fields they print, in two layouts, varied as invoices are: one line or twelve,
+VAT at 20 % and at 10 %, an advance invoice and a debit note, a Cyrillic seller, amounts in the
+millions, fields some invoices leave empty. Each is printed three ways in
+[`golden/documents/`](golden/documents/): a PDF with its text, as a business program prints
+one; a scan, a grey picture in a PDF without text; and a photograph of the paper on a desk.
+Each document is opened as the API opens an upload and read by the provider's reading model as
+the API reads it, with its answers recorded in [`cassettes/extraction.json`](cassettes/).
+
+| Measure | What it counts | Threshold |
+| --- | --- | --- |
+| `extraction_pdf` | Fields read as the invoice has them, from a PDF with its text | 97 % |
+| `extraction_scan` | Fields read as the invoice has them, from a scan | 95 % |
+| `extraction_photo` | Fields read as the invoice has them, from a photograph | 90 % |
+| `extraction_invented` | Fields the invoice leaves empty that the reading filled in | 5 % |
+| `extraction_valid` | Documents read into an invoice the validator accepts as it was read | 60 % |
+
+Amounts are compared as numbers and text with its spaces collapsed; a line the model missed
+counts each of its fields, and a line it made up counts each as invented. Every golden
+invoice's fields make an invoice the validator accepts, which the tests check, so a document
+that does not is the reading's fault.
+
+A page is shown to the model as a picture, and drawing a page may differ in its last bits from
+one machine to another; a request is named by the documents its pictures were drawn from (the
+document's SHA-256, the page, its size), so that answers recorded on one machine replay on
+another. Recording uses the reading model of `SEF_EXTRACTION_PROVIDER`, or of `LLM_PROVIDER`
+when it names none (`qwen/qwen3.8-27b` on Groq, `gemini-3.1-flash-lite` on Gemini,
+`SEF_EXTRACTION_MODEL` for another), forty-five seconds apart, under a free tier's tokens a
+minute. The cassette holds Gemini's answers, recorded on its free tier while Groq wrote
+(`SEF_EXTRACTION_PROVIDER=gemini` with `GEMINI_API_KEY`): Groq's daily limit stopped the first
+recordings. The documents are drawn by
+[`scripts/render_documents.py`](../scripts/render_documents.py), with Playwright for Python
+installed apart; a document drawn again is a new request, to be recorded again.

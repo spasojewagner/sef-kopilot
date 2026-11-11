@@ -10,14 +10,17 @@ provider is the one the settings name:
 - ``LLM_PROVIDER=openai`` calls OpenAI's chat completions with ``OPENAI_API_KEY``,
   ``gpt-6-luna`` by default;
 - ``LLM_PROVIDER=anthropic`` calls Anthropic's Messages API with ``ANTHROPIC_API_KEY``,
-  ``claude-haiku-5-5`` by default.
+  ``claude-haiku-5-5`` by default;
+- ``LLM_PROVIDER=gemini`` calls Google's Gemini by its OpenAI-compatible chat completions with
+  ``GEMINI_API_KEY``, ``gemini-3.1-flash-lite`` by default, on the free tier.
 
 ``SEF_LLM_MODEL`` names another model of the provider. Each is asked for structured outputs, which
 hold an answer to the schema while it is written (ADR-0057).
 
 A message may show the model pictures as well as text: the pages of a PDF or the photograph of an
 invoice, which the reading model reads into an invoice's fields (ADR-0062). Each provider names
-the model that reads them (:attr:`_HTTPClient.READING_MODEL`), ``SEF_EXTRACTION_MODEL`` another.
+the model that reads them (:attr:`_HTTPClient.READING_MODEL`), ``SEF_EXTRACTION_MODEL`` another,
+and ``SEF_EXTRACTION_PROVIDER`` a provider that reads them while another writes.
 
 The model is never trusted. Whoever asks it parses and checks the answer: the explainer checks
 every citation against the passages it gave, the repairer every patch before code applies it.
@@ -29,6 +32,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 from collections.abc import Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -234,10 +238,17 @@ class _HTTPClient:
         """The error's code, which names what went wrong (``invalid_api_key``), and nothing of
         its message, which may repeat what was sent."""
         try:
-            code = self._code(response.json())
+            error = response.json()
+            code = self._code(error)
         except (ValueError, KeyError, TypeError):
             return ""
-        return f" ({code})" if isinstance(code, str) and code.isidentifier() else ""
+        if not (isinstance(code, str) and code.isidentifier()):
+            return ""
+        return f" ({code}{self._refused(error)})"
+
+    def _refused(self, error: Any) -> str:  # noqa: ARG002
+        """What the provider says of an answer it refused to send, without a word of it."""
+        return ""
 
 
 class _ChatCompletions(_HTTPClient):
@@ -309,6 +320,25 @@ class GroqClient(_ChatCompletions):
             body |= {"reasoning_effort": "low", "include_reasoning": False}
         return body
 
+    def _refused(self, error: Any) -> str:
+        """The shape of the answer Groq refused as not of the schema (``json_validate_failed``
+        with its ``failed_generation``): how long it was, whether it was whole JSON, and how
+        much of its end was blank, which tells an answer cut off at the most tokens it may
+        have from one of the wrong form. Never what it said, which repeats what was sent."""
+        refused = error.get("error") if isinstance(error, dict) else None
+        failed = refused.get("failed_generation") if isinstance(refused, dict) else None
+        if not isinstance(failed, str):
+            return ""
+        try:
+            json.loads(failed)
+        except ValueError:
+            whole = "cut off"
+        else:
+            whole = "whole JSON"
+        blank = len(failed) - len(failed.rstrip())
+        ending = f", the last {blank} blank" if blank else ""
+        return f"; {len(failed)} characters, {whole}{ending}"
+
 
 class OpenAIClient(_ChatCompletions):
     """OpenAI's chat completions. Its reasoning models (:attr:`REASONING`) are asked to reason
@@ -334,6 +364,59 @@ class OpenAIClient(_ChatCompletions):
         if self._model.startswith(self.REASONING):
             body["reasoning_effort"] = "low"
         return body
+
+
+def _nullable_enums(node: Any) -> Any:
+    """``node`` of a JSON schema with each enum that holds null, under a type that does
+    (``["string", "null"]``), written as ``anyOf`` the enum and null."""
+    if isinstance(node, list):
+        return [_nullable_enums(each) for each in node]
+    if not isinstance(node, Mapping):
+        return node
+    made = {key: _nullable_enums(value) for key, value in node.items()}
+    enum, kind = made.get("enum"), made.get("type")
+    if isinstance(enum, list) and None in enum and isinstance(kind, list):
+        kinds = [each for each in kind if each != "null"]
+        del made["enum"], made["type"]
+        values = [value for value in enum if value is not None]
+        made["anyOf"] = [
+            {"type": kinds[0] if len(kinds) == 1 else kinds, "enum": values},
+            {"type": "null"},
+        ]
+    return made
+
+
+class GeminiClient(_ChatCompletions):
+    """Google's Gemini through its OpenAI-compatible chat completions, structured outputs
+    included, as the OpenAI SDK sends them. Every Gemini model reads pictures; the default is
+    Flash-Lite, light enough for a free tier's requests a day. It is asked to think briefly, as
+    its thinking counts against the tokens an answer may have, and keeps its own temperature,
+    which Google advises against lowering for Gemini 3 models. An enum that holds null is sent
+    as ``anyOf`` the enum and null, the form Google's documentation shows nullable values in.
+    Google's errors come in a list and name their status (``RESOURCE_EXHAUSTED``)."""
+
+    URL: ClassVar[str] = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    NAME: ClassVar[str] = "Gemini"
+    PREFIX: ClassVar[str] = "gemini"
+    MODEL: ClassVar[str] = "gemini-3.1-flash-lite"
+    READING_MODEL: ClassVar[str] = "gemini-3.1-flash-lite"
+
+    def _body(
+        self,
+        messages: Sequence[Message],
+        name: str,
+        schema: Mapping[str, Any],
+        max_tokens: int,
+    ) -> dict[str, Any]:
+        body = super()._body(messages, name, _nullable_enums(schema), max_tokens)
+        return body | {"reasoning_effort": "low"}
+
+    def _code(self, error: Any) -> object:
+        body = error[0] if isinstance(error, list) and error else error
+        found = body["error"]
+        if not isinstance(found, dict):
+            return None
+        return found.get("status") or found.get("code")
 
 
 class AnthropicClient(_HTTPClient):
@@ -455,6 +538,7 @@ PROVIDERS: Final[dict[str, type[_HTTPClient]]] = {
     "groq": GroqClient,
     "openai": OpenAIClient,
     "anthropic": AnthropicClient,
+    "gemini": GeminiClient,
 }
 
 
@@ -474,9 +558,10 @@ def llm_for(settings: Settings) -> LLMClient | None:
 
 
 def reading_llm_for(settings: Settings) -> LLMClient | None:
-    """The model that reads pictures for the server: the provider's reading model, or the one
+    """The model that reads pictures for the server: the reading model of
+    ``SEF_EXTRACTION_PROVIDER``, or of ``LLM_PROVIDER`` when it names none, or the one
     ``SEF_EXTRACTION_MODEL`` names; None when no model is to read anything."""
-    provider = settings.llm_provider
+    provider = settings.extraction_provider or settings.llm_provider
     client = PROVIDERS.get(provider)
     model = settings.extraction_model or (client.READING_MODEL if client is not None else None)
     return client_for(provider, _key(settings, provider), model)
@@ -487,5 +572,6 @@ def _key(settings: Settings, provider: str) -> SecretStr | None:
         "groq": settings.groq_api_key,
         "openai": settings.openai_api_key,
         "anthropic": settings.anthropic_api_key,
+        "gemini": settings.gemini_api_key,
     }
     return keys.get(provider)

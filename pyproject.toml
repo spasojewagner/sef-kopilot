@@ -66,8 +66,10 @@ ignore = [
 "**/tests/**" = ["PLR2004", "ARG001", "PLR0917"]
 "scripts/**" = ["T201"]                 # command-line scripts print by design
 # Serbian is written in Cyrillic, whose letters ruff takes for their Latin look-alikes; the code
-# that reads and writes the corpus of Serbian regulations holds them on purpose.
+# that reads and writes the corpus of Serbian regulations holds them on purpose, as the units a
+# Serbian invoice prints in Cyrillic do (sef_api.extraction.fields).
 "apps/api/src/sef_api/rag/**" = ["RUF001", "RUF002", "RUF003"]
+"apps/api/src/sef_api/extraction/fields.py" = ["RUF001"]
 "apps/api/tests/test_corpus*.py" = ["RUF001", "RUF002", "RUF003"]
 "apps/api/tests/test_explainer.py" = ["RUF001", "RUF002", "RUF003"]
 "apps/api/tests/test_invoices_explain.py" = ["RUF001", "RUF002", "RUF003"]
@@ -85,6 +87,10 @@ docstring-code-format = true
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.12"
+# Checked as the platform the code runs and is tested on (Linux: Docker, Render, CI), on every
+# machine alike: on Windows, typeshed gives multiprocessing's pipes another class than
+# Connection, and the code after a test's skip on Windows would read as unreachable.
+platform = "linux"
 strict = true
 warn_unreachable = true
 pretty = true
@@ -95,6 +101,12 @@ explicit_package_bases = true
 # `packages/einvoice_core/stubs` holds type information for dependencies that ship none.
 mypy_path = "packages/einvoice_core/src:packages/einvoice_core/stubs:apps/api/src:evals/src:scripts:scripts/hooks"
 exclude = ["third_party/", "node_modules/", "\\.venv/"]
+
+[[tool.mypy.overrides]]
+# scripts/render_documents.py draws the evaluations' documents with Playwright for Python,
+# installed apart for it alone: the workspace does not need a browser.
+module = ["playwright.*"]
+ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------
 # pytest and coverage

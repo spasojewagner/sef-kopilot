@@ -3,9 +3,11 @@
 The model is shown every page as a picture, with the page's text where the PDF has a text
 layer, and answers the fields of :mod:`sef_api.extraction.fields` in structured outputs. It is
 told to write what the document shows and nothing more: no amount computed, no field guessed.
-The answer is checked against the fields' forms; one that breaks them goes back to the model
-with what is wrong, at most :data:`ATTEMPTS` times in all, as the explainer and the repairer
-do.
+The answer's numbers are parsed as decimals, digit for digit, never as floats, and the answer
+is checked against the fields' forms; one that breaks them goes back to the model with what is
+wrong, at most :data:`ATTEMPTS` times in all, as the explainer and the repairer do. A line
+with a quantity whose unit the model left empty is given C62, one (:func:`in_ones`): the code
+of a line that prints no unit, which the model is told to write and leaves null as often.
 
 What it reads is not trusted either: a person confirms the fields before a UBL invoice is made
 of them, and the validator judges that invoice. A document's text may say anything, an
@@ -17,7 +19,9 @@ never what was read.
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Final
 
 from pydantic import ValidationError
@@ -34,6 +38,7 @@ __all__ = [
     "Reading",
     "ReadingError",
     "ReadingTimeoutError",
+    "in_ones",
     "question_for",
 ]
 
@@ -48,9 +53,17 @@ You answer with the fields the schema describes, as the document shows them.
 
 - Write only what the document shows. Where it does not show a field, write null: never \
 compute an amount, never guess a date, a number or a code.
+- Two codes are read from what the document shows, never left null for want of a code printed: \
+the type code from its title (RAČUN or FAKTURA is 380, AVANSNI RAČUN 386, KNJIŽNO ODOBRENJE \
+381, KNJIŽNO ZADUŽENJE 383), and the country of a party in Serbia, RS, which an address in \
+Serbia does not print.
+- Read a value under its label: Datum prometa is the delivery date, Broj narudžbenice the \
+buyer's reference, Rok plaćanja or Valuta plaćanja the due date, Valuta alone the currency, \
+Poziv na broj the payment reference.
 - Copy identifiers digit by digit: the PIB (nine digits), the matični broj (eight digits), the \
 invoice's number, the bank account, the payment reference.
-- Write numbers with a decimal point and without thousands separators: 12.000,00 is 12000.00.
+- Write amounts, quantities and rates as numbers, with a decimal point and without thousands \
+separators: 12.000,00 is 12000.00. A VAT rate is in percent, as printed: 20 % is 20, not 0.2.
 - Write dates as YYYY-MM-DD: 05.10.2026. is 2026-10-05.
 - The seller issues the invoice (izdavalac, prodavac, dobavljač); the buyer receives it \
 (kupac, primalac).
@@ -98,6 +111,18 @@ def question_for(document: Document) -> Message:
     )
 
 
+def in_ones(fields: InvoiceFields) -> InvoiceFields:
+    """``fields`` with C62, one, as the unit of each line that has a quantity and no unit: a
+    line that prints no unit counts in ones. The person who confirms the fields sees the code
+    beside the document, and changes it where the line did print a unit the model missed."""
+    one = {"unit": "C62"}
+    lines = [
+        line.model_copy(update=one) if line.quantity is not None and line.unit is None else line
+        for line in fields.lines
+    ]
+    return fields.model_copy(update={"lines": lines})
+
+
 def _problem(error: ValidationError) -> str:
     """What is wrong with an answer, by field, without the values it gave."""
     found = [
@@ -136,16 +161,18 @@ class Reader:
                 messages, name="invoice_fields", schema=SCHEMA, max_tokens=MAX_TOKENS
             )
             try:
-                fields = InvoiceFields.model_validate_json(answer)
+                fields = InvoiceFields.model_validate(json.loads(answer, parse_float=Decimal))
             except ValidationError as error:
                 problem = _problem(error)
-                messages = [
-                    *messages,
-                    Message("assistant", answer),
-                    Message("user", f"That answer cannot be used: {problem}. Answer again."),
-                ]
-                continue
-            return Reading(fields, self._llm.model)
+            except ValueError:
+                problem = "it is not JSON"
+            else:
+                return Reading(in_ones(fields), self._llm.model)
+            messages = [
+                *messages,
+                Message("assistant", answer),
+                Message("user", f"That answer cannot be used: {problem}. Answer again."),
+            ]
         raise ReadingError(
             f"the model's answer did not have the form of an invoice's fields, {ATTEMPTS} "
             f"times (the last: {problem})"

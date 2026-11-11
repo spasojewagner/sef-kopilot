@@ -281,8 +281,9 @@ curl -s localhost:8000/invoices/draft -H "Authorization: Bearer $ACCESS_TOKEN" \
 ```
 
 The model is shown each page as a picture, drawn anew without the document's metadata, with its
-text where the PDF has a text layer; nothing is stored or logged. It is the provider's reading
-model, `qwen/qwen3.8-27b` on Groq, the provider's default elsewhere, or the one
+text where the PDF has a text layer; nothing is stored or logged. It is the reading model of
+`SEF_EXTRACTION_PROVIDER`, or of `LLM_PROVIDER` when it names none: `qwen/qwen3.8-27b` on Groq,
+`gemini-3.1-flash-lite` on Gemini, the provider's default elsewhere, or the one
 `SEF_EXTRACTION_MODEL` names; with an organization's own key (below), its provider's reading
 model. The draft writes every element from a field, or from SRB-CIUS where the profile fixes
 it, and computes nothing: a field left empty leaves its element out, and the validator says so.
@@ -661,6 +662,7 @@ its question contains: the model invents none and computes none (ADR-0022).
 | `groq` | with `GROQ_API_KEY`: Groq's `openai/gpt-oss-120b`, on the free tier |
 | `openai` | with `OPENAI_API_KEY`: OpenAI's `gpt-6-luna`, by chat completions |
 | `anthropic` | with `ANTHROPIC_API_KEY`: Anthropic's `claude-haiku-5-5`, by the Messages API |
+| `gemini` | with `GEMINI_API_KEY`: Google's `gemini-3.1-flash-lite`, by its OpenAI-compatible chat completions, on the free tier, where Google may use what it is sent |
 
 `SEF_LLM_MODEL` names another model of the provider, which must support structured outputs
 (ADR-0057). Every provider is asked the same questions, with the same schema, and its answers are

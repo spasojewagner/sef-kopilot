@@ -2963,3 +2963,54 @@ model, in Serbian and English, light and dark, on a desktop and a phone.
 
 Next: the reading measured on PDFs, scans and photographs made from known invoices, against
 thresholds (`feat/evals-extraction`).
+
+## 2026-11-11 — `feat/evals-extraction` (12 commits and the recording, stacked on `feat/web-invoice-extraction`)
+
+Outcome: the reading of invoices is measured (ADR-0063). Ten synthetic invoices, by the fields
+they print, are printed three ways (a PDF with its text, a scan, a photograph) by
+`scripts/render_documents.py`; each document is opened and read as the API reads an upload,
+and the reading is measured field by field per form, with the fields it invents and the
+documents it makes into a valid invoice, against thresholds set before the first recording.
+The reading model's answers are recorded on the maintainer's machine and replayed offline in CI.
+
+Findings:
+
+- SRB-012 requires the buyer's registration number (MB): two golden invoices without one did
+  not validate, and now have one, as the validator's check of the golden set caught.
+- A page drawn from a PDF may differ in its last bits between platforms: a picture is named in
+  a cassette's key by the document it was drawn from, not by its bytes, so that a recording
+  made on Windows replays on Linux.
+- A photograph is printed no larger than the API reads one (1600 pixels), as a phone's picture
+  reaches the model.
+- The first recording, on the maintainer's machine, read the thirty documents and then failed
+  in drafting: PDFium gives a hyphen at a line break as U+0002, the model copied it into a
+  field, and lxml refuses it. Fixed in the reading (the mark shown as a hyphen, every character
+  XML cannot hold left out of a page's text and of the fields), and in the runner, which lost
+  the half hour of answers: a failed recording now keeps them.
+- The second recording, on Groq, read 24 % of the fields of the PDFs: asked for amounts as
+  text, the model held to the schema by constrained decoding wrote every amount, quantity and
+  rate as null, and Groq refused half the answers as not of the schema. Amounts, quantities
+  and rates are asked for as JSON numbers now and kept as text digit for digit; a unit is read
+  as printed and coded in code; a rate written as a fraction and a PIB swapped with the
+  registration number go back to the model; the type code and a Serbian party's country are
+  read from what the document shows.
+- Groq's daily limit for `qwen/qwen3.8-27b`, with a page as a picture in every request, stopped
+  the recordings twice. Gemini was added as a provider, and `SEF_EXTRACTION_PROVIDER` has it
+  read while Groq writes: `gemini-3.1-flash-lite` read the thirty documents on its free tier.
+  It answered 503 to a few while overloaded, which the recorder now waits out a minute at a
+  time, as it waits out a limit.
+- mypy on the maintainer's Windows reported three errors CI never sees (multiprocessing's
+  pipes, a test skipped on Windows); it checks the workspace as Linux everywhere now.
+- CI found that asking for amounts as numbers had made them numbers in the API's own OpenAPI
+  document too, and in the web client typed from it, while the API answers them as text. Only
+  the model's schema asks for numbers now, what the model is sent unchanged, so the recording
+  still holds.
+
+Verification: the evaluations' tests (99 % of the package covered), ruff, mypy; the runner
+against the repository with no reading recorded, which says every document is not read, as a
+missing answer must. On the maintainer's machine, the tests of the fixes, ruff and mypy, and the
+recording, which meets every threshold: 100 % of the PDFs' fields read as printed, 99.5 % of
+the scans', 99.8 % of the photographs', 1.9 % invented, and all thirty documents valid.
+
+Next: the brief's MCP tool `extract_from_pdf` (`feat/mcp-extract-invoice`), then the README
+case study.

@@ -31,3 +31,15 @@ citation_relevance: { min: 0.9 }
 repair_success: { min: 0.8 }
 # No repair makes an invoice pass whose mistake a person decides.
 overreach_rate: { max: 0.0 }
+
+# The reading of invoices from PDFs and pictures (ADR-0063), replayed from evals/cassettes/.
+# Set before the first recording, as the floor the beta must clear: a PDF gives its text, so
+# it is read nearly whole; a scan and a photograph are read from their pixels alone.
+extraction_pdf: { min: 0.97 }
+extraction_scan: { min: 0.95 }
+extraction_photo: { min: 0.9 }
+# The reading does not guess: what an invoice leaves empty is left empty.
+extraction_invented: { max: 0.05 }
+# Documents made into an invoice the validator accepts without a person's correction; the
+# others are what the review is for.
+extraction_valid: { min: 0.6 }

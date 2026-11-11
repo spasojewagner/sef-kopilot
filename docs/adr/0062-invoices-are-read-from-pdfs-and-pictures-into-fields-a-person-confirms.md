@@ -47,9 +47,16 @@ Serbian invoice prints, in its plain form: the parties' names, PIB, registration
 address, the dates, the lines, the VAT recapitulation, the totals, the bank account and the
 payment reference, and whether the seller is in the VAT register. Every value is text or null,
 in a form the model can check (`2026-10-05`, `14400.00`); their JSON schema is made from the
-models for structured outputs in strict mode. The model is told to write what the page shows and
-nothing more: no amount computed, no field guessed. An answer of the wrong form goes back with
-what is wrong, at most three times, as the explainer's and the repairer's do.
+models for structured outputs in strict mode. Amounts, quantities and rates alone are asked for
+as JSON numbers, the form a model writes them in, and kept as text digit for digit: asked for as
+text, the model held to the schema by constrained decoding wrote every one of them as null. A
+unit is read as printed and made its UN/ECE code in code; a line with a quantity and no unit
+read counts in ones (C62), the code of a line that prints none, which the model leaves null as
+often as it writes it, and the person changes it where a printed unit was missed. The model is
+told to write what the page shows and nothing more: no amount computed, no field guessed. What
+the page shows includes two codes it does not print: the type code, read from the title, and
+the country of a party in Serbia, RS. An answer of the wrong form goes back with what is wrong,
+at most three times, as the explainer's and the repairer's do.
 
 **The UBL in code** (`sef_api.extraction.draft`). Deterministic: every element comes from a
 field, or from SRB-CIUS where the profile fixes it (the specification identifier, the payment
@@ -70,6 +77,10 @@ metadata behind. PDFium serves one thread at a time: one lock, a worker thread.
 blocks). Each provider names its reading model: on Groq, `qwen/qwen3.8-27b`, which reads pictures
 and keeps structured outputs in strict mode on the free tier, since the default GPT-OSS models
 read none; OpenAI's and Anthropic's defaults read pictures. `SEF_EXTRACTION_MODEL` names another.
+On Gemini, added when Groq's daily limit stopped the first recordings, the reading model is
+`gemini-3.1-flash-lite`, on Google's free tier; `SEF_EXTRACTION_PROVIDER` has it read while
+another provider writes. Google may use what its free tier is sent to improve its products, so
+the free tier reads the synthetic invoices of the evaluations, never a customer's.
 An organization with its own key (ADR-0058) is read by its provider's reading model, with its
 key, whatever model it chose to write.
 

@@ -1,0 +1,708 @@
+# The reading's golden set (ADR-0063): synthetic invoices, by the fields they print, each
+# printed by scripts/render_documents.py into evals/golden/documents/ as a PDF with its text
+# (<name>.pdf), a scan (<name>.scan.pdf) and a photograph (<name>.jpg), in one of two layouts.
+#
+# The fields are what reading a document must give, in the form of the API's InvoiceFields:
+# amounts with a decimal point, dates as YYYY-MM-DD, units and categories as codes; null where
+# the invoice prints nothing, which the reading must leave empty. The country, which a Serbian
+# invoice does not print, is RS, as the reading is told to write it. Every case's fields make an
+# invoice the validator accepts (evals/tests/test_extraction.py), so a reading that does not is
+# the reading's fault. The companies, their PIBs (with valid check digits) and their accounts
+# are made up.
+
+cases:
+  - name: consulting-hours
+    layout: classic
+    fields:
+      type_code: "380"
+      number: RF-2026-000123
+      issue_date: "2026-10-05"
+      due_date: "2026-10-20"
+      delivery_date: "2026-10-05"
+      currency: RSD
+      buyer_reference: NAB-77
+      seller:
+        name: Primer Softver d.o.o.
+        tax_id: "100000024"
+        company_id: "20000006"
+        street: Ulica Primera 1
+        city: Čačak
+        postal_code: "32000"
+        country: RS
+        email: fakture@primer-softver.example
+      seller_in_vat_register: true
+      buyer:
+        name: Ogledni Kupac d.o.o.
+        tax_id: "100000016"
+        company_id: "20000014"
+        street: Bulevar Ogleda 22
+        city: Beograd
+        postal_code: "11000"
+        country: RS
+        email: null
+      lines:
+        - name: Konsultantski sat
+          quantity: "8"
+          unit: HUR
+          unit_price: "1500.00"
+          net_amount: "12000.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "12000.00"
+          tax_amount: "2400.00"
+      totals:
+        line_total: "12000.00"
+        tax_exclusive: "12000.00"
+        tax: "2400.00"
+        tax_inclusive: "14400.00"
+        prepaid: null
+        payable: "14400.00"
+      payment:
+        account: 160-0000000123456-78
+        model: "97"
+        reference: 12-345678-00123
+  - name: office-supplies
+    layout: modern
+    fields:
+      type_code: "380"
+      number: 2026/0458
+      issue_date: "2026-10-15"
+      due_date: "2026-11-14"
+      delivery_date: null
+      currency: RSD
+      buyer_reference: null
+      seller:
+        name: Papirna Radnja Primer d.o.o.
+        tax_id: "100000032"
+        company_id: "20000022"
+        street: Trg Primera 4
+        city: Kragujevac
+        postal_code: "34000"
+        country: RS
+        email: racuni@papir-primer.example
+      seller_in_vat_register: true
+      buyer:
+        name: Ogledno Računovodstvo d.o.o.
+        tax_id: "100000104"
+        company_id: "20000111"
+        street: Kneza Miloša 8
+        city: Kraljevo
+        postal_code: "36000"
+        country: RS
+        email: null
+      lines:
+        - name: Papir A4, 80 g/m², 500 listova
+          quantity: "20"
+          unit: H87
+          unit_price: "520.00"
+          net_amount: "10400.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Registrator široki
+          quantity: "12"
+          unit: H87
+          unit_price: "189.90"
+          net_amount: "2278.80"
+          vat_category: S
+          vat_rate: "20"
+        - name: Hemijska olovka plava
+          quantity: "50"
+          unit: H87
+          unit_price: "35.00"
+          net_amount: "1750.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Toner za laserski štampač
+          quantity: "2"
+          unit: H87
+          unit_price: "4890.00"
+          net_amount: "9780.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Spajalice, kutija od 100 komada
+          quantity: "10"
+          unit: H87
+          unit_price: "79.50"
+          net_amount: "795.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "25003.80"
+          tax_amount: "5000.76"
+      totals:
+        line_total: "25003.80"
+        tax_exclusive: "25003.80"
+        tax: "5000.76"
+        tax_inclusive: "30004.56"
+        prepaid: null
+        payable: "30004.56"
+      payment:
+        account: 205-0000000098765-43
+        model: null
+        reference: 2026-0458
+  - name: groceries-two-rates
+    layout: classic
+    fields:
+      type_code: "380"
+      number: MP-17/2026
+      issue_date: "2026-10-21"
+      due_date: "2026-10-31"
+      delivery_date: "2026-10-21"
+      currency: RSD
+      buyer_reference: NR-2026-311
+      seller:
+        name: Primer Market d.o.o.
+        tax_id: "100000049"
+        company_id: "20000030"
+        street: Industrijska zona bb
+        city: Šabac
+        postal_code: "15000"
+        country: RS
+        email: null
+      seller_in_vat_register: true
+      buyer:
+        name: Restoran Ogled d.o.o.
+        tax_id: "100000112"
+        company_id: "20000090"
+        street: Dunavska 31
+        city: Smederevo
+        postal_code: "11300"
+        country: RS
+        email: nabavka@ogled-restoran.example
+      lines:
+        - name: Hleb beli, 500 g
+          quantity: "40"
+          unit: H87
+          unit_price: "62.00"
+          net_amount: "2480.00"
+          vat_category: S
+          vat_rate: "10"
+        - name: Mleko 2,8% mm
+          quantity: "30"
+          unit: LTR
+          unit_price: "139.99"
+          net_amount: "4199.70"
+          vat_category: S
+          vat_rate: "10"
+        - name: Kafa mlevena, 200 g
+          quantity: "12"
+          unit: H87
+          unit_price: "379.00"
+          net_amount: "4548.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Deterdžent za sudove, 1 l
+          quantity: "6"
+          unit: H87
+          unit_price: "249.50"
+          net_amount: "1497.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "6045.00"
+          tax_amount: "1209.00"
+        - vat_category: S
+          vat_rate: "10"
+          taxable_amount: "6679.70"
+          tax_amount: "667.97"
+      totals:
+        line_total: "12724.70"
+        tax_exclusive: "12724.70"
+        tax: "1876.97"
+        tax_inclusive: "14601.67"
+        prepaid: null
+        payable: "14601.67"
+      payment:
+        account: 170-0000000456789-12
+        model: "97"
+        reference: 44-17-2026
+  - name: cyrillic-engineering
+    layout: classic
+    fields:
+      type_code: "380"
+      number: ПИ-0091/26
+      issue_date: "2026-09-30"
+      due_date: "2026-10-30"
+      delivery_date: "2026-09-30"
+      currency: RSD
+      buyer_reference: null
+      seller:
+        name: Пример Инжењеринг д.о.о.
+        tax_id: "100000057"
+        company_id: "20000049"
+        street: Улица Примера 7
+        city: Нови Сад
+        postal_code: "21000"
+        country: RS
+        email: kancelarija@primer-inzenjering.example
+      seller_in_vat_register: true
+      buyer:
+        name: Ogledna Fabrika a.d.
+        tax_id: "100000129"
+        company_id: "20000103"
+        street: Fabrička 1
+        city: Subotica
+        postal_code: "24000"
+        country: RS
+        email: null
+      lines:
+        - name: Пројектовање електроинсталација
+          quantity: "1"
+          unit: H87
+          unit_price: "85000.00"
+          net_amount: "85000.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Надзор над извођењем радова
+          quantity: "3"
+          unit: DAY
+          unit_price: "12000.00"
+          net_amount: "36000.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "121000.00"
+          tax_amount: "24200.00"
+      totals:
+        line_total: "121000.00"
+        tax_exclusive: "121000.00"
+        tax: "24200.00"
+        tax_inclusive: "145200.00"
+        prepaid: null
+        payable: "145200.00"
+      payment:
+        account: 355-0000000111222-33
+        model: null
+        reference: null
+  - name: advance-invoice
+    layout: modern
+    fields:
+      type_code: "386"
+      number: AV-2026-014
+      issue_date: "2026-10-02"
+      due_date: "2026-10-09"
+      delivery_date: null
+      currency: RSD
+      buyer_reference: UG-14/2026
+      seller:
+        name: Primer Gradnja a.d.
+        tax_id: "100000065"
+        company_id: "20000057"
+        street: Bulevar Izgradnje 120
+        city: Niš
+        postal_code: "18000"
+        country: RS
+        email: finansije@primer-gradnja.example
+      seller_in_vat_register: true
+      buyer:
+        name: Ogledna Fabrika a.d.
+        tax_id: "100000129"
+        company_id: "20000103"
+        street: Fabrička 1
+        city: Subotica
+        postal_code: "24000"
+        country: RS
+        email: null
+      lines:
+        - name: Avans za izvođenje radova po ugovoru 14/2026
+          quantity: "1"
+          unit: H87
+          unit_price: "250000.00"
+          net_amount: "250000.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "250000.00"
+          tax_amount: "50000.00"
+      totals:
+        line_total: "250000.00"
+        tax_exclusive: "250000.00"
+        tax: "50000.00"
+        tax_inclusive: "300000.00"
+        prepaid: null
+        payable: "300000.00"
+      payment:
+        account: 265-0000000777888-99
+        model: "97"
+        reference: 14-2026-01
+  - name: hardware-store
+    layout: classic
+    fields:
+      type_code: "380"
+      number: GP-2026-1187
+      issue_date: "2026-10-28"
+      due_date: "2026-11-12"
+      delivery_date: "2026-10-28"
+      currency: RSD
+      buyer_reference: null
+      seller:
+        name: Gvožđara Primer d.o.o.
+        tax_id: "100000073"
+        company_id: "20000065"
+        street: Zanatska 15
+        city: Valjevo
+        postal_code: "14000"
+        country: RS
+        email: null
+      seller_in_vat_register: true
+      buyer:
+        name: Ogledni Kupac d.o.o.
+        tax_id: "100000016"
+        company_id: "20000014"
+        street: Bulevar Ogleda 22
+        city: Beograd
+        postal_code: "11000"
+        country: RS
+        email: null
+      lines:
+        - name: Šraf za drvo 4x40, kutija
+          quantity: "6"
+          unit: H87
+          unit_price: "420.00"
+          net_amount: "2520.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Ekser 60 mm
+          quantity: "5"
+          unit: KGM
+          unit_price: "310.00"
+          net_amount: "1550.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Tipl 8 mm, kesa
+          quantity: "10"
+          unit: H87
+          unit_price: "145.00"
+          net_amount: "1450.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Silikon sanitarni, beli
+          quantity: "8"
+          unit: H87
+          unit_price: "389.00"
+          net_amount: "3112.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Brusni papir P120
+          quantity: "25"
+          unit: H87
+          unit_price: "48.00"
+          net_amount: "1200.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Četka za farbanje 50 mm
+          quantity: "4"
+          unit: H87
+          unit_price: "260.00"
+          net_amount: "1040.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Valjak za zidove 25 cm
+          quantity: "3"
+          unit: H87
+          unit_price: "690.00"
+          net_amount: "2070.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Lepljiva traka, maskirna
+          quantity: "12"
+          unit: H87
+          unit_price: "135.00"
+          net_amount: "1620.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Rukavice zaštitne, par
+          quantity: "20"
+          unit: H87
+          unit_price: "99.00"
+          net_amount: "1980.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Bušilica akumulatorska 18 V
+          quantity: "1"
+          unit: H87
+          unit_price: "11990.00"
+          net_amount: "11990.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Burgija za beton 6 mm
+          quantity: "5"
+          unit: H87
+          unit_price: "210.00"
+          net_amount: "1050.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Merna traka 5 m
+          quantity: "2"
+          unit: H87
+          unit_price: "540.00"
+          net_amount: "1080.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "30662.00"
+          tax_amount: "6132.40"
+      totals:
+        line_total: "30662.00"
+        tax_exclusive: "30662.00"
+        tax: "6132.40"
+        tax_inclusive: "36794.40"
+        prepaid: null
+        payable: "36794.40"
+      payment:
+        account: 160-0000000654321-09
+        model: null
+        reference: null
+  - name: software-maintenance
+    layout: modern
+    fields:
+      type_code: "380"
+      number: RF-2026-000131
+      issue_date: "2026-11-02"
+      due_date: "2026-11-17"
+      delivery_date: "2026-10-31"
+      currency: RSD
+      buyer_reference: null
+      seller:
+        name: Primer Softver d.o.o.
+        tax_id: "100000024"
+        company_id: "20000006"
+        street: Ulica Primera 1
+        city: Čačak
+        postal_code: "32000"
+        country: RS
+        email: fakture@primer-softver.example
+      seller_in_vat_register: true
+      buyer:
+        name: Ogledni Centar d.o.o.
+        tax_id: "100000137"
+        company_id: "20000120"
+        street: Cara Dušana 45
+        city: Užice
+        postal_code: "31000"
+        country: RS
+        email: null
+      lines:
+        - name: Održavanje informacionog sistema, oktobar 2026
+          quantity: "1"
+          unit: C62
+          unit_price: "45000.00"
+          net_amount: "45000.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Hosting i rezervne kopije, oktobar 2026
+          quantity: "1"
+          unit: C62
+          unit_price: "6500.00"
+          net_amount: "6500.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "51500.00"
+          tax_amount: "10300.00"
+      totals:
+        line_total: "51500.00"
+        tax_exclusive: "51500.00"
+        tax: "10300.00"
+        tax_inclusive: "61800.00"
+        prepaid: null
+        payable: "61800.00"
+      payment:
+        account: 160-0000000123456-78
+        model: "97"
+        reference: 12-345678-00131
+  - name: freight-transport
+    layout: classic
+    fields:
+      type_code: "380"
+      number: PT-0937
+      issue_date: "2026-10-12"
+      due_date: "2026-11-11"
+      delivery_date: "2026-10-12"
+      currency: RSD
+      buyer_reference: NAL-5521
+      seller:
+        name: Primer Transport d.o.o.
+        tax_id: "100000081"
+        company_id: "20000073"
+        street: Put za Pančevo 3
+        city: Beograd
+        postal_code: "11060"
+        country: RS
+        email: dispecer@primer-transport.example
+      seller_in_vat_register: true
+      buyer:
+        name: Ogledno Računovodstvo d.o.o.
+        tax_id: "100000104"
+        company_id: "20000111"
+        street: Kneza Miloša 8
+        city: Kraljevo
+        postal_code: "36000"
+        country: RS
+        email: null
+      lines:
+        - name: Prevoz robe, relacija Beograd – Niš
+          quantity: "237.5"
+          unit: KMT
+          unit_price: "120.00"
+          net_amount: "28500.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Utovar i istovar
+          quantity: "2"
+          unit: HUR
+          unit_price: "2200.00"
+          net_amount: "4400.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "32900.00"
+          tax_amount: "6580.00"
+      totals:
+        line_total: "32900.00"
+        tax_exclusive: "32900.00"
+        tax: "6580.00"
+        tax_inclusive: "39480.00"
+        prepaid: null
+        payable: "39480.00"
+      payment:
+        account: 200-0000000333444-55
+        model: null
+        reference: null
+  - name: server-equipment
+    layout: modern
+    fields:
+      type_code: "380"
+      number: IT-2026-00077
+      issue_date: "2026-10-19"
+      due_date: "2026-11-18"
+      delivery_date: "2026-10-19"
+      currency: RSD
+      buyer_reference: JN-08/2026
+      seller:
+        name: Primer IT Oprema d.o.o.
+        tax_id: "100000090"
+        company_id: "20000081"
+        street: Omladinskih brigada 90
+        city: Beograd
+        postal_code: "11070"
+        country: RS
+        email: prodaja@primer-oprema.example
+      seller_in_vat_register: true
+      buyer:
+        name: Ogledna Fabrika a.d.
+        tax_id: "100000129"
+        company_id: "20000103"
+        street: Fabrička 1
+        city: Subotica
+        postal_code: "24000"
+        country: RS
+        email: null
+      lines:
+        - name: Server Primer R740, 2x CPU, 256 GB RAM
+          quantity: "2"
+          unit: H87
+          unit_price: "1249900.00"
+          net_amount: "2499800.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Licenca za virtuelizaciju, 3 godine
+          quantity: "1"
+          unit: H87
+          unit_price: "389000.00"
+          net_amount: "389000.00"
+          vat_category: S
+          vat_rate: "20"
+        - name: Instalacija i konfiguracija
+          quantity: "16"
+          unit: HUR
+          unit_price: "4500.00"
+          net_amount: "72000.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "2960800.00"
+          tax_amount: "592160.00"
+      totals:
+        line_total: "2960800.00"
+        tax_exclusive: "2960800.00"
+        tax: "592160.00"
+        tax_inclusive: "3552960.00"
+        prepaid: null
+        payable: "3552960.00"
+      payment:
+        account: 160-0000000987654-32
+        model: "97"
+        reference: 77-2026
+  - name: debit-note
+    layout: classic
+    fields:
+      type_code: "383"
+      number: KZ-2026-004
+      issue_date: "2026-10-26"
+      due_date: "2026-11-10"
+      delivery_date: null
+      currency: RSD
+      buyer_reference: null
+      seller:
+        name: Primer Softver d.o.o.
+        tax_id: "100000024"
+        company_id: "20000006"
+        street: Ulica Primera 1
+        city: Čačak
+        postal_code: "32000"
+        country: RS
+        email: fakture@primer-softver.example
+      seller_in_vat_register: true
+      buyer:
+        name: Ogledni Kupac d.o.o.
+        tax_id: "100000016"
+        company_id: "20000014"
+        street: Bulevar Ogleda 22
+        city: Beograd
+        postal_code: "11000"
+        country: RS
+        email: null
+      lines:
+        - name: Dodatni konsultantski sati, oktobar 2026
+          quantity: "3"
+          unit: HUR
+          unit_price: "1500.00"
+          net_amount: "4500.00"
+          vat_category: S
+          vat_rate: "20"
+      vat_breakdown:
+        - vat_category: S
+          vat_rate: "20"
+          taxable_amount: "4500.00"
+          tax_amount: "900.00"
+      totals:
+        line_total: "4500.00"
+        tax_exclusive: "4500.00"
+        tax: "900.00"
+        tax_inclusive: "5400.00"
+        prepaid: null
+        payable: "5400.00"
+      payment:
+        account: 160-0000000123456-78
+        model: "97"
+        reference: 12-345678-00004

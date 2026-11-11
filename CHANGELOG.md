@@ -17,10 +17,21 @@ is tagged.
   PDF's text layer, pictures drawn anew without their metadata, nothing stored; and
   `POST /invoices/draft` writes the UBL invoice of the fields a person confirmed, in code,
   nothing computed or filled in (ADR-0062).
+- `apps/api`: Google's Gemini as a provider (`LLM_PROVIDER=gemini` with `GEMINI_API_KEY`), by its
+  OpenAI-compatible chat completions with structured outputs, `gemini-3.1-flash-lite` by default,
+  on Google's free tier; and `SEF_EXTRACTION_PROVIDER`, which has one provider read documents
+  while another writes explanations and repairs (Gemini reading while Groq writes, say). An enum
+  that holds null is sent to Gemini as `anyOf` the enum and null; Google's errors are named by
+  their status. The evaluations record the reading with the same settings.
 - `apps/web` (beta): the upload page takes a PDF or a JPEG, PNG or WebP picture of an
   invoice, has the API read it and shows the fields beside the document, every one editable,
   the ones SEF needs and the model did not find marked; the invoice is made of them, stored and
   validated only when the visitor asks, or its XML downloaded; the document stays in the page.
+- `evals`: the reading of documents measured on ten synthetic invoices printed as a PDF with
+  its text, a scan and a photograph (`scripts/render_documents.py`): the fields read as the
+  invoice has them, per form; the fields it leaves empty that the reading filled in; and the
+  documents read into an invoice the validator accepts; held to thresholds, with the reading
+  model's answers recorded once and replayed, each picture named by its document (ADR-0063).
 
 ### Changed
 
@@ -30,6 +41,32 @@ is tagged.
 
 ### Fixed
 
+- `pyproject.toml`: mypy checks the workspace as Linux on every machine, as CI does; on
+  Windows it took multiprocessing's pipes for another class, and the code after a test skipped
+  there for unreachable.
+- `apps/api` (beta): the reading model is asked for amounts, quantities and VAT rates as JSON
+  numbers, kept as text digit for digit (the answer's numbers are parsed as decimals): asked for
+  text, the model held to the schema by constrained decoding wrote every one of them as null. A
+  unit is read as the line prints it (kom, sat, kg, l, km, in Latin or Cyrillic) and made its
+  UN/ECE Recommendation 20 code in code, and a line with a quantity and no unit counts in ones
+  (C62). A VAT rate written as a fraction (0.2), and a PIB and a matični broj the other way
+  round, go back to the model as answers of the wrong form. The model is told that the type
+  code is read from the document's title and a Serbian party's country is RS, which it had left
+  null as codes not printed, and under which labels a Serbian invoice prints the delivery date,
+  the buyer's reference and the due date (found by the second recording, which read 24 % of
+  the fields of the PDFs).
+- `apps/api`: Groq's refusal of an answer as not of the schema (`json_validate_failed`) says how
+  long the answer was, whether it was whole JSON and how much of its end was blank, which tells
+  an answer cut off from one of the wrong form, and never what it said.
+- `apps/api` (beta): a character XML cannot hold no longer reaches the fields read from a
+  document, where one made drafting the invoice fail: PDFium's mark for a hyphen at a line
+  break is shown to the reading model as a hyphen, and control characters are left out of a
+  page's text and of every field (found by the evaluations' first recording).
+- `evals`: a recording that fails for any reason keeps the answers the model gave, as one
+  stopped at the provider's limit does, instead of losing them.
+- `evals`: a recording waits out a provider's server that is busy (5xx, as Gemini's 503 while it
+  is overloaded) a minute at a time, as it waits out a limit (429), instead of counting the
+  document as not read after three tries a second or two apart.
 - `evals`: an empty `SEF_TEST_DATABASE_URL`, as `.env.example` leaves it, is read as not set
   and says so, as the API's tests read it, instead of failing with SQLAlchemy's traceback;
   a value that is no database URL is refused without being repeated.

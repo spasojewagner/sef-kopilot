@@ -6,9 +6,19 @@ the plain form a printed invoice gives them: names, the PIB and the registration
 amounts. They are not UBL: :mod:`sef_api.extraction.draft` writes the UBL from them, in code.
 
 Every value is text, or null where the document does not show it: the model writes what it
-reads, and invents nothing. A value must have the form its description gives (a date as
+reads, and invents nothing. A character XML cannot hold (a control character, as PDFium marks a
+hyphen at a line break) is dropped from a value, so that every value can be written into an
+invoice. A value must have the form its description gives (a date as
 ``2026-10-05``, an amount as ``14400.00``), which the models check: an answer that breaks one
 is sent back to the model with what is wrong, as the explainer's and the repairer's are.
+
+An amount is asked for as a JSON number, the form a model writes one in. Asked for as text, a
+model that constrained decoding holds to the schema cannot write the digit it means to begin
+with, and writes null: every amount of the first recorded readings was null. The fields keep
+it as text, digit for digit, as the reader parses the answer's numbers as decimals, never as
+floats. Only the model's schema asks for a number: the API's document gives an amount as text,
+as the API answers it. A unit is written as the line prints it (kom, sat, kg), and :data:`UNITS`
+makes it its UN/ECE Recommendation 20 code, in code: the model reads, it does not look codes up.
 
 :data:`SCHEMA` is the answer's JSON schema, made from the models for structured outputs in
 strict mode: every key is required, every value may be null, nothing else is allowed.
@@ -23,14 +33,23 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated, Any, Final, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 from einvoice_core import model
 from einvoice_core.srb.vat import CATEGORIES
 
 __all__ = [
     "MAX_LINES",
+    "NOT_IN_XML",
     "SCHEMA",
+    "UNITS",
     "InvoiceFields",
     "Line",
     "Party",
@@ -45,14 +64,43 @@ MAX_LINES: Final = 200
 #: The longest value of a field, which no name, address or identifier needs to pass.
 MAX_TEXT: Final = 500
 
+#: What XML 1.0 cannot hold (its production ``Char``): control characters other than the tab
+#: and the line ends, U+FFFE, U+FFFF and lone surrogates.
+NOT_IN_XML: Final = re.compile("[^\t\n\r\x20-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]")
+
 _AMOUNT = re.compile(r"-?[0-9]+(\.[0-9]+)?")
 _DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+_UNIT = re.compile(r"[A-Z0-9]{2,3}")
+_PIB = re.compile(r"[0-9]{9}")
+_MB = re.compile(r"[0-9]{8}")
+
+#: The units a Serbian invoice prints, in Latin and in Cyrillic, lower case, by the
+#: UN/ECE Recommendation 20 code each stands for.
+UNITS: Final[dict[str, str]] = {
+    printed: code
+    for code, forms in {
+        "H87": ("kom", "kom.", "ком", "ком."),
+        "HUR": ("sat", "sati", "h", "сат", "сати"),
+        "DAY": ("dan", "dana", "дан", "дана"),
+        "MON": ("mes", "mes.", "mesec", "мес", "мес.", "месец"),
+        "KGM": ("kg", "кг"),
+        "GRM": ("g", "gr", "г", "гр"),
+        "TNE": ("t", "т", "tona", "тона"),
+        "LTR": ("l", "lit", "lit.", "л", "лит", "лит."),
+        "MTR": ("m", "м"),
+        "KMT": ("km", "км"),
+        "MTK": ("m2", "m²", "м2", "м²"),
+        "MTQ": ("m3", "m³", "м3", "м³"),
+        "KWH": ("kwh",),
+    }.items()
+    for printed in forms
+}
 
 
 def _text(value: str | None) -> str | None:
     if value is None:
         return None
-    stripped = " ".join(value.split())
+    stripped = " ".join(NOT_IN_XML.sub("", value).split())
     if len(stripped) > MAX_TEXT:
         raise ValueError(f"at most {MAX_TEXT} characters")
     return stripped or None
@@ -66,6 +114,40 @@ def _amount(value: str | None) -> str | None:
             "or a currency"
         )
     return value
+
+
+def _number(value: object) -> object:
+    """An amount the model wrote as a JSON number, as text: digit for digit where the answer's
+    numbers were parsed as decimals, as the reader parses them. Text is left to the form's
+    check, and true or false to the type's."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, Decimal):
+        return format(value, "f")
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return format(Decimal(repr(value)), "f")
+    return value
+
+
+def _rate(value: str | None) -> str | None:
+    value = _amount(value)
+    if value is not None and 0 < Decimal(value) < 1:
+        raise ValueError("write the rate in percent, 20 for 20 %, not 0.2")
+    return value
+
+
+def _unit(value: str | None) -> str | None:
+    value = _text(value)
+    if value is None:
+        return None
+    code = UNITS.get(value.casefold(), value.upper())
+    if _UNIT.fullmatch(code) is None:
+        raise ValueError(
+            "write the unit as the line prints it, kom, or as a UN/ECE Recommendation 20 code, H87"
+        )
+    return code
 
 
 def _date(value: str | None) -> str | None:
@@ -96,13 +178,15 @@ def _code(pattern: str, form: str) -> Any:
 
 
 Text = Annotated[str | None, AfterValidator(_text)]
-Amount = Annotated[str | None, AfterValidator(_amount)]
+#: A number the model writes as a JSON number, kept as text (:func:`_number`): text in the
+#: API's document, as the API answers it, and a number in :data:`SCHEMA` alone (:func:`_strict`).
+Amount = Annotated[str | None, BeforeValidator(_number), AfterValidator(_amount)]
+#: A VAT rate in percent, a JSON number as :data:`Amount` is: a fraction (0.2) is refused.
+Rate = Annotated[str | None, BeforeValidator(_number), AfterValidator(_rate)]
 Day = Annotated[str | None, AfterValidator(_date)]
 Currency = Annotated[str | None, AfterValidator(_code(r"[A-Z]{3}", "an ISO 4217 code, RSD"))]
 Country = Annotated[str | None, AfterValidator(_code(r"[A-Z]{2}", "an ISO 3166 code, RS"))]
-Unit = Annotated[
-    str | None, AfterValidator(_code(r"[A-Z0-9]{2,3}", "a UN/ECE Recommendation 20 code, H87"))
-]
+Unit = Annotated[str | None, AfterValidator(_unit)]
 TypeCode = Literal["380", "381", "383", "386"]
 Category = Literal["S", "Z", "E", "AE", "R", "O", "OE", "SS", "N"]
 
@@ -135,6 +219,22 @@ class Party(_Fields):
     )
     email: Text = Field(default=None, description="Its email address, if printed.")
 
+    @model_validator(mode="after")
+    def _not_swapped(self) -> Party:
+        """A PIB of eight digits beside a matični broj of nine is the two the other way round,
+        which a reading of a scan does; it goes back to the model, as any wrong form."""
+        if (
+            self.tax_id is not None
+            and self.company_id is not None
+            and _MB.fullmatch(self.tax_id)
+            and _PIB.fullmatch(self.company_id)
+        ):
+            raise ValueError(
+                "the PIB (tax_id) has nine digits and the matični broj (company_id) eight: "
+                "write each in its own field"
+            )
+        return self
+
 
 class Line(_Fields):
     """A line of the invoice's table of goods and services."""
@@ -143,9 +243,9 @@ class Line(_Fields):
     quantity: Amount = Field(default=None, description="The quantity, a number: 8.")
     unit: Unit = Field(
         default=None,
-        description="The unit as a UN/ECE Recommendation 20 code: H87 for a piece (kom), HUR "
-        "for an hour (sat), DAY for a day, KGM for a kilogram, LTR for a litre, MTR for a metre, "
-        "C62 when no unit is printed.",
+        description="The unit as the line prints it: kom, sat, dan, kg, l, m, km; or its "
+        "UN/ECE Recommendation 20 code where that is printed, H87; C62 where the line prints "
+        "no unit.",
     )
     unit_price: Amount = Field(
         default=None, description="The price of one unit without VAT, a number: 1500.00."
@@ -160,8 +260,9 @@ class Line(_Fields):
         "the buyer owes it (reverse charge); Z, E, R, O, OE, SS or N where the line names an "
         "exemption or VAT does not apply.",
     )
-    vat_rate: Amount = Field(
-        default=None, description="The VAT rate in percent, a number: 20, 10 or 0."
+    vat_rate: Rate = Field(
+        default=None,
+        description="The VAT rate in percent, as printed: 20 for 20 %, 10 or 0; never 0.2.",
     )
 
 
@@ -171,7 +272,9 @@ class VatSubtotal(_Fields):
     vat_category: Category | None = Field(
         default=None, description="The VAT category, as for a line: S, AE, Z, E, R, O, OE, SS, N."
     )
-    vat_rate: Amount = Field(default=None, description="The VAT rate in percent: 20, 10 or 0.")
+    vat_rate: Rate = Field(
+        default=None, description="The VAT rate in percent: 20 for 20 %, 10 or 0; never 0.2."
+    )
     taxable_amount: Amount = Field(
         default=None, description="The amount the VAT is charged on (osnovica): 12000.00."
     )
@@ -256,12 +359,30 @@ class InvoiceFields(_Fields):
     payment: Payment = Field(default_factory=Payment, description="How to pay.")
 
 
-def _strict(node: Any, definitions: dict[str, Any]) -> Any:
-    """``node`` of a model's JSON schema as structured outputs take it in strict mode."""
+def _numbers(model: type[BaseModel]) -> frozenset[str]:
+    """The fields of ``model`` that are amounts, which the model is asked for as JSON numbers."""
+    return frozenset(
+        name
+        for name, field in model.model_fields.items()
+        if any(getattr(each, "func", None) is _number for each in field.metadata)
+    )
+
+
+#: The amounts of each model, by the name its JSON schema gives it.
+_NUMBERS: Final[dict[str, frozenset[str]]] = {
+    model.__name__: _numbers(model)
+    for model in (InvoiceFields, Party, Line, VatSubtotal, Totals, Payment)
+}
+
+
+def _strict(node: Any, definitions: dict[str, Any], numbers: frozenset[str] = frozenset()) -> Any:
+    """``node`` of a model's JSON schema as structured outputs take it in strict mode, the
+    properties ``numbers`` names asked for as JSON numbers."""
     if not isinstance(node, dict):
         return node
     if "$ref" in node:
-        return _strict(definitions[node["$ref"].rsplit("/", 1)[1]], definitions)
+        name = node["$ref"].rsplit("/", 1)[1]
+        return _strict(definitions[name], definitions, _NUMBERS.get(name, frozenset()))
     if "anyOf" in node:
         options = [option for option in node["anyOf"] if option != {"type": "null"}]
         if len(options) != 1:  # pragma: no cover - the fields are a value or null
@@ -279,6 +400,8 @@ def _strict(node: Any, definitions: dict[str, Any]) -> Any:
         made["properties"] = {
             name: _strict(value, definitions) for name, value in properties.items()
         }
+        for name in numbers & set(properties):
+            made["properties"][name]["type"] = ["number", "null"]
         made["required"] = list(properties)
         made["additionalProperties"] = False
     if node.get("type") == "array":
@@ -288,7 +411,7 @@ def _strict(node: Any, definitions: dict[str, Any]) -> Any:
 
 def _schema() -> dict[str, Any]:
     full = InvoiceFields.model_json_schema()
-    made: dict[str, Any] = _strict(full, full.get("$defs", {}))
+    made: dict[str, Any] = _strict(full, full.get("$defs", {}), _NUMBERS["InvoiceFields"])
     made.pop("description", None)
     return made
 
