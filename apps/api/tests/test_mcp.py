@@ -8,6 +8,7 @@ suite's database with real commits (``committed_database``).
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import uuid
 from collections.abc import AsyncIterator, Mapping
@@ -28,13 +29,15 @@ from sqlalchemy import update
 
 from sef_api.auth.permissions import KEY_PERMISSIONS, Permission
 from sef_api.db import Database
+from sef_api.extraction.reader import Reader
 from sef_api.main import create_app
 from sef_api.mcp import tools
 from sef_api.models import ApiKey, User
 from sef_api.rag.explainer import Explainer
 
 from .conftest import REPOSITORY_ROOT, settings_for
-from .corpora import QuotingModel, repository_corpus, store_corpus
+from .corpora import QuotingModel, ReadingModel, repository_corpus, store_corpus
+from .documents import picture
 from .factories import Key, Office, api_key, office
 from .test_explainer import FakeEmbedder
 
@@ -71,6 +74,11 @@ TOOLS: dict[str, tuple[Permission, dict[str, Any]]] = {
     "get_rule": (Permission.INVOICES_VALIDATE, {"rule_id": "BR-01"}),
     "send_to_sef_demo": (Permission.INVOICES_SEND, {"invoice_id": str(uuid.uuid4())}),
     "get_sef_status": (Permission.INVOICES_SUBMIT, {"invoice_id": str(uuid.uuid4())}),
+    "extract_from_pdf": (
+        Permission.INVOICES_VALIDATE,
+        {"document": base64.b64encode(picture()).decode(), "media_type": "image/jpeg"},
+    ),
+    "draft_invoice": (Permission.INVOICES_VALIDATE, {"fields": {"number": "RF-1"}}),
 }
 
 #: What ``serving`` is given for a server without a language model.
@@ -133,8 +141,9 @@ async def serving(
 ) -> AsyncIterator[Served]:
     """The application with ``variables`` set, running, on a database with Primer's office and,
     if asked, the repository's corpus; explaining with ``model``, a stand-in that quotes the
-    passages unless another is given, and with ``embedder`` if one is; speaking to SEF through
-    ``sef`` if given, from before it starts, so that its watching does too."""
+    passages unless another is given, and with ``embedder`` if one is; reading documents with a
+    stand-in, unless it has no model; speaking to SEF through ``sef`` if given, from before it
+    starts, so that its watching does too."""
     async with database.sessions() as setup:
         if corpus:
             await store_corpus(setup, repository_corpus())
@@ -143,6 +152,7 @@ async def serving(
         await setup.commit()
     app = create_app(settings_for(database_url, **variables))
     app.state.explainer = None if model is NO_MODEL else Explainer(model or QuotingModel())
+    app.state.reader = None if model is NO_MODEL else Reader(ReadingModel())
     app.state.embedder = embedder
     if sef is not None:
         await app.state.sef_http.aclose()

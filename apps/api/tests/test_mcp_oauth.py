@@ -133,8 +133,10 @@ async def test_a_client_that_signed_its_person_in_validates_an_invoice(served: S
         result = await client.call_tool("validate_invoice", {"xml": VALID})
 
     assert offered == [
+        "draft_invoice",
         "explain_errors",
         "explain_invoice",
+        "extract_from_pdf",
         "get_invoice",
         "get_job",
         "get_repair",

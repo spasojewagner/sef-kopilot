@@ -738,13 +738,15 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   | `get_rule` | `invoices:validate` | `GET /rules/{rule_id}`: a rule and the passages an explanation of it would cite on a day |
   | `send_to_sef_demo` | `invoices:send` | `POST /invoices/{invoice_id}/sef`: a stored invoice validated again under SRB-CIUS and sent to SEF's demo environment in the organization's name, once; the answer is the submission as SEF answered it, and a reason (`invalid`, `no-key`, `sent`, `unconfirmed`, `changed`) when nothing was sent |
   | `get_sef_status` | `invoices:submit` | `GET /invoices/{invoice_id}/sef`: each sending of a stored invoice, with what SEF answered and where the invoice stands in SEF as SEF last said; SEF is not asked |
+  | `extract_from_pdf` | `invoices:validate` | `POST /invoices/extract` (beta): a PDF or a JPEG, PNG or WebP picture in base64 and its media type; the invoice's fields as the reading model read them, for the person to confirm; nothing is stored |
+  | `draft_invoice` | `invoices:validate` | `POST /invoices/draft` (beta): the fields the person confirmed; the UBL invoice written of them in code, as text, for `validate_invoice` or `store_invoice` |
 
-  An assistant's scopes match: `invoices:validate` for the tools that validate and look rules
-  up, `invoices:submit` for those on stored invoices, `invoices:send` for sending to SEF, which
-  a client is not told to ask for first and asks for through the step-up when its assistant
-  first sends (ADR-0052). The server's instructions tell the assistant to send only when the
-  person asks. No scope reaches every invoice of the organization (`invoices:manage`): through
-  an assistant, a person sees, and sends, the invoices they submitted.
+  An assistant's scopes match: `invoices:validate` for the tools that validate, read documents
+  and look rules up, `invoices:submit` for those on stored invoices, `invoices:send` for sending
+  to SEF, which a client is not told to ask for first and asks for through the step-up when its
+  assistant first sends (ADR-0052). The server's instructions tell the assistant to send only
+  when the person asks. No scope reaches every invoice of the organization (`invoices:manage`):
+  through an assistant, a person sees, and sends, the invoices they submitted.
 - **Asking for more (step-up):** every tool is listed, whatever a token's scopes. A call
   through an MCP client of a tool its scopes do not reach, which the person's role would
   allow, is answered 403 before the tool runs, with `WWW-Authenticate: Bearer
@@ -755,7 +757,8 @@ JSON. Clients of the protocol's current revision (2026-07-28) and of earlier one
   API key's missing permission, is the tool's error, as before.
 
 - **Its limits:** a message is a JSON body, at most `SEF_MAX_BODY_BYTES` (1 MiB): a larger
-  invoice is uploaded to the tool's route instead. Only POST is answered (405 otherwise),
+  invoice is uploaded to the tool's route instead, and a document to be read, whose base64 is a
+  third larger than its bytes, is at most about 750 KB through `extract_from_pdf` (ADR-0064). Only POST is answered (405 otherwise),
   since the server sends no messages of its own. A page of an origin other than the web
   application's is refused (403).
 
