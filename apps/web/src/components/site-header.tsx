@@ -36,7 +36,7 @@ export function SiteHeader() {
         <Sections />
         <div className="ml-auto flex min-w-0 items-center gap-2">
           {/* A phone's header has room for the account alone: its languages are in the footer. */}
-          <Languages className="hidden sm:block" />
+          <Languages compact className="hidden sm:block" />
           <Account />
         </div>
       </div>

@@ -10,6 +10,7 @@
     "sections": "Odeljci"
   },
   "account": {
+    "menu": "Nalog {email}",
     "signIn": "Prijava",
     "signOut": "Odjava",
     "invoices": "Fakture",

@@ -15,6 +15,13 @@ is tagged.
   and cards reveal once as the page opens or scrolls. A visitor who asks for reduced motion
   sees them in place at once.
 
+### Changed
+
+- `apps/web`: the header's account is a mark with the member's initials and, on a wide screen,
+  the organization's name, which opens a menu with the address, the organization and the role,
+  the way to the organization's settings and the way out; the languages are one control of two
+  halves, SR and EN, each read by its own name.
+
 ## [1.0.0] - 2026-11-14
 
 Reading invoices from PDFs and pictures, the case study, and the security review (milestone M7),

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { STORAGE_KEY } from "@/lib/session";
 import { renderIn } from "@/test/render";
 
-import { Account } from "./account";
+import { Account, initialsOf } from "./account";
 
 const router = vi.hoisted(() => ({
   push: vi.fn(),
@@ -60,6 +60,18 @@ function keepAlice() {
   );
 }
 
+describe("The initials of an account", () => {
+  it.each([
+    ["marija.petrovic@primer.example", "MP"],
+    ["ana@primer.example", "A"],
+    ["marija.1794698025786@primer.example", "M"],
+    ["2026@primer.example", "2"],
+    ["đorđe_ilić+sef@primer.example", "ĐI"],
+  ])("of %s are %s", (email, initials) => {
+    expect(initialsOf(email)).toBe(initials);
+  });
+});
+
 describe("Account in the header", () => {
   it("offers to sign in when nobody is signed in", () => {
     renderIn("sr-Latn", <Account />);
@@ -88,12 +100,22 @@ describe("Account in the header", () => {
     );
     router.push.mockClear();
     renderIn("sr-Latn", <Account />);
+    const user = userEvent.setup();
 
-    expect(screen.getByText("alice@primer.example")).toBeInTheDocument();
-    expect(await screen.findByText("alice@novo.example")).toBeInTheDocument();
-    await userEvent
-      .setup()
-      .click(screen.getByRole("button", { name: "Odjava" }));
+    expect(
+      screen.getByRole("button", { name: "Nalog alice@primer.example" }),
+    ).toHaveTextContent("APrimer d.o.o.");
+    const menu = await screen.findByRole("button", {
+      name: "Nalog alice@novo.example",
+    });
+    await user.click(menu);
+    expect(screen.getByRole("menu")).toHaveTextContent(
+      "alice@novo.examplePrimer d.o.o. · vlasnik",
+    );
+    expect(
+      screen.getByRole("menuitem", { name: "Organizacija" }),
+    ).toHaveAttribute("href", "/sr-Latn/organization");
+    await user.click(screen.getByRole("menuitem", { name: "Odjava" }));
 
     await waitFor(() => expect(router.push).toHaveBeenCalled());
     expect(router.push.mock.calls[0][0]).toBe("/sr-Latn");

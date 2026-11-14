@@ -10,6 +10,7 @@
     "sections": "Sections"
   },
   "account": {
+    "menu": "Account {email}",
     "signIn": "Sign in",
     "signOut": "Sign out",
     "invoices": "Invoices",
