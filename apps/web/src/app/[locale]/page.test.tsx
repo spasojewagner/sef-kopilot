@@ -6,7 +6,7 @@ import { renderIn } from "@/test/render";
 import HomePage from "./page";
 
 describe("Home page", () => {
-  it("says what the product does, and that it is pre-alpha, in Serbian (Latin)", () => {
+  it("says what the product does, and which version it is, in Serbian (Latin)", () => {
     renderIn("sr-Latn", <HomePage />);
 
     expect(
@@ -16,7 +16,9 @@ describe("Home page", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/proverava UBL fakturu/)).toBeInTheDocument();
-    expect(screen.getByText(/u fazi pre-alpha/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Otvoreni kod pod licencom Apache-2.0, verzija 1.0.0."),
+    ).toBeInTheDocument();
   });
 
   it("says the same in English", () => {

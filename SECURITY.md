@@ -19,7 +19,8 @@ until the issue is resolved. Credit is given in the changelog unless you prefer 
 
 ## Supported versions
 
-The project is pre-alpha. Only the `main` branch and the latest tagged release receive fixes.
+Version 1.0 is the first stable release. Only the `main` branch and the latest tagged release
+receive fixes; the reading of PDFs and pictures is a beta.
 
 ## Scope and threat model (summary)
 

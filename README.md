@@ -145,12 +145,12 @@ replayed; a threshold missed fails the build ([`evals/reports/latest.md`](evals/
 
 | Engineering | |
 | --- | --- |
-| Tests | 1,770 for the validator core (100 % coverage), 1,603 for the API (99 %), 581 for the web application, one end-to-end test in Chromium |
+| Tests | 1,770 for the validator core (100 % coverage), 1,622 for the API (99 %), 599 for the web application, one end-to-end test in Chromium |
 | Conformance | in the core's tests: the rule sets run on their publishers' own unit tests, 1,131 of CEN's and 340 of OpenPeppol's, with the results the publishers expect |
 | Rules | EN 16931 and Peppol BIS as CEN and OpenPeppol publish them, 29 SRB-CIUS rules, 8 `BR-CO` calculations |
 | Regulation corpus | 5 documents, 7 dated editions, 385 passages |
 | Performance | a typical invoice validated in 13 ms warm through the API, 6.5 ms in the core (budget 500 ms); an explanation in 1.5 s on Groq's free tier (budget 6 s) |
-| History | 109 pull requests, 64 decision records, an engineering log of every working session ([`docs/SESSIONS.md`](docs/SESSIONS.md)) |
+| History | 116 pull requests, 64 decision records, an engineering log of every working session ([`docs/SESSIONS.md`](docs/SESSIONS.md)) |
 
 ## Run it locally
 
@@ -264,7 +264,7 @@ server for Claude and ChatGPT. [`SECURITY.md`](SECURITY.md) lists the controls, 
 | M4 | MCP server with OAuth 2.1, shown from Claude and ChatGPT | done — v0.4.0 |
 | M5 | SEF demo round trip | done — v0.5.0 |
 | M6 | Evaluation harness with CI quality gate, sandbox billing | done — v0.6.0 |
-| M7 | PDF and picture reading (beta), case study, 1.0 | the reading and the case study are done; 1.0 follows a security review |
+| M7 | PDF and picture reading (beta), case study, security review, 1.0 | done — v1.0.0 |
 
 After 1.0, once the project has a SEF demo account: SEF's error codes mapped into the
 explanations, SEF's internal technical instruction in the corpus, and the rules the published

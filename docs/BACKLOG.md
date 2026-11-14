@@ -164,7 +164,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `docs/readme-case-study` — final README (problem, demo GIF, architecture diagram, numbers, how to run, how to self-host), 90-second demo video script, `docs/CASE_STUDY.md`; the GIF recorded by `make demo-gif`, the end-to-end test's golden path at a person's pace
 - [x] `fix/web-fresh-verdict-after-approval` — found while recording the demo: after a repair is approved, the invoice's report shows its previous verdict until the fresh one arrives (the approval marks the invoice stale without reading it again); the invoice is now read again before the approval is shown as made; `make demo-gif` again before the release
 - [x] `chore/security-review-1.0` — the security review pass: every open item of the ASVS checklist walked, the audits run, four items fixed (the headers of the API and the web, the permissions in the schema, common passwords refused, no documentation in production), the rest verified or accepted (`docs/SECURITY_REVIEW_1.0.md`)
-- [ ] `chore/release-1.0` — `v1.0.0`
+- [x] `chore/release-1.0` — `v1.0.0`
 
 ## After 1.0 — waits for a SEF demo account
 

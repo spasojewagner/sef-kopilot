@@ -3084,3 +3084,35 @@ Verification: 250 tests, Ruff and mypy passed. The committed evaluations met all
 thresholds with the existing cassettes.
 
 Next: review the branch and keep the required type under observation on other invoice types.
+
+## 2026-11-14 — `fix/web-reading-messages`, `fix/web-fresh-verdict-after-approval`, `chore/security-review-1.0`, `chore/release-1.0`
+
+Outcome: manual testing of the upload page made into fixes, the flaw the demo found fixed and
+recorded again, the security review, and 1.0. A picture is no longer made into an invoice
+without its type or without what the UBL schema needs. A draft is checked before it is
+downloaded, and the original can be downloaded again. Every error of a reading, an explanation
+or a repair says whether trying again can help, with a reason code beside the English. After an
+approval, the invoice is read again before the approval shows. The review closed the ASVS
+checklist (`docs/SECURITY_REVIEW_1.0.md`). Every package is at 1.0.0.
+
+Findings:
+
+- An invoice dated April 2021 had none of its rules explained: every edition in the corpus is
+  later. The page said "try again", which could never help, and now it says why.
+- Qwen on Groq read no document's type in twenty readings, where Gemini read all twenty. With the
+  type required in the schema sent to Groq, it read seven of nine; the other two were the
+  provider's 400 and 429.
+- The old GIF showed the approval's stale verdict, "Invalid, 1 error", in frame 121. The new one
+  shows "Valid" from the first frame back on the report.
+- A live repair of a wrong PIB proposed removing the identifier, which would silence the rule.
+  The guard held both patches for a person, and the invoice did not change.
+- A second agent took the tasks that need the maintainer's machine: live measurements with his
+  keys, the GIF, the walk through the screens. It worked from task files in `.handoff/`, and its
+  commits were reviewed before they were pushed.
+
+Verification: 1,622 API tests at 99 %, 599 web tests, the end-to-end golden path against the
+production build under the new headers, the evaluations' check, pip-audit, pnpm audit, and
+gitleaks over the history.
+
+Next, after 1.0 and once there is a SEF demo account: SEF's error codes, its internal technical
+instruction in the corpus, and the open rules confirmed against SEF itself (`docs/BACKLOG.md`).

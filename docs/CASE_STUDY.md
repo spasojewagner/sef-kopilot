@@ -14,8 +14,8 @@ say now. Every claim links to the code, a decision record or a report that backs
 | **Who for** | Accountants, ERP vendors, and invoicing software facing the EU's e-invoicing mandates |
 | **What it does** | Validates UBL 2.1 against SRB-CIUS, EN 16931 and Peppol BIS; explains; repairs with approval; sends to SEF's demo; reads PDFs and pictures (beta); all of it over HTTP and MCP |
 | **Stack** | Python 3.12, FastAPI, PostgreSQL 16 with pgvector, Saxon-HE, Next.js, TypeScript |
-| **Quality gates** | 1,770 core tests at 100 % coverage, 1,603 API tests at 99 %, 581 web tests, one end-to-end test, evaluations that fail CI below their thresholds |
-| **History** | 109 pull requests, 64 architecture decision records, six releases since the first commit on 3 November 2026 |
+| **Quality gates** | 1,770 core tests at 100 % coverage, 1,622 API tests at 99 %, 599 web tests, one end-to-end test, evaluations that fail CI below their thresholds |
+| **History** | 116 pull requests, 64 architecture decision records, seven releases since the first commit on 3 November 2026 |
 
 ![The golden path: an invalid invoice uploaded, its report, a repair suggested, its diff, approval, and the invoice valid](demo/golden-path.gif)
 
@@ -208,7 +208,7 @@ a pair-programming partner, under a written working agreement
 pushes, opens and merges every change. The process is part of the product:
 
 - One branch per change, a pull request for each, merged as a merge commit after CI passes, so
-  `git log --graph` reads as the project's story: 109 pull requests merged to date.
+  `git log --graph` reads as the project's story: 116 pull requests merged to 1.0.
 - A decision record for every architectural choice, written when the choice is made.
 - Interview notes in every pull request: three questions a senior engineer would ask, with
   answers, and one concept the maintainer explains without notes ([`interview/`](interview/README.md)).

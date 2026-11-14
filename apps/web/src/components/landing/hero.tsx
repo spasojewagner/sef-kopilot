@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { REPOSITORY_URL } from "@/lib/links";
 
+import { version } from "../../../package.json";
+
 import backdrop from "./backdrop.svg";
 import { ReportPreview } from "./report-preview";
 
@@ -69,7 +71,7 @@ export function Hero() {
             </Button>
           </div>
           <p className="mt-6 text-sm text-muted-foreground">
-            {t("small", { status: t("status") })}
+            {t("small", { version })}
           </p>
         </div>
         <ReportPreview className="lg:-mb-28 lg:self-end" />
