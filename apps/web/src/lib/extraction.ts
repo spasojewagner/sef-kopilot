@@ -276,6 +276,7 @@ export function fieldsOf(form: FieldsForm): InvoiceFields {
 
 /** The fields SEF cannot do without, by the name the form gives them. */
 export type Needed =
+  | "type_code"
   | "number"
   | "issue_date"
   | "currency"
@@ -293,6 +294,7 @@ export type Needed =
 export function missingIn(form: FieldsForm): Needed[] {
   const empty = (value: string) => value.trim() === "";
   const missing: [Needed, boolean][] = [
+    ["type_code", empty(form.type_code)],
     ["number", empty(form.number)],
     ["issue_date", empty(form.issue_date)],
     ["currency", empty(form.currency)],
@@ -304,6 +306,46 @@ export function missingIn(form: FieldsForm): Needed[] {
     ["totals.payable", empty(form.totals.payable)],
   ];
   return missing.filter(([, isMissing]) => isMissing).map(([name]) => name);
+}
+
+/** A field the invoice cannot be made without, by its place in the form. */
+export type Required =
+  | "type_code"
+  | "number"
+  | "issue_date"
+  | "lines"
+  | `lines.${number}.net_amount`
+  | `vat_breakdown.${number}.tax_amount`
+  | "totals.tax"
+  | "totals.payable";
+
+/**
+ * The fields the invoice cannot be made without, that are empty. The type tells an invoice
+ * from a credit note, which are different documents. The others the UBL schema requires, and
+ * a draft without them fails the schema, after which the validator judges nothing else: the
+ * number, the date of issue, a line at least, each line's amount, each VAT row's tax, the total
+ * VAT where there are rows, and the amount due. The rest a person may leave empty, for the
+ * validator to say what SEF makes of it.
+ */
+export function requiredIn(form: FieldsForm): Required[] {
+  const empty = (value: string) => value.trim() === "";
+  const required: [Required, boolean][] = [
+    ["type_code", empty(form.type_code)],
+    ["number", empty(form.number)],
+    ["issue_date", empty(form.issue_date)],
+    ["lines", form.lines.length === 0],
+    ...form.lines.map((line, index): [Required, boolean] => [
+      `lines.${index}.net_amount`,
+      empty(line.net_amount),
+    ]),
+    ...form.vat_breakdown.map((row, index): [Required, boolean] => [
+      `vat_breakdown.${index}.tax_amount`,
+      empty(row.tax_amount),
+    ]),
+    ["totals.tax", form.vat_breakdown.length > 0 && empty(form.totals.tax)],
+    ["totals.payable", empty(form.totals.payable)],
+  ];
+  return required.filter(([, isEmpty]) => isEmpty).map(([name]) => name);
 }
 
 /** The name of the file the drafted invoice is saved as: its number, made safe for a file. */

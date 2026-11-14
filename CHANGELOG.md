@@ -57,6 +57,12 @@ is tagged.
 - `apps/web`: the XML drafted of a document's fields is validated before it is downloaded, under
   the profile chosen, nothing stored; one that fails is not downloaded, and its fatal violations
   are listed above the buttons until a field changes.
+- `apps/web`: an invoice read from a document is neither made nor downloaded without its type,
+  which tells an invoice from a credit note, nor without what the UBL schema requires (the
+  number, the date of issue, a line, each line's amount, each VAT row's tax, the total VAT where
+  there are rows, the amount due), without which the validator stops at the schema; the missing
+  fields are named and marked when the person asks, and the type is among the fields SEF needs
+  that a reading did not find.
 
 ### Fixed
 

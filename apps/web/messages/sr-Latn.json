@@ -671,6 +671,8 @@
     "check": "Proverite svako polje prema dokumentu i ispravite ga. Model može da pogreši, a prazno polje znači da ga nije našao. Ništa nije sačuvano dok ne napravite fakturu.",
     "missingTitle": "Nedostaje ono bez čega SEF ne prima fakturu",
     "missingList": "Popunite: {fields}.",
+    "requiredTitle": "Bez ovih polja faktura ne može da se napravi",
+    "requiredList": "Bez vrste se ne zna da li je to faktura ili knjižno odobrenje; bez ostalih XML ne prolazi UBL šemu, pa validator ne može da proveri ništa drugo. Popunite: {fields}.",
     "document": "Dokument",
     "documentAlt": "Dokument iz koga su polja pročitana",
     "openPdf": "Otvorite PDF u novoj kartici",

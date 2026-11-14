@@ -671,6 +671,8 @@
     "check": "Check every field against the document and correct it. The model can misread, and an empty field is one it did not find. Nothing is kept until you make the invoice.",
     "missingTitle": "Missing what SEF needs",
     "missingList": "Fill in: {fields}.",
+    "requiredTitle": "The invoice cannot be made without these fields",
+    "requiredList": "Without its type, it is not known whether it is an invoice or a credit note; without the others, the XML fails the UBL schema and the validator can check nothing else. Fill in: {fields}.",
     "document": "The document",
     "documentAlt": "The document the fields were read from",
     "openPdf": "Open the PDF in a new tab",

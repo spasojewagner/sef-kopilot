@@ -25,6 +25,7 @@ import {
   fieldsOf,
   formOf,
   missingIn,
+  requiredIn,
   TYPE_CODES,
   VAT_CATEGORIES,
   type DocumentType,
@@ -33,6 +34,7 @@ import {
   type LineForm,
   type Needed,
   type PartyForm,
+  type Required,
   type TotalsForm,
   type VatForm,
 } from "@/lib/extraction";
@@ -43,10 +45,19 @@ import { invoiceQuery, invoicesQuery } from "@/lib/queries";
 const NEEDED_LABEL: Record<
   Exclude<Needed, "lines">,
   [
-    "number" | "issue_date" | "currency" | "name" | "tax_id" | "payable",
+    (
+      | "type_code"
+      | "number"
+      | "issue_date"
+      | "currency"
+      | "name"
+      | "tax_id"
+      | "payable"
+    ),
     "seller" | "buyer" | null,
   ]
 > = {
+  type_code: ["type_code", null],
   number: ["number", null],
   issue_date: ["issue_date", null],
   currency: ["currency", null],
@@ -56,6 +67,15 @@ const NEEDED_LABEL: Record<
   "buyer.tax_id": ["tax_id", "buyer"],
   "totals.payable": ["payable", null],
 };
+
+/** The label of each field the invoice cannot be made without that is not a line's or a row's. */
+const REQUIRED_LABEL = {
+  type_code: "type_code",
+  number: "number",
+  issue_date: "issue_date",
+  "totals.tax": "tax",
+  "totals.payable": "payable",
+} as const satisfies Partial<Record<Required, string>>;
 
 /** A text field of the form: its label, and whether SEF needs what it leaves empty. */
 function Field({
@@ -193,6 +213,18 @@ export function InvoiceReading({
   const [form, setForm] = useState<FieldsForm>(() => formOf(extraction.fields));
   const missing = missingIn(form);
   const needs = new Set<Needed>(missing);
+  const required = requiredIn(form);
+  // Asked to make or download the invoice without what it cannot be made without: those
+  // fields are named and marked from then on, as they are left empty.
+  const [refusedEmpty, setRefusedEmpty] = useState(false);
+  const lacking = new Set<Required>(refusedEmpty ? required : []);
+  const whenComplete = (action: () => void) => () => {
+    if (required.length > 0) {
+      setRefusedEmpty(true);
+      return;
+    }
+    action();
+  };
 
   const making = useMutation({
     mutationFn: async () =>
@@ -227,6 +259,8 @@ export function InvoiceReading({
       URL.revokeObjectURL(url);
     },
   });
+  const make = whenComplete(() => making.mutate());
+  const download = whenComplete(() => downloading.mutate());
   const failed = making.error ?? downloading.error;
   const busy = making.isPending || downloading.isPending;
   // The report on the fields as they are: one on fields since changed says nothing of them.
@@ -260,6 +294,20 @@ export function InvoiceReading({
         at === index ? { ...row, [key]: value } : row,
       ),
     }));
+
+  function requiredLabel(name: Required): string {
+    const [, at] = name.split(".");
+    if (name === "lines") {
+      return t("sections.lines");
+    }
+    if (name.startsWith("lines.")) {
+      return `${t("fields.net_amount")} (${t("line", { number: Number(at) + 1 })})`;
+    }
+    if (name.startsWith("vat_breakdown.")) {
+      return `${t("fields.tax_amount")} (${t("sections.vat")}, ${t("vatRow", { number: Number(at) + 1 })})`;
+    }
+    return t(`fields.${REQUIRED_LABEL[name as keyof typeof REQUIRED_LABEL]}`);
+  }
 
   function party(which: "seller" | "buyer") {
     const values = form[which];
@@ -365,7 +413,7 @@ export function InvoiceReading({
           className="grid gap-6"
           onSubmit={(event) => {
             event.preventDefault();
-            making.mutate();
+            make();
           }}
         >
           {missing.length > 0 ? (
@@ -397,6 +445,7 @@ export function InvoiceReading({
                 label={t("fields.type_code")}
                 value={form.type_code}
                 onChange={set("type_code")}
+                needed={needs.has("type_code")}
                 options={TYPE_CODES.map((code) => [code, t(`types.${code}`)])}
               />
               <Field
@@ -513,6 +562,7 @@ export function InvoiceReading({
                       label={t("fields.net_amount")}
                       value={line.net_amount}
                       onChange={setLine(index, "net_amount")}
+                      needed={lacking.has(`lines.${index}.net_amount`)}
                       hint={t("hints.amount")}
                       numeric
                       className="sm:col-span-6"
@@ -615,6 +665,7 @@ export function InvoiceReading({
                       label={t("fields.tax_amount")}
                       value={row.tax_amount}
                       onChange={setVat(index, "tax_amount")}
+                      needed={lacking.has(`vat_breakdown.${index}.tax_amount`)}
                       hint={t("hints.amount")}
                       numeric
                       className="sm:col-span-6"
@@ -657,7 +708,10 @@ export function InvoiceReading({
                   label={t(`fields.${key}`)}
                   value={form.totals[key]}
                   onChange={setTotal(key)}
-                  needed={key === "payable" && needs.has("totals.payable")}
+                  needed={
+                    (key === "payable" && needs.has("totals.payable")) ||
+                    (key === "tax" && lacking.has("totals.tax"))
+                  }
                   hint={t("hints.amount")}
                   numeric
                 />
@@ -695,6 +749,18 @@ export function InvoiceReading({
               </AlertDescription>
             </Alert>
           ) : null}
+          {lacking.size > 0 ? (
+            <Alert variant="destructive">
+              <AlertTitle className="line-clamp-none">
+                {t("requiredTitle")}
+              </AlertTitle>
+              <AlertDescription>
+                {t("requiredList", {
+                  fields: required.map(requiredLabel).join(", "),
+                })}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {refused ? (
             <Alert variant="destructive">
               <AlertTitle className="line-clamp-none">
@@ -720,7 +786,7 @@ export function InvoiceReading({
               type="button"
               variant="outline"
               disabled={busy}
-              onClick={() => downloading.mutate()}
+              onClick={download}
             >
               {t("download")}
             </Button>
@@ -755,12 +821,14 @@ function Choice({
   value,
   onChange,
   options,
+  needed = false,
   className,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: [string, string][];
+  needed?: boolean;
   className?: string;
 }) {
   const t = useTranslations("reading");
@@ -775,6 +843,7 @@ function Choice({
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        aria-invalid={(needed && value === "") || undefined}
       >
         <NativeSelectOption value="">{t("notRead")}</NativeSelectOption>
         {options.map(([code, name]) => (
