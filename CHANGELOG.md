@@ -54,6 +54,9 @@ is tagged.
 - Roadmap: SEF's error codes, its internal technical instruction and what the demo would
   confirm move after 1.0; the demo's sign-up takes an eID registration the project does not
   have.
+- `apps/web`: the XML drafted of a document's fields is validated before it is downloaded, under
+  the profile chosen, nothing stored; one that fails is not downloaded, and its fatal violations
+  are listed above the buttons until a field changes.
 
 ### Fixed
 

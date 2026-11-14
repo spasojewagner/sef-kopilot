@@ -760,6 +760,7 @@
     "making": "Pravim fakturu…",
     "download": "Preuzmi XML",
     "downloadOriginal": "Preuzmi original",
+    "downloadRefused": "XML nije prošao proveru, pa nije preuzet. Ispravite polja, ili napravite fakturu da vidite izveštaj i objašnjenja pravila.",
     "discard": "Odustani",
     "draftRefused": "Neko polje nije u obliku koji se traži: datum kao 2026-10-05, iznos kao 14400.00, kodovi velikim slovima."
   },

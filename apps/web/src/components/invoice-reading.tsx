@@ -36,7 +36,7 @@ import {
   type TotalsForm,
   type VatForm,
 } from "@/lib/extraction";
-import { storeInvoice, type Profile } from "@/lib/invoices";
+import { storeInvoice, validateInvoice, type Profile } from "@/lib/invoices";
 import { invoiceQuery, invoicesQuery } from "@/lib/queries";
 
 /** The label of each field SEF needs, and the party it belongs to, if any. */
@@ -167,8 +167,9 @@ function DocumentShown({ url, type }: { url: string; type: DocumentType }) {
  * is made: the document beside the fields the model read, every one of them editable. The
  * fields SEF needs and the model did not find are named and marked. Making the invoice has the
  * API draft its UBL of the fields, in code, then stores and validates it as an upload does, and
- * shows its report; or the drafted XML is downloaded. Nothing is kept until then. The document
- * itself can be downloaded again as it was chosen, under its own name.
+ * shows its report; or the drafted XML is downloaded, once the validator passes it. Nothing is
+ * kept until the invoice is made. The document itself can be downloaded again as it was
+ * chosen, under its own name.
  */
 export function InvoiceReading({
   url,
@@ -205,21 +206,36 @@ export function InvoiceReading({
       router.push(`/invoices/${stored.id}`);
     },
   });
+  // The draft is checked before it is downloaded, and kept from the person while it fails: a
+  // file that SEF refuses is no use to them. The report says why; nothing is stored.
   const downloading = useMutation({
-    mutationFn: () => drafted(form),
-    onSuccess: (xml) => {
+    mutationFn: async () => {
+      const xml = await drafted(form);
+      return { form, report: await validateInvoice(xml, profile), xml };
+    },
+    onSuccess: ({ form: checked, report, xml }) => {
+      if (!report.valid) {
+        return;
+      }
       const url = URL.createObjectURL(
         new Blob([xml], { type: "application/xml" }),
       );
       const link = window.document.createElement("a");
       link.href = url;
-      link.download = draftFileName(form);
+      link.download = draftFileName(checked);
       link.click();
       URL.revokeObjectURL(url);
     },
   });
   const failed = making.error ?? downloading.error;
   const busy = making.isPending || downloading.isPending;
+  // The report on the fields as they are: one on fields since changed says nothing of them.
+  const refused =
+    downloading.data?.form === form && !downloading.data.report.valid
+      ? downloading.data.report.violations.filter(
+          ({ severity }) => severity === "fatal",
+        )
+      : null;
 
   const set = (key: keyof FieldsForm) => (value: string) =>
     setForm((was) => ({ ...was, [key]: value }));
@@ -676,6 +692,23 @@ export function InvoiceReading({
                 {failed instanceof DraftRefusedError
                   ? t("draftRefused")
                   : messageFor(failed)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {refused ? (
+            <Alert variant="destructive">
+              <AlertTitle className="line-clamp-none">
+                {t("downloadRefused")}
+              </AlertTitle>
+              <AlertDescription>
+                <ul className="grid gap-1">
+                  {refused.map((violation, index) => (
+                    <li key={index}>
+                      <span className="font-mono">{violation.rule_id}</span>{" "}
+                      <span lang="en">{violation.message}</span>
+                    </li>
+                  ))}
+                </ul>
               </AlertDescription>
             </Alert>
           ) : null}

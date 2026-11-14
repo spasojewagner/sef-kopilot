@@ -252,9 +252,12 @@ describe("An invoice read from a picture", () => {
     );
   });
 
-  it("downloads the XML drafted of the fields, keeping nothing", async () => {
+  it("downloads the XML drafted of the fields once it is valid, keeping nothing", async () => {
     keepSession();
-    const asked = drafting();
+    const valid = { ...storedInvoice().report, valid: true, violations: [] };
+    const asked = stubApi(({ path }) =>
+      path === "/invoices/draft" ? new Response(DRAFT) : json(200, valid),
+    );
     const made = vi.fn(() => "blob:draft");
     const given = vi.fn();
     vi.stubGlobal(
@@ -273,8 +276,47 @@ describe("An invoice read from a picture", () => {
     await user.click(screen.getByRole("button", { name: "Preuzmi XML" }));
 
     await waitFor(() => expect(clicked).toHaveBeenCalledOnce());
-    expect(asked.map(({ path }) => path)).toEqual(["/invoices/draft"]);
+    expect(asked.map(({ path }) => path)).toEqual([
+      "/invoices/draft",
+      "/invoices/validate",
+    ]);
+    expect(asked[1].search).toBe("?profile=srb");
+    expect(asked[1].body).toBe(DRAFT);
     expect(given).toHaveBeenCalledWith("blob:draft");
+    clicked.mockRestore();
+  });
+
+  it("keeps an XML that fails the check, says why, and forgets it once a field changes", async () => {
+    keepSession();
+    const { report } = storedInvoice();
+    const fatal = report.violations.filter(
+      ({ severity }) => severity === "fatal",
+    );
+    stubApi(({ path }) =>
+      path === "/invoices/draft" ? new Response(DRAFT) : json(200, report),
+    );
+    const clicked = vi.spyOn(HTMLAnchorElement.prototype, "click");
+    reading();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Preuzmi XML" }));
+
+    const refused = await screen.findByRole("alert");
+    expect(refused).toHaveTextContent(
+      "XML nije prošao proveru, pa nije preuzet.",
+    );
+    for (const violation of report.violations) {
+      if (fatal.includes(violation)) {
+        expect(refused).toHaveTextContent(violation.message);
+      } else {
+        expect(refused).not.toHaveTextContent(violation.message);
+      }
+    }
+    expect(clicked).not.toHaveBeenCalled();
+
+    await user.type(group("Faktura").getByLabelText("Broj"), "-1");
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     clicked.mockRestore();
   });
 
