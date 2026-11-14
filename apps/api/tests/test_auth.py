@@ -106,6 +106,25 @@ async def test_registration_checks_its_input(api: AsyncClient, change: dict[str,
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("password", ["qwerty123456", "QWERTY123456", "1qaz2wsx3edc"])
+async def test_a_common_password_is_refused_whatever_its_case(
+    api: AsyncClient, session: AsyncSession, password: str
+) -> None:
+    response = await api.post("/auth/register", json=REGISTRATION | {"password": password})
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": [
+            {
+                "type": "common_password",
+                "loc": ["body", "password"],
+                "msg": "is among the most common passwords; choose another",
+            }
+        ]
+    }
+    assert await session.scalar(select(User)) is None
+
+
 # --- sign-in -----------------------------------------------------------------------------------
 
 

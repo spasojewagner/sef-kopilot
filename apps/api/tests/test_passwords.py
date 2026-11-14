@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from argon2 import PasswordHasher
 
-from sef_api.auth.passwords import hash_password, needs_rehash, verify_password
+from sef_api.auth.passwords import (
+    MAXIMUM_LENGTH,
+    MINIMUM_LENGTH,
+    _common,
+    hash_password,
+    is_common,
+    needs_rehash,
+    verify_password,
+)
 
 PASSWORD = "correct horse battery staple"
 
@@ -40,3 +48,13 @@ async def test_a_hash_made_with_other_parameters_needs_rehashing() -> None:
 
     assert needs_rehash(weaker)
     assert not needs_rehash(await hash_password(PASSWORD))
+
+
+def test_the_common_passwords_meet_the_length_a_new_one_needs_and_are_in_lower_case() -> None:
+    common = _common()
+
+    assert len(common) == 10_000
+    assert all(MINIMUM_LENGTH <= len(each) <= MAXIMUM_LENGTH for each in common)
+    assert all(each == each.lower() for each in common)
+    assert is_common("Qwerty123456")
+    assert not is_common("kiseli kupus na pijaci u sredu")

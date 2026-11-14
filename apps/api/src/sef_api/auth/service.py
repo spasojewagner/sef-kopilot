@@ -17,7 +17,13 @@ from sqlalchemy import ColumnElement, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sef_api.auth.passwords import MINIMUM_LENGTH, hash_password, needs_rehash, verify_password
+from sef_api.auth.passwords import (
+    MINIMUM_LENGTH,
+    hash_password,
+    is_common,
+    needs_rehash,
+    verify_password,
+)
 from sef_api.auth.permissions import ROLE_PERMISSIONS, Permission
 from sef_api.auth.tokens import issue_access_token, new_opaque_token, opaque_token_digest
 from sef_api.locks import lock_organization
@@ -27,6 +33,7 @@ from sef_api.settings import Settings
 
 __all__ = [
     "AuthenticationError",
+    "CommonPasswordError",
     "EmailTakenError",
     "InvalidInvitationError",
     "InvalidRefreshTokenError",
@@ -130,6 +137,10 @@ class NewPasswordTooShortError(Exception):
     """The password for a new account is shorter than the minimum."""
 
 
+class CommonPasswordError(Exception):
+    """The password for a new account is among the most common ones."""
+
+
 def normalize_email(email: str) -> str:
     """E-mail addresses are compared and stored in lower case, without surrounding spaces."""
     return email.strip().lower()
@@ -223,6 +234,15 @@ async def login(
     return signed_in
 
 
+async def _new_account_hash(password: str) -> str:
+    """The hash of a new account's password, once it is long enough and not a common one."""
+    if len(password) < MINIMUM_LENGTH:
+        raise NewPasswordTooShortError
+    if is_common(password):
+        raise CommonPasswordError
+    return await hash_password(password)
+
+
 async def accept_invitation(
     session: AsyncSession,
     tokens: TokenSettings,
@@ -258,9 +278,7 @@ async def accept_invitation(
     user = await session.scalar(select(User).where(User.email == email))
     password_hash: str | None = None
     if user is None:
-        if len(password) < MINIMUM_LENGTH:
-            raise NewPasswordTooShortError
-        password_hash = await hash_password(password)
+        password_hash = await _new_account_hash(password)
     elif not await _verify(guard, email, user.password_hash, password) or not user.is_active:
         raise AuthenticationError
     elif needs_rehash(user.password_hash):

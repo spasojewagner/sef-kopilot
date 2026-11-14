@@ -278,7 +278,7 @@
             }
           },
           "422": {
-            "description": "The new account's password is too short.",
+            "description": "The new account's password is too short; or it is among the most common passwords, which `detail` says as registration's refusal does, an error of type `common_password`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -555,7 +555,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:validate"
       }
     },
     "/invoices/explain": {
@@ -695,7 +696,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:validate"
       }
     },
     "/invoices": {
@@ -839,7 +841,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       },
       "get": {
         "tags": [
@@ -927,7 +930,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/invoices/revalidations": {
@@ -964,7 +968,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "invoices:submit"
       }
     },
     "/invoices/{invoice_id}": {
@@ -1023,7 +1028,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       },
       "delete": {
         "tags": [
@@ -1073,7 +1079,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/invoices/{invoice_id}/content": {
@@ -1133,7 +1140,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/invoices/{invoice_id}/explanations": {
@@ -1228,7 +1236,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       },
       "get": {
         "tags": [
@@ -1304,7 +1313,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/invoices/extract": {
@@ -1441,7 +1451,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "invoices:validate"
       }
     },
     "/invoices/draft": {
@@ -1498,7 +1509,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "invoices:validate"
       }
     },
     "/invoices/{invoice_id}/repairs": {
@@ -1607,7 +1619,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       },
       "get": {
         "tags": [
@@ -1668,7 +1681,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/invoices/{invoice_id}/repairs/suggestion": {
@@ -1811,7 +1825,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/invoices/{invoice_id}/repairs/{repair_id}": {
@@ -1879,7 +1894,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/invoices/{invoice_id}/repairs/{repair_id}/approval": {
@@ -2008,7 +2024,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/invoices/{invoice_id}/repairs/{repair_id}/rejection": {
@@ -2097,7 +2114,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/rules": {
@@ -2186,7 +2204,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:validate"
       }
     },
     "/rules/{rule_id}": {
@@ -2286,7 +2305,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:validate"
       }
     },
     "/jobs/{job_id}/events": {
@@ -2379,7 +2399,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/jobs/{job_id}": {
@@ -2438,7 +2459,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/members": {
@@ -2469,7 +2491,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "members:read"
       }
     },
     "/members/{user_id}": {
@@ -2548,7 +2571,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "members:manage"
       },
       "delete": {
         "tags": [
@@ -2608,7 +2632,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "members:manage"
       }
     },
     "/invitations": {
@@ -2639,7 +2664,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "members:manage"
       },
       "post": {
         "tags": [
@@ -2694,7 +2720,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "members:manage"
       }
     },
     "/invitations/{invitation_id}": {
@@ -2756,7 +2783,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "members:manage"
       }
     },
     "/organization": {
@@ -2783,7 +2811,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "organization:read"
       },
       "patch": {
         "tags": [
@@ -2828,7 +2857,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "organization:manage"
       }
     },
     "/organization/sef-key": {
@@ -2885,7 +2915,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "organization:manage"
       },
       "delete": {
         "tags": [
@@ -2903,7 +2934,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "organization:manage"
       }
     },
     "/organization/model-key": {
@@ -2960,7 +2992,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "organization:manage"
       },
       "delete": {
         "tags": [
@@ -2978,7 +3011,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "organization:manage"
       }
     },
     "/api-keys": {
@@ -3009,7 +3043,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "api_keys:issue"
       },
       "post": {
         "tags": [
@@ -3074,7 +3109,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "api_keys:issue"
       }
     },
     "/api-keys/{key_id}": {
@@ -3126,7 +3162,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "api_keys:issue"
       }
     },
     "/billing": {
@@ -3153,7 +3190,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "invoices:submit"
       }
     },
     "/billing/entries": {
@@ -3208,7 +3246,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "organization:manage"
       }
     },
     "/billing/checkout": {
@@ -3275,7 +3314,8 @@
           {
             "access token or API key": []
           }
-        ]
+        ],
+        "x-required-permission": "organization:manage"
       }
     },
     "/billing/stripe-events": {
@@ -3428,7 +3468,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:send"
       },
       "get": {
         "tags": [
@@ -3489,7 +3530,8 @@
               }
             }
           }
-        }
+        },
+        "x-required-permission": "invoices:submit"
       }
     },
     "/oauth/register": {
@@ -6594,7 +6636,7 @@
             "maxLength": 128,
             "minLength": 12,
             "title": "Password",
-            "description": "12 to 128 characters."
+            "description": "12 to 128 characters, not among the most common passwords."
           },
           "organization_name": {
             "type": "string",

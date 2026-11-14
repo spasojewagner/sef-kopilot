@@ -60,6 +60,9 @@ is tagged.
   time it is asked is a 502 with `Retry-After`, the wait the provider named or a minute; the
   upload page asks the person to try again in that many seconds, where it said only that the
   model did not answer.
+- `apps/api`: the OpenAPI schema names the permission each endpoint requires, in its operation's
+  `x-required-permission`, read from the route's own dependencies; a test holds it to the route
+  audit's pins (ASVS V4).
 
 ### Changed
 
@@ -118,6 +121,23 @@ is tagged.
   where it showed the old one until the fresh one came: the invoice and its repairs are read
   again before the approval is shown as made, and nothing else of the invoice as it was (its
   explanations, the list's verdict) is kept to be shown.
+### Security
+
+- `apps/api`: every answer tells the browser to run, load and frame nothing it holds
+  (`Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`), to take its type only
+  as declared (`nosniff`) and to send no address on (`Referrer-Policy: no-referrer`); in
+  production the interactive documentation (`/docs`, `/redoc`) is not served, the schema is (ASVS
+  V3, V13).
+- `apps/web`: every page is served with a content security policy that lets it reach its own site
+  and the API alone, and load no image, font or object from elsewhere, with `nosniff`,
+  `Referrer-Policy: no-referrer` (a page's address may hold an invitation's code) and a
+  `Permissions-Policy` that gives no page a camera, a microphone, a position or a payment;
+  scripts may still be inline, as Next.js writes its own (ASVS V3).
+- `apps/api`, `apps/web`: a new password, on registration or for the account an invitation
+  creates, is refused when it is among the 10,000 most common passwords that meet the length a
+  new one needs, compared in lower case; the list ships with the API (from SecLists, its MIT
+  licence beside it), so checking asks no one outside. The refusal is a 422 of type
+  `common_password`, and the page says the password is easy to guess (ASVS 6.2.4).
 
 
 ## [0.6.0] - 2026-11-10

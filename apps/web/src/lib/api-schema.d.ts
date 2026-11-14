@@ -2311,7 +2311,7 @@ export interface components {
             email: string;
             /**
              * Password
-             * @description 12 to 128 characters.
+             * @description 12 to 128 characters, not among the most common passwords.
              */
             password: string;
             /**
@@ -3206,7 +3206,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The new account's password is too short. */
+            /** @description The new account's password is too short; or it is among the most common passwords, which `detail` says as registration's refusal does, an error of type `common_password`. */
             422: {
                 headers: {
                     [name: string]: unknown;
