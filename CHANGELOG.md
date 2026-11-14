@@ -9,6 +9,25 @@ is tagged.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-14
+
+Reading invoices from PDFs and pictures, the case study, and the security review (milestone M7),
+which complete the plan of the brief. A PDF of up to three pages, or a JPEG, PNG or WebP picture
+of an invoice, is read by a model into fields shown beside the document. A person confirms or
+corrects them, and code, never the model, drafts the UBL that the validator then judges as it
+judges any upload (beta, ADR-0062). The reading is measured on ten synthetic invoices, each a
+PDF, a scan and a photograph. The fields came out right in 569 of 569, 566 of 569 and 568 of 569,
+and every one of the thirty drafts was valid (ADR-0063). An assistant reads and drafts through
+the MCP tools `extract_from_pdf` and `draft_invoice` (ADR-0064). Gemini joins the providers. The
+README tells the case study, with a demo recorded from the end-to-end test, and every error of a
+reading, an explanation or a repair now says whether trying again can help. The security review
+walked every item of the OWASP ASVS 5.0 Level 1 checklist that was still open
+(`docs/SECURITY_REVIEW_1.0.md`). It added the headers a browser needs from the API and the web,
+named each endpoint's permission in the schema, refused common passwords, and took the
+interactive documentation out of production. SEF Kopilot is still not a certified validator,
+and sends only to SEF's demo. What would need a demo account (SEF's error codes, its internal
+instruction, what its demo makes of the open questions) waits after 1.0.
+
 ### Added
 
 - `apps/api` (beta): `POST /invoices/extract` reads an invoice's fields from a PDF of up to
@@ -914,7 +933,8 @@ whose verdicts the tests pin.
 - Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
   backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
-[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.3.0...v0.4.0

@@ -119,3 +119,8 @@ per branch, to keep them with the code they describe.
 | `feat/evals-extraction` | [m7-evals-extraction.md](m7-evals-extraction.md) |
 | `feat/mcp-extract-invoice` | [m7-mcp-extract-invoice.md](m7-mcp-extract-invoice.md) |
 | `docs/readme-case-study` | [m7-docs-readme-case-study.md](m7-docs-readme-case-study.md) |
+| `fix/web-reading-messages` | [m7-fix-web-reading-messages.md](m7-fix-web-reading-messages.md) |
+| `fix/api-groq-reading-enums` | [m7-fix-api-groq-reading-enums.md](m7-fix-api-groq-reading-enums.md) |
+| `fix/web-fresh-verdict-after-approval` | [m7-fix-web-fresh-verdict-after-approval.md](m7-fix-web-fresh-verdict-after-approval.md) |
+| `chore/security-review-1.0` | [m7-chore-security-review-1.0.md](m7-chore-security-review-1.0.md) |
+| `chore/release-1.0` | [m7-release-1.0.md](m7-release-1.0.md) |

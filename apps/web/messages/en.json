@@ -16,12 +16,11 @@
     "organization": "Organization"
   },
   "home": {
-    "status": "pre-alpha",
     "title": "Check an <whole>e-invoice</whole> before you send it to SEF",
     "tagline": "SEF Kopilot checks a UBL invoice against <whole>SRB-CIUS</whole>, <whole>EN 16931</whole> and Peppol, explains every error with a citation from the law, and proposes repairs that you approve.",
     "check": "Check an invoice",
     "source": "Source code on GitHub",
-    "small": "Open source under the Apache-2.0 licence, at the {status} stage.",
+    "small": "Open source under the Apache-2.0 licence, version {version}.",
     "preview": {
       "caption": "An example: an invoice with type code 393 breaks rule SRB-001. The language model explains the rule, citing the specification, and proposes code 380; once approved, the validator finds the invoice valid.",
       "profile": "Profile SEF (SRB-CIUS)",

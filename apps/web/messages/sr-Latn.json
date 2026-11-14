@@ -16,12 +16,11 @@
     "organization": "Organizacija"
   },
   "home": {
-    "status": "pre-alpha",
     "title": "Proverite <whole>e-fakturu</whole> pre nego što je pošaljete na SEF",
     "tagline": "SEF Kopilot proverava UBL fakturu po pravilima <whole>SRB-CIUS</whole>, <whole>EN 16931</whole> i Peppol, objašnjava svaku grešku uz citat iz propisa i predlaže ispravke koje vi odobravate.",
     "check": "Proverite fakturu",
     "source": "Izvorni kod na GitHubu",
-    "small": "Otvoreni kod pod licencom Apache-2.0, u fazi {status}.",
+    "small": "Otvoreni kod pod licencom Apache-2.0, verzija {version}.",
     "preview": {
       "caption": "Primer: faktura sa šifrom vrste 393 krši pravilo SRB-001. Jezički model objašnjava pravilo uz citat iz specifikacije i predlaže šifru 380; posle odobrenja validator nalazi fakturu ispravnom.",
       "profile": "Profil SEF (SRB-CIUS)",
