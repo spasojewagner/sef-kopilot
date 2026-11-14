@@ -11,6 +11,7 @@ import { version } from "../../../package.json";
 
 import backdrop from "./backdrop.svg";
 import { ReportPreview } from "./report-preview";
+import { RevealCurtain, RevealWords } from "./reveal";
 
 /**
  * The home page's first screen, on the brand's navy: what the product does and the way to try
@@ -42,12 +43,14 @@ export function Hero() {
       </div>
       <div className="page-width grid grid-cols-[minmax(0,1fr)] items-center gap-12 pt-14 pb-16 sm:pt-20 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14 lg:pt-24 lg:pb-28">
         <div className="lg:pb-24">
-          <h1
+          <RevealWords
+            as="h1"
+            onLoad
             id="home-title"
             className="text-[2.5rem] leading-[1.08] font-semibold tracking-[-0.03em] sm:text-5xl lg:text-[3.5rem]"
           >
             {t.rich("title", { whole })}
-          </h1>
+          </RevealWords>
           <p className="mt-6 max-w-[36rem] text-lg leading-relaxed text-muted-foreground">
             {t.rich("tagline", { whole })}
           </p>
@@ -74,7 +77,14 @@ export function Hero() {
             {t("small", { version })}
           </p>
         </div>
-        <ReportPreview className="lg:-mb-28 lg:self-end" />
+        <RevealCurtain
+          className="min-w-0 lg:-mb-28 lg:self-end"
+          onLoad
+          fromRight
+          delay={200}
+        >
+          <ReportPreview />
+        </RevealCurtain>
       </div>
     </section>
   );

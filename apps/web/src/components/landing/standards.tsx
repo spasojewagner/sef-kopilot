@@ -1,5 +1,7 @@
 import { useTranslations } from "next-intl";
 
+import { Reveal, RevealWords } from "./reveal";
+
 /** The rule sets, by the names they go by, and the message that says what each checks. */
 const RULE_SETS = [
   { name: "UBL 2.1", says: "ubl" },
@@ -15,12 +17,12 @@ export function Standards() {
     <section aria-labelledby="standards-title" className="border-y bg-card/60">
       <div className="page-width grid grid-cols-[minmax(0,1fr)] gap-10 py-20 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16 lg:py-24">
         <div>
-          <h2
+          <RevealWords
             id="standards-title"
             className="text-3xl leading-tight font-semibold tracking-[-0.02em] sm:text-4xl"
           >
             {t("title")}
-          </h2>
+          </RevealWords>
           <p className="mt-5 max-w-[34rem] leading-relaxed text-muted-foreground">
             {t("intro")}
           </p>
@@ -29,14 +31,15 @@ export function Standards() {
           {[
             ...RULE_SETS.map(({ name, says }) => [name, t(says)] as const),
             [t("arithmetic"), t("arithmeticText")] as const,
-          ].map(([name, text]) => (
-            <div
+          ].map(([name, text], index) => (
+            <Reveal
+              delay={index * 60}
               key={name}
               className="grid gap-1 py-5 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-6"
             >
               <dt className="font-semibold">{name}</dt>
               <dd className="leading-relaxed text-muted-foreground">{text}</dd>
-            </div>
+            </Reveal>
           ))}
         </dl>
       </div>

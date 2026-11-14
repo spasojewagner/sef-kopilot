@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { SYNTHETIC_INVOICES_URL } from "@/lib/links";
 
+import { Reveal, RevealWords } from "./reveal";
+
 /** The page's end: the invoices to try it on, which are made up, and the way to begin. */
 export function Closing() {
   const t = useTranslations("home.closing");
@@ -15,17 +17,19 @@ export function Closing() {
     >
       <div className="grid grid-cols-[minmax(0,1fr)] gap-8 rounded-3xl bg-background px-6 py-12 surface-ink sm:px-12 sm:py-14 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div>
-          <h2
+          <RevealWords
             id="closing-title"
             className="text-3xl leading-tight font-semibold tracking-[-0.02em] sm:text-4xl"
           >
             {t("title")}
-          </h2>
-          <p className="mt-4 max-w-[38rem] leading-relaxed text-muted-foreground">
-            {t("text")}
-          </p>
+          </RevealWords>
+          <Reveal>
+            <p className="mt-4 max-w-[38rem] leading-relaxed text-muted-foreground">
+              {t("text")}
+            </p>
+          </Reveal>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <Reveal className="flex flex-wrap gap-3" delay={60}>
           <Button
             asChild
             size="lg"
@@ -43,7 +47,7 @@ export function Closing() {
               <ArrowUpRight aria-hidden="true" />
             </a>
           </Button>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

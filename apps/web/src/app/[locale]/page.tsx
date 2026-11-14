@@ -10,7 +10,7 @@ import { Standards } from "@/components/landing/standards";
  */
 export default function HomePage() {
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col overflow-x-clip">
       <Hero />
       <Route />
       <Standards />

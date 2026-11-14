@@ -3,6 +3,8 @@ import { useTranslations } from "next-intl";
 
 import { apiUrl } from "@/lib/api";
 
+import { Reveal, RevealWords } from "./reveal";
+
 /**
  * The same checks without the pages: a request to the HTTP API and a call of the MCP server's
  * tool, at the address of the API this build talks to.
@@ -31,12 +33,12 @@ export function Developers() {
       className="page-width grid grid-cols-[minmax(0,1fr)] gap-10 py-20 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16 lg:py-28"
     >
       <div>
-        <h2
+        <RevealWords
           id="developers-title"
           className="text-3xl leading-tight font-semibold tracking-[-0.02em] sm:text-4xl"
         >
           {t("title")}
-        </h2>
+        </RevealWords>
         <p className="mt-5 max-w-[34rem] leading-relaxed text-muted-foreground">
           {t("text")}
         </p>
@@ -54,15 +56,15 @@ export function Developers() {
         {[
           ["HTTP", http],
           ["MCP", mcp],
-        ].map(([name, code]) => (
-          <figure key={name} className="min-w-0">
+        ].map(([name, code], index) => (
+          <Reveal as="figure" key={name} delay={index * 60} className="min-w-0">
             <figcaption className="mb-2 text-sm font-medium text-muted-foreground">
               {name}
             </figcaption>
             <pre className="overflow-x-auto rounded-xl bg-background p-5 font-mono text-[0.8125rem] leading-6 surface-ink">
               <code>{code}</code>
             </pre>
-          </figure>
+          </Reveal>
         ))}
       </div>
     </section>

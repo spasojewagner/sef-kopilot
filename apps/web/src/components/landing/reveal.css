@@ -1,0 +1,90 @@
+/* The first paint carries the hero entrance. Scroll reveals only hide content after mounting. */
+@media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
+  [data-reveal] {
+    --reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  [data-reveal-state="waiting"]:not(:focus-within) [data-reveal-word] {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  :is([data-reveal-load], [data-reveal-state="shown"]) [data-reveal-word] {
+    animation: landing-word 700ms var(--reveal-ease) var(--reveal-delay)
+      backwards;
+  }
+
+  [data-reveal="curtain"] {
+    --curtain-edge: inset(0 100% 0 0);
+    --curtain-offset: -12%;
+  }
+
+  [data-reveal-right] {
+    --curtain-edge: inset(0 0 0 100%);
+    --curtain-offset: 12%;
+  }
+
+  [data-reveal="curtain"][data-reveal-state="waiting"]:not(:focus-within) {
+    clip-path: var(--curtain-edge);
+  }
+
+  [data-reveal="curtain"][data-reveal-state="waiting"]:not(:focus-within)
+    > [data-reveal-inner] {
+    transform: translateX(var(--curtain-offset));
+  }
+
+  [data-reveal="curtain"]:is([data-reveal-load], [data-reveal-state="shown"]) {
+    animation: landing-curtain 900ms var(--reveal-ease) var(--reveal-delay)
+      backwards;
+  }
+
+  [data-reveal="curtain"]:is([data-reveal-load], [data-reveal-state="shown"])
+    > [data-reveal-inner] {
+    animation: landing-curtain-content 900ms var(--reveal-ease)
+      var(--reveal-delay) backwards;
+  }
+
+  [data-reveal="rise"][data-reveal-state="waiting"]:not(:focus-within) {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  [data-reveal="rise"][data-reveal-state="shown"] {
+    animation: landing-rise 700ms var(--reveal-ease) var(--reveal-delay)
+      backwards;
+  }
+}
+
+/* Use the same word wrapping even when the animation is disabled. */
+[data-reveal-word] {
+  display: inline-block;
+}
+
+@keyframes landing-word {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+@keyframes landing-curtain {
+  from {
+    clip-path: var(--curtain-edge);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes landing-curtain-content {
+  from {
+    transform: translateX(var(--curtain-offset));
+  }
+}
+
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}

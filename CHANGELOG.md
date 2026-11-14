@@ -9,6 +9,12 @@ is tagged.
 
 ## [Unreleased]
 
+### Added
+
+- `apps/web`: the home page's headings enter word by word, and the report preview, route
+  and cards reveal once as the page opens or scrolls. A visitor who asks for reduced motion
+  sees them in place at once.
+
 ## [1.0.0] - 2026-11-14
 
 Reading invoices from PDFs and pictures, the case study, and the security review (milestone M7),

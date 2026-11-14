@@ -199,7 +199,7 @@
   .story-invalid {
     opacity: 0;
   }
-  @media (prefers-reduced-motion: no-preference) {
+  @media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
     .story-line {
       animation: story-line 3s both;
     }

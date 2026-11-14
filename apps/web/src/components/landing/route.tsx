@@ -1,5 +1,7 @@
 import { useTranslations } from "next-intl";
 
+import { Reveal, RevealCurtain, RevealWords } from "./reveal";
+
 /** What happens to an invoice, in order. */
 const STEPS = ["validate", "explain", "repair", "decide"] as const;
 
@@ -16,40 +18,43 @@ export function Route() {
       className="page-width grid grid-cols-[minmax(0,1fr)] gap-10 pt-20 pb-20 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16 lg:pt-24 lg:pb-28"
     >
       <div className="lg:sticky lg:top-28 lg:self-start">
-        <h2
+        <RevealWords
           id="route-title"
           className="text-3xl leading-tight font-semibold tracking-[-0.02em] sm:text-4xl"
         >
           {t("title")}
-        </h2>
+        </RevealWords>
         <p className="mt-5 max-w-[34rem] leading-relaxed text-muted-foreground">
           {t("intro")}
         </p>
       </div>
-      <ol className="relative grid gap-10">
-        <span
-          aria-hidden="true"
-          className="absolute top-4 bottom-4 left-[15px] w-0.5 rounded-full bg-brand/35"
-        />
-        {STEPS.map((step, index) => (
-          <li key={step} className="relative grid grid-cols-[2rem_1fr] gap-5">
-            <span
-              aria-hidden="true"
-              className="grid size-8 place-items-center rounded-full border-2 border-brand bg-background text-sm font-semibold tabular-nums"
+      <RevealCurtain>
+        <ol className="relative grid gap-10 before:absolute before:inset-y-4 before:left-[15px] before:w-0.5 before:rounded-full before:bg-brand/35">
+          {STEPS.map((step, index) => (
+            <Reveal
+              as="li"
+              key={step}
+              delay={index * 60}
+              className="relative grid grid-cols-[2rem_1fr] gap-5"
             >
-              {index + 1}
-            </span>
-            <div className="pt-0.5">
-              <h3 className="text-lg font-semibold tracking-tight">
-                {t(`steps.${step}.title`)}
-              </h3>
-              <p className="mt-2 max-w-[38rem] leading-relaxed text-muted-foreground">
-                {t(`steps.${step}.text`)}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ol>
+              <span
+                aria-hidden="true"
+                className="grid size-8 place-items-center rounded-full border-2 border-brand bg-background text-sm font-semibold tabular-nums"
+              >
+                {index + 1}
+              </span>
+              <div className="pt-0.5">
+                <h3 className="text-lg font-semibold tracking-tight">
+                  {t(`steps.${step}.title`)}
+                </h3>
+                <p className="mt-2 max-w-[38rem] leading-relaxed text-muted-foreground">
+                  {t(`steps.${step}.text`)}
+                </p>
+              </div>
+            </Reveal>
+          ))}
+        </ol>
+      </RevealCurtain>
     </section>
   );
 }
