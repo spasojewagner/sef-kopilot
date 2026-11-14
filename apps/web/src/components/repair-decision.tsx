@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { hashKey, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
@@ -131,10 +131,12 @@ export function RepairDecision({ repair }: { repair: Repair }) {
 
 /**
  * The decision on ``repair``, and what the cache learns from it. An approval changes the
- * invoice: what is kept under its key, its report, explanations and repairs, and the list's
- * verdicts are read again when next shown. A rejection changes the invoice's list of repairs
- * alone. A failure whose outcome the page cannot know, an answer that did not come, or a
- * decision made meanwhile, has the repair read again, to show where it stands.
+ * invoice, so nothing the page knew of it is shown again: its report, explanations and repairs,
+ * and the list with its verdict, are dropped, the decided repair aside. The invoice and its
+ * repairs are read again before the approval is shown as made, so that its report has the new
+ * verdict at once, where it showed the old one until the fresh one came. A rejection changes the
+ * invoice's list of repairs alone. A failure whose outcome the page cannot know, an answer that
+ * did not come, or a decision made meanwhile, has the repair read again, to show where it stands.
  */
 function useDecide(repair: Repair) {
   const client = useQueryClient();
@@ -143,23 +145,27 @@ function useDecide(repair: Repair) {
   return useMutation({
     mutationFn: (decision: Decision) =>
       decideRepair(invoice, repair.id, decision),
-    onSuccess: (answer, decision) => {
+    onSuccess: async (answer, decision) => {
       if (decision === "approval") {
-        void client.invalidateQueries({
+        const shown = hashKey(decided);
+        client.removeQueries({
           queryKey: invoiceQuery(invoice).queryKey,
-          refetchType: "none",
+          predicate: (query) => query.queryHash !== shown,
         });
-        void client.invalidateQueries({
-          queryKey: invoicesQuery.queryKey,
-          refetchType: "none",
-        });
-      } else {
-        void client.invalidateQueries({
-          queryKey: repairsQuery(invoice).queryKey,
-          exact: true,
-          refetchType: "none",
-        });
+        client.removeQueries({ queryKey: invoicesQuery.queryKey });
+        client.setQueryData(decided, answer);
+        // A read that fails leaves the page to read them when it shows them, as it did.
+        await Promise.all([
+          client.prefetchQuery(invoiceQuery(invoice)),
+          client.prefetchQuery(repairsQuery(invoice)),
+        ]);
+        return;
       }
+      void client.invalidateQueries({
+        queryKey: repairsQuery(invoice).queryKey,
+        exact: true,
+        refetchType: "none",
+      });
       // After the invalidation, so that the decided repair is fresh on its page.
       client.setQueryData(decided, answer);
     },
