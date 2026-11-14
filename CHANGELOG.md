@@ -118,6 +118,14 @@ is tagged.
   where it showed the old one until the fresh one came: the invoice and its repairs are read
   again before the approval is shown as made, and nothing else of the invoice as it was (its
   explanations, the list's verdict) is kept to be shown.
+### Security
+
+- `apps/api`: every answer tells the browser to run, load and frame nothing it holds
+  (`Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`), to take its type only
+  as declared (`nosniff`) and to send no address on (`Referrer-Policy: no-referrer`); in
+  production the interactive documentation (`/docs`, `/redoc`) is not served, the schema is (ASVS
+  V3, V13).
+
 
 
 ## [0.6.0] - 2026-11-10

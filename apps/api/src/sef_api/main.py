@@ -33,6 +33,7 @@ from sef_api.db import Database
 from sef_api.error_tracking import track_errors
 from sef_api.extraction import routes as extraction
 from sef_api.extraction.reader import Reader
+from sef_api.headers import SecureHeaders
 from sef_api.invoices import routes as invoices
 from sef_api.invoices.validator import Admission, Validator, validator_for
 from sef_api.jobs import routes as jobs
@@ -264,6 +265,27 @@ async def _resume(app: FastAPI) -> None:
         await runner.enqueue(job_id)
 
 
+def _wrap(app: FastAPI, settings: Settings, *, documented: bool) -> None:
+    """Add the application's middlewares, the innermost first."""
+    # Innermost: an unexpected failure is answered inside the middlewares added after it, so
+    # that its 500 is JSON in UTF-8 and carries the CORS headers a page needs to read it.
+    app.add_middleware(AnswerUnexpectedErrors)
+    app.add_middleware(LimitBodies, limit=settings.max_body_bytes)
+    app.add_middleware(DeclareUTF8)  # it declares the charset of a 413 too
+    # Outermost: a preflight is answered before anything else runs, and every answer, an error
+    # included, carries the headers a page needs to read it. The authorization server's public
+    # endpoints answer a page of any origin, once there is an authorization server.
+    app.add_middleware(
+        Cors,
+        web_origins=settings.web_origins,
+        public_paths=OAUTH_PUBLIC_PATHS if settings.public_url is not None else (),
+    )
+    # Every answer, a preflight's and an error's included, tells the browser to run nothing in it.
+    app.add_middleware(SecureHeaders, documented=documented)
+    # Around everything: every line logged while a request is answered names it.
+    app.add_middleware(RequestIds)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the FastAPI application with its settings, its database, every router and the
     MCP endpoint.
@@ -303,6 +325,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await application.state.sef_http.aclose()
         await database.engine.dispose()
 
+    # The interactive documentation is development's: in production the schema alone is
+    # served, as docs/api/openapi.json is published (ASVS V13).
+    documented = settings.environment != "production"
     app = FastAPI(
         title="SEF Kopilot API",
         version=__version__,
@@ -313,22 +338,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "identifier": "Apache-2.0",
         },
         lifespan=lifespan,
+        docs_url="/docs" if documented else None,
+        redoc_url="/redoc" if documented else None,
     )
-    # Innermost: an unexpected failure is answered inside the middlewares added after it, so
-    # that its 500 is JSON in UTF-8 and carries the CORS headers a page needs to read it.
-    app.add_middleware(AnswerUnexpectedErrors)
-    app.add_middleware(LimitBodies, limit=settings.max_body_bytes)
-    app.add_middleware(DeclareUTF8)  # it declares the charset of a 413 too
-    # Outermost: a preflight is answered before anything else runs, and every answer, an error
-    # included, carries the headers a page needs to read it. The authorization server's public
-    # endpoints answer a page of any origin, once there is an authorization server.
-    app.add_middleware(
-        Cors,
-        web_origins=settings.web_origins,
-        public_paths=OAUTH_PUBLIC_PATHS if settings.public_url is not None else (),
-    )
-    # Around everything: every line logged while a request is answered names it.
-    app.add_middleware(RequestIds)
+    _wrap(app, settings, documented=documented)
     app.state.settings = settings
     app.state.database = database
     app.state.tokens = TokenSettings.from_settings(settings)
