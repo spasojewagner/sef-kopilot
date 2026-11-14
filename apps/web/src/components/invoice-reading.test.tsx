@@ -43,6 +43,7 @@ function reading(
     "sr-Latn",
     <InvoiceReading
       url="blob:racun"
+      name={options.type === "application/pdf" ? "racun.pdf" : "racun.jpg"}
       type={options.type ?? "image/jpeg"}
       extraction={extraction(options.fields ?? READ)}
       profile="srb"
@@ -276,6 +277,20 @@ describe("An invoice read from a picture", () => {
     expect(given).toHaveBeenCalledWith("blob:draft");
     clicked.mockRestore();
   });
+
+  it.each([
+    ["image/jpeg", "racun.jpg"],
+    ["application/pdf", "racun.pdf"],
+  ] as const)(
+    "offers the %s chosen for download, under its name",
+    (type, name) => {
+      reading({ type });
+
+      const original = screen.getByRole("link", { name: "Preuzmi original" });
+      expect(original).toHaveAttribute("href", "blob:racun");
+      expect(original).toHaveAttribute("download", name);
+    },
+  );
 
   it("is discarded on request", async () => {
     const discard = vi.fn();

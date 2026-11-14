@@ -167,16 +167,19 @@ function DocumentShown({ url, type }: { url: string; type: DocumentType }) {
  * is made: the document beside the fields the model read, every one of them editable. The
  * fields SEF needs and the model did not find are named and marked. Making the invoice has the
  * API draft its UBL of the fields, in code, then stores and validates it as an upload does, and
- * shows its report; or the drafted XML is downloaded. Nothing is kept until then.
+ * shows its report; or the drafted XML is downloaded. Nothing is kept until then. The document
+ * itself can be downloaded again as it was chosen, under its own name.
  */
 export function InvoiceReading({
   url,
+  name,
   type,
   extraction,
   profile,
   onDiscard,
 }: {
   url: string;
+  name: string;
   type: DocumentType;
   extraction: Extraction;
   profile: Profile;
@@ -336,6 +339,11 @@ export function InvoiceReading({
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <section aria-label={t("document")} className="lg:sticky lg:top-24">
           <DocumentShown url={url} type={type} />
+          <Button asChild variant="outline" size="sm" className="mt-3">
+            <a href={url} download={name}>
+              {t("downloadOriginal")}
+            </a>
+          </Button>
         </section>
         <form
           className="grid gap-6"

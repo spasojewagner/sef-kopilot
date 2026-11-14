@@ -159,6 +159,33 @@ describe("Invoice upload", () => {
     expect(given).toHaveBeenCalledWith("blob:racun");
   });
 
+  it("shows a picture the browser gave no media type as the type its name tells", async () => {
+    keepSession();
+    const asked = stubApi(() => json(200, extraction()));
+    const made = vi.fn<(blob: Blob) => string>(() => "blob:racun");
+    vi.stubGlobal(
+      "URL",
+      Object.assign(URL, { createObjectURL: made, revokeObjectURL: vi.fn() }),
+    );
+    renderIn("sr-Latn", <InvoiceUpload />);
+    const user = userEvent.setup({ applyAccept: false });
+
+    await user.upload(
+      screen.getByLabelText("Faktura (XML, PDF ili slika)"),
+      new File([PNG], "racun.jpg", { type: "" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Proveri i sačuvaj" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Pročitano sa slike" }),
+    ).toBeInTheDocument();
+    expect(asked[0].headers.get("Content-Type")).toBe("image/jpeg");
+    expect(made.mock.calls[0][0].type).toBe("image/jpeg");
+    expect(
+      screen.getByRole("link", { name: "Preuzmi original" }),
+    ).toHaveAttribute("download", "racun.jpg");
+  });
+
   it("says the model is reading while it reads, and reads one document at a time", async () => {
     keepSession();
     let answer: (response: Response) => void = () => undefined;

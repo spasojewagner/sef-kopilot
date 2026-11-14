@@ -44,6 +44,7 @@ type Unsent = "missing" | "unreadable" | "tooLarge";
  */
 type Read = {
   url: string;
+  name: string;
   type: DocumentType;
   extraction: Extraction;
   profile: Profile;
@@ -90,7 +91,18 @@ export function InvoiceUpload() {
       profile: Profile;
     }): Promise<Read> => {
       const extraction = await readInvoice(document, type);
-      return { url: URL.createObjectURL(document), type, profile, extraction };
+      // A file the browser gave no media type is shown as the type its name told: without
+      // one, the browser would not show it.
+      const shown = document.type
+        ? document
+        : document.slice(0, document.size, type);
+      return {
+        url: URL.createObjectURL(shown),
+        name: document.name,
+        type,
+        profile,
+        extraction,
+      };
     },
     onSuccess: setRead,
   });
@@ -135,6 +147,7 @@ export function InvoiceUpload() {
     return (
       <InvoiceReading
         url={read.url}
+        name={read.name}
         type={read.type}
         extraction={read.extraction}
         profile={read.profile}

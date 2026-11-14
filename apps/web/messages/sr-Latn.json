@@ -759,6 +759,7 @@
     "make": "Napravi fakturu i proveri",
     "making": "Pravim fakturu…",
     "download": "Preuzmi XML",
+    "downloadOriginal": "Preuzmi original",
     "discard": "Odustani",
     "draftRefused": "Neko polje nije u obliku koji se traži: datum kao 2026-10-05, iznos kao 14400.00, kodovi velikim slovima."
   },

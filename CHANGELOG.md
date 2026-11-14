@@ -43,6 +43,9 @@ is tagged.
 - `docs`: the case study (`docs/CASE_STUDY.md`): the problem, the decisions and their
   trade-offs, what went wrong, the numbers and how the project was built; and the script of the
   90-second demo video (`docs/DEMO_VIDEO.md`).
+- `apps/web`: the document read can be downloaded again beside its fields, as it was chosen and
+  under its own name; a picture the browser gives no media type is shown as the type its name
+  tells.
 
 ### Changed
 

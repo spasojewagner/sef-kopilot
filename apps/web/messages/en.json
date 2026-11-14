@@ -759,6 +759,7 @@
     "make": "Make the invoice and check it",
     "making": "Making the invoice…",
     "download": "Download the XML",
+    "downloadOriginal": "Download the original",
     "discard": "Discard",
     "draftRefused": "A field is not in the form asked for: a date as 2026-10-05, an amount as 14400.00, codes in capitals."
   },
