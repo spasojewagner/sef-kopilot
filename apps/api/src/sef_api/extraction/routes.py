@@ -10,7 +10,8 @@ explained and repaired as any other invoice is, by the endpoints of ``/invoices`
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, cast
+from math import ceil
+from typing import Annotated, Any, Final, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
@@ -31,7 +32,7 @@ from sef_api.extraction.fields import InvoiceFields
 from sef_api.extraction.reader import Reader, ReadingError, ReadingTimeoutError
 from sef_api.invoices.routes import MODEL_REQUEST, VALIDATION, count
 from sef_api.invoices.upload import DOCUMENT_MEDIA_TYPES, read_document
-from sef_api.llm import LLMError
+from sef_api.llm import LLMBusyError, LLMError
 from sef_api.model_choice import reader_for
 from sef_api.settings import Settings
 
@@ -41,6 +42,10 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 CanValidate = Annotated[Principal, Depends(require(Permission.INVOICES_VALIDATE))]
+
+#: The seconds to wait before asking a busy provider again, when it named none: the minute a
+#: free tier counts its requests and tokens over.
+BUSY_WAIT_SECONDS: Final = 60
 
 
 class DocumentRead(BaseModel):
@@ -104,7 +109,9 @@ _EXTRACT_RESPONSES: dict[int | str, dict[str, Any]] = {
     },
     status.HTTP_502_BAD_GATEWAY: {
         "model": Problem,
-        "description": "The language model gave no answer.",
+        "description": "The language model gave no answer. With `Retry-After`, its provider was "
+        "busy, or held the server to its limits, each time it was asked: try again after that "
+        "many seconds.",
     },
     status.HTTP_503_SERVICE_UNAVAILABLE: {
         "model": Problem,
@@ -176,6 +183,12 @@ async def read_by(reader: Reader, document: Document, *, seconds: float) -> Extr
         raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, str(error)) from None
     except ReadingError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
+    except LLMBusyError as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            f"the language model did not answer: {error}",
+            headers={"Retry-After": str(ceil(error.retry_after or BUSY_WAIT_SECONDS))},
+        ) from None
     except LLMError as error:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, f"the language model did not answer: {error}"

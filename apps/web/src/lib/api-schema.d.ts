@@ -3980,7 +3980,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The language model gave no answer. */
+            /** @description The language model gave no answer. With `Retry-After`, its provider was busy, or held the server to its limits, each time it was asked: try again after that many seconds. */
             502: {
                 headers: {
                     [name: string]: unknown;

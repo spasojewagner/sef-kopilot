@@ -56,6 +56,10 @@ is tagged.
   `reason`: `none-proposed` when the model proposed no patch, as when what is missing is a value
   only a person knows; `none-kept` when none it proposed was kept. The report page tells the
   person to correct the invoice themselves for the first, without offering to try again.
+- `apps/api`, `apps/web`: a reading the model's provider answers busy, or over its limits, each
+  time it is asked is a 502 with `Retry-After`, the wait the provider named or a minute; the
+  upload page asks the person to try again in that many seconds, where it said only that the
+  model did not answer.
 
 ### Changed
 

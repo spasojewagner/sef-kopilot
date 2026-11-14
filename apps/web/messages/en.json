@@ -778,6 +778,7 @@
     "unreadable": "The document could not be read: it is damaged, protected by a password, or the model found no invoice in it.",
     "tooMany": "Too many readings. Try again in {seconds} s.",
     "modelAway": "The language model did not answer. Try again.",
+    "modelBusy": "The language model is busy, or the server reached its provider's limits. Try again in {seconds} s.",
     "noModel": "No language model is set up on this server, so documents are not read.",
     "modelSlow": "The model did not read the document in time. Try a smaller picture or PDF.",
     "unreachable": "The API is not answering. Try again a little later.",

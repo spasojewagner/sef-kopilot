@@ -778,6 +778,7 @@
     "unreadable": "Dokument nije mogao da se pročita: oštećen je, zaštićen lozinkom, ili model u njemu nije našao fakturu.",
     "tooMany": "Previše čitanja. Pokušajte ponovo za {seconds} s.",
     "modelAway": "Jezički model nije odgovorio. Pokušajte ponovo.",
+    "modelBusy": "Jezički model je zauzet, ili je server stigao do ograničenja njegovog provajdera. Pokušajte ponovo za {seconds} s.",
     "noModel": "Na ovom serveru nije podešen jezički model, pa se dokumenti ne čitaju.",
     "modelSlow": "Model nije stigao da pročita dokument. Pokušajte sa manjom slikom ili PDF-om.",
     "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",

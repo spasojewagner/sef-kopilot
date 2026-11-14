@@ -50,6 +50,7 @@ __all__ = [
     "PROVIDERS",
     "AnthropicClient",
     "GroqClient",
+    "LLMBusyError",
     "LLMClient",
     "LLMError",
     "Language",
@@ -78,6 +79,15 @@ last_usage: ContextVar[dict[str, int] | None] = ContextVar("last_usage", default
 
 class LLMError(Exception):
     """The model gave no answer to use; the message says why, never what was asked."""
+
+
+class LLMBusyError(LLMError):
+    """The provider was busy, or held the caller to its limits, each time it was asked:
+    ``retry_after`` is the seconds its last answer asked to wait, if it named them."""
+
+    def __init__(self, message: str, retry_after: float | None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 @dataclass(frozen=True)
@@ -200,6 +210,7 @@ class _HTTPClient:
         headers = self._headers()
         problem = "no answer"
         retry_after: str | None = None
+        busy = False
         for attempt in range(self.ATTEMPTS):
             if attempt:
                 await asyncio.sleep(self._wait(attempt, retry_after))
@@ -207,10 +218,10 @@ class _HTTPClient:
             try:
                 response = await self._client.post(self.URL, json=body, headers=headers)
             except httpx.HTTPError as error:
-                problem = f"the request failed ({type(error).__name__})"
+                problem, busy = f"the request failed ({type(error).__name__})", False
                 continue
             if response.status_code == httpx.codes.TOO_MANY_REQUESTS or response.is_server_error:
-                problem = f"{self.NAME} answered {response.status_code}"
+                problem, busy = f"{self.NAME} answered {response.status_code}", True
                 retry_after = response.headers.get("Retry-After")
                 continue
             if response.status_code != httpx.codes.OK:
@@ -224,6 +235,11 @@ class _HTTPClient:
             text, usage = self._read(answer)
             last_usage.set(usage)
             return text
+        if busy:
+            waits = (
+                float(retry_after) if retry_after is not None and retry_after.isdigit() else None
+            )
+            raise LLMBusyError(f"{problem}, {self.ATTEMPTS} times", waits)
         raise LLMError(f"{problem}, {self.ATTEMPTS} times")
 
     async def aclose(self) -> None:

@@ -1407,7 +1407,7 @@
             }
           },
           "502": {
-            "description": "The language model gave no answer.",
+            "description": "The language model gave no answer. With `Retry-After`, its provider was busy, or held the server to its limits, each time it was asked: try again after that many seconds.",
             "content": {
               "application/json": {
                 "schema": {
