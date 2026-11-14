@@ -133,6 +133,9 @@ Endpoints ask for a permission; a member's role grants permissions (ADR-0013):
 | `organization:read`: see the organization and how long it keeps its invoices | yes | yes | yes |
 | `organization:manage`: set how long the organization keeps its invoices | yes | no | no |
 
+The OpenAPI schema names the permission each endpoint requires, in its operation's
+`x-required-permission`; an operation without one is public.
+
 `GET /members`, `PATCH /members/{user_id}` and `DELETE /members/{user_id}` work in the
 organization of the caller's access token. The role is read from the membership on every
 request, so a removed member, a deactivated account or a changed role takes effect at once, not

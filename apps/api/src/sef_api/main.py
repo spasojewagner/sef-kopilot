@@ -50,6 +50,7 @@ from sef_api.model_traces import ModelTraces, TracedClient
 from sef_api.oauth import documents
 from sef_api.oauth import metadata as oauth_metadata
 from sef_api.oauth import routes as oauth
+from sef_api.openapi_permissions import name_permissions
 from sef_api.organization import routes as organization
 from sef_api.rag.embeddings import Embedder, embedder_for
 from sef_api.rag.explainer import Explainer
@@ -388,4 +389,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(NoPatchError, repairs.answer_refusal)
     app.add_exception_handler(NotSendableError, sef.answer_not_sendable)
     app.state.mcp = mcp.mount(app, settings)
+    name_permissions(app)
     return app

@@ -60,6 +60,9 @@ is tagged.
   time it is asked is a 502 with `Retry-After`, the wait the provider named or a minute; the
   upload page asks the person to try again in that many seconds, where it said only that the
   model did not answer.
+- `apps/api`: the OpenAPI schema names the permission each endpoint requires, in its operation's
+  `x-required-permission`, read from the route's own dependencies; a test holds it to the route
+  audit's pins (ASVS V4).
 
 ### Changed
 
