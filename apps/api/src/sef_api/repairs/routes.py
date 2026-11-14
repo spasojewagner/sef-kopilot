@@ -37,6 +37,7 @@ from sef_api.repairs.repairer import (
     ROUNDS,
     ModelFailedError,
     NoPatchError,
+    NoPatchReason,
     NothingToRepairError,
     Repairer,
     RepairTimeoutError,
@@ -102,6 +103,29 @@ async def answer_conflict(_request: Request, error: Exception) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
         content=RepairConflict(reason=conflict.reason, detail=conflict.detail).model_dump(),
+    )
+
+
+class RepairRefusal(BaseModel):
+    """Why the language model's patches gave no repair, answered with 422: a reason a client
+    tells apart, and the detail, in English, for a person."""
+
+    detail: str
+    reason: NoPatchReason = Field(
+        description="`none-proposed`: the model proposed no patch for the invoice's fatal "
+        "violations, as when what is missing is a value only a person knows (a PIB, a country, "
+        "a quantity): the invoice is the person's to correct, and asking again rarely helps. "
+        "`none-kept`: it proposed patches, and none left the invoice with fewer fatal "
+        "violations or changed it."
+    )
+
+
+async def answer_refusal(_request: Request, error: Exception) -> JSONResponse:
+    """The answer to a :class:`NoPatchError`: 422, with its reason and its detail."""
+    refused = cast(NoPatchError, error)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content=RepairRefusal(reason=refused.reason, detail=str(refused)).model_dump(),
     )
 
 
@@ -328,9 +352,10 @@ _SUGGESTION: dict[int | str, dict[str, Any]] = _PROPOSAL | {
         "decision; or it changed while the model's patches were applied to it.",
     },
     status.HTTP_422_UNPROCESSABLE_CONTENT: {
-        "model": Problem,
-        "description": "The language model proposed no patch that a repair keeps; or the invoice "
-        "is not well-formed XML, or could not be validated within the time limit.",
+        "model": RepairRefusal | Problem,
+        "description": "The language model proposed no patch that a repair keeps, and `reason` "
+        "says which way; or the invoice is not well-formed XML, or could not be validated "
+        "within the time limit, which a `detail` alone says.",
     },
     status.HTTP_429_TOO_MANY_REQUESTS: {
         "model": Problem,
@@ -446,8 +471,6 @@ async def _suggested(
         )
     except NothingToRepairError as error:
         raise ConflictError("nothing-to-repair", str(error)) from None
-    except NoPatchError as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
     except ModelFailedError as error:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from None
     except RepairTimeoutError as error:

@@ -353,6 +353,7 @@
       "nothingToRepair": "Faktura nema grešaka, pa nema šta da se popravi.",
       "tooManyWaiting": "Previše popravki ove fakture čeka odluku. Odobrite ili odbijte neku od njih, pa tražite novu.",
       "invoiceChanged": "Faktura se promenila dok je model radio. Pokušajte ponovo.",
+      "noneProposed": "Model nije predložio nijednu izmenu: ovim greškama treba vrednost koju znate samo vi, na primer PIB, država ili kategorija PDV-a, a popravka je nikad ne izmišlja. Ispravite fakturu sami.",
       "noPatch": "Model nije predložio nijednu izmenu koju popravka može da zadrži. Pokušajte ponovo, ili ispravite fakturu sami.",
       "modelFailed": "Jezički model nije dao upotrebljiv odgovor. Pokušajte ponovo.",
       "tooSlow": "Popravka nije stigla na vreme. Pokušajte ponovo.",

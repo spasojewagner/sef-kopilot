@@ -55,7 +55,7 @@ from sef_api.rag.explainer import Explainer
 from sef_api.rate_limits import RateLimiter, limits
 from sef_api.refusals import answer_refused
 from sef_api.repairs import routes as repairs
-from sef_api.repairs.repairer import Repairer
+from sef_api.repairs.repairer import NoPatchError, Repairer
 from sef_api.retention import keep_forgetting
 from sef_api.routes import health
 from sef_api.rules import routes as rules
@@ -372,6 +372,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(router)
     app.add_exception_handler(RequestValidationError, answer_refused)
     app.add_exception_handler(repairs.ConflictError, repairs.answer_conflict)
+    app.add_exception_handler(NoPatchError, repairs.answer_refusal)
     app.add_exception_handler(NotSendableError, sef.answer_not_sendable)
     app.state.mcp = mcp.mount(app, settings)
     return app

@@ -9,7 +9,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { ApiError } from "@/lib/api";
 import { languageOf } from "@/lib/explanations";
 import { repairQuery, repairsQuery } from "@/lib/queries";
-import { conflictOf, suggestRepair } from "@/lib/repairs";
+import { conflictOf, refusalOf, suggestRepair } from "@/lib/repairs";
 
 /**
  * Asks the language model for a repair of the stored invoice ``invoiceId``, its reasons in the
@@ -122,7 +122,11 @@ function useSuggestionErrorMessage(): (error: unknown) => {
       case 404:
         return { message: t("notFound"), again: false };
       case 422:
-        return { message: t("noPatch"), again: true };
+        // A model that proposed nothing will rarely do otherwise: what is missing is the
+        // person's to write.
+        return refusalOf(error) === "none-proposed"
+          ? { message: t("noneProposed"), again: false }
+          : { message: t("noPatch"), again: true };
       case 429:
         return {
           message: t("tooMany", { seconds: seconds ?? 60 }),

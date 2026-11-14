@@ -353,6 +353,7 @@
       "nothingToRepair": "The invoice has no errors, so there is nothing to repair.",
       "tooManyWaiting": "Too many repairs of this invoice await a decision. Approve or reject one of them, then ask for another.",
       "invoiceChanged": "The invoice changed while the model was working. Try again.",
+      "noneProposed": "The model proposed no change: what these errors need, a PIB, a country or a VAT category say, is a value only you know, and a repair never makes one up. Correct the invoice yourself.",
       "noPatch": "The model proposed no change that a repair can keep. Try again, or correct the invoice yourself.",
       "modelFailed": "The language model gave no answer that could be used. Try again.",
       "tooSlow": "The repair did not arrive in time. Try again.",

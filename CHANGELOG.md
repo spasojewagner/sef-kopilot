@@ -52,6 +52,10 @@ is tagged.
   corpus's editions, say); `no-answer` when the model gave no answer that passed the checks;
   `late` when the time ran out before its turn. The report page says so of each rule, and asks to
   try again only where that may help.
+- `apps/api`, `apps/web`: a repair the model's patches did not give says which way in its 422's
+  `reason`: `none-proposed` when the model proposed no patch, as when what is missing is a value
+  only a person knows; `none-kept` when none it proposed was kept. The report page tells the
+  person to correct the invoice themselves for the first, without offering to try again.
 
 ### Changed
 

@@ -84,6 +84,20 @@ export function decideRepair(
   );
 }
 
+/**
+ * Why the model's patches gave no repair, as the API answers it with 422: it proposed none, and
+ * the invoice is the person's to correct; or none it proposed was kept. None for another 422.
+ */
+export function refusalOf(
+  error: unknown,
+): "none-proposed" | "none-kept" | null {
+  if (!(error instanceof ApiError) || error.status !== 422) {
+    return null;
+  }
+  const reason = (error.body as { reason?: unknown } | null)?.reason;
+  return reason === "none-proposed" || reason === "none-kept" ? reason : null;
+}
+
 /** The reason the API gave for refusing a request about repairs with 409; none otherwise. */
 export function conflictOf(error: unknown): ConflictReason | null {
   if (!(error instanceof ApiError) || error.status !== 409) {

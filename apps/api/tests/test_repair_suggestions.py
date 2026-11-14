@@ -193,40 +193,51 @@ async def test_a_patch_a_person_decides_is_kept_for_them_and_changes_nothing_to_
 
 
 @pytest.mark.parametrize(
-    ("model", "status", "detail"),
+    ("model", "status", "answered"),
     [
         (
             ScriptedModel(answer()),
             422,
-            "the language model proposes no patch for these violations: a person must",
+            {
+                "detail": "the language model proposes no patch for these violations: a person "
+                "must",
+                "reason": "none-proposed",
+            },
         ),
         # A patch that writes the type code the invoice has: it applies, and changes nothing.
         (
             ScriptedModel(*[answer({**FIX_TYPE, "value": "393"})] * 2),
             422,
-            "none of the patches the language model proposes changes the invoice",
+            {
+                "detail": "none of the patches the language model proposes changes the invoice",
+                "reason": "none-kept",
+            },
         ),
         (
             ScriptedModel(LLMError("Groq answered 401 (invalid_api_key)")),
             502,
-            "the language model gave no answer (Groq answered 401 (invalid_api_key))",
+            {"detail": "the language model gave no answer (Groq answered 401 (invalid_api_key))"},
         ),
         (
             ScriptedModel(*["not JSON"] * ATTEMPTS),
             502,
-            "none of the language model's 3 answers could be used",
+            {"detail": "none of the language model's 3 answers could be used"},
         ),
     ],
 )
 async def test_without_a_patch_to_keep_no_repair_is_kept_and_the_answer_says_why(
-    session: AsyncSession, primer: Office, model: ScriptedModel, status: int, detail: str
+    session: AsyncSession,
+    primer: Office,
+    model: ScriptedModel,
+    status: int,
+    answered: dict[str, str],
 ) -> None:
     invoice = await kept(session, primer)
 
     async with suggesting(session, model) as api:
         response = await api.post(suggestion(invoice), headers=primer.as_client())
 
-    assert (response.status_code, response.json()) == (status, {"detail": detail})
+    assert (response.status_code, response.json()) == (status, answered)
     assert await session.scalar(select(Repair.id)) is None
     assert await events(session) == []
 
