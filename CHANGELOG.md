@@ -21,6 +21,14 @@ is tagged.
   the organization's name, which opens a menu with the address, the organization and the role,
   the way to the organization's settings and the way out; the languages are one control of two
   halves, SR and EN, each read by its own name.
+- `apps/web`: the reading of a PDF or a picture opens on a summary of the invoice (its type,
+  number and date, what is to be paid with the amount before VAT and the VAT, the seller and the
+  buyer, and what SEF still needs), and each part of the form folds under a line that says what
+  it holds. Only the parts that need the person open of themselves, and stay as the person leaves
+  them. A line or a row of the VAT recapitulation shows its name, quantity, price and amount on
+  one line and opens on its fields, the amounts written as the person's language writes them; the
+  actions stay in reach at the foot of the screen. Panels slide open where the browser can
+  animate them.
 
 ## [1.0.0] - 2026-11-14
 

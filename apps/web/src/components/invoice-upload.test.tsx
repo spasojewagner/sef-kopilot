@@ -149,7 +149,9 @@ describe("Invoice upload", () => {
     expect(asked[0].headers.get("Content-Type")).toBe("image/png");
     expect(asked[0].body).toBe(picture);
     expect(made).toHaveBeenCalledWith(picture);
-    expect(screen.getByRole("img")).toHaveAttribute("src", "blob:racun");
+    expect(
+      screen.getByRole("img", { name: "Dokument iz koga su polja pročitana" }),
+    ).toHaveAttribute("src", "blob:racun");
 
     await user.click(screen.getByRole("button", { name: "Odustani" }));
 
