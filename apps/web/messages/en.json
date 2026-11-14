@@ -304,6 +304,8 @@
     "validFrom": "applies from {from}",
     "validBetween": "applies from {from} to {to}",
     "problem": "This rule was not explained this time. Try again.",
+    "noPassage": "No regulation in the corpus that applies on the invoice's date of issue concerns this rule, so the model has nothing to cite. Asking again does not change that.",
+    "late": "The time for the explanations ran out before this rule. Try again.",
     "again": "Try again",
     "errors": {
       "tooMany": "Too many requests to the language model. Try again in {seconds} s.",

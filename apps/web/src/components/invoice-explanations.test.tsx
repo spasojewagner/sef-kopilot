@@ -211,6 +211,37 @@ describe("The explanations on an invoice's report", () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each([
+    [
+      "no-passage",
+      "Nijedan propis u bazi koji važi na dan izdavanja fakture ne govori o ovom pravilu, pa model nema šta da citira. Ponovni pokušaj to ne menja.",
+    ],
+    [
+      "late",
+      "Vreme za objašnjenja je isteklo pre ovog pravila. Pokušajte ponovo.",
+    ],
+  ] as const)(
+    "say why a rule was not explained when the reason is %s",
+    async (reason, message) => {
+      keepSession();
+      const written = explained();
+      written.explanations[0] = {
+        ...written.explanations[0],
+        text: null,
+        fix: null,
+        citations: [],
+        problem: "not explained",
+        reason,
+      };
+      api(() => json(200, written));
+      renderIn("sr-Latn", <InvoiceReport id={ID} />);
+
+      await ask();
+
+      expect(await card("SRB-009").findByText(message)).toBeInTheDocument();
+    },
+  );
+
   it("say when no model is set up, which asking again would not change", async () => {
     keepSession();
     api(() =>

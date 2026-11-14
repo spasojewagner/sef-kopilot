@@ -26,7 +26,7 @@ import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +47,7 @@ __all__ = [
     "Explainer",
     "Explanation",
     "ExplanationError",
+    "Unexplained",
     "Written",
     "explain_report",
     "schema_for",
@@ -124,6 +125,12 @@ class Citation(BaseModel):
         )
 
 
+#: Why a rule has no explanation: no passage of the corpus that applies on the day explained
+#: concerns it, which asking again does not change; the model gave no answer that passed the
+#: checks; or the time ran out before its turn.
+Unexplained = Literal["no-passage", "no-answer", "late"]
+
+
 class Explanation(BaseModel):
     """What one rule of a report asks and how to meet it, with the passages it rests on; or why
     there is no explanation."""
@@ -138,10 +145,23 @@ class Explanation(BaseModel):
     problem: str | None = Field(
         default=None, description="Why there is no explanation, when there is none."
     )
+    reason: Unexplained | None = Field(
+        default=None,
+        description="Why there is no explanation, for a client to tell apart: `no-passage` when "
+        "no passage of the corpus that applies on the day explained (the invoice's issue date) "
+        "concerns the rule, which asking again does not change; `no-answer` when the model gave "
+        "no answer that passed the checks; `late` when the time allowed ran out before the "
+        "rule's turn.",
+    )
 
 
 class ExplanationError(Exception):
-    """No explanation could be written; the message says why, for the caller to read."""
+    """No explanation could be written; the message says why, for the caller to read, and
+    ``reason`` for a client to tell apart."""
+
+    def __init__(self, message: str, reason: Unexplained) -> None:
+        super().__init__(message)
+        self.reason: Unexplained = reason
 
 
 class _Draft(BaseModel):
@@ -284,7 +304,10 @@ class Explainer:
     ) -> Written:
         """The explanation of ``violation`` from ``passages``, or :class:`ExplanationError`."""
         if not passages:
-            raise ExplanationError("no passage of the corpus concerns this rule")
+            raise ExplanationError(
+                "no passage of the corpus that applies on the day explained concerns this rule",
+                "no-passage",
+            )
         readable = _readable(passages)
         given = {passage.id: passage for passage, _ in readable}
         question = _question(violation, readable, day)
@@ -297,7 +320,7 @@ class Explainer:
             try:
                 answer = await self._llm.answer(messages, name="explanation", schema=schema)
             except LLMError as error:
-                raise ExplanationError(f"the model gave no answer ({error})") from None
+                raise ExplanationError(f"the model gave no answer ({error})", "no-answer") from None
             try:
                 draft = _checked(answer, given, question)
             except _UnusableError as error:
@@ -312,7 +335,9 @@ class Explainer:
                 citations=tuple(Citation.of(given[citation]) for citation in draft.citations),
                 attempts=attempt,
             )
-        raise ExplanationError(f"none of the model's {self._attempts} answers could be used")
+        raise ExplanationError(
+            f"none of the model's {self._attempts} answers could be used", "no-answer"
+        )
 
 
 @dataclass(frozen=True)
@@ -403,15 +428,16 @@ async def explain_report(
     explanations: list[Explanation] = []
     for rule in chosen:
         rule_id = rule.violation.rule_id
+        reason: Unexplained
         try:
             async with asyncio.timeout_at(deadline):
                 written = await explainer.explain(
                     rule.violation, found[rule_id], day=day, language=language
                 )
         except TimeoutError:
-            problem = "not explained in the time allowed; ask again"
+            problem, reason = "not explained in the time allowed; ask again", "late"
         except ExplanationError as error:
-            problem = str(error)
+            problem, reason = str(error), error.reason
         else:
             logger.info(
                 "explained %s with %s in %d attempts", rule_id, explainer.model, written.attempts
@@ -435,6 +461,7 @@ async def explain_report(
                 fix=None,
                 citations=(),
                 problem=problem,
+                reason=reason,
             )
         )
     return explanations, [rule.violation.rule_id for rule in rest]

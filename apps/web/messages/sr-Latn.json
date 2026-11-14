@@ -304,6 +304,8 @@
     "validFrom": "važi od {from}",
     "validBetween": "važi od {from} do {to}",
     "problem": "Ovo pravilo ovaj put nije objašnjeno. Pokušajte ponovo.",
+    "noPassage": "Nijedan propis u bazi koji važi na dan izdavanja fakture ne govori o ovom pravilu, pa model nema šta da citira. Ponovni pokušaj to ne menja.",
+    "late": "Vreme za objašnjenja je isteklo pre ovog pravila. Pokušajte ponovo.",
     "again": "Pokušaj ponovo",
     "errors": {
       "tooMany": "Previše zahteva jezičkom modelu. Pokušajte ponovo za {seconds} s.",

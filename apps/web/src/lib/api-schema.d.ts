@@ -1395,6 +1395,11 @@ export interface components {
              * @description Why there is no explanation, when there is none.
              */
             problem?: string | null;
+            /**
+             * Reason
+             * @description Why there is no explanation, for a client to tell apart: `no-passage` when no passage of the corpus that applies on the day explained (the invoice's issue date) concerns the rule, which asking again does not change; `no-answer` when the model gave no answer that passed the checks; `late` when the time allowed ran out before the rule's turn.
+             */
+            reason?: ("no-passage" | "no-answer" | "late") | null;
         };
         /**
          * Extraction

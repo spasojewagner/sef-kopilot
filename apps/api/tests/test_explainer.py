@@ -241,8 +241,11 @@ async def test_a_model_that_gives_no_answer_gives_no_explanation() -> None:
 async def test_without_passages_the_model_is_not_asked() -> None:
     model = ScriptedModel()
 
-    with pytest.raises(ExplanationError, match="no passage of the corpus concerns this rule"):
+    with pytest.raises(
+        ExplanationError, match="no passage of the corpus that applies on the day explained"
+    ) as raised:
         await Explainer(model).explain(PIB, [], day=DAY, language="sr")
+    assert raised.value.reason == "no-passage"
     assert model.asked == []
 
 
@@ -365,9 +368,24 @@ async def test_a_rule_without_an_explanation_says_why(stored: AsyncSession) -> N
 
     explanations, _ = await explained(stored, judged, model)
 
-    assert [(each.rule_id, each.text, each.citations, each.problem) for each in explanations] == [
-        ("XML", None, (), "no passage of the corpus concerns this rule"),
-        ("SRB-009", None, (), "the model gave no answer (Groq answered 401 (invalid_api_key))"),
+    assert [
+        (each.rule_id, each.text, each.citations, each.problem, each.reason)
+        for each in explanations
+    ] == [
+        (
+            "XML",
+            None,
+            (),
+            "no passage of the corpus that applies on the day explained concerns this rule",
+            "no-passage",
+        ),
+        (
+            "SRB-009",
+            None,
+            (),
+            "the model gave no answer (Groq answered 401 (invalid_api_key))",
+            "no-answer",
+        ),
     ]
 
 
@@ -399,9 +417,9 @@ async def test_rules_not_explained_in_the_time_allowed_say_so(stored: AsyncSessi
 
     explanations, _ = await explained(stored, judged, Late(), seconds=1.0)
 
-    assert [each.problem for each in explanations] == [
-        None,
-        "not explained in the time allowed; ask again",
+    assert [(each.problem, each.reason) for each in explanations] == [
+        (None, None),
+        ("not explained in the time allowed; ask again", "late"),
     ]
 
 

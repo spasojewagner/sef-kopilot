@@ -4722,6 +4722,23 @@
             ],
             "title": "Problem",
             "description": "Why there is no explanation, when there is none."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "no-passage",
+                  "no-answer",
+                  "late"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Why there is no explanation, for a client to tell apart: `no-passage` when no passage of the corpus that applies on the day explained (the invoice's issue date) concerns the rule, which asking again does not change; `no-answer` when the model gave no answer that passed the checks; `late` when the time allowed ran out before the rule's turn."
           }
         },
         "type": "object",

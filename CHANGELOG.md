@@ -46,6 +46,12 @@ is tagged.
 - `apps/web`: the document read can be downloaded again beside its fields, as it was chosen and
   under its own name; a picture the browser gives no media type is shown as the type its name
   tells.
+- `apps/api`, `apps/web`: a rule without an explanation says why in `reason`, beside the
+  `problem` a person reads: `no-passage` when no passage of the corpus that applies on the day
+  explained concerns it, which asking again does not change (an invoice issued before the
+  corpus's editions, say); `no-answer` when the model gave no answer that passed the checks;
+  `late` when the time ran out before its turn. The report page says so of each rule, and asks to
+  try again only where that may help.
 
 ### Changed
 
