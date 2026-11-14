@@ -316,7 +316,9 @@ class _ChatCompletions(_HTTPClient):
 class GroqClient(_ChatCompletions):
     """Groq's OpenAI-compatible chat completions. The GPT-OSS models reason before they answer:
     briefly, and without sending the reasoning back; they read no pictures. Qwen 3.8 reads
-    them, and by default answers without sending reasoning back."""
+    them, and by default answers without sending reasoning back. Enums that hold null
+    use ``anyOf``. When reading an invoice, the type code must come from its title, as
+    allowing null here left the type empty even when the title was legible."""
 
     URL: ClassVar[str] = "https://api.groq.com/openai/v1/chat/completions"
     NAME: ClassVar[str] = "Groq"
@@ -331,7 +333,12 @@ class GroqClient(_ChatCompletions):
         schema: Mapping[str, Any],
         max_tokens: int,
     ) -> dict[str, Any]:
-        body = super()._body(messages, name, schema, max_tokens) | {"temperature": 0}
+        sent_schema = _nullable_enums(schema)
+        if name == "invoice_fields":
+            type_code = sent_schema["properties"]["type_code"]
+            values, _null = type_code.pop("anyOf")
+            type_code.update(values)
+        body = super()._body(messages, name, sent_schema, max_tokens) | {"temperature": 0}
         if self._model.startswith("openai/gpt-oss"):
             body |= {"reasoning_effort": "low", "include_reasoning": False}
         return body

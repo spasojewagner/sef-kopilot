@@ -80,6 +80,8 @@ is tagged.
 
 ### Fixed
 
+- `apps/api` (beta): the reading schema sent to Groq requires the invoice type code from the
+  document's title; nullable enums such as VAT categories are sent as the enum or null.
 - `pyproject.toml`: mypy checks the workspace as Linux on every machine, as CI does; on
   Windows it took multiprocessing's pipes for another class, and the code after a test skipped
   there for unreachable.

@@ -3071,3 +3071,16 @@ each number compared with the report or the run it comes from.
 
 Next: `fix/web-fresh-verdict-after-approval`, then `chore/release-1.0`: the security review, and
 the version; the home page and `SECURITY.md` say pre-alpha until then.
+
+## 2026-11-14 — `fix/api-groq-reading-enums` (1 commit)
+
+Outcome: send nullable enums to the reading provider as the enum or null, and require a
+type code in its invoice schema. The baseline and the nullable-enum change alone read the
+type in none of nine attempts each. The required type was correct in seven of nine. The
+other calls failed with 400 and 429. The reviewer still checks the type against the
+title because a required enum can produce a guess when the document is not an invoice.
+
+Verification: 250 tests, Ruff and mypy passed. The committed evaluations met all
+thresholds with the existing cassettes.
+
+Next: review the branch and keep the required type under observation on other invoice types.
