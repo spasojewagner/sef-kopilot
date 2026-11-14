@@ -136,7 +136,14 @@ function useExplanationErrorMessage(): (error: unknown) => string {
 export function RuleExplanation({ explanation }: { explanation: Explanation }) {
   const t = useTranslations("explanations");
   if (explanation.problem || !explanation.text) {
-    return <p className="text-sm text-muted-foreground">{t("problem")}</p>;
+    // A rule no passage of the day concerns stays unexplained however often it is asked.
+    const why =
+      explanation.reason === "no-passage"
+        ? "noPassage"
+        : explanation.reason === "late"
+          ? "late"
+          : "problem";
+    return <p className="text-sm text-muted-foreground">{t(why)}</p>;
   }
   return (
     <div className="grid gap-3 border-t pt-3 text-sm">

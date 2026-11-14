@@ -43,6 +43,7 @@ function reading(
     "sr-Latn",
     <InvoiceReading
       url="blob:racun"
+      name={options.type === "application/pdf" ? "racun.pdf" : "racun.jpg"}
       type={options.type ?? "image/jpeg"}
       extraction={extraction(options.fields ?? READ)}
       profile="srb"
@@ -139,11 +140,56 @@ describe("An invoice read from a picture", () => {
     reading({ fields: {} });
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Popunite: Broj, Datum izdavanja, Valuta, Naziv (Prodavac), PIB (Prodavac), Naziv (Kupac), PIB (Kupac), Stavke, Za plaćanje.",
+      "Popunite: Vrsta dokumenta, Broj, Datum izdavanja, Valuta, Naziv (Prodavac), PIB (Prodavac), Naziv (Kupac), PIB (Kupac), Stavke, Za plaćanje.",
     );
     expect(
       screen.getByText("Model nije pročitao nijednu stavku."),
     ).toBeInTheDocument();
+  });
+
+  it("is neither made nor downloaded without its type and what the UBL schema requires", async () => {
+    keepSession();
+    const asked = drafting();
+    const [line] = READ.lines ?? [];
+    reading({
+      fields: {
+        ...READ,
+        type_code: null,
+        lines: [{ ...line, net_amount: null }],
+      },
+    });
+    const user = userEvent.setup();
+    const type = group("Faktura").getByLabelText("Vrsta dokumenta");
+    const amount = group("Stavke").getByLabelText("Iznos bez PDV-a");
+
+    expect(type).toHaveAttribute("aria-invalid", "true");
+    expect(amount).not.toHaveAttribute("aria-invalid");
+
+    await user.click(screen.getByRole("button", { name: "Preuzmi XML" }));
+    await user.click(
+      screen.getByRole("button", { name: "Napravi fakturu i proveri" }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Popunite: Vrsta dokumenta, Iznos bez PDV-a (Stavka 1).",
+    );
+    expect(amount).toHaveAttribute("aria-invalid", "true");
+    expect(asked).toEqual([]);
+
+    await user.selectOptions(type, "386");
+    await user.type(amount, "12000.00");
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(type).not.toHaveAttribute("aria-invalid");
+
+    await user.click(
+      screen.getByRole("button", { name: "Napravi fakturu i proveri" }),
+    );
+
+    await waitFor(() => expect(asked).toHaveLength(2));
+    const sent = JSON.parse(String(asked[0].body));
+    expect(sent.type_code).toBe("386");
+    expect(sent.lines[0].net_amount).toBe("12000.00");
   });
 
   it("is made, as corrected, into an invoice that is kept and checked", async () => {
@@ -158,10 +204,9 @@ describe("An invoice read from a picture", () => {
     await user.type(number, "RF-2026-000124");
     await user.type(group("Kupac").getByLabelText("PIB"), "100000016");
     await user.click(screen.getByRole("button", { name: "Dodaj stavku" }));
-    await user.type(
-      within(screen.getAllByRole("listitem")[1]).getByLabelText("Naziv"),
-      "Putni troškovi",
-    );
+    const added = within(screen.getAllByRole("listitem")[1]);
+    await user.type(added.getByLabelText("Naziv"), "Putni troškovi");
+    await user.type(added.getByLabelText("Iznos bez PDV-a"), "800.00");
     await user.click(
       screen.getByRole("button", { name: "Napravi fakturu i proveri" }),
     );
@@ -181,7 +226,7 @@ describe("An invoice read from a picture", () => {
       quantity: null,
       unit: null,
       unit_price: null,
-      net_amount: null,
+      net_amount: "800.00",
       vat_category: null,
       vat_rate: null,
     });
@@ -199,6 +244,11 @@ describe("An invoice read from a picture", () => {
     reading();
     const user = userEvent.setup();
 
+    await user.click(screen.getByRole("button", { name: "Dodaj stavku" }));
+    await user.type(
+      group("Stavke").getAllByLabelText("Iznos bez PDV-a")[1],
+      "500.00",
+    );
     await user.click(screen.getByRole("button", { name: "Ukloni stavku 1" }));
     await user.click(screen.getByRole("button", { name: "Ukloni red 1" }));
     await user.click(
@@ -207,7 +257,9 @@ describe("An invoice read from a picture", () => {
 
     await waitFor(() => expect(asked).toHaveLength(2));
     const sent = JSON.parse(String(asked[0].body));
-    expect(sent.lines).toEqual([]);
+    expect(sent.lines).toEqual([
+      expect.objectContaining({ name: null, net_amount: "500.00" }),
+    ]);
     expect(sent.vat_breakdown).toEqual([]);
   });
 
@@ -251,9 +303,12 @@ describe("An invoice read from a picture", () => {
     );
   });
 
-  it("downloads the XML drafted of the fields, keeping nothing", async () => {
+  it("downloads the XML drafted of the fields once it is valid, keeping nothing", async () => {
     keepSession();
-    const asked = drafting();
+    const valid = { ...storedInvoice().report, valid: true, violations: [] };
+    const asked = stubApi(({ path }) =>
+      path === "/invoices/draft" ? new Response(DRAFT) : json(200, valid),
+    );
     const made = vi.fn(() => "blob:draft");
     const given = vi.fn();
     vi.stubGlobal(
@@ -272,10 +327,63 @@ describe("An invoice read from a picture", () => {
     await user.click(screen.getByRole("button", { name: "Preuzmi XML" }));
 
     await waitFor(() => expect(clicked).toHaveBeenCalledOnce());
-    expect(asked.map(({ path }) => path)).toEqual(["/invoices/draft"]);
+    expect(asked.map(({ path }) => path)).toEqual([
+      "/invoices/draft",
+      "/invoices/validate",
+    ]);
+    expect(asked[1].search).toBe("?profile=srb");
+    expect(asked[1].body).toBe(DRAFT);
     expect(given).toHaveBeenCalledWith("blob:draft");
     clicked.mockRestore();
   });
+
+  it("keeps an XML that fails the check, says why, and forgets it once a field changes", async () => {
+    keepSession();
+    const { report } = storedInvoice();
+    const fatal = report.violations.filter(
+      ({ severity }) => severity === "fatal",
+    );
+    stubApi(({ path }) =>
+      path === "/invoices/draft" ? new Response(DRAFT) : json(200, report),
+    );
+    const clicked = vi.spyOn(HTMLAnchorElement.prototype, "click");
+    reading();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Preuzmi XML" }));
+
+    const refused = await screen.findByRole("alert");
+    expect(refused).toHaveTextContent(
+      "XML nije prošao proveru, pa nije preuzet.",
+    );
+    for (const violation of report.violations) {
+      if (fatal.includes(violation)) {
+        expect(refused).toHaveTextContent(violation.message);
+      } else {
+        expect(refused).not.toHaveTextContent(violation.message);
+      }
+    }
+    expect(clicked).not.toHaveBeenCalled();
+
+    await user.type(group("Faktura").getByLabelText("Broj"), "-1");
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    clicked.mockRestore();
+  });
+
+  it.each([
+    ["image/jpeg", "racun.jpg"],
+    ["application/pdf", "racun.pdf"],
+  ] as const)(
+    "offers the %s chosen for download, under its name",
+    (type, name) => {
+      reading({ type });
+
+      const original = screen.getByRole("link", { name: "Preuzmi original" });
+      expect(original).toHaveAttribute("href", "blob:racun");
+      expect(original).toHaveAttribute("download", name);
+    },
+  );
 
   it("is discarded on request", async () => {
     const discard = vi.fn();

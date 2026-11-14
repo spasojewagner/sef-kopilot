@@ -43,6 +43,23 @@ is tagged.
 - `docs`: the case study (`docs/CASE_STUDY.md`): the problem, the decisions and their
   trade-offs, what went wrong, the numbers and how the project was built; and the script of the
   90-second demo video (`docs/DEMO_VIDEO.md`).
+- `apps/web`: the document read can be downloaded again beside its fields, as it was chosen and
+  under its own name; a picture the browser gives no media type is shown as the type its name
+  tells.
+- `apps/api`, `apps/web`: a rule without an explanation says why in `reason`, beside the
+  `problem` a person reads: `no-passage` when no passage of the corpus that applies on the day
+  explained concerns it, which asking again does not change (an invoice issued before the
+  corpus's editions, say); `no-answer` when the model gave no answer that passed the checks;
+  `late` when the time ran out before its turn. The report page says so of each rule, and asks to
+  try again only where that may help.
+- `apps/api`, `apps/web`: a repair the model's patches did not give says which way in its 422's
+  `reason`: `none-proposed` when the model proposed no patch, as when what is missing is a value
+  only a person knows; `none-kept` when none it proposed was kept. The report page tells the
+  person to correct the invoice themselves for the first, without offering to try again.
+- `apps/api`, `apps/web`: a reading the model's provider answers busy, or over its limits, each
+  time it is asked is a 502 with `Retry-After`, the wait the provider named or a minute; the
+  upload page asks the person to try again in that many seconds, where it said only that the
+  model did not answer.
 
 ### Changed
 
@@ -51,6 +68,15 @@ is tagged.
 - Roadmap: SEF's error codes, its internal technical instruction and what the demo would
   confirm move after 1.0; the demo's sign-up takes an eID registration the project does not
   have.
+- `apps/web`: the XML drafted of a document's fields is validated before it is downloaded, under
+  the profile chosen, nothing stored; one that fails is not downloaded, and its fatal violations
+  are listed above the buttons until a field changes.
+- `apps/web`: an invoice read from a document is neither made nor downloaded without its type,
+  which tells an invoice from a credit note, nor without what the UBL schema requires (the
+  number, the date of issue, a line, each line's amount, each VAT row's tax, the total VAT where
+  there are rows, the amount due), without which the validator stops at the schema; the missing
+  fields are named and marked when the person asks, and the type is among the fields SEF needs
+  that a reading did not find.
 
 ### Fixed
 
@@ -83,6 +109,10 @@ is tagged.
 - `evals`: an empty `SEF_TEST_DATABASE_URL`, as `.env.example` leaves it, is read as not set
   and says so, as the API's tests read it, instead of failing with SQLAlchemy's traceback;
   a value that is no database URL is refused without being repeated.
+- `apps/web`: an invoice without a summary is named "Fails the UBL schema" in the list and on its
+  report, where it was an "Unreadable document": a summary is read only from a document the
+  schema passes, and an XML that lacks a date of issue is quite readable.
+
 
 ## [0.6.0] - 2026-11-10
 

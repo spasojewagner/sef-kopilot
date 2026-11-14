@@ -115,7 +115,24 @@ describe("A repair the language model suggests", () => {
       false,
     ],
     [
-      json(422, { detail: "the language model proposes no patch" }),
+      json(422, {
+        detail: "the language model proposes no patch for these violations",
+        reason: "none-proposed",
+      }),
+      "Model nije predložio nijednu izmenu: ovim greškama treba vrednost koju znate samo vi, na primer PIB, država ili kategorija PDV-a, a popravka je nikad ne izmišlja. Ispravite fakturu sami.",
+      false,
+    ],
+    [
+      json(422, {
+        detail:
+          "none of the patches the language model proposes changes the invoice",
+        reason: "none-kept",
+      }),
+      "Model nije predložio nijednu izmenu koju popravka može da zadrži. Pokušajte ponovo, ili ispravite fakturu sami.",
+      true,
+    ],
+    [
+      json(422, { detail: "the invoice is not well-formed XML" }),
       "Model nije predložio nijednu izmenu koju popravka može da zadrži. Pokušajte ponovo, ili ispravite fakturu sami.",
       true,
     ],

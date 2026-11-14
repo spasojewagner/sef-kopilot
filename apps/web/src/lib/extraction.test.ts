@@ -11,6 +11,7 @@ import {
   fieldsOf,
   formOf,
   missingIn,
+  requiredIn,
   readInvoice,
   READING_TIMEOUT_MS,
 } from "./extraction";
@@ -106,6 +107,7 @@ describe("What SEF needs and was not read", () => {
   it("names each field, in the order of the form", () => {
     expect(missingIn(formOf(READ))).toEqual(["buyer.tax_id"]);
     expect(missingIn(formOf({}))).toEqual([
+      "type_code",
       "number",
       "issue_date",
       "currency",
@@ -115,6 +117,41 @@ describe("What SEF needs and was not read", () => {
       "buyer.tax_id",
       "lines",
       "totals.payable",
+    ]);
+  });
+});
+
+describe("What the invoice cannot be made without", () => {
+  it("is nothing for an invoice read whole", () => {
+    expect(requiredIn(formOf(READ))).toEqual([]);
+  });
+
+  it("is the type, and what the UBL schema requires, in the order of the form", () => {
+    expect(requiredIn(formOf({}))).toEqual([
+      "type_code",
+      "number",
+      "issue_date",
+      "lines",
+      "totals.payable",
+    ]);
+  });
+
+  it("is each line's amount and each VAT row's tax, and the total VAT where there are rows", () => {
+    const form = formOf(READ);
+    const read = {
+      ...form,
+      lines: [form.lines[0], { ...form.lines[0], net_amount: " " }],
+      vat_breakdown: [{ ...form.vat_breakdown[0], tax_amount: "" }],
+      totals: { ...form.totals, tax: "" },
+    };
+
+    expect(requiredIn(read)).toEqual([
+      "lines.1.net_amount",
+      "vat_breakdown.0.tax_amount",
+      "totals.tax",
+    ]);
+    expect(requiredIn({ ...read, vat_breakdown: [] })).toEqual([
+      "lines.1.net_amount",
     ]);
   });
 });

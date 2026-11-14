@@ -27,7 +27,10 @@ export function useReadingErrorMessage(): (error: unknown) => string {
       case 429:
         return t("tooMany", { seconds: error.retryAfter ?? 60 });
       case 502:
-        return t("modelAway");
+        // With a wait named, the model's provider was busy, or held the server to its limits.
+        return error.retryAfter === null
+          ? t("modelAway")
+          : t("modelBusy", { seconds: error.retryAfter });
       case 503:
         return t("noModel");
       case 504:

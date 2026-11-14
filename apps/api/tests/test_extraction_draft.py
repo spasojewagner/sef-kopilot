@@ -4,6 +4,7 @@ is valid, every element comes from a field or from SRB-CIUS, and nothing is fill
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from lxml import etree
@@ -12,7 +13,15 @@ from einvoice_core.pipeline import validate
 from einvoice_core.ubl import parse_invoice
 from einvoice_core.xml import NAMESPACES
 from sef_api.extraction.draft import draft
-from sef_api.extraction.fields import InvoiceFields, Line, Party, Payment, Totals, fields_of
+from sef_api.extraction.fields import (
+    InvoiceFields,
+    Line,
+    Party,
+    Payment,
+    Totals,
+    VatSubtotal,
+    fields_of,
+)
 
 SYNTHETIC = Path(__file__).resolve().parents[3] / "fixtures" / "invoices" / "synthetic"
 
@@ -156,3 +165,59 @@ def test_a_credit_note_is_drafted_as_one() -> None:
     assert texts(root, "cac:CreditNoteLine/cbc:CreditedQuantity") == ["1"]
     report = validate(draft(fields), profile="srb")
     assert "xsd" not in {violation.layer for violation in report.violations}
+
+
+#: The fields without which a draft fails the UBL schema, each emptied alone from a valid
+#: invoice's fields, by the place the web's form names them (`requiredIn` in apps/web): the form
+#: asks for these, and for a line at least, before it has an invoice drafted, so a change here
+#: is a change there too.
+SCHEMA_REQUIRED = frozenset(
+    {
+        "number",
+        "issue_date",
+        "totals.tax",
+        "totals.payable",
+        "lines.0.net_amount",
+        "vat_breakdown.0.tax_amount",
+    }
+)
+
+
+def _emptied(fields: InvoiceFields, place: str) -> InvoiceFields:
+    data = fields.model_dump()
+    *path, last = place.split(".")
+    node: Any = data
+    for part in path:
+        node = node[int(part)] if part.isdigit() else node[part]
+    node[last] = None
+    return InvoiceFields.model_validate(data)
+
+
+def _fails_schema(fields: InvoiceFields) -> bool:
+    report = validate(draft(fields), profile="srb")
+    return any(violation.layer in ("xml", "xsd") for violation in report.violations)
+
+
+def test_the_fields_a_draft_fails_the_schema_without_are_those_the_form_asks_for() -> None:
+    fields = fields_of(parse_invoice(SYNTHETIC / "srb-final-invoice.xml"))
+    places = [
+        "type_code",
+        "number",
+        "issue_date",
+        "due_date",
+        "delivery_date",
+        "currency",
+        "buyer_reference",
+        *(f"seller.{key}" for key in Party.model_fields),
+        *(f"buyer.{key}" for key in Party.model_fields),
+        *(f"totals.{key}" for key in Totals.model_fields),
+        *(f"lines.0.{key}" for key in Line.model_fields),
+        *(f"vat_breakdown.0.{key}" for key in VatSubtotal.model_fields),
+        *(f"payment.{key}" for key in Payment.model_fields),
+    ]
+
+    failing = {place for place in places if _fails_schema(_emptied(fields, place))}
+
+    assert failing == SCHEMA_REQUIRED
+    assert _fails_schema(fields.model_copy(update={"lines": []}))
+    assert not _fails_schema(fields)

@@ -1407,7 +1407,7 @@
             }
           },
           "502": {
-            "description": "The language model gave no answer.",
+            "description": "The language model gave no answer. With `Retry-After`, its provider was busy, or held the server to its limits, each time it was asked: try again after that many seconds.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1754,11 +1754,19 @@
             }
           },
           "422": {
-            "description": "The language model proposed no patch that a repair keeps; or the invoice is not well-formed XML, or could not be validated within the time limit.",
+            "description": "The language model proposed no patch that a repair keeps, and `reason` says which way; or the invoice is not well-formed XML, or could not be validated within the time limit, which a `detail` alone says.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RepairRefusal"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Problem"
+                    }
+                  ],
+                  "title": "Response 422 Suggest Repair Invoices  Invoice Id  Repairs Suggestion Post"
                 }
               }
             }
@@ -4722,6 +4730,23 @@
             ],
             "title": "Problem",
             "description": "Why there is no explanation, when there is none."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "no-passage",
+                  "no-answer",
+                  "late"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Why there is no explanation, for a client to tell apart: `no-passage` when no passage of the corpus that applies on the day explained (the invoice's issue date) concerns the rule, which asking again does not change; `no-answer` when the model gave no answer that passed the checks; `late` when the time allowed ran out before the rule's turn."
           }
         },
         "type": "object",
@@ -6961,6 +6986,30 @@
         ],
         "title": "RepairOut",
         "description": "A repair of an invoice: what became of each patch, the difference they make, and the\nvalidator's report on the patched invoice."
+      },
+      "RepairRefusal": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "none-proposed",
+              "none-kept"
+            ],
+            "title": "Reason",
+            "description": "`none-proposed`: the model proposed no patch for the invoice's fatal violations, as when what is missing is a value only a person knows (a PIB, a country, a quantity): the invoice is the person's to correct, and asking again rarely helps. `none-kept`: it proposed patches, and none left the invoice with fewer fatal violations or changed it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail",
+          "reason"
+        ],
+        "title": "RepairRefusal",
+        "description": "Why the language model's patches gave no repair, answered with 422: a reason a client\ntells apart, and the detail, in English, for a person."
       },
       "RepairRequest": {
         "properties": {

@@ -18,7 +18,7 @@ from einvoice_core.pipeline import validate
 from sef_api.extraction.draft import draft
 from sef_api.extraction.fields import InvoiceFields, Line, Party, Totals
 from sef_api.extraction.reader import Reader
-from sef_api.llm import LLMError
+from sef_api.llm import LLMBusyError, LLMError
 
 from .corpora import ScriptedModel
 from .documents import picture, scanned_pdf, text_pdf
@@ -190,6 +190,23 @@ async def test_a_model_that_reads_nothing_usable_says_why(
 
     assert read.status_code == status
     assert detail in read.json()["detail"]
+
+
+@pytest.mark.parametrize(("named", "waits"), [(42.0, "42"), (None, "60")])
+async def test_a_busy_model_answers_502_with_the_wait_its_provider_asked(
+    session: AsyncSession, primer: Office, named: float | None, waits: str
+) -> None:
+    busy = LLMBusyError("Groq answered 429, 3 times", named)
+    async with reading(session, ScriptedModel(busy)) as api:
+        read = await api.post(
+            "/invoices/extract", content=picture(), headers=JPEG | primer.as_client()
+        )
+
+    assert read.status_code == 502
+    assert read.headers["Retry-After"] == waits
+    assert read.json()["detail"] == (
+        "the language model did not answer: Groq answered 429, 3 times"
+    )
 
 
 async def test_a_reading_that_takes_too_long_answers_504(

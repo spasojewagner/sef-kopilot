@@ -57,6 +57,19 @@ export function storeInvoice(
   });
 }
 
+/** The validator's report on a document under ``profile``; nothing is stored. */
+export function validateInvoice(
+  document: Blob | string,
+  profile: Profile = "srb",
+): Promise<Report> {
+  return authorized<Report>(`/invoices/validate?profile=${profile}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/xml" },
+    body: document,
+    timeoutMs: UPLOAD_TIMEOUT_MS,
+  });
+}
+
 /** A page of the organization's invoices, the newest first; ``after`` continues a list. */
 export function listInvoices({
   after,

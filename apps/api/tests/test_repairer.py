@@ -332,8 +332,11 @@ async def test_a_round_that_leaves_more_fatal_violations_is_not_kept() -> None:
 async def test_a_model_that_proposes_no_patch_proposes_no_repair() -> None:
     model = ScriptedModel(answer())
 
-    with pytest.raises(NoPatchError, match="proposes no patch for these violations: a person must"):
+    with pytest.raises(
+        NoPatchError, match="proposes no patch for these violations: a person must"
+    ) as raised:
         await suggested(model, CITY)
+    assert raised.value.reason == "none-proposed"
 
 
 async def test_patches_that_all_fail_are_no_repair() -> None:
@@ -374,8 +377,11 @@ async def test_patches_that_change_nothing_are_no_repair_and_the_model_is_told()
 async def test_patches_that_leave_more_fatal_violations_than_there_were_are_no_repair() -> None:
     model = ScriptedModel(answer(SPECIFICATION), answer())
 
-    with pytest.raises(NoPatchError, match="leave more fatal violations than the invoice has"):
+    with pytest.raises(
+        NoPatchError, match="leave more fatal violations than the invoice has"
+    ) as raised:
         await suggested(model, TYPE_CODE)
+    assert raised.value.reason == "none-kept"
 
 
 async def test_a_valid_invoice_is_not_sent_to_the_model() -> None:

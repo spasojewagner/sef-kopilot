@@ -17,6 +17,7 @@ from sef_api.llm import (
     AnthropicClient,
     GeminiClient,
     GroqClient,
+    LLMBusyError,
     LLMError,
     Message,
     OpenAIClient,
@@ -182,9 +183,35 @@ async def test_a_service_that_keeps_failing_is_given_up_after_three_attempts() -
     requests: list[httpx.Request] = []
     client = answering(lambda _body: httpx.Response(502), requests)
 
-    with pytest.raises(LLMError, match="Groq answered 502, 3 times"):
+    with pytest.raises(LLMBusyError, match="Groq answered 502, 3 times") as raised:
         await client.answer(CONVERSATION, name="reply", schema=SCHEMA)
     assert len(requests) == GroqClient.ATTEMPTS
+    assert raised.value.retry_after is None
+
+
+async def test_a_service_that_keeps_holding_to_its_limits_says_how_long_it_asks_to_wait(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Clock:
+        @staticmethod
+        async def sleep(_seconds: float) -> None:
+            return None
+
+    monkeypatch.setattr(llm_module, "asyncio", Clock)
+    client = answering(lambda _body: httpx.Response(429, headers={"Retry-After": "42"}), [])
+
+    with pytest.raises(LLMBusyError, match="Groq answered 429, 3 times") as raised:
+        await client.answer(CONVERSATION, name="reply", schema=SCHEMA)
+    assert raised.value.retry_after == 42
+
+
+async def test_a_service_last_unreachable_is_not_called_busy() -> None:
+    def unreachable(_body: dict[str, Any]) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    with pytest.raises(LLMError, match=r"the request failed \(ConnectError\), 3 times") as raised:
+        await answering(unreachable, []).answer(CONVERSATION, name="reply", schema=SCHEMA)
+    assert not isinstance(raised.value, LLMBusyError)
 
 
 @pytest.mark.parametrize(

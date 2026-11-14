@@ -1395,6 +1395,11 @@ export interface components {
              * @description Why there is no explanation, when there is none.
              */
             problem?: string | null;
+            /**
+             * Reason
+             * @description Why there is no explanation, for a client to tell apart: `no-passage` when no passage of the corpus that applies on the day explained (the invoice's issue date) concerns the rule, which asking again does not change; `no-answer` when the model gave no answer that passed the checks; `late` when the time allowed ran out before the rule's turn.
+             */
+            reason?: ("no-passage" | "no-answer" | "late") | null;
         };
         /**
          * Extraction
@@ -2516,6 +2521,21 @@ export interface components {
              */
             diff: string;
             report: components["schemas"]["ValidationReport"];
+        };
+        /**
+         * RepairRefusal
+         * @description Why the language model's patches gave no repair, answered with 422: a reason a client
+         *     tells apart, and the detail, in English, for a person.
+         */
+        RepairRefusal: {
+            /** Detail */
+            detail: string;
+            /**
+             * Reason
+             * @description `none-proposed`: the model proposed no patch for the invoice's fatal violations, as when what is missing is a value only a person knows (a PIB, a country, a quantity): the invoice is the person's to correct, and asking again rarely helps. `none-kept`: it proposed patches, and none left the invoice with fewer fatal violations or changed it.
+             * @enum {string}
+             */
+            reason: "none-proposed" | "none-kept";
         };
         /**
          * RepairRequest
@@ -3960,7 +3980,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The language model gave no answer. */
+            /** @description The language model gave no answer. With `Retry-After`, its provider was busy, or held the server to its limits, each time it was asked: try again after that many seconds. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4201,13 +4221,13 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The language model proposed no patch that a repair keeps; or the invoice is not well-formed XML, or could not be validated within the time limit. */
+            /** @description The language model proposed no patch that a repair keeps, and `reason` says which way; or the invoice is not well-formed XML, or could not be validated within the time limit, which a `detail` alone says. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/json": components["schemas"]["RepairRefusal"] | components["schemas"]["Problem"];
                 };
             };
             /** @description Too many validations or requests to the language model by the caller, or in their organization; try again after `Retry-After` seconds. */

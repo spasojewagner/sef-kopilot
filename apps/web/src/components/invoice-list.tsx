@@ -93,7 +93,7 @@ function InvoiceRow({ invoice, locale }: { invoice: Invoice; locale: string }) {
           href={`/invoices/${invoice.id}`}
           className="underline-offset-4 hover:underline"
         >
-          {summary?.number ?? t("unreadable")}
+          {summary?.number ?? t("notSchemaValid")}
         </Link>
       </TableCell>
       <TableCell className="max-w-64 truncate">

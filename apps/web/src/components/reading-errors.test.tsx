@@ -52,6 +52,10 @@ describe("Why a document was not read", () => {
       "Jezički model nije odgovorio. Pokušajte ponovo.",
     ],
     [
+      new ApiError(502, "busy", { retryAfter: 42 }),
+      "Jezički model je zauzet, ili je server stigao do ograničenja njegovog provajdera. Pokušajte ponovo za 42 s.",
+    ],
+    [
       new ApiError(503, "no model"),
       "Na ovom serveru nije podešen jezički model, pa se dokumenti ne čitaju.",
     ],

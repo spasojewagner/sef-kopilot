@@ -48,6 +48,7 @@ __all__ = [
     "Apply",
     "ModelFailedError",
     "NoPatchError",
+    "NoPatchReason",
     "NothingToRepairError",
     "RepairError",
     "RepairTimeoutError",
@@ -137,8 +138,17 @@ class NothingToRepairError(RepairError):
     """The invoice has no fatal violation."""
 
 
+#: Why no patch was kept: the model proposed none, which leaves the invoice to a person, as a
+#: value only they know is missing; or it proposed some, and none left the invoice better.
+NoPatchReason = Literal["none-proposed", "none-kept"]
+
+
 class NoPatchError(RepairError):
-    """The model proposed no patch that a repair keeps."""
+    """The model proposed no patch that a repair keeps; ``reason`` says which way."""
+
+    def __init__(self, message: str, reason: NoPatchReason) -> None:
+        super().__init__(message)
+        self.reason: NoPatchReason = reason
 
 
 class ModelFailedError(RepairError):
@@ -375,15 +385,21 @@ class _Rounds:
             self.least = _fatal(state)
             self.best = Suggestion(_without_futile(state), rounds=number, answers=self.answers)
 
-    def why_none(self) -> str:
+    def why_none(self) -> NoPatchError:
         if not self.proposed_any:
-            return "the language model proposes no patch for these violations: a person must"
-        if self.best is None:
-            return (
-                "the patches the language model proposes leave more fatal violations than the "
-                "invoice has: none is kept"
+            return NoPatchError(
+                "the language model proposes no patch for these violations: a person must",
+                "none-proposed",
             )
-        return "none of the patches the language model proposes changes the invoice"
+        if self.best is None:
+            return NoPatchError(
+                "the patches the language model proposes leave more fatal violations than the "
+                "invoice has: none is kept",
+                "none-kept",
+            )
+        return NoPatchError(
+            "none of the patches the language model proposes changes the invoice", "none-kept"
+        )
 
 
 async def _applied(
@@ -457,7 +473,7 @@ class Repairer:
         )
         best = rounds.best
         if best is None or not best.patched.outcomes:
-            raise failure or NoPatchError(rounds.why_none())
+            raise failure or rounds.why_none()
         logger.info(
             "suggested a repair of %d patches with %s in %d rounds and %d answers",
             len(best.patched.outcomes),
