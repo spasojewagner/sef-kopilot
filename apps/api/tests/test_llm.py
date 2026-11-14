@@ -13,6 +13,7 @@ import pytest
 from pydantic import SecretStr, ValidationError
 
 import sef_api.llm as llm_module
+from sef_api.extraction.fields import SCHEMA as INVOICE_FIELDS_SCHEMA
 from sef_api.llm import (
     AnthropicClient,
     GeminiClient,
@@ -402,6 +403,38 @@ async def test_openai_s_failures_say_what_went_wrong_and_nothing_sent(
     assert "4711" not in str(raised.value)
 
 
+async def test_groq_requires_a_type_code_when_reading_an_invoice() -> None:
+    requests: list[httpx.Request] = []
+    client = answering(lambda _body: completion("{}"), requests, model=GroqClient.READING_MODEL)
+
+    await client.answer(CONVERSATION, name="invoice_fields", schema=INVOICE_FIELDS_SCHEMA)
+
+    sent = json.loads(requests[0].content)["response_format"]["json_schema"]["schema"]
+    properties = sent["properties"]
+    assert "type_code" in sent["required"]
+    assert properties["type_code"] == {
+        "type": "string",
+        "enum": ["380", "381", "383", "386"],
+        "description": INVOICE_FIELDS_SCHEMA["properties"]["type_code"]["description"],
+    }
+    for collection in ("lines", "vat_breakdown"):
+        category = properties[collection]["items"]["properties"]["vat_category"]
+        original = INVOICE_FIELDS_SCHEMA["properties"][collection]["items"]["properties"][
+            "vat_category"
+        ]
+        assert category["anyOf"] == [
+            {"type": "string", "enum": [code for code in original["enum"] if code is not None]},
+            {"type": "null"},
+        ]
+    assert INVOICE_FIELDS_SCHEMA["properties"]["type_code"]["enum"] == [
+        "380",
+        "381",
+        "383",
+        "386",
+        None,
+    ]
+
+
 # --- Gemini -------------------------------------------------------------------------------------
 
 
@@ -436,9 +469,18 @@ async def test_gemini_is_asked_through_its_openai_compatible_chat_completions() 
     }
 
 
-async def test_gemini_is_sent_an_enum_that_holds_null_as_any_of_the_enum_and_null() -> None:
+@pytest.mark.parametrize("provider", [GroqClient, GeminiClient])
+async def test_a_nullable_enum_is_sent_as_the_enum_or_null(
+    provider: type[GroqClient] | type[GeminiClient],
+) -> None:
     requests: list[httpx.Request] = []
-    client = answering(lambda _body: completion("{}"), requests, provider=GeminiClient)
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return completion("{}")
+
+    transport = httpx.MockTransport(handle)
+    client = provider(KEY, client=httpx.AsyncClient(transport=transport))
     nullable: dict[str, Any] = {
         "type": "object",
         "properties": {

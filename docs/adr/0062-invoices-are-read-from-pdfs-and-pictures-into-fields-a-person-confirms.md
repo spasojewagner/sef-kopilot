@@ -83,6 +83,10 @@ another provider writes. Google may use what its free tier is sent to improve it
 the free tier reads the synthetic invoices of the evaluations, never a customer's.
 An organization with its own key (ADR-0058) is read by its provider's reading model, with its
 key, whatever model it chose to write.
+Groq's reading schema requires a type code from the title and sends the other nullable enums
+as the enum or null, since it otherwise left the type empty even on a legible invoice; on
+a document without an invoice title the required enum can produce a guess, so the person
+reviewing the fields still decides what the document is.
 
 ### Consequences
 
