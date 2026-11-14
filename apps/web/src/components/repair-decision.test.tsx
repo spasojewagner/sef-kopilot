@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import {
+  explanationsQuery,
   invoiceQuery,
   invoicesQuery,
   repairQuery,
@@ -61,12 +62,23 @@ async function decision() {
 describe("A person's decision on a repair", () => {
   it("approves it only after a second press that says what approval does", async () => {
     keepSession();
-    const asked = api(() =>
-      json(200, repair({ status: "approved", ...DECIDED })),
-    );
+    const fresh = storedInvoice({
+      report: { ...storedInvoice().report, valid: true, violations: [] },
+    });
+    const approved = listedRepair({ status: "approved", ...DECIDED });
+    const asked = api(({ method, path }) => {
+      if (method === "GET" && path === `/invoices/${ID}`) {
+        return json(200, fresh);
+      }
+      if (method === "GET" && path === `/invoices/${ID}/repairs`) {
+        return json(200, [approved]);
+      }
+      return json(200, repair({ status: "approved", ...DECIDED }));
+    });
     const client = testQueryClient();
     client.setQueryData(invoiceQuery(ID).queryKey, storedInvoice());
     client.setQueryData(repairsQuery(ID).queryKey, [listedRepair()]);
+    client.setQueryData(explanationsQuery(ID, "sr").queryKey, null);
     client.setQueryData(invoicesQuery.queryKey, {
       pages: [{ invoices: [], next: null }],
       pageParams: [null],
@@ -99,16 +111,46 @@ describe("A person's decision on a repair", () => {
       "Popravka je odobrena: faktura je sada kopija sa ovim izmenama.",
     );
     expect(decisions(asked)).toEqual([`${PATH}/approval`]);
-    // The page shows the decided repair, kept fresh; what the approval changed is read again.
+    // The page shows the decided repair, kept fresh.
     expect(screen.getByText("Odobrena")).toBeInTheDocument();
     expect(screen.getByText("vi, 6. 11. 2026. 13:00")).toBeInTheDocument();
     expect(reads(asked)).toBe(1);
-    const stale = (key: readonly unknown[]) =>
-      client.getQueryState(key)?.isInvalidated;
-    expect(stale(repairQuery(ID, REPAIR).queryKey)).toBe(false);
-    expect(stale(invoiceQuery(ID).queryKey)).toBe(true);
-    expect(stale(repairsQuery(ID).queryKey)).toBe(true);
-    expect(stale(invoicesQuery.queryKey)).toBe(true);
+    expect(
+      client.getQueryState(repairQuery(ID, REPAIR).queryKey)?.isInvalidated,
+    ).toBe(false);
+    // What the approval changed was read again before it was shown as made, and nothing of
+    // the invoice as it was is left to be shown.
+    expect(client.getQueryData(invoiceQuery(ID).queryKey)).toEqual(fresh);
+    expect(client.getQueryData(repairsQuery(ID).queryKey)).toEqual([approved]);
+    expect(
+      client.getQueryState(explanationsQuery(ID, "sr").queryKey),
+    ).toBeUndefined();
+    expect(client.getQueryState(invoicesQuery.queryKey)).toBeUndefined();
+  });
+
+  it("leaves the invoice to be read when shown, when reading it again after an approval fails", async () => {
+    keepSession();
+    api(({ method }) =>
+      method === "GET"
+        ? json(503, { detail: "unavailable" })
+        : json(200, repair({ status: "approved", ...DECIDED })),
+    );
+    const client = testQueryClient();
+    client.setQueryData(invoiceQuery(ID).queryKey, storedInvoice());
+    renderIn(
+      "sr-Latn",
+      <RepairView invoiceId={ID} repairId={REPAIR} />,
+      client,
+    );
+
+    await decision();
+    await press("Odobri");
+    await press("Da, odobri");
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Popravka je odobrena: faktura je sada kopija sa ovim izmenama.",
+    );
+    expect(client.getQueryData(invoiceQuery(ID).queryKey)).toBeUndefined();
   });
 
   it("rejects it at once, which leaves the invoice as it was", async () => {

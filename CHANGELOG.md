@@ -112,6 +112,10 @@ is tagged.
 - `apps/web`: an invoice without a summary is named "Fails the UBL schema" in the list and on its
   report, where it was an "Unreadable document": a summary is read only from a document the
   schema passes, and an XML that lacks a date of issue is quite readable.
+- `apps/web`: after a repair is approved, the invoice's report shows its new verdict at once,
+  where it showed the old one until the fresh one came: the invoice and its repairs are read
+  again before the approval is shown as made, and nothing else of the invoice as it was (its
+  explanations, the list's verdict) is kept to be shown.
 
 
 ## [0.6.0] - 2026-11-10
