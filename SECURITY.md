@@ -64,7 +64,8 @@ The project is pre-alpha. Only the `main` branch and the latest tagged release r
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done and tested. The checklist is
 updated in the pull request that implements each item; chapters that do not apply to this
-system are marked as such.
+system are marked as such. The review for 1.0 walked every item left open, and records what it
+ran, what it fixed and what it accepted in [`docs/SECURITY_REVIEW_1.0.md`](docs/SECURITY_REVIEW_1.0.md).
 
 ### V1 Encoding and sanitization
 
@@ -73,10 +74,11 @@ system are marked as such.
       rule forbids setting HTML from data (`react/no-danger`), and a test renders a document
       whose values are markup (ADR-0028). API responses are JSON, but for a stored document,
       served back as an attachment with `nosniff` (V5).
-- [~] XPath and XSLT inputs that originate from users (rule ids, paths) are validated against an
-      allow-list, never interpolated into expressions: a patch's path is read by a grammar of
-      child steps and walked one step at a time, never evaluated as XPath (ADR-0023; tested
-      with functions, axes, wildcards, predicates and unions).
+- [x] XPath and XSLT inputs that originate from users (rule ids, paths) are validated against an
+      allow-list, never interpolated into expressions: a rule id is looked up in the rule sets'
+      catalogue by key, and a patch's path is read by a grammar of child steps and walked one
+      step at a time, never evaluated as XPath (ADR-0023; tested with functions, axes,
+      wildcards, predicates and unions).
 - [x] XML parsers reject external entities and DTDs: a document that declares a DOCTYPE is
       refused, and while it is parsed no entity is expanded, no DTD read and no socket opened
       (tested on the parser itself).
@@ -135,12 +137,20 @@ system are marked as such.
 - [x] A form with a password is sent by the page's script only, its button waiting until the
       script has taken over, and is posted if it is sent anyway: a password never goes into
       an address (tested on the markup the server sends).
-- [ ] Content Security Policy, `X-Content-Type-Options`, `Referrer-Policy` and
-      `Permissions-Policy` headers set by the web app and the API.
-- [ ] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`. The web application sets none:
-      the language is in the path (`localeCookie: false`), and the tokens are kept as ADR-0027
-      says. A Content-Security-Policy, which bounds what a script injected into the page could
-      do with the refresh token in local storage, comes with the hosting (`chore/infra-deploy`).
+- [x] Content Security Policy, `X-Content-Type-Options`, `Referrer-Policy` and
+      `Permissions-Policy` headers set by the web app and the API. Every page's policy lets it
+      reach its own site and the API alone (`connect-src`), and load no image, font or object
+      from elsewhere, which bounds what a script injected into a page could do with the
+      refresh token in its storage (ADR-0027). Scripts may still be inline, as Next.js writes
+      its own; a nonce on each would make every page dynamic. Pages send no address on, which
+      may hold an invitation's code, and use no camera, microphone, position or payment. Every
+      answer of the API runs, loads and frames nothing (`default-src 'none'; frame-ancestors
+      'none'`), with `nosniff` and `no-referrer`, a preflight's and an error's included.
+      Tested on the API's answers and on the web's headers, and the end-to-end golden path runs
+      under them against the production build.
+- [x] Cookies (if used) are `Secure`, `HttpOnly`, `SameSite`. Neither the web application nor
+      the API sets one: the language is in the path (`localeCookie: false`), the tokens are
+      kept as ADR-0027 says, and a token travels in a header.
 
 ### V4 API and web service
 
@@ -158,8 +168,14 @@ system are marked as such.
       counts against the same limits, and a test pins every tool's permission. Only POST is
       answered (405), and a page of an origin other than the web application's is refused
       (403), as the protocol asks against DNS rebinding.
-- [ ] OpenAPI names the permission each endpoint requires.
-- [ ] Consistent error schema; no stack traces or internal paths in responses.
+- [x] OpenAPI names the permission each endpoint requires, in each guarded operation's
+      `x-required-permission`, read from the route's own dependencies; a test holds the names
+      to the route audit's pins.
+- [x] Consistent error schema; no stack traces or internal paths in responses. Every error is
+      JSON with a `detail`: a sentence, or, for a request the models refuse, where and why
+      without the values sent (`sef_api.refusals`); a conflict and a repair the model gave none
+      for add a `reason` a client tells apart. An unexpected failure is a JSON 500 that says
+      nothing of its cause (`sef_api.unexpected`, tested).
 
 ### V5 File handling
 
@@ -182,7 +198,10 @@ system are marked as such.
 
 - [x] Passwords hashed with argon2id (OWASP's minimum parameters), 12 to 128 characters, rehashed
       when the parameters change.
-- [ ] Breached-password check against a local list (the self-hosted mode makes no external calls).
+- [x] Breached-password check against a local list (the self-hosted mode makes no external calls):
+      a new password, on registration or for the account an invitation creates, is refused
+      when it is among the 10,000 most common passwords that meet the length a new one needs,
+      compared in lower case; the list ships with the API, from SecLists (tested).
 - [x] Generic authentication error messages; an unknown address takes as long as a wrong password.
 - [x] Rate limiting on sign-in, registration, token refresh and accepting invitations, per
       address; wrong passwords counted per e-mail address before the next is checked, whether
@@ -230,14 +249,18 @@ system are marked as such.
 - [x] Jobs are seen within the same scope as invoices: a client reads and follows only the
       jobs they started, and another's answers 404 before any event stream begins. A job
       works within the scope of the member who started it, fixed when it starts.
-- [~] An event stream outlives the permission check it began with by at most five minutes,
-      then ends; the client reconnects and is checked again.
+- [x] An event stream outlives the permission check it began with by at most five minutes,
+      then ends; the client reconnects with `Last-Event-ID` and is checked again (tested).
 
 ### V9 Self-contained tokens
 
 - [x] JWTs use an allow-listed algorithm (HS256) and type (`at+jwt`); `iss`, `aud`, `exp`, `iat`,
       `sub`, `org`, `role` and `jti` are required and checked.
-- [ ] Signing keys rotate (key ids, the previous key accepted for a grace period).
+- [x] Signing keys are replaced without a grace period, which nothing needs: an access token
+      lives 15 minutes, and a refresh token, the web application's or an MCP client's, is an
+      opaque digest in the database, not signed. With a new `SEF_JWT_SECRET`, every session's
+      next request is refused once, and the client renews its access token and sends it again
+      (tested in the web's session); nobody is signed out.
 
 ### V10 OAuth and OIDC
 
@@ -314,16 +337,23 @@ system are marked as such.
       SEF key, and rotated by the same command (ADR-0058). A key the server cannot open stops
       the organization's explanations and repairs with 503; the invoice is never sent to the
       server's model instead (tested).
-- [ ] No home-grown cryptography; randomness from `secrets`.
+- [x] No home-grown cryptography; randomness from `secrets`: argon2-cffi for passwords,
+      `cryptography`'s Fernet for the keys kept, PyJWT for the tokens, `hmac` and `hashlib` for
+      digests; every token, code and key from `secrets`. The only use of `random` jitters the
+      synthetic scans of the evaluation's documents (`scripts/render_documents.py`).
 
 ### V12 Secure communication
 
-- [ ] TLS everywhere in deployment; outbound calls use `httpx` with certificate verification
-      and timeouts.
+- [x] TLS everywhere in deployment; outbound calls use `httpx` with certificate verification
+      and timeouts. The demo's API (Render) and web application (Vercel) are served over HTTPS
+      only, and production's web origins must be `https://`; no client turns verification off,
+      and each has a timeout of its own, or httpx's five seconds.
 
 ### V13 Configuration
 
-- [ ] Configuration from environment variables only; `.env.example` lists names, never values.
+- [x] Configuration from environment variables only; `.env.example` lists every setting the
+      API reads (a test holds it to them), with the local development's defaults where a
+      setting has one and every secret empty.
 - [x] `REDIS_URL`, which may carry the queue's password, is a secret setting that never
       appears in a log or a `repr`, and must name `redis://` or `rediss://` (TLS, for a
       server elsewhere).
@@ -336,8 +366,12 @@ system are marked as such.
 - [x] The corpus's sources are pinned by SHA-256 in `corpus/manifest.toml`: the converter
       refuses a download whose digest differs, and loading the corpus refuses an edition file
       that is not exactly what the converter writes (ADR-0020).
-- [ ] Debug mode and interactive docs disabled or protected outside development.
-- [ ] Dependency audits in CI; Dependabot enabled.
+- [x] Debug mode and interactive docs disabled or protected outside development: FastAPI's
+      debug mode is never on, and production serves no `/docs` or `/redoc`, only the schema,
+      which `docs/api/openapi.json` publishes anyway (tested).
+- [x] Dependency audits in CI; Dependabot enabled: `pip-audit --strict` against the lock file
+      and `pnpm audit` from high upwards on every pull request, and Dependabot's weekly
+      updates for Python, Node and the workflows' actions.
 
 ### V14 Data protection
 
@@ -392,15 +426,22 @@ system are marked as such.
 
 ### V15 Secure coding and architecture
 
-- [~] Deterministic validator as the single source of truth; LLM output treated as untrusted:
+- [x] Deterministic validator as the single source of truth; LLM output treated as untrusted:
       the explainer is asked about violations layer 1 reported in the same request, never
       about violations a client sends; its answer is parsed against a schema, its citations
       checked, its values held to those of its question (ADR-0022), and the response built
-      from stored passages, not from what the model wrote about them. The violation and the passages are sent as data the model is told not to
-      follow. The repairer's patches are parsed against a schema and the patch engine's own
-      model and path grammar, their values held to what the model was sent, and applied by the
-      validator's process to a copy that layer 1 judges; a person approves them (ADR-0025).
-- [ ] Static typing (`mypy --strict`), linting and tests gate every change.
+      from stored passages, not from what the model wrote about them. The violation and the
+      passages are sent as data the model is told not to follow. The repairer's patches are
+      parsed against a schema and the patch engine's own model and path grammar, their values
+      held to what the model was sent, and applied by the validator's process to a copy that
+      layer 1 judges; a person approves them (ADR-0025). The fields a model reads from a PDF or
+      a picture are shown to a person to confirm, drafted into UBL by code, never by the model,
+      and judged by the validator like any upload (ADR-0062). The evaluations measure all three
+      against recorded answers, with thresholds CI holds (ADR-0054, ADR-0063).
+- [x] Static typing (`mypy --strict`), linting and tests gate every change: CI runs them on
+      every pull request and every push to `main`: ruff, mypy in strict mode, ESLint, Prettier,
+      TypeScript, the tests with their coverage gates (90 % for the core, 80 % for the API),
+      the end-to-end golden path, gitleaks over the history and the dependency audits.
 
 ### V16 Security logging and error handling
 
