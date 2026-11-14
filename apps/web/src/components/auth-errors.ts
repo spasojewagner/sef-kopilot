@@ -23,11 +23,25 @@ export function useAuthErrorMessage(): (error: unknown) => string {
       case 409:
         return t("emailTaken");
       case 422:
-        return t("invalid");
+        return commonPassword(error) ? t("commonPassword") : t("invalid");
       case 429:
         return t("tooMany", { seconds: error.retryAfter ?? 60 });
       default:
         return t("failed");
     }
   };
+}
+
+/** Whether the API refused a new password as among the most common ones. */
+function commonPassword(error: ApiError): boolean {
+  const detail = (error.body as { detail?: unknown } | null)?.detail;
+  return (
+    Array.isArray(detail) &&
+    detail.some(
+      (each) =>
+        typeof each === "object" &&
+        each !== null &&
+        (each as { type?: unknown }).type === "common_password",
+    )
+  );
 }

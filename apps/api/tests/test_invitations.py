@@ -217,6 +217,30 @@ async def test_an_unknown_code_does_not_work(api: AsyncClient) -> None:
     assert (await accept(api, "not-an-invitation-code")).status_code == 400
 
 
+#: Among the most common passwords, whatever its case.
+TOO_COMMON = "Qwerty" + "123456"
+
+
+async def test_a_new_account_s_common_password_is_refused(
+    api: AsyncClient, session: AsyncSession, primer: Office
+) -> None:
+    issued = await invite(api, primer)
+
+    response = await accept(api, issued["code"], password=TOO_COMMON)
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": [
+            {
+                "type": "common_password",
+                "loc": ["body", "password"],
+                "msg": "is among the most common passwords; choose another",
+            }
+        ]
+    }
+    assert await session.scalar(select(User).where(User.email == "nova@primer.example")) is None
+
+
 async def test_a_new_accounts_password_needs_twelve_characters(
     api: AsyncClient, session: AsyncSession, primer: Office
 ) -> None:

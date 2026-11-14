@@ -133,6 +133,11 @@ is tagged.
   `Referrer-Policy: no-referrer` (a page's address may hold an invitation's code) and a
   `Permissions-Policy` that gives no page a camera, a microphone, a position or a payment;
   scripts may still be inline, as Next.js writes its own (ASVS V3).
+- `apps/api`, `apps/web`: a new password, on registration or for the account an invitation
+  creates, is refused when it is among the 10,000 most common passwords that meet the length a
+  new one needs, compared in lower case; the list ships with the API (from SecLists, its MIT
+  licence beside it), so checking asks no one outside. The refusal is a 422 of type
+  `common_password`, and the page says the password is easy to guess (ASVS 6.2.4).
 
 
 ## [0.6.0] - 2026-11-10

@@ -5,13 +5,20 @@ lane): every hash costs a few dozen milliseconds of CPU, so guessing is slow, an
 so a free-tier instance survives several sign-ins at once. Hashing runs in a worker thread, and
 the event loop keeps serving other requests meanwhile. A hash records its own parameters, so
 raising them later only needs :func:`needs_rehash` at sign-in.
+
+A new password is also refused when it is among the 10,000 most common passwords that meet the
+length a new one needs, compared in lower case (ASVS 6.2.4): the list ships with the API
+(``common-passwords.txt.gz``, from SecLists; its licence beside it), so checking it asks no one
+outside, as a self-hosted deployment makes no calls it was not told to.
 """
 
 from __future__ import annotations
 
 import asyncio
+import gzip
 import secrets
 from functools import cache
+from importlib.resources import files
 from typing import Final
 
 from argon2 import PasswordHasher
@@ -21,6 +28,7 @@ __all__ = [
     "MAXIMUM_LENGTH",
     "MINIMUM_LENGTH",
     "hash_password",
+    "is_common",
     "needs_rehash",
     "verify_password",
 ]
@@ -66,3 +74,16 @@ async def verify_password(password_hash: str | None, password: str) -> bool:
 def needs_rehash(password_hash: str) -> bool:
     """Whether ``password_hash`` was made with other parameters than the current ones."""
     return _HASHER.check_needs_rehash(password_hash)
+
+
+@cache
+def _common() -> frozenset[str]:
+    """The common passwords, in lower case, read once."""
+    listed = files("sef_api.auth").joinpath("common-passwords.txt.gz")
+    with listed.open("rb") as packed, gzip.open(packed, "rt", encoding="utf-8") as lines:
+        return frozenset(line.rstrip("\n") for line in lines if line.strip())
+
+
+def is_common(password: str) -> bool:
+    """Whether ``password`` is among the most common passwords, whatever its case."""
+    return password.lower() in _common()

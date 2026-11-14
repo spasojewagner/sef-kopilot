@@ -118,6 +118,7 @@
     "signIn": "Sign in"
   },
   "authErrors": {
+    "commonPassword": "This password is among the most common ones, which makes it easy to guess. Choose another.",
     "wrongCredentials": "The address or the password is wrong.",
     "notAMember": "You are not a member of that organization.",
     "emailTaken": "An account with this address exists already.",

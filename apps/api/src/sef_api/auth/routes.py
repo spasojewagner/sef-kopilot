@@ -5,11 +5,12 @@ from __future__ import annotations
 import uuid
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Any, Final, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, EmailStr, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, EmailStr, Field, StringConstraints
+from pydantic_core import PydanticCustomError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +21,7 @@ from sef_api.auth.dependencies import (
     get_token_settings,
     no_longer_active,
 )
-from sef_api.auth.passwords import MAXIMUM_LENGTH, MINIMUM_LENGTH
+from sef_api.auth.passwords import MAXIMUM_LENGTH, MINIMUM_LENGTH, is_common
 from sef_api.auth.service import SignedIn, TokenSettings
 from sef_api.db import get_session
 from sef_api.logs import security_event
@@ -51,7 +52,23 @@ def password_attempts(request: Request) -> PasswordAttempts:
 
 Attempts = Annotated[PasswordAttempts, Depends(password_attempts)]
 
-NewPassword = Annotated[str, Field(min_length=MINIMUM_LENGTH, max_length=MAXIMUM_LENGTH)]
+#: The refusal of a new password that is among the most common ones: the type a client tells it
+#: by, as a request's model refuses it and as accepting an invitation does.
+COMMON_PASSWORD: Final = "common_password"
+_COMMON_MESSAGE: Final = "is among the most common passwords; choose another"
+
+
+def _not_common(password: str) -> str:
+    if is_common(password):
+        raise PydanticCustomError(COMMON_PASSWORD, _COMMON_MESSAGE)
+    return password
+
+
+NewPassword = Annotated[
+    str,
+    Field(min_length=MINIMUM_LENGTH, max_length=MAXIMUM_LENGTH),
+    AfterValidator(_not_common),
+]
 Password = Annotated[str, Field(min_length=1, max_length=MAXIMUM_LENGTH)]
 OrganizationName = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
@@ -71,7 +88,9 @@ NO_STORE = Depends(no_store)
 
 class RegisterRequest(BaseModel):
     email: EmailStr = Field(description="The address to sign in with; stored in lower case.")
-    password: NewPassword = Field(description="12 to 128 characters.")
+    password: NewPassword = Field(
+        description="12 to 128 characters, not among the most common passwords."
+    )
     organization_name: OrganizationName = Field(
         description="The organization this account starts with; the person becomes its owner."
     )
@@ -281,7 +300,9 @@ async def login(
         status.HTTP_409_CONFLICT: {"model": Problem, "description": "The address just registered."},
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": Problem,
-            "description": "The new account's password is too short.",
+            "description": "The new account's password is too short; or it is among the most "
+            "common passwords, which `detail` says as registration's refusal does, an error of "
+            "type `common_password`.",
         },
     },
 )
@@ -308,6 +329,12 @@ async def accept_invitation(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"a new account's password needs {MINIMUM_LENGTH} to {MAXIMUM_LENGTH} characters",
+        ) from None
+    except service.CommonPasswordError:
+        # As the request's model refuses a common password on registration.
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            [{"type": COMMON_PASSWORD, "loc": ["body", "password"], "msg": _COMMON_MESSAGE}],
         ) from None
     except service.EmailTakenError:
         raise HTTPException(

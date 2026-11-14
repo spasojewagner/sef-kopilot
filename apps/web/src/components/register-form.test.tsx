@@ -115,6 +115,31 @@ describe("Registration form", () => {
     );
   });
 
+  it("says that a password among the most common ones is easy to guess", async () => {
+    stubRegister(
+      () =>
+        new Response(
+          JSON.stringify({
+            detail: [
+              {
+                type: "common_password",
+                loc: ["body", "password"],
+                msg: "is among the most common passwords; choose another",
+              },
+            ],
+          }),
+          { status: 422, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    renderIn("sr-Latn", <RegisterForm />);
+
+    await registerAs("alice@primer.example", "qwerty123456", "Primer d.o.o.");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Ova lozinka je među najčešćim lozinkama, pa je lako pogoditi. Izaberite drugu.",
+    );
+  });
+
   it("asks for a password of 12 to 128 characters, and says so", () => {
     renderIn("sr-Latn", <RegisterForm />);
 

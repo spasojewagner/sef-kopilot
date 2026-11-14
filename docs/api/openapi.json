@@ -278,7 +278,7 @@
             }
           },
           "422": {
-            "description": "The new account's password is too short.",
+            "description": "The new account's password is too short; or it is among the most common passwords, which `detail` says as registration's refusal does, an error of type `common_password`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6636,7 +6636,7 @@
             "maxLength": 128,
             "minLength": 12,
             "title": "Password",
-            "description": "12 to 128 characters."
+            "description": "12 to 128 characters, not among the most common passwords."
           },
           "organization_name": {
             "type": "string",

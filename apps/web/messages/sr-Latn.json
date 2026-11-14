@@ -118,6 +118,7 @@
     "signIn": "Prijavite se"
   },
   "authErrors": {
+    "commonPassword": "Ova lozinka je među najčešćim lozinkama, pa je lako pogoditi. Izaberite drugu.",
     "wrongCredentials": "Adresa ili lozinka nije tačna.",
     "notAMember": "Niste član te organizacije.",
     "emailTaken": "Za ovu adresu već postoji nalog.",
