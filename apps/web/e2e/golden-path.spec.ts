@@ -40,10 +40,16 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
   await test.step("no page lets another site show it in a frame", async () => {
     const response = await page.goto("/sr-Latn/register");
 
-    expect(response?.headers()["content-security-policy"]).toBe(
+    const headers = response?.headers() ?? {};
+    expect(headers["content-security-policy"]).toContain(
       "frame-ancestors 'none'",
     );
-    expect(response?.headers()["x-frame-options"]).toBe("DENY");
+    expect(headers["content-security-policy"]).toContain(
+      `connect-src 'self' ${new URL(API).origin}`,
+    );
+    expect(headers["x-frame-options"]).toBe("DENY");
+    expect(headers["x-content-type-options"]).toBe("nosniff");
+    expect(headers["referrer-policy"]).toBe("no-referrer");
   });
 
   await test.step("the pages wear the brand, and a key leads past the header", async () => {
@@ -237,7 +243,7 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
     const consent = await page.goto(`${API}/oauth/authorize?${authorize}`);
 
     await expect(page).toHaveURL(/\/en\/oauth\/consent\?request=[\w-]{43}$/);
-    expect(consent?.headers()["content-security-policy"]).toBe(
+    expect(consent?.headers()["content-security-policy"]).toContain(
       "frame-ancestors 'none'",
     );
     await expect(

@@ -125,7 +125,11 @@ is tagged.
   as declared (`nosniff`) and to send no address on (`Referrer-Policy: no-referrer`); in
   production the interactive documentation (`/docs`, `/redoc`) is not served, the schema is (ASVS
   V3, V13).
-
+- `apps/web`: every page is served with a content security policy that lets it reach its own site
+  and the API alone, and load no image, font or object from elsewhere, with `nosniff`,
+  `Referrer-Policy: no-referrer` (a page's address may hold an invitation's code) and a
+  `Permissions-Policy` that gives no page a camera, a microphone, a position or a payment;
+  scripts may still be inline, as Next.js writes its own (ASVS V3).
 
 
 ## [0.6.0] - 2026-11-10
