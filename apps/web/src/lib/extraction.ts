@@ -325,7 +325,8 @@ export type Required =
  * a draft without them fails the schema, after which the validator judges nothing else: the
  * number, the date of issue, a line at least, each line's amount, each VAT row's tax, the total
  * VAT where there are rows, and the amount due. The rest a person may leave empty, for the
- * validator to say what SEF makes of it.
+ * validator to say what SEF makes of it. The API's tests pin the same fields
+ * (`apps/api/tests/test_extraction_draft.py`).
  */
 export function requiredIn(form: FieldsForm): Required[] {
   const empty = (value: string) => value.trim() === "";
