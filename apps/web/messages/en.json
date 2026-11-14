@@ -146,7 +146,7 @@
     "amount": "Amount due",
     "verdict": "Verdict",
     "submitted": "Sent",
-    "unreadable": "Unreadable document",
+    "notSchemaValid": "Fails the UBL schema",
     "more": "Show more"
   },
   "upload": {
@@ -194,7 +194,7 @@
     "notFound": "This invoice does not exist, or is not yours.",
     "notLoaded": "The report did not load. Try again a little later.",
     "back": "Back to the invoices",
-    "unreadable": "Unreadable document",
+    "notSchemaValid": "Fails the UBL schema",
     "seller": "Seller",
     "buyer": "Buyer",
     "issued": "Issue date",

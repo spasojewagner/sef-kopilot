@@ -37,7 +37,7 @@ describe("Invoice list", () => {
     expect(within(rows[2]).getByText("Ispravna")).toBeInTheDocument();
   });
 
-  it("says so of a document the validator could not read", async () => {
+  it("says so of a document that fails the UBL schema", async () => {
     keepSession();
     stubApi(() =>
       json(200, { invoices: [invoice({ summary: null })], next: null }),
@@ -46,7 +46,7 @@ describe("Invoice list", () => {
     renderIn("sr-Latn", <InvoiceList />);
 
     expect(
-      await screen.findByRole("link", { name: "Nečitljiv dokument" }),
+      await screen.findByRole("link", { name: "Ne prolazi UBL šemu" }),
     ).toBeInTheDocument();
   });
 

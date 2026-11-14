@@ -72,7 +72,7 @@ function Loaded({ invoice }: { invoice: StoredInvoice }) {
       <header className="grid gap-5 rounded-xl border bg-card p-5 text-card-foreground shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-            {summary?.number ?? t("unreadable")}
+            {summary?.number ?? t("notSchemaValid")}
           </h1>
           <Verdict valid={report.valid} />
         </div>

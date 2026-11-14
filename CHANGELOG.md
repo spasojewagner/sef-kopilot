@@ -109,6 +109,10 @@ is tagged.
 - `evals`: an empty `SEF_TEST_DATABASE_URL`, as `.env.example` leaves it, is read as not set
   and says so, as the API's tests read it, instead of failing with SQLAlchemy's traceback;
   a value that is no database URL is refused without being repeated.
+- `apps/web`: an invoice without a summary is named "Fails the UBL schema" in the list and on its
+  report, where it was an "Unreadable document": a summary is read only from a document the
+  schema passes, and an XML that lacks a date of issue is quite readable.
+
 
 ## [0.6.0] - 2026-11-10
 
