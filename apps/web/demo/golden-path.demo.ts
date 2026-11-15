@@ -13,7 +13,7 @@ import {
  * The README's demo (`docs/demo/golden-path.gif`): the end-to-end test's golden path, walked at
  * a person's pace and recorded. A person uploads an invoice whose type code SEF does not accept,
  * reads its report, has the language model suggest a repair, reads its diff, approves it, and
- * finds the invoice valid. The API is the end-to-end test's, so the repair comes from its
+ * finds the invoice valid before searching for it in the list. The API is the end-to-end test's, so the repair comes from its
  * scripted model (`scripts/serve_e2e_api.py`), and the page says so.
  *
  * Chromium sends the frames itself, lossless and only when the page changes (the DevTools
@@ -27,12 +27,15 @@ const INVOICE = path.join(
   __dirname,
   "../../../fixtures/invoices/synthetic/mutations/srb-001-invoice-type-code.xml",
 );
+const DEMO_EMAIL = "marija@primer.example";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 /** Where the frames and their list are written. */
 const FRAMES = path.join(__dirname, "../test-results/demo");
 /** The page is drawn at 1280 by 720, and its frames scaled down to the GIF's width. */
 const PAGE = { width: 1280, height: 720 };
-const WIDTH = 960;
+const WIDTH = 768;
+/** Seconds between frames before approval, to keep the GIF within the file limit. */
+const FRAME_INTERVAL = 1 / 5;
 /** How long the last frame is shown before the GIF starts again, in seconds. */
 const LAST_FRAME_SECONDS = 3;
 
@@ -91,17 +94,21 @@ function drawPointer() {
 /** The screencast's frames, each with the time Chromium drew it, in seconds. */
 type Frame = { png: Buffer; at: number };
 
-async function startScreencast(page: Page): Promise<{
+async function startScreencast(
+  page: Page,
+  recordEveryFrame: () => boolean,
+): Promise<{
   session: CDPSession;
   frames: Frame[];
 }> {
   const session = await page.context().newCDPSession(page);
   const frames: Frame[] = [];
   session.on("Page.screencastFrame", (frame) => {
-    frames.push({
-      png: Buffer.from(frame.data, "base64"),
-      at: frame.metadata.timestamp ?? Date.now() / 1000,
-    });
+    const at = frame.metadata.timestamp ?? Date.now() / 1000;
+    const previous = frames.at(-1);
+    if (recordEveryFrame() || !previous || at - previous.at >= FRAME_INTERVAL) {
+      frames.push({ png: Buffer.from(frame.data, "base64"), at });
+    }
     // Chromium sends the next frame once this one is acknowledged.
     session
       .send("Page.screencastFrameAck", { sessionId: frame.sessionId })
@@ -162,7 +169,7 @@ test("the golden path, as the README shows it", async ({
   const signingUp = await browser.newContext({ baseURL });
   const form = await signingUp.newPage();
   await form.goto("/en/register");
-  await form.getByLabel("E-mail address").fill("marija@primer.example");
+  await form.getByLabel("E-mail address").fill(DEMO_EMAIL);
   await form.getByLabel("Password").fill("a long passphrase for the demo");
   await form.getByLabel("Organization name").fill("Primer d.o.o.");
   await form.getByRole("button", { name: "Create the account" }).click();
@@ -170,27 +177,46 @@ test("the golden path, as the README shows it", async ({
   const storageState = await signingUp.storageState();
   await signingUp.close();
 
-  // Less motion keeps the home page's example still, and the GIF small.
   const context = await browser.newContext({
     baseURL,
     storageState,
     viewport: PAGE,
-    reducedMotion: "reduce",
+    reducedMotion: "no-preference",
   });
   await context.addInitScript(drawPointer);
   const page = await context.newPage();
   await page.goto("/en");
   await page.evaluate(() => document.fonts.ready);
+  const account = page.getByRole("button", { name: `Account ${DEMO_EMAIL}` });
+  await expect(account).toContainText("M");
   await page.mouse.move(PAGE.width / 2, PAGE.height / 2);
-  const { session, frames } = await startScreencast(page);
-  await page.waitForTimeout(2600);
+  await page.waitForTimeout(700);
+  let recordEveryFrame = false;
+  const { session, frames } = await startScreencast(
+    page,
+    () => recordEveryFrame,
+  );
+  await page.waitForTimeout(650);
+
+  // Let the home page reveal the route of an invoice as it comes into view.
+  const route = page.getByRole("heading", {
+    name: "The model suggests, the validator judges, you decide",
+  });
+  await route.evaluate((element) =>
+    element.scrollIntoView({ block: "center", behavior: "instant" }),
+  );
+  await expect(route).toHaveAttribute("data-reveal-state", "shown");
+  await page.waitForTimeout(1100);
 
   // An invoice SEF would reject, uploaded.
   await press(
     page,
-    page.getByRole("link", { name: "Check an invoice" }).first(),
+    page
+      .getByRole("banner")
+      .getByRole("link", { name: "Invoices", exact: true }),
   );
   await expect(page).toHaveURL("/en/invoices");
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const file = page.getByLabel("Invoice (XML, PDF or picture)");
   await pointAt(page, file);
   await file.setInputFiles(INVOICE);
@@ -224,6 +250,7 @@ test("the golden path, as the README shows it", async ({
     repair.getByRole("button", { name: "Approve", exact: true }),
   );
   await page.waitForTimeout(500);
+  recordEveryFrame = true;
   await press(page, repair.getByRole("button", { name: "Yes, approve" }));
   await expect(repair.getByRole("status")).toHaveText(
     "The repair is approved: the invoice is now the copy with these changes.",
@@ -239,6 +266,27 @@ test("the golden path, as the README shows it", async ({
       .locator("header")
       .getByText("Valid", { exact: true }),
   ).toBeVisible();
+  await page.waitForTimeout(900);
+
+  // Find the checked invoice again, with the list's controls in view.
+  await press(page, page.getByRole("link", { name: "Back to the invoices" }));
+  await expect(page).toHaveURL("/en/invoices");
+  const list = page.getByRole("heading", { name: "Checked invoices" });
+  await list.evaluate((element) =>
+    element.scrollIntoView({ block: "start", behavior: "instant" }),
+  );
+  const search = page.getByRole("searchbox", { name: "Search" });
+  await expect(search).toBeInViewport({ ratio: 1 });
+  await expect(page.getByLabel("Issue date to")).toBeInViewport({ ratio: 1 });
+  const invoice = page.getByRole("link", { name: "RF-2026-000123" });
+  await expect(invoice).toBeVisible();
+  await press(page, search);
+  await search.fill("RF-2026");
+  await expect(page).toHaveURL("/en/invoices?q=RF-2026");
+  await expect(invoice.locator("mark")).toHaveText("RF-2026");
+  await expect(page.getByRole("navigation", { name: "Pages" })).toBeInViewport({
+    ratio: 1,
+  });
   await page.waitForTimeout(600);
 
   await session.send("Page.stopScreencast");
