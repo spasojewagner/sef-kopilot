@@ -3145,3 +3145,16 @@ The production build was captured at desktop and phone widths in both colour sch
 84 synthetic invoices.
 
 Next: review the branch with the task report and screenshots.
+
+
+## 2026-11-15 — `chore/release-1.1`
+
+Outcome: 1.1.0. Every package moves from 1.0.0 together, and the changelog's Unreleased section
+becomes 1.1.0, opened by what it adds to 1.0: the account menu, the reading's summary and
+panels, the home page's motion, the invoices' search and pages, Gemini as an organization's own
+provider, renaming an organization, changing a password, and the refusal of a password its
+address or organization gives away.
+
+Verification: the API, web and end-to-end tests on the branch; the version on the home page.
+
+Next: record the README's demo again from this version, then tag `v1.1.0` on that merge.
