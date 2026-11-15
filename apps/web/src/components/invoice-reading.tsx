@@ -1,8 +1,17 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
-import { useTranslations } from "next-intl";
+import {
+  ChevronDown,
+  CircleAlert,
+  CircleCheck,
+  CircleDashed,
+  FileText,
+  Info,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type ReactNode } from "react";
 
 import { useUploadErrorMessage } from "@/components/upload-errors";
@@ -17,6 +26,7 @@ import {
 } from "@/components/ui/native-select";
 import { useRouter } from "@/i18n/navigation";
 import { ApiError } from "@/lib/api";
+import { formatAmount, formatDay } from "@/lib/format";
 import {
   draftFileName,
   draftInvoice,
@@ -112,15 +122,128 @@ function Field({
   );
 }
 
-/** A group of fields under a heading of its own. */
-function Group({ title, children }: { title: string; children: ReactNode }) {
+/** The panels of the form, in its order. */
+type PanelName =
+  "invoice" | "seller" | "buyer" | "lines" | "vat" | "totals" | "payment";
+
+/**
+ * A group of fields that folds away under a line of its own: its title, what it holds in a few
+ * words, and whether something in it needs the person. Its fields stay a group named by its
+ * title, folded or not.
+ */
+function Panel({
+  title,
+  summary,
+  attention,
+  open,
+  onOpenChange,
+  children,
+}: {
+  title: string;
+  summary: string | null;
+  attention: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  const t = useTranslations("reading");
   return (
-    <fieldset className="grid gap-4 border-t pt-5 first:border-t-0 first:pt-0">
-      <legend className="float-left mb-1 w-full text-base font-semibold tracking-tight">
-        {title}
-      </legend>
-      {children}
-    </fieldset>
+    <details
+      open={open}
+      onToggle={(event) => {
+        if (event.currentTarget.open !== open) {
+          onOpenChange(event.currentTarget.open);
+        }
+      }}
+      className="disclosure group/panel rounded-lg border bg-card"
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-3 outline-none hover:bg-muted/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+        {attention ? (
+          <CircleAlert
+            role="img"
+            aria-label={t("panel.attention")}
+            className="size-4 shrink-0 text-warning"
+          />
+        ) : summary === null ? (
+          <CircleDashed
+            role="img"
+            aria-label={t("panel.empty")}
+            className="size-4 shrink-0 text-muted-foreground"
+          />
+        ) : (
+          <CircleCheck
+            role="img"
+            aria-label={t("panel.read")}
+            className="size-4 shrink-0 text-success"
+          />
+        )}
+        <span className="grid min-w-0 flex-1 gap-0.5">
+          <span className="text-sm font-semibold">{title}</span>
+          <span className="truncate text-sm text-muted-foreground">
+            {summary ?? t("panel.empty")}
+          </span>
+        </span>
+        <ChevronDown
+          aria-hidden="true"
+          className="size-4 shrink-0 text-muted-foreground transition-transform group-open/panel:rotate-180"
+        />
+      </summary>
+      <fieldset className="grid gap-4 border-t px-3 pt-4 pb-5 sm:px-4">
+        <legend className="sr-only">{title}</legend>
+        {children}
+      </fieldset>
+    </details>
+  );
+}
+
+/**
+ * The columns of a line or a row: its number, what it is, its amount, and its chevron. On a
+ * phone the amount goes under what it is, which then has the width to be read.
+ */
+const ROW_COLUMNS =
+  "grid-cols-[1.25rem_minmax(0,1fr)_1rem] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_1rem]";
+/** Where the amount of a line or a row goes, under what it is on a phone. */
+const ROW_AMOUNT =
+  "col-start-2 row-start-2 font-medium tabular-nums sm:col-start-3 sm:row-start-1 sm:text-right";
+
+/**
+ * A line or a row of the recapitulation: what it holds, on one line in columns, which opens on
+ * its fields.
+ */
+function Row({
+  cells,
+  open,
+  onOpenChange,
+  children,
+}: {
+  cells: ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <details
+      open={open}
+      onToggle={(event) => {
+        if (event.currentTarget.open !== open) {
+          onOpenChange(event.currentTarget.open);
+        }
+      }}
+      className="disclosure group/row rounded-md border open:bg-muted/20"
+    >
+      <summary
+        className={`grid cursor-pointer list-none items-center gap-x-2 gap-y-1 rounded-md px-2.5 py-2 text-sm outline-none hover:bg-muted/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:gap-x-3 sm:px-3 [&::-webkit-details-marker]:hidden ${ROW_COLUMNS}`}
+      >
+        {cells}
+        <ChevronDown
+          aria-hidden="true"
+          className="col-start-3 row-start-1 size-4 text-muted-foreground transition-transform group-open/row:rotate-180 sm:col-start-4"
+        />
+      </summary>
+      <div className="grid gap-3 border-t px-2.5 pt-3 pb-4 sm:px-3">
+        {children}
+      </div>
+    </details>
   );
 }
 
@@ -138,7 +261,7 @@ function DocumentShown({ url, type }: { url: string; type: DocumentType }) {
           data={url}
           type="application/pdf"
           aria-label={t("documentAlt")}
-          className="h-[70vh] w-full rounded-md border bg-muted/40"
+          className="h-[50vh] w-full rounded-md border bg-muted/40 lg:h-[70vh]"
         >
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <FileText aria-hidden className="size-8 text-muted-foreground" />
@@ -309,12 +432,113 @@ export function InvoiceReading({
     return t(`fields.${REQUIRED_LABEL[name as keyof typeof REQUIRED_LABEL]}`);
   }
 
+  const locale = useLocale();
+  const currency = /^[A-Z]{3}$/.test(form.currency.trim())
+    ? form.currency.trim()
+    : null;
+  /** An amount as the person's language writes it, in the invoice's currency; as typed if not one. */
+  const shownAmount = (value: string, inCurrency = true) => {
+    const plain = value.trim();
+    if (!/^-?\d+(\.\d+)?$/.test(plain)) {
+      return plain;
+    }
+    try {
+      return formatAmount(locale, plain, inCurrency ? currency : null);
+    } catch {
+      return formatAmount(locale, plain, null);
+    }
+  };
+  /** A day as the person's language writes it; as typed if not one. */
+  const shownDay = (value: string) => {
+    const plain = value.trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(plain) && !Number.isNaN(Date.parse(plain))
+      ? formatDay(locale, plain)
+      : plain;
+  };
+  const joined = (...parts: (string | false | null | undefined)[]) =>
+    parts.filter((part) => part).join(" · ") || null;
+  const vatRate = (rate: string) => rate.trim() && `${rate.trim()} %`;
+
+  // A panel needs the person where SEF needs a field of it the reading did not find, or where
+  // the invoice cannot be made without one: it opens of itself then, and stays as they leave it.
+  const lackingAny = (prefix: string) =>
+    [...lacking].some((name) => name.startsWith(prefix));
+  const attention: Record<PanelName, boolean> = {
+    invoice:
+      (["type_code", "number", "issue_date", "currency"] as const).some(
+        (name) => needs.has(name),
+      ) ||
+      lacking.has("type_code") ||
+      lacking.has("number") ||
+      lacking.has("issue_date"),
+    seller: needs.has("seller.name") || needs.has("seller.tax_id"),
+    buyer: needs.has("buyer.name") || needs.has("buyer.tax_id"),
+    lines: needs.has("lines") || lackingAny("lines"),
+    vat: lackingAny("vat_breakdown."),
+    totals: needs.has("totals.payable") || lackingAny("totals."),
+    payment: false,
+  };
+  const [opened, setOpened] = useState(() => attention);
+  const panel = (name: PanelName) => ({
+    attention: attention[name],
+    open: opened[name] || (refusedEmpty && attention[name]),
+    onOpenChange: (open: boolean) =>
+      setOpened((was) => ({ ...was, [name]: open })),
+  });
+  // The lines and rows open on their fields: a new one, and one the invoice cannot be made
+  // without a field of.
+  const [openLines, setOpenLines] = useState<ReadonlySet<number>>(
+    () =>
+      new Set(
+        form.lines.flatMap((line, index) =>
+          line.net_amount.trim() === "" ? [index] : [],
+        ),
+      ),
+  );
+  const [openRows, setOpenRows] = useState<ReadonlySet<number>>(new Set());
+  const toggled =
+    (
+      set: (change: (was: ReadonlySet<number>) => ReadonlySet<number>) => void,
+      index: number,
+    ) =>
+    (open: boolean) =>
+      set((was) => {
+        const next = new Set(was);
+        if (open) {
+          next.add(index);
+        } else {
+          next.delete(index);
+        }
+        return next;
+      });
+  /** The indexes still open once ``removed`` is gone, those after it one less. */
+  const without = (was: ReadonlySet<number>, removed: number) =>
+    new Set(
+      [...was]
+        .filter((index) => index !== removed)
+        .map((index) => (index > removed ? index - 1 : index)),
+    );
+  const typeName = TYPE_CODES.includes(
+    form.type_code as (typeof TYPE_CODES)[number],
+  )
+    ? t(`types.${form.type_code as (typeof TYPE_CODES)[number]}`)
+    : null;
+
   function party(which: "seller" | "buyer") {
     const values = form[which];
     const needed = (key: keyof PartyForm) =>
       needs.has(`${which}.${key}` as Needed);
     return (
-      <Group title={t(`sections.${which}`)}>
+      <Panel
+        title={t(`sections.${which}`)}
+        summary={joined(
+          values.name.trim(),
+          values.tax_id.trim() &&
+            `${t("fields.tax_id")} ${values.tax_id.trim()}`,
+          values.city.trim(),
+        )}
+        {...panel(which)}
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             label={t("fields.name")}
@@ -378,13 +602,38 @@ export function InvoiceReading({
             </>
           ) : null}
         </div>
-      </Group>
+      </Panel>
     );
   }
 
+  const totalsShown = (
+    [
+      "line_total",
+      "tax_exclusive",
+      "tax",
+      "tax_inclusive",
+      "prepaid",
+      "payable",
+    ] as const
+  ).map((key) => (
+    <Field
+      key={key}
+      label={t(`fields.${key}`)}
+      value={form.totals[key]}
+      onChange={setTotal(key)}
+      needed={
+        (key === "payable" && needs.has("totals.payable")) ||
+        (key === "tax" && lacking.has("totals.tax"))
+      }
+      hint={t("hints.amount")}
+      numeric
+    />
+  ));
+  const unread = <span className="text-muted-foreground">—</span>;
+
   return (
     <div className="grid gap-6">
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-lg font-semibold tracking-tight">
             {t("title", {
@@ -396,10 +645,14 @@ export function InvoiceReading({
         <p className="text-sm text-muted-foreground">
           {t("model", { model: extraction.model })}
         </p>
+        <p
+          role="note"
+          className="flex max-w-prose gap-2 text-sm text-muted-foreground"
+        >
+          <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span>{t("check")}</span>
+        </p>
       </div>
-      <Alert role="note">
-        <AlertDescription>{t("check")}</AlertDescription>
-      </Alert>
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <section aria-label={t("document")} className="lg:sticky lg:top-24">
           <DocumentShown url={url} type={type} />
@@ -410,36 +663,114 @@ export function InvoiceReading({
           </Button>
         </section>
         <form
-          className="grid gap-6"
+          className="grid gap-3"
           onSubmit={(event) => {
             event.preventDefault();
             make();
           }}
         >
-          {missing.length > 0 ? (
-            <Alert role="status">
-              <AlertTitle className="line-clamp-none">
-                {t("missingTitle")}
-              </AlertTitle>
-              <AlertDescription>
-                {t("missingList", {
-                  fields: missing
-                    .map((name) => {
-                      if (name === "lines") {
-                        return t("sections.lines");
-                      }
-                      const [label, party] = NEEDED_LABEL[name];
-                      return party === null
-                        ? t(`fields.${label}`)
-                        : `${t(`fields.${label}`)} (${t(`sections.${party}`)})`;
-                    })
-                    .join(", "),
-                })}
-              </AlertDescription>
-            </Alert>
-          ) : null}
+          <section
+            aria-label={t("summary.label")}
+            className="grid gap-4 rounded-lg border bg-card p-5"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+              <div className="grid min-w-0 gap-0.5">
+                <p className="text-sm text-muted-foreground">
+                  {typeName ?? t("summary.untyped")}
+                </p>
+                <p className="text-xl font-semibold tracking-tight break-all">
+                  {form.number.trim() || t("summary.unnumbered")}
+                </p>
+                {form.issue_date.trim() ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t("summary.issued", {
+                      date: shownDay(form.issue_date),
+                    })}
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid gap-0.5 sm:text-right">
+                <p className="text-sm text-muted-foreground">
+                  {t("fields.payable")}
+                </p>
+                <p className="text-2xl font-semibold tracking-tight tabular-nums">
+                  {form.totals.payable.trim()
+                    ? shownAmount(form.totals.payable)
+                    : unread}
+                </p>
+                {form.totals.tax_exclusive.trim() ? (
+                  <p className="text-sm text-muted-foreground tabular-nums">
+                    {t("summary.net", {
+                      amount: shownAmount(form.totals.tax_exclusive),
+                    })}
+                  </p>
+                ) : null}
+                {form.totals.tax.trim() ? (
+                  <p className="text-sm text-muted-foreground tabular-nums">
+                    {t("summary.tax", { amount: shownAmount(form.totals.tax) })}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <dl className="grid gap-3 border-t pt-4 text-sm sm:grid-cols-2">
+              {(["seller", "buyer"] as const).map((which) => (
+                <div key={which} className="grid min-w-0 gap-0.5">
+                  <dt className="text-muted-foreground">
+                    {t(`sections.${which}`)}
+                  </dt>
+                  <dd className="truncate font-medium">
+                    {form[which].name.trim() || unread}
+                  </dd>
+                  {form[which].tax_id.trim() ? (
+                    <dd className="text-muted-foreground tabular-nums">
+                      {t("fields.tax_id")} {form[which].tax_id.trim()}
+                    </dd>
+                  ) : needs.has(`${which}.tax_id`) ? (
+                    <dd className="text-warning">{t("summary.noTaxId")}</dd>
+                  ) : null}
+                </div>
+              ))}
+            </dl>
+            {missing.length > 0 ? (
+              <Alert role="status" variant="warning">
+                <CircleAlert aria-hidden="true" />
+                <AlertTitle className="line-clamp-none">
+                  {t("missingTitle")}
+                </AlertTitle>
+                <AlertDescription>
+                  {t("missingList", {
+                    fields: missing
+                      .map((name) => {
+                        if (name === "lines") {
+                          return t("sections.lines");
+                        }
+                        const [label, party] = NEEDED_LABEL[name];
+                        return party === null
+                          ? t(`fields.${label}`)
+                          : `${t(`fields.${label}`)} (${t(`sections.${party}`)})`;
+                      })
+                      .join(", "),
+                  })}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <p className="flex items-center gap-2 text-sm text-success">
+                <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
+                {t("summary.complete")}
+              </p>
+            )}
+          </section>
 
-          <Group title={t("sections.invoice")}>
+          <Panel
+            title={t("sections.invoice")}
+            summary={joined(
+              typeName,
+              form.number.trim(),
+              shownDay(form.issue_date),
+              form.currency.trim(),
+            )}
+            {...panel("invoice")}
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <Choice
                 label={t("fields.type_code")}
@@ -486,12 +817,20 @@ export function InvoiceReading({
                 className="sm:col-span-2"
               />
             </div>
-          </Group>
+          </Panel>
 
           {party("seller")}
           {party("buyer")}
 
-          <Group title={t("sections.lines")}>
+          <Panel
+            title={t("sections.lines")}
+            summary={joined(
+              t("linesCount", { count: form.lines.length }),
+              form.totals.line_total.trim() &&
+                shownAmount(form.totals.line_total),
+            )}
+            {...panel("lines")}
+          >
             {form.lines.length === 0 ? (
               <p
                 className={
@@ -502,89 +841,137 @@ export function InvoiceReading({
               >
                 {t("noLines")}
               </p>
-            ) : null}
-            <ol className="grid gap-4">
+            ) : (
+              <div
+                aria-hidden="true"
+                className="hidden grid-cols-[1.5rem_minmax(0,1fr)_auto_1rem] gap-x-3 px-3 text-xs text-muted-foreground sm:grid"
+              >
+                <span />
+                <span>{t("columns.item")}</span>
+                <span className="text-right">{t("columns.amount")}</span>
+                <span />
+              </div>
+            )}
+            <ol className="grid gap-2">
               {form.lines.map((line, index) => (
-                <li
-                  key={index}
-                  className="grid gap-3 rounded-lg border bg-muted/20 p-4"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">
-                      {t("line", { number: index + 1 })}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setForm((was) => ({
-                          ...was,
-                          lines: was.lines.filter((_, at) => at !== index),
-                        }))
-                      }
-                    >
-                      {t("removeLine", { number: index + 1 })}
-                    </Button>
-                  </div>
-                  {/* Pairs that belong together: quantity and unit, price and amount, and the
-                      category, whose names are long, beside its rate. */}
-                  <div className="grid gap-3 sm:grid-cols-12">
-                    <Field
-                      label={t("fields.item")}
-                      value={line.name}
-                      onChange={setLine(index, "name")}
-                      className="sm:col-span-12"
-                    />
-                    <Field
-                      label={t("fields.quantity")}
-                      value={line.quantity}
-                      onChange={setLine(index, "quantity")}
-                      numeric
-                      className="sm:col-span-6"
-                    />
-                    <Field
-                      label={t("fields.unit")}
-                      value={line.unit}
-                      onChange={setLine(index, "unit")}
-                      hint={t("hints.unit")}
-                      className="sm:col-span-6"
-                    />
-                    <Field
-                      label={t("fields.unit_price")}
-                      value={line.unit_price}
-                      onChange={setLine(index, "unit_price")}
-                      hint={t("hints.amount")}
-                      numeric
-                      className="sm:col-span-6"
-                    />
-                    <Field
-                      label={t("fields.net_amount")}
-                      value={line.net_amount}
-                      onChange={setLine(index, "net_amount")}
-                      needed={lacking.has(`lines.${index}.net_amount`)}
-                      hint={t("hints.amount")}
-                      numeric
-                      className="sm:col-span-6"
-                    />
-                    <Choice
-                      label={t("fields.vat_category")}
-                      value={line.vat_category}
-                      onChange={setLine(index, "vat_category")}
-                      options={VAT_CATEGORIES.map((code) => [
-                        code,
-                        t(`categories.${code}`),
-                      ])}
-                      className="sm:col-span-8"
-                    />
-                    <Field
-                      label={t("fields.vat_rate")}
-                      value={line.vat_rate}
-                      onChange={setLine(index, "vat_rate")}
-                      numeric
-                      className="sm:col-span-4"
-                    />
-                  </div>
+                <li key={index}>
+                  <Row
+                    open={
+                      openLines.has(index) ||
+                      lacking.has(`lines.${index}.net_amount`)
+                    }
+                    onOpenChange={toggled(setOpenLines, index)}
+                    cells={
+                      <>
+                        <span className="text-muted-foreground tabular-nums">
+                          {index + 1}.
+                        </span>
+                        <span className="grid min-w-0 gap-0.5">
+                          <span className="line-clamp-2 font-medium">
+                            {line.name.trim() ||
+                              t("line", { number: index + 1 })}
+                          </span>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {joined(
+                              [
+                                line.quantity.trim(),
+                                line.unit.trim(),
+                                line.unit_price.trim() &&
+                                  `× ${shownAmount(line.unit_price, false)}`,
+                              ]
+                                .filter((part) => part)
+                                .join(" "),
+                              [line.vat_category, vatRate(line.vat_rate)]
+                                .filter((part) => part)
+                                .join(" "),
+                            )}
+                          </span>
+                        </span>
+                        <span className={ROW_AMOUNT}>
+                          {line.net_amount.trim()
+                            ? shownAmount(line.net_amount, false)
+                            : unread}
+                        </span>
+                      </>
+                    }
+                  >
+                    {/* Pairs that belong together: quantity and unit, price and amount, and
+                        the category, whose names are long, beside its rate. */}
+                    <div className="grid gap-3 sm:grid-cols-12">
+                      <Field
+                        label={t("fields.item")}
+                        value={line.name}
+                        onChange={setLine(index, "name")}
+                        className="sm:col-span-12"
+                      />
+                      <Field
+                        label={t("fields.quantity")}
+                        value={line.quantity}
+                        onChange={setLine(index, "quantity")}
+                        numeric
+                        className="sm:col-span-6"
+                      />
+                      <Field
+                        label={t("fields.unit")}
+                        value={line.unit}
+                        onChange={setLine(index, "unit")}
+                        hint={t("hints.unit")}
+                        className="sm:col-span-6"
+                      />
+                      <Field
+                        label={t("fields.unit_price")}
+                        value={line.unit_price}
+                        onChange={setLine(index, "unit_price")}
+                        hint={t("hints.amount")}
+                        numeric
+                        className="sm:col-span-6"
+                      />
+                      <Field
+                        label={t("fields.net_amount")}
+                        value={line.net_amount}
+                        onChange={setLine(index, "net_amount")}
+                        needed={lacking.has(`lines.${index}.net_amount`)}
+                        hint={t("hints.amount")}
+                        numeric
+                        className="sm:col-span-6"
+                      />
+                      <Choice
+                        label={t("fields.vat_category")}
+                        value={line.vat_category}
+                        onChange={setLine(index, "vat_category")}
+                        options={VAT_CATEGORIES.map((code) => [
+                          code,
+                          t(`categories.${code}`),
+                        ])}
+                        className="sm:col-span-8"
+                      />
+                      <Field
+                        label={t("fields.vat_rate")}
+                        value={line.vat_rate}
+                        onChange={setLine(index, "vat_rate")}
+                        numeric
+                        className="sm:col-span-4"
+                      />
+                    </div>
+                    <div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setForm((was) => ({
+                            ...was,
+                            lines: was.lines.filter((_, at) => at !== index),
+                          }));
+                          setOpenLines((was) => without(was, index));
+                        }}
+                      >
+                        <Trash2 aria-hidden="true" />
+                        {t("removeLine", { number: index + 1 })}
+                      </Button>
+                    </div>
+                  </Row>
                 </li>
               ))}
             </ol>
@@ -593,84 +980,143 @@ export function InvoiceReading({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() =>
+                onClick={() => {
+                  setOpenLines((was) => new Set(was).add(form.lines.length));
                   setForm((was) => ({
                     ...was,
                     lines: [...was.lines, emptyLine()],
-                  }))
-                }
+                  }));
+                }}
               >
+                <Plus aria-hidden="true" />
                 {t("addLine")}
               </Button>
             </div>
-          </Group>
+          </Panel>
 
-          <Group title={t("sections.vat")}>
+          <Panel
+            title={t("sections.vat")}
+            summary={joined(
+              ...form.vat_breakdown.map((row) =>
+                [
+                  row.vat_category,
+                  vatRate(row.vat_rate),
+                  row.tax_amount.trim() &&
+                    `${t("fields.tax_amount")} ${shownAmount(row.tax_amount)}`,
+                ]
+                  .filter((part) => part)
+                  .join(" "),
+              ),
+            )}
+            {...panel("vat")}
+          >
             {form.vat_breakdown.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("noVat")}</p>
-            ) : null}
-            <ol className="grid gap-4">
+            ) : (
+              <div
+                aria-hidden="true"
+                className="hidden grid-cols-[1.5rem_minmax(0,1fr)_auto_1rem] gap-x-3 px-3 text-xs text-muted-foreground sm:grid"
+              >
+                <span />
+                <span>{t("columns.category")}</span>
+                <span className="text-right">{t("columns.tax")}</span>
+                <span />
+              </div>
+            )}
+            <ol className="grid gap-2">
               {form.vat_breakdown.map((row, index) => (
-                <li
-                  key={index}
-                  className="grid gap-3 rounded-lg border bg-muted/20 p-4"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">
-                      {t("vatRow", { number: index + 1 })}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setForm((was) => ({
-                          ...was,
-                          vat_breakdown: was.vat_breakdown.filter(
-                            (_, at) => at !== index,
-                          ),
-                        }))
-                      }
-                    >
-                      {t("removeVat", { number: index + 1 })}
-                    </Button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-12">
-                    <Choice
-                      label={t("fields.vat_category")}
-                      value={row.vat_category}
-                      onChange={setVat(index, "vat_category")}
-                      options={VAT_CATEGORIES.map((code) => [
-                        code,
-                        t(`categories.${code}`),
-                      ])}
-                      className="sm:col-span-8"
-                    />
-                    <Field
-                      label={t("fields.vat_rate")}
-                      value={row.vat_rate}
-                      onChange={setVat(index, "vat_rate")}
-                      numeric
-                      className="sm:col-span-4"
-                    />
-                    <Field
-                      label={t("fields.taxable_amount")}
-                      value={row.taxable_amount}
-                      onChange={setVat(index, "taxable_amount")}
-                      hint={t("hints.amount")}
-                      numeric
-                      className="sm:col-span-6"
-                    />
-                    <Field
-                      label={t("fields.tax_amount")}
-                      value={row.tax_amount}
-                      onChange={setVat(index, "tax_amount")}
-                      needed={lacking.has(`vat_breakdown.${index}.tax_amount`)}
-                      hint={t("hints.amount")}
-                      numeric
-                      className="sm:col-span-6"
-                    />
-                  </div>
+                <li key={index}>
+                  <Row
+                    open={
+                      openRows.has(index) ||
+                      lacking.has(`vat_breakdown.${index}.tax_amount`)
+                    }
+                    onOpenChange={toggled(setOpenRows, index)}
+                    cells={
+                      <>
+                        <span className="text-muted-foreground tabular-nums">
+                          {index + 1}.
+                        </span>
+                        <span className="grid min-w-0 gap-0.5">
+                          <span className="truncate font-medium">
+                            {[row.vat_category, vatRate(row.vat_rate)]
+                              .filter((part) => part)
+                              .join(" ")}
+                          </span>
+                          {row.taxable_amount.trim() ? (
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {t("fields.taxable_amount")}{" "}
+                              {shownAmount(row.taxable_amount, false)}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className={ROW_AMOUNT}>
+                          {row.tax_amount.trim()
+                            ? shownAmount(row.tax_amount, false)
+                            : unread}
+                        </span>
+                      </>
+                    }
+                  >
+                    <div className="grid gap-3 sm:grid-cols-12">
+                      <Choice
+                        label={t("fields.vat_category")}
+                        value={row.vat_category}
+                        onChange={setVat(index, "vat_category")}
+                        options={VAT_CATEGORIES.map((code) => [
+                          code,
+                          t(`categories.${code}`),
+                        ])}
+                        className="sm:col-span-8"
+                      />
+                      <Field
+                        label={t("fields.vat_rate")}
+                        value={row.vat_rate}
+                        onChange={setVat(index, "vat_rate")}
+                        numeric
+                        className="sm:col-span-4"
+                      />
+                      <Field
+                        label={t("fields.taxable_amount")}
+                        value={row.taxable_amount}
+                        onChange={setVat(index, "taxable_amount")}
+                        hint={t("hints.amount")}
+                        numeric
+                        className="sm:col-span-6"
+                      />
+                      <Field
+                        label={t("fields.tax_amount")}
+                        value={row.tax_amount}
+                        onChange={setVat(index, "tax_amount")}
+                        needed={lacking.has(
+                          `vat_breakdown.${index}.tax_amount`,
+                        )}
+                        hint={t("hints.amount")}
+                        numeric
+                        className="sm:col-span-6"
+                      />
+                    </div>
+                    <div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setForm((was) => ({
+                            ...was,
+                            vat_breakdown: was.vat_breakdown.filter(
+                              (_, at) => at !== index,
+                            ),
+                          }));
+                          setOpenRows((was) => without(was, index));
+                        }}
+                      >
+                        <Trash2 aria-hidden="true" />
+                        {t("removeVat", { number: index + 1 })}
+                      </Button>
+                    </div>
+                  </Row>
                 </li>
               ))}
             </ol>
@@ -679,47 +1125,43 @@ export function InvoiceReading({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() =>
+                onClick={() => {
+                  setOpenRows((was) =>
+                    new Set(was).add(form.vat_breakdown.length),
+                  );
                   setForm((was) => ({
                     ...was,
                     vat_breakdown: [...was.vat_breakdown, emptyVatRow()],
-                  }))
-                }
+                  }));
+                }}
               >
+                <Plus aria-hidden="true" />
                 {t("addVat")}
               </Button>
             </div>
-          </Group>
+          </Panel>
 
-          <Group title={t("sections.totals")}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {(
-                [
-                  "line_total",
-                  "tax_exclusive",
-                  "tax",
-                  "tax_inclusive",
-                  "prepaid",
-                  "payable",
-                ] as const
-              ).map((key) => (
-                <Field
-                  key={key}
-                  label={t(`fields.${key}`)}
-                  value={form.totals[key]}
-                  onChange={setTotal(key)}
-                  needed={
-                    (key === "payable" && needs.has("totals.payable")) ||
-                    (key === "tax" && lacking.has("totals.tax"))
-                  }
-                  hint={t("hints.amount")}
-                  numeric
-                />
-              ))}
-            </div>
-          </Group>
+          <Panel
+            title={t("sections.totals")}
+            summary={joined(
+              form.totals.payable.trim() &&
+                `${t("fields.payable")} ${shownAmount(form.totals.payable)}`,
+            )}
+            {...panel("totals")}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">{totalsShown}</div>
+          </Panel>
 
-          <Group title={t("sections.payment")}>
+          <Panel
+            title={t("sections.payment")}
+            summary={joined(
+              form.payment.account.trim(),
+              [form.payment.model.trim(), form.payment.reference.trim()]
+                .filter((part) => part)
+                .join(" "),
+            )}
+            {...panel("payment")}
+          >
             <div className="grid gap-4 sm:grid-cols-[2fr_1fr_2fr]">
               <Field
                 label={t("fields.account")}
@@ -738,7 +1180,7 @@ export function InvoiceReading({
                 onChange={setPayment("reference")}
               />
             </div>
-          </Group>
+          </Panel>
 
           {failed ? (
             <Alert variant="destructive">
@@ -778,7 +1220,8 @@ export function InvoiceReading({
               </AlertDescription>
             </Alert>
           ) : null}
-          <div className="flex flex-wrap gap-3">
+          {/* The actions stay in reach while the person goes through the panels. */}
+          <div className="z-10 -mx-1 mt-3 flex flex-wrap items-center gap-3 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:sticky sm:bottom-0">
             <Button type="submit" disabled={busy}>
               {making.isPending ? t("making") : t("make")}
             </Button>

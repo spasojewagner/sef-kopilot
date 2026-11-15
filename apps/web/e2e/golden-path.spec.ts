@@ -110,7 +110,9 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
     await page.getByRole("button", { name: "Napravi nalog" }).click();
 
     await expect(page).toHaveURL("/sr-Latn");
-    await expect(page.getByRole("banner")).toContainText(email);
+    await expect(
+      page.getByRole("banner").getByRole("button", { name: `Nalog ${email}` }),
+    ).toBeVisible();
   });
 
   await test.step("uploads an invoice, which the validator finds invalid", async () => {
@@ -143,7 +145,11 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
     await page.reload();
 
     await expect(rule).toBeVisible();
-    await expect(page.getByRole("banner")).toContainText("@primer.example");
+    await expect(
+      page
+        .getByRole("banner")
+        .getByRole("button", { name: /@primer\.example$/ }),
+    ).toBeVisible();
   });
 
   await test.step("finds it invalid in the list, and opens it again", async () => {
@@ -257,7 +263,7 @@ test("an invalid invoice, repaired by the model and approved by a person, is val
       page.getByText("127.0.0.1:6274", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText("Primer d.o.o.", { exact: true }),
+      page.getByRole("main").getByText("Primer d.o.o.", { exact: true }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Allow" }).click();

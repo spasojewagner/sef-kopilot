@@ -70,6 +70,24 @@ function group(name: string) {
   return within(screen.getByRole("group", { name }));
 }
 
+/** The panel that folds a part of the form away. */
+function panelOf(name: string): HTMLElement {
+  const panel = screen.getByRole("group", { name }).closest("details");
+  if (panel === null) {
+    throw new Error(`No panel holds ${name}`);
+  }
+  return panel;
+}
+
+/** The line a panel shows when it is folded: its title, what it holds, and its state. */
+function summaryOf(name: string): HTMLElement {
+  const summary = panelOf(name).querySelector("summary");
+  if (summary === null) {
+    throw new Error(`The panel of ${name} has no summary`);
+  }
+  return summary;
+}
+
 afterEach(() => {
   router.push.mockClear();
 });
@@ -134,6 +152,109 @@ describe("An invoice read from a picture", () => {
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(buyersPib).not.toHaveAttribute("aria-invalid");
+    // The panel stays open as the person left it, though nothing in it is missing now.
+    expect(panelOf("Kupac")).toHaveAttribute("open");
+  });
+
+  it("sums the invoice up above its fields", async () => {
+    reading();
+    const user = userEvent.setup();
+    const summary = within(
+      screen.getByRole("region", { name: "Pregled fakture" }),
+    );
+
+    expect(summary.getByText("Račun (380)")).toBeInTheDocument();
+    expect(summary.getByText("RF-2026-000123")).toBeInTheDocument();
+    expect(summary.getByText("Izdata 5. 10. 2026.")).toBeInTheDocument();
+    expect(summary.getByText("14.400,00 RSD")).toBeInTheDocument();
+    expect(summary.getByText("bez PDV-a 12.000,00 RSD")).toBeInTheDocument();
+    expect(summary.getByText("PDV 2.400,00 RSD")).toBeInTheDocument();
+    expect(summary.getByText("Primer Softver d.o.o.")).toBeInTheDocument();
+    expect(summary.getByText("PIB 100000024")).toBeInTheDocument();
+    expect(summary.getByText("PIB nije pročitan")).toBeInTheDocument();
+
+    await user.type(group("Kupac").getByLabelText("PIB"), "100000016");
+
+    expect(summary.getByText("PIB 100000016")).toBeInTheDocument();
+    expect(
+      summary.getByText("Popunjeno je sve bez čega SEF ne prima fakturu."),
+    ).toBeInTheDocument();
+  });
+
+  it("folds each part of the form under what it holds, opening those that need the person", () => {
+    reading();
+
+    expect(
+      screen.getByText("Primer Softver d.o.o. · PIB 100000024 · Čačak"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 stavka · 12.000,00 RSD")).toBeInTheDocument();
+    expect(
+      screen.getByText("160-0000000123456-78 · 97 12-345678-00123"),
+    ).toBeInTheDocument();
+    expect(panelOf("Prodavac")).not.toHaveAttribute("open");
+    expect(panelOf("Stavke")).not.toHaveAttribute("open");
+    expect(panelOf("Kupac")).toHaveAttribute("open");
+    expect(
+      within(summaryOf("Kupac")).getByRole("img", {
+        name: "Treba vašu pažnju",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(summaryOf("Prodavac")).getByRole("img", {
+        name: "Ništa ne nedostaje",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens a part on what the invoice cannot be made without", async () => {
+    keepSession();
+    const asked = drafting();
+    reading({ fields: { ...READ, totals: { ...READ.totals, tax: null } } });
+    const user = userEvent.setup();
+
+    expect(panelOf("Ukupno")).not.toHaveAttribute("open");
+
+    await user.click(
+      screen.getByRole("button", { name: "Napravi fakturu i proveri" }),
+    );
+
+    expect(panelOf("Ukupno")).toHaveAttribute("open");
+    expect(group("Ukupno").getByLabelText("Ukupan PDV")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(asked).toEqual([]);
+  });
+
+  it("sums a line up on one line, which opens on its fields", async () => {
+    reading();
+    const user = userEvent.setup();
+    const amount = group("Stavke").getByLabelText("Iznos bez PDV-a");
+    const line = amount.closest("details");
+
+    expect(line).not.toBeNull();
+    expect(line).not.toHaveAttribute("open");
+    const row = within(screen.getAllByRole("listitem")[0]);
+    expect(row.getByText("Konsultantski sat")).toBeInTheDocument();
+    expect(row.getByText("8 HUR × 1.500,00 · S 20 %")).toBeInTheDocument();
+    expect(row.getByText("12.000,00")).toBeInTheDocument();
+
+    await user.click(row.getByText("Konsultantski sat"));
+
+    expect(line).toHaveAttribute("open");
+  });
+
+  it("opens a line as it is added", async () => {
+    reading();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Dodaj stavku" }));
+
+    expect(
+      group("Stavke")
+        .getAllByLabelText("Iznos bez PDV-a")[1]
+        .closest("details"),
+    ).toHaveAttribute("open");
   });
 
   it("names every field SEF needs when nothing was read", () => {

@@ -10,19 +10,32 @@ import { cn } from "@/lib/utils";
 
 /** Each language by its own name, so that a visitor finds theirs whatever the page's. */
 const NAMES: Record<Locale, string> = { "sr-Latn": "Srpski", en: "English" };
+/** Each language's short name, which the header shows; its own name is still what is read. */
+const SHORT: Record<Locale, string> = { "sr-Latn": "SR", en: "EN" };
 
 const LINK = buttonVariants({ variant: "ghost", size: "sm" });
+/** The header's languages, as one control of two halves, the current one lit. */
+const LIST_COMPACT = "flex rounded-full border border-border/60 p-0.5";
+const LINK_COMPACT =
+  "grid h-7 min-w-9 place-items-center rounded-full px-2 text-xs font-semibold tracking-wide text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/60 aria-[current]:bg-accent aria-[current]:text-foreground";
 
 /**
  * The languages where a page places them. A page whose path is known only when it is asked
  * for renders the links then, and React shows them a moment after the rest; until then their
  * place is kept, so that nothing beside them moves when they come.
  */
-export function Languages({ className }: { className?: string }) {
+export function Languages({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  /** Short names in one control, as the header shows them. */
+  compact?: boolean;
+}) {
   return (
     <div className={className}>
-      <Suspense fallback={<LanguagesToCome />}>
-        <LanguageSwitcher />
+      <Suspense fallback={<LanguagesToCome compact={compact} />}>
+        <LanguageSwitcher compact={compact} />
       </Suspense>
     </div>
   );
@@ -50,14 +63,14 @@ function useAddressQuery(): string {
  * that reads it, such as the one where a person decides on an MCP client's request, is still
  * itself in the other language.
  */
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const t = useTranslations("header");
   const current = useLocale();
   const pathname = usePathname();
   const query = useAddressQuery();
   return (
     <nav aria-label={t("language")}>
-      <ul className="flex gap-1">
+      <ul className={compact ? LIST_COMPACT : "flex gap-1"}>
         {routing.locales.map((locale) => (
           <li key={locale}>
             <Link
@@ -66,12 +79,17 @@ export function LanguageSwitcher() {
               lang={locale}
               hrefLang={locale}
               aria-current={locale === current ? "true" : undefined}
-              className={cn(
-                LINK,
-                "text-muted-foreground aria-[current]:text-foreground",
-              )}
+              aria-label={compact ? NAMES[locale] : undefined}
+              className={
+                compact
+                  ? LINK_COMPACT
+                  : cn(
+                      LINK,
+                      "text-muted-foreground aria-[current]:text-foreground",
+                    )
+              }
             >
-              {NAMES[locale]}
+              {compact ? SHORT[locale] : NAMES[locale]}
             </Link>
           </li>
         ))}
@@ -81,12 +99,17 @@ export function LanguageSwitcher() {
 }
 
 /** The links' place: the same names in the same boxes, neither seen nor read. */
-function LanguagesToCome() {
+function LanguagesToCome({ compact }: { compact: boolean }) {
   return (
-    <ul aria-hidden="true" className="invisible flex gap-1">
+    <ul
+      aria-hidden="true"
+      className={cn("invisible", compact ? LIST_COMPACT : "flex gap-1")}
+    >
       {routing.locales.map((locale) => (
         <li key={locale}>
-          <span className={LINK}>{NAMES[locale]}</span>
+          <span className={compact ? LINK_COMPACT : LINK}>
+            {compact ? SHORT[locale] : NAMES[locale]}
+          </span>
         </li>
       ))}
     </ul>

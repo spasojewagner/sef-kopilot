@@ -10,6 +10,7 @@
     "sections": "Odeljci"
   },
   "account": {
+    "menu": "Nalog {email}",
     "signIn": "Prijava",
     "signOut": "Odjava",
     "invoices": "Fakture",
@@ -767,7 +768,29 @@
     "downloadOriginal": "Preuzmi original",
     "downloadRefused": "XML nije prošao proveru, pa nije preuzet. Ispravite polja, ili napravite fakturu da vidite izveštaj i objašnjenja pravila.",
     "discard": "Odustani",
-    "draftRefused": "Neko polje nije u obliku koji se traži: datum kao 2026-10-05, iznos kao 14400.00, kodovi velikim slovima."
+    "draftRefused": "Neko polje nije u obliku koji se traži: datum kao 2026-10-05, iznos kao 14400.00, kodovi velikim slovima.",
+    "summary": {
+      "label": "Pregled fakture",
+      "untyped": "Vrsta nije pročitana",
+      "unnumbered": "Bez broja",
+      "issued": "Izdata {date}",
+      "complete": "Popunjeno je sve bez čega SEF ne prima fakturu.",
+      "net": "bez PDV-a {amount}",
+      "tax": "PDV {amount}",
+      "noTaxId": "PIB nije pročitan"
+    },
+    "panel": {
+      "attention": "Treba vašu pažnju",
+      "read": "Ništa ne nedostaje",
+      "empty": "Ništa nije pročitano"
+    },
+    "linesCount": "{count, plural, one {# stavka} few {# stavke} other {# stavki}}",
+    "columns": {
+      "item": "Stavka",
+      "amount": "Iznos bez PDV-a",
+      "category": "Kategorija i stopa",
+      "tax": "PDV"
+    }
   },
   "readingErrors": {
     "signedOut": "Sesija je istekla. Prijavite se ponovo.",
