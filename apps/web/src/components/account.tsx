@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Building2, ChevronDown, LogOut } from "lucide-react";
+import { Building2, ChevronDown, KeyRound, LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -88,6 +88,12 @@ export function Account() {
           <Link href="/organization">
             <Building2 aria-hidden="true" />
             {t("organization")}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/account">
+            <KeyRound aria-hidden="true" />
+            {t("changePassword")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

@@ -40,7 +40,7 @@ export function useAuthErrorMessage(): (error: unknown) => string {
  * Whether the API refused the request with an error of ``type``: a new password among the most
  * common ones, or one that holds the name of its address or its organization.
  */
-function refusedAs(error: ApiError, type: string): boolean {
+export function refusedAs(error: ApiError, type: string): boolean {
   const detail = (error.body as { detail?: unknown } | null)?.detail;
   return (
     Array.isArray(detail) &&

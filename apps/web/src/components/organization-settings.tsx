@@ -22,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   NativeSelect,
@@ -32,6 +33,7 @@ import { ApiError } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import {
   deletesInvoices,
+  renameOrganization,
   RETENTION_PERIODS,
   setInvoiceRetention,
   storedBefore,
@@ -99,8 +101,20 @@ function Who({
   const t = useTranslations("organization");
   return (
     <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
-      <dt className="text-muted-foreground">{t("name")}</dt>
-      <dd className="font-medium">{organization.name}</dd>
+      <dt className="self-center text-muted-foreground">
+        {identity?.role === "owner" ? (
+          <Label htmlFor="organization-name">{t("name")}</Label>
+        ) : (
+          t("name")
+        )}
+      </dt>
+      <dd className="font-medium">
+        {identity?.role === "owner" ? (
+          <NameForm name={organization.name} />
+        ) : (
+          organization.name
+        )}
+      </dd>
       {identity !== null && (
         <>
           <dt className="text-muted-foreground">{t("you")}</dt>
@@ -110,6 +124,70 @@ function Who({
         </>
       )}
     </dl>
+  );
+}
+
+function NameForm({ name }: { name: string }) {
+  const t = useTranslations("organization.rename");
+  const client = useQueryClient();
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? name;
+  const saving = useMutation({
+    mutationFn: renameOrganization,
+    onSuccess: (organization) => {
+      client.setQueryData(organizationQuery.queryKey, organization);
+      client.setQueryData<Identity>(meQuery.queryKey, (me) =>
+        me
+          ? {
+              ...me,
+              organization: { id: organization.id, name: organization.name },
+            }
+          : me,
+      );
+      setDraft(null);
+      void client.invalidateQueries({ queryKey: organizationQuery.queryKey });
+      void client.invalidateQueries({ queryKey: meQuery.queryKey });
+    },
+  });
+
+  return (
+    <form
+      className="grid gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (value.trim() && value.trim() !== name && !saving.isPending) {
+          saving.mutate(value.trim());
+        }
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          id="organization-name"
+          value={value}
+          required
+          maxLength={200}
+          disabled={saving.isPending}
+          className="w-full sm:max-w-xs"
+          onChange={(event) => {
+            setDraft(event.currentTarget.value);
+            saving.reset();
+          }}
+        />
+        <Button
+          type="submit"
+          size="sm"
+          disabled={!value.trim() || value.trim() === name || saving.isPending}
+        >
+          {saving.isPending ? t("saving") : t("save")}
+        </Button>
+      </div>
+      {saving.isSuccess && <p role="status">{t("saved")}</p>}
+      {saving.isError && (
+        <Alert variant="destructive">
+          <AlertDescription>{t("failed")}</AlertDescription>
+        </Alert>
+      )}
+    </form>
   );
 }
 

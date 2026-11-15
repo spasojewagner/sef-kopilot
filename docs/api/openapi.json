@@ -208,6 +208,84 @@
         }
       }
     },
+    "/auth/password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Change the signed-in person's password",
+        "description": "Checks the current password as sign-in does, then changes it and ends every web session for the account, across organizations. Returns a new session in the current organization. Only a person signed in with a web access token may do this.",
+        "operationId": "change_password_auth_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again after `Retry-After` seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Web access token required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access token or API key": []
+          }
+        ],
+        "x-required-permission": "account:password"
+      }
+    },
     "/auth/accept-invitation": {
       "post": {
         "tags": [
@@ -2819,7 +2897,7 @@
           "organization"
         ],
         "summary": "Change the organization's settings",
-        "description": "With `invoice_retention_days`, each stored invoice is kept that many days after it was stored: once it is older, it is deleted, with its report and its repairs, when the API next deletes what is past its retention, which it does when it starts and every six hours, or each worker when it starts and every day (ADR-0038). That cannot be undone. Null keeps every invoice until a member deletes it. The audit log records each change of the period, with what it was.",
+        "description": "With `invoice_retention_days`, each stored invoice is kept that many days after it was stored: once it is older, it is deleted, with its report and its repairs, when the API next deletes what is past its retention, which it does when it starts and every six hours, or each worker when it starts and every day (ADR-0038). That cannot be undone. Null keeps every invoice until a member deletes it. The audit log records each change of the period, with what it was. With `name`, the owner renames the organization. The audit log records who renamed it.",
         "operationId": "change_organization_patch",
         "requestBody": {
           "content": {
@@ -6026,6 +6104,13 @@
       },
       "OrganizationChange": {
         "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "description": "The new organization name, from 1 to 200 characters."
+          },
           "invoice_retention_days": {
             "anyOf": [
               {
@@ -6411,6 +6496,28 @@
         "title": "Passage",
         "description": "A stored passage of the corpus, with its text."
       },
+      "PasswordChangeRequest": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeRequest"
+      },
       "Patch": {
         "properties": {
           "xpath": {
@@ -6504,6 +6611,7 @@
       "Permission": {
         "type": "string",
         "enum": [
+          "account:password",
           "members:read",
           "members:manage",
           "invoices:validate",

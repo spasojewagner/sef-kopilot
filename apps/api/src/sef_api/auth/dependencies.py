@@ -119,6 +119,11 @@ async def current_principal(
         return Principal(holder.user_id, holder.organization_id, holder.role, holder.grant)
     try:
         claims = decode_access_token(credentials.credentials, secret=tokens.secret)
+        password_version = await session.scalar(
+            select(User.password_version).where(User.id == claims.user_id)
+        )
+        if claims.password_version != password_version:
+            raise InvalidTokenError("the session has ended")
     except InvalidTokenError:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,

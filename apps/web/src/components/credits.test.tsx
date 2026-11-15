@@ -95,7 +95,9 @@ describe("The organization's credits", () => {
 
     renderIn("en", <OrganizationSettings />);
 
-    await screen.findByText("Primer d.o.o.");
+    expect(await screen.findByRole("textbox", { name: "Name" })).toHaveValue(
+      PRIMER.name,
+    );
     await waitFor(() =>
       expect(asked.some((request) => request.path === "/billing")).toBe(true),
     );

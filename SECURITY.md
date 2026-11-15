@@ -211,6 +211,9 @@ ran, what it fixed and what it accepted in [`docs/SECURITY_REVIEW_1.0.md`](docs/
 - [x] Rate limiting on sign-in, registration, token refresh and accepting invitations, per
       address; wrong passwords counted per e-mail address before the next is checked, whether
       an account has the address or not (429 with `Retry-After`).
+- [x] Changing a password checks the current password against the same limits as sign-in.
+      It validates the new password against the e-mail and every organization name, revokes
+      other web sessions and returns a new session to the browser (ADR-0067).
 - [x] API keys for machine clients: 256 random bits, shown once and stored as a SHA-256
       digest, revoked at once. A removed member's keys are deleted with the membership, and a
       deactivated account's are refused. A rule in `.gitleaks.toml` recognizes a leaked key.

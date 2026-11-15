@@ -14,7 +14,8 @@
     "signIn": "Prijava",
     "signOut": "Odjava",
     "invoices": "Fakture",
-    "organization": "Organizacija"
+    "organization": "Organizacija",
+    "changePassword": "Promeni lozinku"
   },
   "home": {
     "title": "Proverite <whole>e-fakturu</whole> pre nego što je pošaljete na SEF",
@@ -127,6 +128,20 @@
     "tooMany": "Previše pokušaja. Pokušajte ponovo za {seconds} s.",
     "unreachable": "API ne odgovara. Pokušajte ponovo malo kasnije.",
     "failed": "Nije uspelo. Pokušajte ponovo."
+  },
+  "passwordChange": {
+    "title": "Nalog",
+    "titleForm": "Promeni lozinku",
+    "current": "Trenutna lozinka",
+    "new": "Nova lozinka",
+    "confirm": "Potvrdite novu lozinku",
+    "submit": "Promeni lozinku",
+    "pending": "Menjanje lozinke…",
+    "mismatch": "Nove lozinke se ne podudaraju.",
+    "same": "Izaberite lozinku koja se razlikuje od trenutne.",
+    "wrongCurrent": "Trenutna lozinka nije tačna.",
+    "signInAgain": "Prijavite se ponovo da biste promenili lozinku.",
+    "saved": "Lozinka je promenjena. Odjavljeni ste sa drugih uređaja."
   },
   "signedInOnly": {
     "title": "Prijavite se",
@@ -447,6 +462,12 @@
       "owner": "vlasnik",
       "accountant": "računovođa",
       "client": "klijent"
+    },
+    "rename": {
+      "save": "Sačuvaj naziv",
+      "saving": "Čuvanje naziva…",
+      "saved": "Naziv organizacije je sačuvan.",
+      "failed": "Naziv organizacije nije sačuvan. Pokušajte ponovo."
     },
     "retention": {
       "title": "Čuvanje faktura",

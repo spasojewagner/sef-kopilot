@@ -462,6 +462,16 @@ async def _primers_key_still_works(response: Response, session: AsyncSession, w:
     assert await session.scalar(select(ApiKey.revoked_at).where(ApiKey.id == w.key.row.id)) is None
 
 
+async def _cannot_change_another_password(
+    response: Response, session: AsyncSession, w: World
+) -> None:
+    assert response.status_code == 401
+    assert (
+        await session.scalar(select(User.password_version).where(User.id == w.primer.owner.id))
+        is None
+    )
+
+
 async def _shows_ogled(response: Response, session: AsyncSession, w: World) -> None:
     assert response.status_code == 200
     assert response.json()["id"] == str(w.ogled.organization.id)
@@ -763,6 +773,13 @@ GUARDED: dict[Endpoint, Guarded] = {
         lambda w: f"/invitations/{w.invitation.id}",
         None,
         _primers_invitation_is_not_found,
+    ),
+    ("POST", "/auth/password"): Guarded(
+        Permission.ACCOUNT_PASSWORD,
+        False,
+        lambda _: "/auth/password",
+        {"current_password": "wrong password", "new_password": "orchard lemon sundial"},
+        _cannot_change_another_password,
     ),
     ("GET", "/organization"): Guarded(
         Permission.ORGANIZATION_READ, False, lambda _: "/organization", None, _shows_ogled

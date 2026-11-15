@@ -1,9 +1,9 @@
 """Access tokens (JWT, HS256) and opaque tokens (random, stored only as a SHA-256 digest).
 
 An access token says who calls, for which organization and in which role, and expires after
-minutes; it is checked without the database. Its header type is ``at+jwt`` (RFC 9068), and the
-algorithm, issuer, audience and expiry are all required and verified, so a token minted for
-another purpose or with another algorithm (``none`` included) is refused.
+minutes. Its password version is checked against the account. Its header type is ``at+jwt``
+(RFC 9068), and the algorithm, issuer, audience and expiry are all required and verified, so
+a token minted for another purpose or with another algorithm (``none`` included) is refused.
 
 An opaque token is 256 random bits that the API hands out once, such as a refresh token. The
 database keeps its SHA-256 digest, never the token: a leaked table holds nothing that signs
@@ -49,6 +49,7 @@ class AccessClaims:
     organization_id: uuid.UUID
     role: Role
     expires_at: datetime
+    password_version: uuid.UUID | None = None
 
 
 def issue_access_token(
@@ -59,6 +60,7 @@ def issue_access_token(
     secret: str,
     lifetime: timedelta,
     now: datetime | None = None,
+    password_version: uuid.UUID | None = None,
 ) -> tuple[str, datetime]:
     """A signed access token and the moment it expires."""
     issued_at = now if now is not None else datetime.now(UTC)
@@ -73,6 +75,7 @@ def issue_access_token(
             "iat": issued_at,
             "exp": expires_at,
             "jti": uuid.uuid4().hex,
+            **({"pwd": password_version.hex} if password_version else {}),
         },
         secret,
         algorithm=ALGORITHM,
@@ -99,6 +102,7 @@ def decode_access_token(token: str, *, secret: str) -> AccessClaims:
             organization_id=uuid.UUID(claims["org"]),
             role=Role(claims["role"]),
             expires_at=datetime.fromtimestamp(claims["exp"], UTC),
+            password_version=uuid.UUID(claims["pwd"]) if "pwd" in claims else None,
         )
     except (TypeError, ValueError) as error:
         raise InvalidTokenError("malformed claims") from error

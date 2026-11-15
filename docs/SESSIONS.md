@@ -3116,3 +3116,18 @@ gitleaks over the history.
 
 Next, after 1.0 and once there is a SEF demo account: SEF's error codes, its internal technical
 instruction in the corpus, and the open rules confirmed against SEF itself (`docs/BACKLOG.md`).
+
+
+## 2026-11-15 — `feat/account-rename-and-password`
+
+Outcome: an owner can rename the organization and the header reflects the saved name.
+The audit entry identifies the actor and has an empty detail. The signed-in account page
+changes a password after checking the current one and validating the new one. The password
+change replaces the browser's session and revokes earlier web sessions across organizations.
+
+Verification: the production build was tested in Chromium with synthetic data. The existing
+invoice and repair flow passed. The account flow checked the owner's saved name, a refused
+current password, success and sign-out in a separate browser context. The migration and
+account API tests include revocation of a refresh issued concurrently with the change.
+
+Next: review the branch using the task report and its three screenshots.

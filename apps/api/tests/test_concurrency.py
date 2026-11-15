@@ -953,3 +953,37 @@ async def test_of_two_refreshes_with_one_token_at_once_the_second_revokes_the_co
 
     assert (first.status_code, second.status_code, latest.status_code) == (200, 400, 400)
     assert await revoked(committed_database, client)
+
+
+async def test_a_password_change_ends_a_session_refreshed_while_it_waits(
+    committed_database: Database,
+    primer: tuple[Organization, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    organization, _, milan = primer
+    token = await a_session(committed_database, organization, milan)
+    held_at = gate(monkeypatch, auth, "_sign_in")
+
+    async def renew() -> auth.SignedIn:
+        async with committed_database.sessions() as session:
+            return await auth.refresh(session, TOKENS, refresh_token=token)
+
+    async def change() -> auth.SignedIn:
+        async with committed_database.sessions() as session:
+            return await auth.change_password(
+                session,
+                TOKENS,
+                user_id=milan.id,
+                organization_id=organization.id,
+                current_password=PASSWORD,
+                new_password="orchard lemon sundial",
+                guard=unlimited(),
+            )
+
+    refreshed, changed = await while_held(renew(), change, held_at, then_waits=True)
+
+    assert await live_sessions(committed_database, milan) == 1
+    async with committed_database.sessions() as session:
+        with pytest.raises(auth.InvalidRefreshTokenError):
+            await auth.refresh(session, TOKENS, refresh_token=refreshed.refresh_token)
+        await auth.refresh(session, TOKENS, refresh_token=changed.refresh_token)

@@ -17,6 +17,7 @@ from sef_api.auth.tokens import issue_access_token
 from sef_api.models import Membership, Organization, RefreshToken, Role, User
 
 from .conftest import TEST_JWT_SECRET
+from .factories import api_key, join, organization
 
 PASSWORD = "correct horse battery"
 REGISTRATION = {
@@ -444,3 +445,111 @@ async def test_openapi_documents_the_auth_endpoints_and_the_bearer_scheme(
         assert schema["paths"][path]["post"]["tags"] == ["auth"]
     assert schema["paths"]["/auth/me"]["get"]["security"] == [{"access token or API key": []}]
     assert schema["components"]["securitySchemes"]["access token or API key"]["scheme"] == "bearer"
+
+
+NEW_PASSWORD = "orchard lemon sundial"
+
+
+async def change_password(
+    api: AsyncClient, token: str, *, current: str = PASSWORD, new: str = NEW_PASSWORD
+) -> Any:
+    return await api.post(
+        "/auth/password",
+        headers=bearer(token),
+        json={"current_password": current, "new_password": new},
+    )
+
+
+async def test_password_changes_and_old_sessions_in_every_organization_end(
+    api: AsyncClient, session: AsyncSession
+) -> None:
+    original = await register(api)
+    user = (await session.scalars(select(User))).one()
+    other = await organization(session, "Ogledni ured")
+    await join(session, other, user, Role.CLIENT)
+    other_session = (await login(api, organization_id=str(other.id))).json()
+
+    response = await change_password(api, other_session["access_token"])
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    changed = response.json()
+    assert changed["organization"]["id"] == str(other.id)
+    assert changed["role"] == "client"
+    for old in (original, other_session):
+        assert (await refresh(api, old["refresh_token"])).status_code == 401
+        assert (await api.get("/auth/me", headers=bearer(old["access_token"]))).status_code == 401
+    assert (await api.get("/auth/me", headers=bearer(changed["access_token"]))).status_code == 200
+    assert (await refresh(api, changed["refresh_token"])).status_code == 200
+    assert (await login(api, organization_id=str(other.id))).status_code == 401
+    assert (
+        await login(api, organization_id=str(other.id), password=NEW_PASSWORD)
+    ).status_code == 200
+    await session.refresh(user)
+    assert user.password_hash.startswith("$argon2id$")
+
+
+async def test_wrong_current_password_counts_towards_the_sign_in_limit(api: AsyncClient) -> None:
+    signed_in = await register(api)
+    token = signed_in["access_token"]
+
+    assert (await login(api, password="wrong")).status_code == 401
+    for _ in range(9):
+        wrong = await change_password(api, token, current="wrong")
+        assert wrong.status_code == 401
+        assert wrong.json() == {"detail": "invalid e-mail address or password"}
+
+    blocked = await change_password(api, token)
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) > 0
+    assert (await login(api)).status_code == 429
+
+
+@pytest.mark.parametrize(
+    ("new_password", "problem"),
+    [
+        ("qwerty123456", "common_password"),
+        ("A spare for Ana Marković", "personal_password"),
+        ("A spare for Ogledni ured", "personal_password"),
+        (PASSWORD, "same_password"),
+        ("short", "string_too_short"),
+        ("x" * 129, "string_too_long"),
+    ],
+)
+async def test_a_new_password_must_meet_the_account_rules(
+    api: AsyncClient, session: AsyncSession, new_password: str, problem: str
+) -> None:
+    signed_in = await register(api, email="ana.markovic@primer.example")
+    await join(
+        session,
+        await organization(session, "Ogledni ured"),
+        (await session.scalars(select(User))).one(),
+        Role.CLIENT,
+    )
+
+    response = await change_password(api, signed_in["access_token"], new=new_password)
+
+    assert response.status_code == 422
+    detail = response.json()["detail"][0]
+    assert (detail["type"], detail["loc"]) == (problem, ["body", "new_password"])
+    assert "input" not in detail
+    assert (await refresh(api, signed_in["refresh_token"])).status_code == 200
+
+
+async def test_a_machine_key_cannot_change_the_callers_password(
+    api: AsyncClient, session: AsyncSession
+) -> None:
+    await register(api)
+    key = await api_key(
+        session,
+        (await session.scalars(select(Organization))).one(),
+        (await session.scalars(select(User))).one(),
+    )
+
+    response = await api.post(
+        "/auth/password",
+        headers=key.header(),
+        json={"current_password": PASSWORD, "new_password": NEW_PASSWORD},
+    )
+
+    assert response.status_code == 403

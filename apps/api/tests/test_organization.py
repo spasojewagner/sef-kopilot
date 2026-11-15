@@ -123,7 +123,7 @@ async def test_a_request_that_changes_nothing_records_nothing(
         {"invoice_retention_days": 3651},
         {"invoice_retention_days": 30.5},
         {"invoice_retention_days": "forever"},
-        {"name": "Drugo ime"},
+        {"unknown": "Drugo ime"},
     ],
     ids=["zero", "negative", "over ten years", "a fraction", "not a number", "another field"],
 )
@@ -159,3 +159,40 @@ async def test_an_accountant_cannot_set_the_period(
     assert response.status_code == 403
     assert await period(session, primer) is None
     assert not await changes(session)
+
+
+async def test_an_owner_renames_without_recording_the_name_or_changing_retention(
+    api: AsyncClient, session: AsyncSession, primer: Office
+) -> None:
+    await api.patch("/organization", json={"invoice_retention_days": 30}, headers=primer.as_owner())
+    change = {"name": "  Ogledni ured  "}
+
+    refused = await api.patch("/organization", json=change, headers=primer.as_client())
+    renamed = await api.patch("/organization", json=change, headers=primer.as_owner())
+    shown = await api.get("/organization", headers=primer.as_accountant())
+    repeated = await api.patch("/organization", json=change, headers=primer.as_owner())
+
+    assert refused.status_code == 403
+    assert renamed.status_code == shown.status_code == repeated.status_code == 200
+    assert renamed.json() == shown.json() == repeated.json()
+    assert renamed.json()["name"] == "Ogledni ured"
+    assert renamed.json()["invoice_retention_days"] == 30
+    event = (
+        await session.scalars(
+            select(AuditEvent).where(AuditEvent.action == AuditAction.ORGANIZATION_RENAMED)
+        )
+    ).one()
+    assert (event.organization_id, event.actor, event.detail) == (
+        primer.organization.id,
+        primer.owner.id,
+        {},
+    )
+
+
+@pytest.mark.parametrize("name", ["", "   ", None, "x" * 201])
+async def test_a_new_name_has_the_same_bounds_as_on_registration(
+    api: AsyncClient, primer: Office, name: str | None
+) -> None:
+    response = await api.patch("/organization", json={"name": name}, headers=primer.as_owner())
+
+    assert response.status_code == 422

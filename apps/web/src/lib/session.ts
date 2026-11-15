@@ -45,6 +45,8 @@ export const STORAGE_KEY = "sef-kopilot.session";
 export const REFRESH_LOCK = "sef-kopilot.refresh";
 /** An access token is replaced this long before it expires, so that no request meets its end. */
 export const EARLY_MS = 30_000;
+/** The API's bounds on a new password (ADR-0012). */
+export const PASSWORD_BOUNDS = { min: 12, max: 128 };
 
 const JSON_BODY = { "Content-Type": "application/json" };
 const UNKNOWN: Session = { status: "unknown" };
@@ -307,6 +309,24 @@ export async function signIn(credentials: {
     }),
   });
   return adopt(tokens);
+}
+
+/** Changes the password once and replaces this browser's session with the new one. */
+export async function changePassword(
+  passwords: Schemas["PasswordChangeRequest"],
+): Promise<Identity> {
+  const token = await accessToken();
+  if (token === null) {
+    throw new SignedOutError();
+  }
+  return oneTabAtATime(async () => {
+    const tokens = await request<Tokens>("/auth/password", {
+      method: "POST",
+      headers: { ...JSON_BODY, Authorization: `Bearer ${token}` },
+      body: JSON.stringify(passwords),
+    });
+    return adopt(tokens);
+  });
 }
 
 /** Creates an account with its organization, and signs in. */

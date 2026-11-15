@@ -26,12 +26,12 @@ from sef_api.models import AuditAction, ModelKey, Organization, SefKey
 from sef_api.sef.keys import Keyring
 
 __all__ = [
+    "change_settings",
     "find",
     "model_key",
     "remove_model_key",
     "remove_sef_key",
     "sef_key_set_at",
-    "set_invoice_retention",
     "set_model_key",
     "set_sef_key",
 ]
@@ -44,23 +44,31 @@ async def find(session: AsyncSession, organization_id: uuid.UUID) -> Organizatio
     ).one()
 
 
-async def set_invoice_retention(
-    session: AsyncSession, caller: Principal, days: int | None
+async def change_settings(
+    session: AsyncSession,
+    caller: Principal,
+    *,
+    name: str | None,
+    retention_days: int | None,
+    change_retention: bool,
 ) -> Organization:
-    """Keep the caller's organization's stored invoices ``days`` after they were stored, or
-    every one until a member deletes it with None, and commit. 403 for a caller who no longer
-    holds the permission, as :func:`~sef_api.auth.dependencies.require` answers."""
+    """Save the changes and their audit events together, after checking the owner's role."""
+    if name is None and not change_retention:
+        return await find(session, caller.organization_id)
     await lock_organization(session, caller.organization_id)
     permitted = await check_again(session, caller, Permission.ORGANIZATION_MANAGE)
     organization = await find(session, permitted.organization_id)
+    if name is not None and name != organization.name:
+        organization.name = name
+        audit.record(session, permitted, AuditAction.ORGANIZATION_RENAMED)
     before = organization.invoice_retention_days
-    if days != before:
-        organization.invoice_retention_days = days
+    if change_retention and retention_days != before:
+        organization.invoice_retention_days = retention_days
         audit.record(
             session,
             permitted,
             AuditAction.ORGANIZATION_RETENTION_SET,
-            detail={"from": before, "to": days},
+            detail={"from": before, "to": retention_days},
         )
     await session.commit()
     return organization

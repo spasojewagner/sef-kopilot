@@ -159,6 +159,12 @@ async def test_the_access_token_is_for_the_mcp_endpoint_alone(session: AsyncSess
     async with server(session) as api:
         client, code = await consented(api, primer)
         access = (await token(api, exchange(client, code))).json()["access_token"]
+        refused_change = await api.post(
+            "/auth/password",
+            headers={"Authorization": f"Bearer {access}"},
+            json={"current_password": "a long passphrase", "new_password": "orchard lemon sundial"},
+        )
+    assert refused_change.status_code == 401
     web, _ = web_tokens.issue_access_token(
         primer.client.id,
         primer.organization.id,

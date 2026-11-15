@@ -11,6 +11,11 @@ is tagged.
 
 ### Added
 
+- Organization owners can rename their organization in its settings. The audit event records
+  who made the change.
+- Signed-in members can change their password from the account menu in Serbian or English
+  (ADR-0067, migration `0027`).
+
 - `apps/web`: the home page's headings enter word by word, and the report preview, route
   and cards reveal once as the page opens or scrolls. A visitor who asks for reduced motion
   sees them in place at once.
@@ -36,6 +41,9 @@ is tagged.
   pushed the page down under the header; the footer alone says so, as before (ADR-0065).
 
 ### Security
+
+- Password changes revoke the account's previous web access and refresh tokens across all
+  organizations and give the current browser a new session.
 
 - `apps/api`, `apps/web`: a new password, on registration or for the account an invitation
   creates, is refused when it holds the name of its address or its organization's name, whatever
