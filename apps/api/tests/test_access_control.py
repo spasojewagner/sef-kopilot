@@ -373,7 +373,7 @@ async def _primers_invoice_stays(response: Response, session: AsyncSession, w: W
 
 
 async def _lists_no_invoices(response: Response, session: AsyncSession, w: World) -> None:
-    assert response.json() == {"invoices": [], "next": None}
+    assert response.json() == {"invoices": [], "next": None, "total": 0}
 
 
 async def _primers_invoice_takes_no_repair(

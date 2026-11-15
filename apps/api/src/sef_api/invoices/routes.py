@@ -11,7 +11,7 @@ from datetime import UTC, date, datetime
 from typing import Annotated, Any, Final, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from einvoice_core.model import DocumentType
@@ -161,6 +161,17 @@ class InvoicePage(BaseModel):
     next: str | None = Field(
         description="Pass as `after` for the next page; null on the last page."
     )
+
+
+class InvoiceListPage(InvoicePage):
+    """A page and the total across the scoped and filtered list."""
+
+    total: int = Field(description="Matching invoices across all pages in the caller's scope.")
+
+
+InvoiceSearch = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)
+]
 
 
 _NOT_FOUND: dict[int | str, dict[str, Any]] = {
@@ -456,12 +467,14 @@ async def start_revalidation(request: Request, caller: Principal, session: Async
         "The organization's stored invoices, the newest first, a page at a time: what the "
         "validator read from each and whether it is valid, without the reports. A member "
         "without `invoices:manage` sees the invoices they submitted. `valid=false` lists only "
-        "the invoices the validator last found invalid, `valid=true` only the valid ones."
+        "the invoices the validator last found invalid, `valid=true` only the valid ones. "
+        "All supplied filters must match. A cursor continues the list that issued it; start "
+        "from the first page without `after` when the filters change."
     ),
     responses={
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": Problem,
-            "description": "`after` is not a cursor this API gave.",
+            "description": "An invalid cursor, filter or issue-date range.",
         }
     },
 )
@@ -479,15 +492,41 @@ async def list_invoices(
         bool | None,
         Query(description="Only the invoices whose latest report is valid, or invalid."),
     ] = None,
-) -> InvoicePage:
+    q: Annotated[
+        InvoiceSearch | None, Query(description="Literal substring of the number, seller or buyer.")
+    ] = None,
+    issued_from: Annotated[
+        date | None, Query(description="Earliest issue date, inclusive.")
+    ] = None,
+    issued_to: Annotated[date | None, Query(description="Latest issue date, inclusive.")] = None,
+    document_type: Annotated[DocumentType | None, Query(description="UBL document type.")] = None,
+) -> InvoiceListPage:
+    if issued_from is not None and issued_to is not None and issued_from > issued_to:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "issued_from must be on or before issued_to"
+        )
     try:
-        page = await store.page_of(session, scope_of(caller), limit=limit, after=after, valid=valid)
+        page = await store.page_of(
+            session,
+            scope_of(caller),
+            limit=limit,
+            after=after,
+            valid=valid,
+            q=q,
+            issued_from=issued_from,
+            issued_to=issued_to,
+            document_type=document_type,
+            include_total=True,
+        )
     except store.InvalidCursorError:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "after is not a cursor this API gave"
         ) from None
     response.headers["Cache-Control"] = "no-store"
-    return InvoicePage(invoices=[present(invoice) for invoice in page.invoices], next=page.next)
+    assert page.total is not None
+    return InvoiceListPage(
+        invoices=[present(invoice) for invoice in page.invoices], next=page.next, total=page.total
+    )
 
 
 @router.get(

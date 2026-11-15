@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import {
   invoiceQuery,
-  invoicesQuery,
+  invoiceListKey,
   repairQuery,
   repairsQuery,
 } from "@/lib/queries";
@@ -152,7 +152,7 @@ function useDecide(repair: Repair) {
           queryKey: invoiceQuery(invoice).queryKey,
           predicate: (query) => query.queryHash !== shown,
         });
-        client.removeQueries({ queryKey: invoicesQuery.queryKey });
+        client.removeQueries({ queryKey: invoiceListKey });
         client.setQueryData(decided, answer);
         // A read that fails leaves the page to read them when it shows them, as it did.
         await Promise.all([

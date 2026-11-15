@@ -49,7 +49,7 @@ import {
   type VatForm,
 } from "@/lib/extraction";
 import { storeInvoice, validateInvoice, type Profile } from "@/lib/invoices";
-import { invoiceQuery, invoicesQuery } from "@/lib/queries";
+import { invoiceQuery, invoiceListKey } from "@/lib/queries";
 
 /** The label of each field SEF needs, and the party it belongs to, if any. */
 const NEEDED_LABEL: Record<
@@ -357,7 +357,7 @@ export function InvoiceReading({
       ),
     onSuccess: (stored) => {
       client.setQueryData(invoiceQuery(stored.id).queryKey, stored);
-      void client.invalidateQueries({ queryKey: invoicesQuery.queryKey });
+      void client.invalidateQueries({ queryKey: invoiceListKey });
       router.push(`/invoices/${stored.id}`);
     },
   });

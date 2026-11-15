@@ -30,7 +30,7 @@ import {
   type Profile,
 } from "@/lib/invoices";
 import { SYNTHETIC_INVOICES_URL } from "@/lib/links";
-import { healthQuery, invoiceQuery, invoicesQuery } from "@/lib/queries";
+import { healthQuery, invoiceQuery, invoiceListKey } from "@/lib/queries";
 
 /**
  * Why the chosen file was not sent: there is none, it is a picture in a format that is not read,
@@ -76,7 +76,7 @@ export function InvoiceUpload() {
       storeInvoice(document, profile),
     onSuccess: (stored) => {
       client.setQueryData(invoiceQuery(stored.id).queryKey, stored);
-      void client.invalidateQueries({ queryKey: invoicesQuery.queryKey });
+      void client.invalidateQueries({ queryKey: invoiceListKey });
       router.push(`/invoices/${stored.id}`);
     },
   });

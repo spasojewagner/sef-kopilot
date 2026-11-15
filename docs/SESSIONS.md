@@ -3131,3 +3131,17 @@ current password, success and sign-out in a separate browser context. The migrat
 account API tests include revocation of a refresh issued concurrently with the change.
 
 Next: review the branch using the task report and its three screenshots.
+
+
+## 2026-11-15 — `feat/invoice-list-search`
+
+Outcome: the checked invoice list accepts a literal search by number, seller or buyer and
+filters by verdict, issue date and UBL document type. The HTTP page gives the total in the
+caller's scope. The browser keeps shareable filters in the URL and uses a cursor stack
+for previous and next pages.
+
+Verification: Chromium checked browser history, page two and clearing a search with no matches.
+The production build was captured at desktop and phone widths in both colour schemes with
+84 synthetic invoices.
+
+Next: review the branch with the task report and screenshots.

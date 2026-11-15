@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 
 import { InvoiceList } from "@/components/invoice-list";
 import { InvoiceUpload } from "@/components/invoice-upload";
@@ -36,11 +37,20 @@ export default function InvoicesPage() {
             <InvoiceUpload />
           </CardContent>
         </Card>
-        <section className="grid gap-4">
-          <h2 className="text-lg font-semibold tracking-tight">
+        <section className="grid min-w-0 gap-4">
+          <h2
+            id="checked-invoices"
+            className="scroll-mt-20 text-lg font-semibold tracking-tight"
+          >
             {t("listTitle")}
           </h2>
-          <InvoiceList />
+          <Suspense
+            fallback={
+              <p className="text-sm text-muted-foreground">{t("loading")}</p>
+            }
+          >
+            <InvoiceList />
+          </Suspense>
         </section>
       </SignedInOnly>
     </div>

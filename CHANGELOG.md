@@ -11,6 +11,10 @@ is tagged.
 
 ### Added
 
+- Checked invoices can be searched by number, seller or buyer and filtered by verdict,
+  document type and issue date. The list shows the total and uses paginated results.
+  Its search, filters and page size are shareable through the URL.
+
 - Organization owners can rename their organization in its settings. The audit event records
   who made the change.
 - Signed-in members can change their password from the account menu in Serbian or English

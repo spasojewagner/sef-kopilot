@@ -164,7 +164,30 @@
     "verdict": "Verdict",
     "submitted": "Sent",
     "notSchemaValid": "Fails the UBL schema",
-    "more": "Show more"
+    "noMatch": "No invoice matches the search.",
+    "resultCount": "{count, plural, one {# invoice} other {# invoices}}",
+    "filters": {
+      "search": "Search",
+      "placeholder": "Number, seller or buyer",
+      "verdict": "Verdict",
+      "type": "Type",
+      "all": "All",
+      "valid": "Valid",
+      "invalid": "Invalid",
+      "invoice": "Invoices",
+      "creditNote": "Credit notes",
+      "from": "Issue date from",
+      "to": "Issue date to",
+      "clear": "Clear filters",
+      "dateOrder": "The start date must be on or before the end date."
+    },
+    "pages": {
+      "label": "Pages",
+      "size": "Per page",
+      "previous": "Previous",
+      "next": "Next",
+      "range": "{first, number}–{last, number} of {total, number}"
+    }
   },
   "upload": {
     "file": "Invoice (XML, PDF or picture)",

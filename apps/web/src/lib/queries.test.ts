@@ -10,7 +10,7 @@ import {
   explanationsQuery,
   healthQuery,
   invoiceQuery,
-  invoicesQuery,
+  invoiceListKey,
   isAboutTheApi,
   meQuery,
   repairQuery,
@@ -68,7 +68,7 @@ describe("The keys of the answers", () => {
     expect(isAboutTheApi(healthQuery.queryKey)).toBe(true);
     expect(isAboutTheApi(meQuery.queryKey)).toBe(false);
     expect(isAboutTheApi(invoiceQuery("i-1").queryKey)).toBe(false);
-    expect(isAboutTheApi(invoicesQuery.queryKey)).toBe(false);
+    expect(isAboutTheApi(invoiceListKey)).toBe(false);
   });
 
   it("keep each invoice under a key of its own", () => {

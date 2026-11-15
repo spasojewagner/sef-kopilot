@@ -21,7 +21,7 @@ import binascii
 import hashlib
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Final, Literal
 
 from sqlalchemy import (
@@ -31,12 +31,14 @@ from sqlalchemy import (
     delete,
     func,
     literal,
+    or_,
     select,
     tuple_,
     update,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from einvoice_core.model import DocumentType
 from sef_api.billing.ledger import CreditTerms, spend
 from sef_api.invoices.validation import InvoiceSummary, ProfileName, Validation
 from sef_api.locks import lock_invoice_storage
@@ -94,6 +96,7 @@ class Scope:
 class Page:
     invoices: list[StoredInvoice]
     next: str | None
+    total: int | None = None
 
 
 #: The columns an invoice is listed by, from what the validator read.
@@ -294,15 +297,43 @@ async def page_of(
     limit: int,
     after: str | None = None,
     valid: bool | None = None,
+    q: str | None = None,
+    issued_from: date | None = None,
+    issued_to: date | None = None,
+    document_type: DocumentType | None = None,
+    include_total: bool = False,
 ) -> Page:
     """The newest ``limit`` invoices in ``scope``, or the next ones ``after`` a cursor; raises
-    :class:`InvalidCursorError` for a cursor this API did not give. With ``valid``, only the
-    invoices whose latest report says so."""
-    query = _scoped(scope)
+    :class:`InvalidCursorError` for a cursor this API did not give. The total, when requested,
+    spans all pages of the filtered and scoped list."""
+    position = _position(after) if after is not None else None
+    conditions = [scope.holds()]
     if valid is not None:
-        query = query.where(StoredInvoice.valid == valid)
-    if after is not None:
-        moment, identifier = _position(after)
+        conditions.append(StoredInvoice.valid == valid)
+    if q is not None:
+        escaped = q.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+        pattern = f"%{escaped}%"
+        conditions.append(
+            or_(
+                StoredInvoice.number.ilike(pattern, escape="!"),
+                StoredInvoice.seller.ilike(pattern, escape="!"),
+                StoredInvoice.buyer.ilike(pattern, escape="!"),
+            )
+        )
+    if issued_from is not None:
+        conditions.append(StoredInvoice.issue_date >= issued_from)
+    if issued_to is not None:
+        conditions.append(StoredInvoice.issue_date <= issued_to)
+    if document_type is not None:
+        conditions.append(StoredInvoice.document_type == document_type)
+    total = None
+    if include_total:
+        total = await session.scalar(
+            select(func.count()).select_from(StoredInvoice).where(*conditions)
+        )
+    query = select(StoredInvoice).where(*conditions)
+    if position is not None:
+        moment, identifier = position
         query = query.where(
             tuple_(StoredInvoice.created_at, StoredInvoice.id) < tuple_(moment, identifier)
         )
@@ -310,7 +341,7 @@ async def page_of(
     invoices = list((await session.scalars(query.limit(limit + 1))).all())
     more = len(invoices) > limit
     invoices = invoices[:limit]
-    return Page(invoices, cursor_after(invoices[-1]) if more else None)
+    return Page(invoices, cursor_after(invoices[-1]) if more else None, total)
 
 
 async def find(session: AsyncSession, scope: Scope, invoice_id: uuid.UUID) -> StoredInvoice | None:

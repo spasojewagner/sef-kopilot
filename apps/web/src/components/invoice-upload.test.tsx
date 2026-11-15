@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { SYNTHETIC_INVOICES_URL } from "@/lib/links";
-import { healthQuery, invoiceQuery, invoicesQuery } from "@/lib/queries";
+import { healthQuery, invoiceQuery, invoiceListKey } from "@/lib/queries";
 import { json, keepSession, stubApi } from "@/test/api";
 import { extraction } from "@/test/extraction";
 import { storedInvoice } from "@/test/invoices";
@@ -49,7 +49,7 @@ describe("Invoice upload", () => {
     const stored = storedInvoice();
     const asked = stubApi(() => json(201, stored));
     const client = testQueryClient();
-    client.setQueryData(invoicesQuery.queryKey, {
+    client.setQueryData(invoiceListKey, {
       pages: [{ invoices: [], next: null }],
       pageParams: [null],
     });
@@ -71,9 +71,7 @@ describe("Invoice upload", () => {
     expect(client.getQueryData(invoiceQuery(stored.id).queryKey)).toEqual(
       stored,
     );
-    expect(client.getQueryState(invoicesQuery.queryKey)?.isInvalidated).toBe(
-      true,
-    );
+    expect(client.getQueryState(invoiceListKey)?.isInvalidated).toBe(true);
   });
 
   it("validates under the Serbian profile unless told otherwise", async () => {
