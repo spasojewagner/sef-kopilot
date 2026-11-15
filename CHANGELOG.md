@@ -9,20 +9,28 @@ is tagged.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-15
+
+The web application after 1.0, and what an organization may change about itself. The header's
+account becomes a menu, a reading opens on a summary of the invoice and folds its fields away,
+the home page moves as it scrolls, and the checked invoices can be searched, filtered and paged
+through. An organization may bring its own key to Gemini, its owner may rename it, and its
+members may change their passwords, which ends their other sessions. A new password may not hold
+the address's name or the organization's. The demo in the README is recorded again from this
+version.
+
 ### Added
 
-- Checked invoices can be searched by number, seller or buyer and filtered by verdict,
-  document type and issue date. The list shows the total and uses paginated results.
-  Its search, filters and page size are shareable through the URL.
-
-- Organization owners can rename their organization in its settings. The audit event records
-  who made the change.
-- Signed-in members can change their password from the account menu in Serbian or English
-  (ADR-0067, migration `0027`).
-
-- `apps/web`: the home page's headings enter word by word, and the report preview, route
-  and cards reveal once as the page opens or scrolls. A visitor who asks for reduced motion
-  sees them in place at once.
+- `apps/api`, `apps/web`: the checked invoices can be searched by number, seller or buyer, and
+  filtered by verdict, document type and issue date; the list shows how many match and goes page
+  by page, and its search, filters and page size are in the URL, so a link shares the view.
+- `apps/api`, `apps/web`: an organization's owner may rename it in its settings; the audit log
+  records who did, never the previous name.
+- `apps/api`, `apps/web`: a member signed in may change their password from the account menu, in
+  Serbian or English (ADR-0067, migration `0027`).
+- `apps/web`: the home page's headings enter word by word, and the report preview, route and
+  cards reveal once as the page opens or scrolls. A visitor who asks for reduced motion sees them
+  in place at once.
 - `apps/api`, `apps/web`: an organization's owner may also set its own key to Google's Gemini,
   whose model, `gemini-3.1-flash-lite` by default, then writes the organization's explanations
   and repairs and reads its documents (ADR-0066; migration `0026`).
@@ -46,9 +54,8 @@ is tagged.
 
 ### Security
 
-- Password changes revoke the account's previous web access and refresh tokens across all
-  organizations and give the current browser a new session.
-
+- `apps/api`, `apps/web`: changing a password revokes the account's previous web access and
+  refresh tokens in every organization, and gives the current browser a new session.
 - `apps/api`, `apps/web`: a new password, on registration or for the account an invitation
   creates, is refused when it holds the name of its address or its organization's name, whatever
   the case, the marks and the punctuation, since the organization's name is shown to every member
@@ -979,7 +986,8 @@ whose verdicts the tests pin.
 - Rule-set fetcher: archive member names are judged by POSIX and Windows rules on every host;
   backslashes, drive letters, NTFS streams and NUL bytes are refused, also in directory entries.
 
-[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/spasojewagner/sef-kopilot/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/spasojewagner/sef-kopilot/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/spasojewagner/sef-kopilot/compare/v0.4.0...v0.5.0

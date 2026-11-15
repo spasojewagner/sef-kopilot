@@ -17,7 +17,7 @@ describe("Home page", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/proverava UBL fakturu/)).toBeInTheDocument();
     expect(
-      screen.getByText("Otvoreni kod pod licencom Apache-2.0, verzija 1.0.0."),
+      screen.getByText("Otvoreni kod pod licencom Apache-2.0, verzija 1.1.0."),
     ).toBeInTheDocument();
   });
 
