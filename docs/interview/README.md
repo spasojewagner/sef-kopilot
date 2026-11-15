@@ -125,3 +125,4 @@ per branch, to keep them with the code they describe.
 | `chore/security-review-1.0` | [m7-chore-security-review-1.0.md](m7-chore-security-review-1.0.md) |
 | `chore/release-1.0` | [m7-release-1.0.md](m7-release-1.0.md) |
 | `feat/account-rename-and-password` | [account-rename-and-password.md](account-rename-and-password.md) |
+| `feat/invoice-list-search` | [invoice-list-search.md](invoice-list-search.md) |
