@@ -124,3 +124,4 @@ per branch, to keep them with the code they describe.
 | `fix/web-fresh-verdict-after-approval` | [m7-fix-web-fresh-verdict-after-approval.md](m7-fix-web-fresh-verdict-after-approval.md) |
 | `chore/security-review-1.0` | [m7-chore-security-review-1.0.md](m7-chore-security-review-1.0.md) |
 | `chore/release-1.0` | [m7-release-1.0.md](m7-release-1.0.md) |
+| `feat/account-rename-and-password` | [account-rename-and-password.md](account-rename-and-password.md) |

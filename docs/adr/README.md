@@ -72,3 +72,4 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0064](0064-an-assistant-sends-a-document-to-be-read-in-base64-within-the-limit-on-messages.md) | An assistant sends a document to be read in base64, within the limit on messages | accepted | 2026-11-11 |
 | [0065](0065-a-waking-api-is-told-in-the-footer-only.md) | A waking API is told in the footer only, not above every page | accepted | 2026-11-15 |
 | [0066](0066-an-organization-s-own-model-key-may-be-to-gemini.md) | An organization's own key to a model may be to Google's Gemini | accepted | 2026-11-15 |
+| [0067](0067-changing-a-password-replaces-the-web-sessions.md) | Changing a password replaces the account's web sessions | accepted | 2026-11-15 |
