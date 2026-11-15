@@ -21,6 +21,8 @@ __all__ = ["KEY_PERMISSIONS", "ROLE_PERMISSIONS", "Permission"]
 class Permission(StrEnum):
     """Something a member may be allowed to do in their organization."""
 
+    ACCOUNT_PASSWORD = "account:password"
+    """Change one's own password while signed in."""
     MEMBERS_READ = "members:read"
     """See the organization's members and their roles."""
     MEMBERS_MANAGE = "members:manage"
@@ -65,6 +67,7 @@ ROLE_PERMISSIONS: Final[Mapping[Role, frozenset[Permission]]] = MappingProxyType
         Role.OWNER: frozenset(Permission),
         Role.ACCOUNTANT: frozenset(
             {
+                Permission.ACCOUNT_PASSWORD,
                 Permission.MEMBERS_READ,
                 Permission.INVOICES_VALIDATE,
                 Permission.INVOICES_SUBMIT,
@@ -76,6 +79,7 @@ ROLE_PERMISSIONS: Final[Mapping[Role, frozenset[Permission]]] = MappingProxyType
         ),
         Role.CLIENT: frozenset(
             {
+                Permission.ACCOUNT_PASSWORD,
                 Permission.INVOICES_VALIDATE,
                 Permission.INVOICES_SUBMIT,
                 Permission.API_KEYS_ISSUE,

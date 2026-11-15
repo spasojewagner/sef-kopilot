@@ -84,6 +84,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the signed-in person's password
+         * @description Checks the current password as sign-in does, then changes it and ends every web session for the account, across organizations. Returns a new session in the current organization. Only a person signed in with a web access token may do this.
+         */
+        post: operations["change_password_auth_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/accept-invitation": {
         parameters: {
             query?: never;
@@ -644,7 +664,7 @@ export interface paths {
         head?: never;
         /**
          * Change the organization's settings
-         * @description With `invoice_retention_days`, each stored invoice is kept that many days after it was stored: once it is older, it is deleted, with its report and its repairs, when the API next deletes what is past its retention, which it does when it starts and every six hours, or each worker when it starts and every day (ADR-0038). That cannot be undone. Null keeps every invoice until a member deletes it. The audit log records each change of the period, with what it was.
+         * @description With `invoice_retention_days`, each stored invoice is kept that many days after it was stored: once it is older, it is deleted, with its report and its repairs, when the API next deletes what is past its retention, which it does when it starts and every six hours, or each worker when it starts and every day (ADR-0038). That cannot be undone. Null keeps every invoice until a member deletes it. The audit log records each change of the period, with what it was. With `name`, the owner renames the organization. The audit log records who renamed it.
          */
         patch: operations["change_organization_patch"];
         trace?: never;
@@ -2027,6 +2047,11 @@ export interface components {
          */
         OrganizationChange: {
             /**
+             * Name
+             * @description The new organization name, from 1 to 200 characters.
+             */
+            name?: string;
+            /**
              * Invoice Retention Days
              * @description Keep each stored invoice this many days after it was stored, from 1 to 3 650; null to keep every invoice until a member deletes it.
              */
@@ -2198,6 +2223,13 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** PasswordChangeRequest */
+        PasswordChangeRequest: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
         /**
          * Patch
          * @description One change to one place of an invoice.
@@ -2241,7 +2273,7 @@ export interface components {
          * @description Something a member may be allowed to do in their organization.
          * @enum {string}
          */
-        Permission: "members:read" | "members:manage" | "invoices:validate" | "invoices:submit" | "invoices:manage" | "invoices:send" | "api_keys:issue" | "api_keys:manage" | "organization:read" | "organization:manage";
+        Permission: "account:password" | "members:read" | "members:manage" | "invoices:validate" | "invoices:submit" | "invoices:manage" | "invoices:send" | "api_keys:issue" | "api_keys:manage" | "organization:read" | "organization:manage";
         /** Problem */
         Problem: {
             /** Detail */
@@ -3135,6 +3167,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizationChoice"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many requests; try again after `Retry-After` seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    change_password_auth_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Wrong credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Web access token required. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Validation Error */

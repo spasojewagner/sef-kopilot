@@ -21,7 +21,7 @@ from sef_api.logs import SECURITY, JsonFormatter, RequestIds, security_event
 
 from .conftest import REPOSITORY_ROOT
 from .factories import office
-from .test_auth import PASSWORD, login, refresh, register
+from .test_auth import NEW_PASSWORD, PASSWORD, change_password, login, refresh, register
 from .test_mcp import POSTED, Served, initialize, served
 from .test_oauth_authorization import authorize, sent_to, server
 from .test_oauth_tokens import consented, exchange, registered, renewal, token
@@ -103,6 +103,27 @@ async def test_too_many_attempts_and_a_stranger_to_the_organization_are_logged(
     reasons = [fields["reason"] for fields in named(events, "sign-in.refused")]
     assert reasons[0] == "not-a-member"
     assert reasons[-1] == "too-many-attempts"
+
+
+async def test_password_changes_log_the_decision_without_credentials(
+    api: AsyncClient, events: pytest.LogCaptureFixture
+) -> None:
+    registered = await register(api)
+    access = registered["access_token"]
+    wrong_password = "a different passphrase"
+
+    refused = await change_password(api, access, current=wrong_password)
+    changed = await change_password(api, access)
+
+    assert (refused.status_code, changed.status_code) == (401, 200)
+    context = {
+        "user": registered["user"]["id"],
+        "organization": registered["organization"]["id"],
+        "address": "127.0.0.1",
+    }
+    assert named(events, "password.change-refused") == [context | {"reason": "credentials"}]
+    assert named(events, "password.changed") == [context]
+    assert all(value not in logged(events) for value in (PASSWORD, NEW_PASSWORD, wrong_password))
 
 
 async def test_a_refresh_token_presented_again_ends_its_sessions_and_is_logged(

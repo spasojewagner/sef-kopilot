@@ -75,6 +75,11 @@ LIMITED: dict[str, tuple[Counted, str, Callable[[int], dict[str, Any]]]] = {
         "/auth/login",
         lambda n: {"email": f"ana{n}@primer.example", "password": "not the password"},
     ),
+    "password-change": (
+        Counted.PASSWORD_CHANGE,
+        "/auth/password",
+        lambda _: {"current_password": "long passphrase", "new_password": "orchard lemon sundial"},
+    ),
     "registration": (Counted.REGISTRATION, "/auth/register", registration),
     "invitation": (
         Counted.INVITATION,
@@ -347,6 +352,7 @@ def test_the_default_limits() -> None:
     them; per e-mail address, ten wrong passwords in a quarter of an hour."""
     assert dict(DEFAULT_LIMITS) == {
         Counted.SIGN_IN: Limit(30, timedelta(minutes=1)),
+        Counted.PASSWORD_CHANGE: Limit(30, timedelta(minutes=1)),
         Counted.REGISTRATION: Limit(10, timedelta(hours=1)),
         Counted.REFRESH: Limit(60, timedelta(minutes=1)),
         Counted.INVITATION: Limit(10, timedelta(minutes=1)),

@@ -43,10 +43,12 @@ __all__ = [
     "OrganizationRequiredError",
     "PasswordGuard",
     "PersonalPasswordError",
+    "SamePasswordError",
     "SignedIn",
     "TokenSettings",
     "TooManyAttemptsError",
     "accept_invitation",
+    "change_password",
     "login",
     "logout",
     "normalize_email",
@@ -147,6 +149,20 @@ class PersonalPasswordError(Exception):
     """The password for a new account holds the name of its address or of its organization."""
 
 
+class SamePasswordError(Exception):
+    """The new password is the current one."""
+
+
+async def _lock_user(session: AsyncSession, user_id: uuid.UUID) -> User | None:
+    """Serialise changes and issuance for one person's web sessions across organizations."""
+    return await session.scalar(
+        select(User)
+        .where(User.id == user_id)
+        .with_for_update(key_share=True)
+        .execution_options(populate_existing=True)
+    )
+
+
 def normalize_email(email: str) -> str:
     """E-mail addresses are compared and stored in lower case, without surrounding spaces."""
     return email.strip().lower()
@@ -206,7 +222,9 @@ async def login(
     assert user is not None  # a password only verifies against a real account's hash
     if not user.is_active:
         raise AuthenticationError
-    renewed_hash = await hash_password(password) if needs_rehash(user.password_hash) else None
+    verified_hash = user.password_hash
+    verified_version = user.password_version
+    renewed_hash = await hash_password(password) if needs_rehash(verified_hash) else None
     rows = await session.execute(
         select(Organization, Membership.role)
         .join(Membership, Membership.organization_id == Organization.id)
@@ -233,8 +251,56 @@ async def login(
     )
     if role is None:
         raise NotAMemberError
-    if renewed_hash is not None:  # changed only now, after the lock, like every other row
+    user = await _lock_user(session, user.id)
+    if user is None or not user.is_active or user.password_version != verified_version:
+        raise AuthenticationError
+    if renewed_hash is not None and user.password_hash == verified_hash:
         user.password_hash = renewed_hash
+    signed_in = await _sign_in(session, tokens, user, organization, role, family_id=uuid.uuid4())
+    await session.commit()
+    return signed_in
+
+
+async def change_password(
+    session: AsyncSession,
+    tokens: TokenSettings,
+    *,
+    user_id: uuid.UUID,
+    organization_id: uuid.UUID,
+    current_password: str,
+    new_password: str,
+    guard: PasswordGuard,
+) -> SignedIn:
+    """Replace the password and all web sessions in the same transaction."""
+    await lock_organization(session, organization_id, shared=True)
+    user = await _lock_user(session, user_id)
+    if user is None or not user.is_active:
+        raise AuthenticationError
+    memberships = (
+        await session.execute(
+            select(Organization, Membership.role)
+            .join(Membership, Membership.organization_id == Organization.id)
+            .where(Membership.user_id == user_id)
+        )
+    ).all()
+    current = next((row for row in memberships if row[0].id == organization_id), None)
+    if current is None:
+        raise NotAMemberError
+    if not await _verify(guard, user.email, user.password_hash, current_password):
+        raise AuthenticationError
+    if new_password == current_password:
+        raise SamePasswordError
+    if is_personal(new_password, user.email.partition("@")[0], *(o.name for o, _ in memberships)):
+        raise PersonalPasswordError
+
+    user.password_hash = await hash_password(new_password)
+    user.password_version = uuid.uuid4()
+    await session.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=datetime.now(UTC))
+    )
+    organization, role = current
     signed_in = await _sign_in(session, tokens, user, organization, role, family_id=uuid.uuid4())
     await session.commit()
     return signed_in
@@ -290,7 +356,9 @@ async def accept_invitation(
         password_hash = await _new_account_hash(password, email, organization_name)
     elif not await _verify(guard, email, user.password_hash, password) or not user.is_active:
         raise AuthenticationError
-    elif needs_rehash(user.password_hash):
+    verified_hash = user.password_hash if user is not None else None
+    verified_version = user.password_version if user is not None else None
+    if verified_hash is not None and needs_rehash(verified_hash):
         password_hash = await hash_password(password)
     # The organization first, as every change to its members does, then the invitation.
     await lock_organization(session, organization_id)
@@ -309,9 +377,10 @@ async def accept_invitation(
             await session.rollback()
             raise EmailTakenError from error
     else:
-        if not await session.scalar(select(User.is_active).where(User.id == user.id)):
-            raise AuthenticationError  # deactivated or deleted while the password was checked
-        if password_hash is not None:
+        user = await _lock_user(session, user.id)
+        if user is None or not user.is_active or user.password_version != verified_version:
+            raise AuthenticationError
+        if password_hash is not None and user.password_hash == verified_hash:
             user.password_hash = password_hash
     membership = await session.scalar(
         select(Membership).where(
@@ -347,8 +416,8 @@ async def refresh(
     role takes effect at the next refresh at the latest.
 
     A token that can do nothing (unknown, revoked, or expired before it was spent) is refused
-    without taking any lock. Otherwise the organization is locked shared and the session's
-    tokens exclusively, both in a fixed order, before anything is decided. So a refresh and a
+    without taking any lock. Otherwise the organization, user and session's tokens are
+    locked in that order before anything is decided. So a refresh and a
     removal of the same person take turns, and so do the refreshes, replays and sign-outs of
     one session: whichever comes second sees what the first one wrote.
     """
@@ -358,6 +427,7 @@ async def refresh(
     if found is None:
         raise InvalidRefreshTokenError
     await lock_organization(session, found.organization_id, shared=True)
+    await _lock_user(session, found.user_id)
     await _lock_family(session, found.family_id)
     stored = await session.scalar(select(RefreshToken).where(RefreshToken.digest == digest))
     if stored is None:  # removed with its organization or account a moment ago
@@ -405,6 +475,7 @@ async def logout(session: AsyncSession, *, refresh_token: str, now: datetime | N
     if found is None:
         return
     await lock_organization(session, found.organization_id, shared=True)
+    await _lock_user(session, found.user_id)
     await _lock_family(session, found.family_id)
     await _revoke_family(session, found.family_id, moment)
     await session.commit()
@@ -443,6 +514,7 @@ async def _sign_in(
         secret=tokens.secret,
         lifetime=tokens.access_lifetime,
         now=moment,
+        password_version=user.password_version,
     )
     token = new_opaque_token()
     refresh_expires_at = moment + tokens.refresh_lifetime
@@ -469,6 +541,7 @@ async def _sign_in(
 
 @dataclass(frozen=True)
 class _Live:
+    user_id: uuid.UUID
     organization_id: uuid.UUID
     family_id: uuid.UUID
 
@@ -480,6 +553,7 @@ async def _find_live(session: AsyncSession, digest: str, moment: datetime) -> _L
     row = (
         await session.execute(
             select(
+                RefreshToken.user_id,
                 RefreshToken.organization_id,
                 RefreshToken.family_id,
                 RefreshToken.used_at,
@@ -494,7 +568,7 @@ async def _find_live(session: AsyncSession, digest: str, moment: datetime) -> _L
         or (row.used_at is None and row.expires_at <= moment)
     ):
         return None
-    return _Live(row.organization_id, row.family_id)
+    return _Live(row.user_id, row.organization_id, row.family_id)
 
 
 async def _lock_family(session: AsyncSession, family_id: uuid.UUID) -> None:

@@ -255,6 +255,7 @@ class User(Base):
     id: Mapped[uuid.UUID] = _id()
     email: Mapped[str] = mapped_column(Text, unique=True)
     password_hash: Mapped[str] = mapped_column(Text)
+    password_version: Mapped[uuid.UUID | None]
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
     created_at: Mapped[datetime] = _created_at()
 
@@ -872,6 +873,7 @@ class AuditAction(StrEnum):
     REPAIR_PROPOSED = "repair.proposed"
     REPAIR_APPROVED = "repair.approved"
     REPAIR_REJECTED = "repair.rejected"
+    ORGANIZATION_RENAMED = "organization.renamed"
     ORGANIZATION_RETENTION_SET = "organization.retention_set"
     OAUTH_CLIENT_AUTHORIZED = "oauth.client_authorized"
     SEF_KEY_SET = "sef.key_set"
@@ -899,7 +901,8 @@ class AuditEvent(Base):
         CheckConstraint(
             "action IN ('repair.proposed', 'repair.approved', 'repair.rejected', "
             "'organization.retention_set', 'oauth.client_authorized', 'sef.key_set', "
-            "'sef.key_removed', 'sef.invoice_sent', 'model.key_set', 'model.key_removed')",
+            "'sef.key_removed', 'sef.invoice_sent', 'model.key_set', 'model.key_removed', "
+            "'organization.renamed')",
             name="action_known",
         ),
         Index("ix_audit_events_organization_id_at_id", "organization_id", "at", "id"),

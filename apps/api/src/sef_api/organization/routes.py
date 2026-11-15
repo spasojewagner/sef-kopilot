@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api.auth.dependencies import Principal, require
 from sef_api.auth.permissions import Permission
-from sef_api.auth.routes import Problem
+from sef_api.auth.routes import OrganizationName, Problem
 from sef_api.db import get_session
 from sef_api.models import ModelKey, Organization
 from sef_api.organization import service
@@ -60,6 +60,10 @@ class OrganizationChange(BaseModel):
     """What to change; what is left out stays as it is."""
 
     model_config = ConfigDict(extra="forbid")
+
+    name: OrganizationName = Field(
+        default_factory=str, description="The new organization name, from 1 to 200 characters."
+    )
 
     invoice_retention_days: int | None = Field(
         default=None,
@@ -197,15 +201,20 @@ async def show(caller: CanRead, session: Session) -> OrganizationSettings:
         "next deletes what is past its retention, which it does when it starts and every six "
         "hours, or each worker when it starts and every day (ADR-0038). That cannot be undone. "
         "Null keeps every invoice until a member deletes it. The audit log records each change "
-        "of the period, with what it was."
+        "of the period, with what it was. With `name`, the owner renames the organization. "
+        "The audit log records who renamed it."
     ),
 )
 async def change(
     body: OrganizationChange, caller: CanManage, session: Session
 ) -> OrganizationSettings:
-    if "invoice_retention_days" not in body.model_fields_set:
-        return await _out(session, await service.find(session, caller.organization_id))
-    organization = await service.set_invoice_retention(session, caller, body.invoice_retention_days)
+    organization = await service.change_settings(
+        session,
+        caller,
+        name=body.name or None,
+        retention_days=body.invoice_retention_days,
+        change_retention="invoice_retention_days" in body.model_fields_set,
+    )
     return await _out(session, organization)
 
 

@@ -302,3 +302,24 @@ def test_the_models_check_what_the_migrations_check(
     modelled = {str(check) for check in asyncio.run(run(empty_database_url, CHECKS))}
     assert migrated - modelled == modelled - migrated == set()
     assert any("permissions_known" in check for check in migrated)
+
+
+def test_undoing_a_rename_removes_only_its_event(empty_database_url: str) -> None:
+    config = alembic_config(empty_database_url)
+    command.upgrade(config, "0027")
+    asyncio.run(
+        run(
+            empty_database_url,
+            "INSERT INTO organizations (name) VALUES ('Primer')",
+            "INSERT INTO audit_events (organization_id, actor, action)"
+            " SELECT id, gen_random_uuid(), 'organization.retention_set' FROM organizations",
+            "INSERT INTO audit_events (organization_id, actor, action)"
+            " SELECT id, gen_random_uuid(), 'organization.renamed' FROM organizations",
+        )
+    )
+
+    command.downgrade(config, "0026")
+
+    assert asyncio.run(run(empty_database_url, "SELECT action FROM audit_events")) == [
+        "organization.retention_set"
+    ]

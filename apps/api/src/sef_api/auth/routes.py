@@ -20,8 +20,10 @@ from sef_api.auth.dependencies import (
     current_principal,
     get_token_settings,
     no_longer_active,
+    require,
 )
 from sef_api.auth.passwords import MAXIMUM_LENGTH, MINIMUM_LENGTH, is_common, is_personal
+from sef_api.auth.permissions import Permission
 from sef_api.auth.service import SignedIn, TokenSettings
 from sef_api.db import get_session
 from sef_api.logs import security_event
@@ -63,12 +65,12 @@ PERSONAL_PASSWORD: Final = "personal_password"
 _PERSONAL_MESSAGE: Final = "holds the name of the address or of the organization; choose another"
 
 
-def _personal_refusal() -> HTTPException:
+def _personal_refusal(field: str = "password") -> HTTPException:
     """The 422 of a password that its address or organization gives away, said of the password
     as the request's model says a common one is."""
     return HTTPException(
         status.HTTP_422_UNPROCESSABLE_CONTENT,
-        [{"type": PERSONAL_PASSWORD, "loc": ["body", "password"], "msg": _PERSONAL_MESSAGE}],
+        [{"type": PERSONAL_PASSWORD, "loc": ["body", field], "msg": _PERSONAL_MESSAGE}],
     )
 
 
@@ -120,6 +122,11 @@ class LoginRequest(BaseModel):
         default=None,
         description="Required when the person is a member of more than one organization.",
     )
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: Password
+    new_password: NewPassword
 
 
 class AcceptInvitationRequest(BaseModel):
@@ -300,6 +307,78 @@ async def login(
         organization=str(signed_in.organization.id),
         address=address,
     )
+    return _tokens(signed_in)
+
+
+@router.post(
+    "/password",
+    summary="Change the signed-in person's password",
+    description=(
+        "Checks the current password as sign-in does, then changes it and ends every web "
+        "session for the account, across organizations. Returns a new session in the current "
+        "organization. Only a person signed in with a web access token may do this."
+    ),
+    dependencies=[NO_STORE, Depends(per_address(Counted.PASSWORD_CHANGE))],
+    responses=TOO_MANY
+    | {
+        status.HTTP_401_UNAUTHORIZED: {"model": Problem, "description": "Wrong credentials."},
+        status.HTTP_403_FORBIDDEN: {"model": Problem, "description": "Web access token required."},
+    },
+)
+async def change_password(
+    *,
+    body: PasswordChangeRequest,
+    request: Request,
+    caller: Annotated[Principal, Depends(require(Permission.ACCOUNT_PASSWORD))],
+    session: Session,
+    tokens: Tokens,
+    attempts: Attempts,
+) -> TokenResponse:
+    if not caller.in_person:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "only a signed-in person may change a password"
+        )
+    context = {
+        "address": client_address(request),
+        "user": str(caller.user_id),
+        "organization": str(caller.organization_id),
+    }
+    try:
+        signed_in = await service.change_password(
+            session,
+            tokens,
+            user_id=caller.user_id,
+            organization_id=caller.organization_id,
+            current_password=body.current_password,
+            new_password=body.new_password,
+            guard=attempts,
+        )
+    except service.TooManyAttemptsError as refused:
+        security_event("password.change-refused", reason="too-many-attempts", **context)
+        raise too_many(Counted.FAILED_PASSWORD, refused.wait) from None
+    except service.AuthenticationError:
+        security_event("password.change-refused", reason="credentials", **context)
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "invalid e-mail address or password",
+            headers=_UNAUTHORIZED,
+        ) from None
+    except service.NotAMemberError:
+        raise no_longer_active() from None
+    except service.PersonalPasswordError:
+        raise _personal_refusal("new_password") from None
+    except service.SamePasswordError:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            [
+                {
+                    "type": "same_password",
+                    "loc": ["body", "new_password"],
+                    "msg": "must differ from the current password",
+                }
+            ],
+        ) from None
+    security_event("password.changed", **context)
     return _tokens(signed_in)
 
 

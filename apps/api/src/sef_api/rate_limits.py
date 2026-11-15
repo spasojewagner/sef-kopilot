@@ -168,6 +168,7 @@ class Counted(StrEnum):
     """What the API counts against a limit, as an answer of 429 names it."""
 
     SIGN_IN = "sign-in attempts"
+    PASSWORD_CHANGE = "password change requests"
     REGISTRATION = "registrations"
     REFRESH = "refresh-token requests"
     INVITATION = "attempts to accept an invitation"
@@ -187,6 +188,7 @@ class Counted(StrEnum):
 DEFAULT_LIMITS: Final[Mapping[Counted, Limit]] = MappingProxyType(
     {
         Counted.SIGN_IN: Limit(30, timedelta(minutes=1)),
+        Counted.PASSWORD_CHANGE: Limit(30, timedelta(minutes=1)),
         Counted.REGISTRATION: Limit(10, timedelta(hours=1)),
         Counted.REFRESH: Limit(60, timedelta(minutes=1)),
         Counted.INVITATION: Limit(10, timedelta(minutes=1)),
