@@ -30,6 +30,7 @@ def test_every_role_may_have_an_invoice_validated_and_store_invoices() -> None:
     for permission in (Permission.INVOICES_VALIDATE, Permission.INVOICES_SUBMIT):
         assert all(permission in ROLE_PERMISSIONS[role] for role in Role)
     assert ROLE_PERMISSIONS[Role.CLIENT] == {
+        Permission.ACCOUNT_PASSWORD,
         Permission.INVOICES_VALIDATE,
         Permission.INVOICES_SUBMIT,
         Permission.API_KEYS_ISSUE,
@@ -79,6 +80,11 @@ def test_every_role_may_issue_api_keys_and_only_owners_see_everyones() -> None:
     assert [role for role in Role if Permission.API_KEYS_MANAGE in ROLE_PERMISSIONS[role]] == [
         Role.OWNER
     ]
+
+
+def test_every_member_may_change_their_password_in_person() -> None:
+    assert all(Permission.ACCOUNT_PASSWORD in ROLE_PERMISSIONS[role] for role in Role)
+    assert Permission.ACCOUNT_PASSWORD not in KEY_PERMISSIONS
 
 
 def test_a_key_may_hold_only_permissions_for_work_on_invoices() -> None:
