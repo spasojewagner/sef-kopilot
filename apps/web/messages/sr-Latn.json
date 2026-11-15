@@ -664,10 +664,6 @@
     "goneTitle": "Zahtev više ne čeka odluku",
     "gone": "Istekao je ili je već odlučen. Pokrenite povezivanje ponovo u aplikaciji."
   },
-  "apiWaking": {
-    "title": "API se budi",
-    "description": "Server koji je neko vreme mirovao budi se za oko minut. Ono što pošaljete sačekaće i otići čim odgovori."
-  },
   "reading": {
     "title": "{kind, select, pdf {Pročitano iz PDF-a} other {Pročitano sa slike}}",
     "beta": "beta",

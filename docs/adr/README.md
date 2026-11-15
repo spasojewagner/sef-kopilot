@@ -41,7 +41,7 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0033](0033-one-end-to-end-test-of-the-golden-path.md) | One end-to-end test of the golden path, against the API with a scripted model | accepted | 2026-11-07 |
 | [0034](0034-the-apis-image.md) | The API's image: the lock file's dependencies, rule sets compiled in, migrations at start | accepted | 2026-11-07 |
 | [0035](0035-the-public-demos-hosting.md) | The public demo: the web application on Vercel, the API on Render, its database on Neon | accepted | 2026-11-07 |
-| [0036](0036-the-pages-wait-for-a-sleeping-api.md) | The pages wait for a sleeping API, and say that it is waking up | accepted | 2026-11-07 |
+| [0036](0036-the-pages-wait-for-a-sleeping-api.md) | The pages wait for a sleeping API, and say that it is waking up | accepted, amended by 0065 | 2026-11-07 |
 | [0037](0037-the-public-demo-asks-for-synthetic-invoices.md) | The public demo asks for synthetic invoices, by a setting of the API | accepted | 2026-11-07 |
 | [0038](0038-finished-jobs-are-deleted-after-thirty-days.md) | Finished jobs are deleted after thirty days, where they run | accepted | 2026-11-07 |
 | [0039](0039-an-organization-sets-how-long-it-keeps-its-invoices.md) | An organization sets how long it keeps its stored invoices | accepted | 2026-11-07 |
@@ -70,3 +70,4 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0062](0062-invoices-are-read-from-pdfs-and-pictures-into-fields-a-person-confirms.md) | Invoices are read from PDFs and pictures into fields a person confirms, and code writes the UBL | accepted | 2026-11-11 |
 | [0063](0063-the-reading-is-measured-on-invoices-printed-three-ways.md) | The reading is measured on invoices printed three ways, by field, against thresholds | accepted | 2026-11-11 |
 | [0064](0064-an-assistant-sends-a-document-to-be-read-in-base64-within-the-limit-on-messages.md) | An assistant sends a document to be read in base64, within the limit on messages | accepted | 2026-11-11 |
+| [0065](0065-a-waking-api-is-told-in-the-footer-only.md) | A waking API is told in the footer only, not above every page | accepted | 2026-11-15 |

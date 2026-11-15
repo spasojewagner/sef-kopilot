@@ -29,6 +29,8 @@ is tagged.
   one line and opens on its fields, the amounts written as the person's language writes them; the
   actions stay in reach at the foot of the screen. Panels slide open where the browser can
   animate them.
+- `apps/web`: the notice that the API is waking up no longer appears above every page, where it
+  pushed the page down under the header; the footer alone says so, as before (ADR-0065).
 
 ## [1.0.0] - 2026-11-14
 

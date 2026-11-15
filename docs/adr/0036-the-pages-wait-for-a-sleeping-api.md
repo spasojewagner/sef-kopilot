@@ -1,6 +1,7 @@
 # 36. The pages wait for a sleeping API, and say that it is waking up
 
-- Status: accepted
+- Status: accepted; amended by [0065](0065-a-waking-api-is-told-in-the-footer-only.md), under
+  which the footer alone says that the API is waking up
 - Date: 2026-11-07
 - Deciders: Marko Spasojević
 - Technical story: milestone M3, branch `feat/web-api-waking-up`; the consequence ADR-0035
