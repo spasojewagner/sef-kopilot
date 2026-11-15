@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   explanationsQuery,
   invoiceQuery,
-  invoicesQuery,
+  invoiceListKey,
   repairQuery,
   repairsQuery,
 } from "@/lib/queries";
@@ -79,7 +79,7 @@ describe("A person's decision on a repair", () => {
     client.setQueryData(invoiceQuery(ID).queryKey, storedInvoice());
     client.setQueryData(repairsQuery(ID).queryKey, [listedRepair()]);
     client.setQueryData(explanationsQuery(ID, "sr").queryKey, null);
-    client.setQueryData(invoicesQuery.queryKey, {
+    client.setQueryData(invoiceListKey, {
       pages: [{ invoices: [], next: null }],
       pageParams: [null],
     });
@@ -125,7 +125,7 @@ describe("A person's decision on a repair", () => {
     expect(
       client.getQueryState(explanationsQuery(ID, "sr").queryKey),
     ).toBeUndefined();
-    expect(client.getQueryState(invoicesQuery.queryKey)).toBeUndefined();
+    expect(client.getQueryState(invoiceListKey)).toBeUndefined();
   });
 
   it("leaves the invoice to be read when shown, when reading it again after an approval fails", async () => {

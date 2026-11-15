@@ -7,7 +7,7 @@ import { authorized } from "@/lib/session";
 
 export type Invoice = Schemas["InvoiceOut"];
 export type StoredInvoice = Schemas["StoredInvoiceOut"];
-export type InvoicePage = Omit<Schemas["InvoiceListPage"], "total">;
+export type InvoicePage = Schemas["InvoiceListPage"];
 export type Report = Schemas["ValidationReport"];
 export type Violation = Schemas["Violation"];
 export type Profile = Invoice["profile"];
@@ -16,7 +16,17 @@ export type Profile = Invoice["profile"];
 export const PROFILES: readonly Profile[] = ["srb", "en16931", "peppol"];
 
 /** Invoices on a page of the list. */
-export const PAGE_SIZE = 20;
+export const PAGE_SIZES = [25, 50, 100] as const;
+export const PAGE_SIZE = PAGE_SIZES[0];
+
+export type InvoiceFilters = {
+  q: string;
+  valid: "true" | "false" | "";
+  type: NonNullable<Invoice["summary"]>["document_type"] | "";
+  from: string;
+  to: string;
+  size: (typeof PAGE_SIZES)[number];
+};
 
 /**
  * An upload and its validation may take longer than an ordinary request: the API reads a body
@@ -71,14 +81,18 @@ export function validateInvoice(
 }
 
 /** A page of the organization's invoices, the newest first; ``after`` continues a list. */
-export function listInvoices({
-  after,
-  signal,
-}: { after?: string | null; signal?: AbortSignal } = {}): Promise<InvoicePage> {
-  const query = new URLSearchParams({ limit: String(PAGE_SIZE) });
-  if (after) {
-    query.set("after", after);
-  }
+export function listInvoices(
+  filters: InvoiceFilters,
+  after: string | null,
+  signal?: AbortSignal,
+): Promise<InvoicePage> {
+  const query = new URLSearchParams({ limit: String(filters.size) });
+  if (after) query.set("after", after);
+  if (filters.q) query.set("q", filters.q);
+  if (filters.valid) query.set("valid", filters.valid);
+  if (filters.type) query.set("document_type", filters.type);
+  if (filters.from) query.set("issued_from", filters.from);
+  if (filters.to) query.set("issued_to", filters.to);
   return authorized<InvoicePage>(`/invoices?${query}`, { signal });
 }
 

@@ -1,5 +1,5 @@
 import {
-  infiniteQueryOptions,
+  keepPreviousData,
   type QueryClient,
   queryOptions,
 } from "@tanstack/react-query";
@@ -13,7 +13,7 @@ import {
   keptExplanations,
   type Language,
 } from "@/lib/explanations";
-import { getInvoice, listInvoices } from "@/lib/invoices";
+import { getInvoice, type InvoiceFilters, listInvoices } from "@/lib/invoices";
 import { getAuthorizationRequest } from "@/lib/oauth";
 import { getOrganization } from "@/lib/organization";
 import { getRepair, listRepairs } from "@/lib/repairs";
@@ -77,13 +77,23 @@ export const apiKeysQuery = queryOptions({
 });
 
 /** The organization's invoices, the newest first, a page at a time. */
-export const invoicesQuery = infiniteQueryOptions({
-  queryKey: ["invoices", "list"],
-  queryFn: ({ pageParam, signal }) =>
-    listInvoices({ after: pageParam, signal }),
-  initialPageParam: null as string | null,
-  getNextPageParam: (page) => page.next,
-});
+export const invoiceListKey = ["invoices", "list"] as const;
+
+export function invoiceListQuery(
+  filters: InvoiceFilters,
+  after: string | null,
+  offset: number,
+) {
+  return queryOptions({
+    queryKey: [...invoiceListKey, filters, after, offset],
+    queryFn: async ({ signal }) => ({
+      ...(await listInvoices(filters, after, signal)),
+      offset,
+      search: filters.q,
+    }),
+    placeholderData: keepPreviousData,
+  });
+}
 
 /** A stored invoice with the validator's latest report on it. */
 export function invoiceQuery(id: string) {

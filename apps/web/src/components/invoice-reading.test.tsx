@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { invoiceQuery, invoicesQuery } from "@/lib/queries";
+import { invoiceQuery, invoiceListKey } from "@/lib/queries";
 import { json, keepSession, stubApi, type Asked } from "@/test/api";
 import { extraction, READ } from "@/test/extraction";
 import { storedInvoice } from "@/test/invoices";
@@ -35,7 +35,7 @@ function reading(
   } = {},
 ) {
   const client = testQueryClient();
-  client.setQueryData(invoicesQuery.queryKey, {
+  client.setQueryData(invoiceListKey, {
     pages: [{ invoices: [], next: null }],
     pageParams: [null],
   });

@@ -164,7 +164,30 @@
     "verdict": "Nalaz",
     "submitted": "Poslata",
     "notSchemaValid": "Ne prolazi UBL šemu",
-    "more": "Prikaži još"
+    "noMatch": "Nijedna faktura ne odgovara pretrazi.",
+    "resultCount": "{count, plural, one {# faktura} few {# fakture} other {# faktura}}",
+    "filters": {
+      "search": "Pretraži",
+      "placeholder": "Broj, prodavac ili kupac",
+      "verdict": "Nalaz",
+      "type": "Vrsta",
+      "all": "Sve",
+      "valid": "Ispravne",
+      "invalid": "Neispravne",
+      "invoice": "Fakture",
+      "creditNote": "Knjižna odobrenja",
+      "from": "Datum izdavanja od",
+      "to": "Datum izdavanja do",
+      "clear": "Poništi filtere",
+      "dateOrder": "Početni datum mora biti isti kao krajnji datum ili raniji."
+    },
+    "pages": {
+      "label": "Stranice",
+      "size": "Po stranici",
+      "previous": "Prethodna",
+      "next": "Sledeća",
+      "range": "{first, number}–{last, number} od {total, number}"
+    }
   },
   "upload": {
     "file": "Faktura (XML, PDF ili slika)",
