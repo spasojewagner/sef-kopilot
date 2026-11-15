@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import base64
 import re
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
@@ -64,6 +64,7 @@ async def test_invoices_are_listed_newest_first_a_page_at_a_time(
         newest_first[4:],
     ]
     assert third["next"] is None
+    assert [page["total"] for page in (first, second, third)] == [5, 5, 5]
 
 
 async def test_invoices_stored_at_the_same_moment_are_each_listed_once(
@@ -173,6 +174,7 @@ async def test_a_list_says_what_the_validator_read_without_the_reports(
     assert page == {
         "invoices": [{key: value for key, value in stored.json().items() if key != "report"}],
         "next": None,
+        "total": 1,
     }
 
 
@@ -262,3 +264,105 @@ async def test_an_invoice_that_does_not_exist_is_not_found(
     for path in (f"/invoices/{missing}", f"/invoices/{missing}/content"):
         response = await api.get(path, headers=primer.as_owner())
         assert (response.status_code, response.json()) == (404, NOT_FOUND)
+
+
+@pytest.fixture
+async def searchable(session: AsyncSession, primer: Office) -> dict[str, str]:
+    other = await office(session, "Druga kancelarija", "druga.example")
+    ids_by_number = {}
+    for minute, (number, seller, buyer, day, kind, valid, member) in enumerate(
+        [
+            ("F-%_!01", "ЕПС Оглед", "Radionica", 1, "Invoice", False, primer.client),
+            ("F-XA!01", "Park", "RADIONICA", 2, "CreditNote", True, primer.client),
+            ("F-003", "Park", "Radionica", 3, "Invoice", True, primer.accountant),
+            ("F-004", None, None, None, "Invoice", False, primer.client),
+        ]
+    ):
+        row = await stored_invoice(
+            session,
+            primer.organization,
+            member,
+            created_at=at(minute),
+            number=number if day else None,
+            seller=seller,
+            buyer=buyer,
+            document_type=kind if day else None,
+            valid=valid,
+            issue_date=date(2026, 11, day) if day else None,
+            payable_amount=120 if day else None,
+        )
+        ids_by_number[number] = str(row.id)
+    await stored_invoice(session, other.organization, other.owner, seller="ЕПС Оглед")
+    return ids_by_number
+
+
+@pytest.mark.parametrize(
+    ("filters", "numbers"),
+    [
+        ({"q": "  f-003  "}, ["F-003"]),
+        ({"q": "епс"}, ["F-%_!01"]),
+        ({"q": "radionica"}, ["F-003", "F-XA!01", "F-%_!01"]),
+        ({"q": "%"}, ["F-%_!01"]),
+        ({"q": "_"}, ["F-%_!01"]),
+        ({"q": "%_!"}, ["F-%_!01"]),
+        ({"issued_from": "2026-11-02"}, ["F-003", "F-XA!01"]),
+        ({"issued_to": "2026-11-02"}, ["F-XA!01", "F-%_!01"]),
+        ({"document_type": "CreditNote"}, ["F-XA!01"]),
+        (
+            {
+                "q": "radionica",
+                "valid": "true",
+                "issued_from": "2026-11-02",
+                "issued_to": "2026-11-02",
+                "document_type": "CreditNote",
+            },
+            ["F-XA!01"],
+        ),
+        ({"q": "missing"}, []),
+    ],
+)
+async def test_invoice_list_filters(
+    api: AsyncClient,
+    primer: Office,
+    searchable: dict[str, str],
+    filters: dict[str, str],
+    numbers: list[str],
+) -> None:
+    page = await listed(api, primer.as_owner(), **filters)
+
+    assert ids(page) == [searchable[number] for number in numbers]
+    assert page["total"] == len(numbers)
+
+
+async def test_filtered_totals_span_pages_and_stay_inside_the_callers_scope(
+    api: AsyncClient,
+    primer: Office,
+    searchable: dict[str, str],
+) -> None:
+    first = await listed(api, primer.as_client(), q="radionica", limit=1)
+    second = await listed(api, primer.as_client(), q="radionica", limit=1, after=first["next"])
+    assert (ids(first), ids(second)) == ([searchable["F-XA!01"]], [searchable["F-%_!01"]])
+    assert first["total"] == second["total"] == 2
+    assert second["next"] is None
+
+
+@pytest.mark.parametrize(
+    "filters",
+    [
+        {"q": ""},
+        {"q": "   "},
+        {"q": "a" * 101},
+        {"issued_from": "yesterday"},
+        {"issued_to": "2026-11-31"},
+        {"issued_from": "2026-11-03", "issued_to": "2026-11-02"},
+        {"document_type": "Other"},
+    ],
+)
+async def test_invalid_list_filters_are_refused(
+    api: AsyncClient,
+    primer: Office,
+    filters: dict[str, str],
+) -> None:
+    result = await api.get("/invoices", params=filters, headers=primer.as_owner())
+
+    assert result.status_code == 422

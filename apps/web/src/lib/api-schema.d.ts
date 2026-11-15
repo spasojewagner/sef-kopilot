@@ -233,7 +233,7 @@ export interface paths {
         };
         /**
          * List stored invoices
-         * @description The organization's stored invoices, the newest first, a page at a time: what the validator read from each and whether it is valid, without the reports. A member without `invoices:manage` sees the invoices they submitted. `valid=false` lists only the invoices the validator last found invalid, `valid=true` only the valid ones.
+         * @description The organization's stored invoices, the newest first, a page at a time: what the validator read from each and whether it is valid, without the reports. A member without `invoices:manage` sees the invoices they submitted. `valid=false` lists only the invoices the validator last found invalid, `valid=true` only the valid ones. All supplied filters must match. A cursor continues the list that issued it; start from the first page without `after` when the filters change.
          */
         get: operations["list_invoices_invoices_get"];
         put?: never;
@@ -1570,6 +1570,24 @@ export interface components {
             payment?: components["schemas"]["Payment"];
         };
         /**
+         * InvoiceListPage
+         * @description A page and the total across the scoped and filtered list.
+         */
+        InvoiceListPage: {
+            /** Invoices */
+            invoices: components["schemas"]["InvoiceOut"][];
+            /**
+             * Next
+             * @description Pass as `after` for the next page; null on the last page.
+             */
+            next: string | null;
+            /**
+             * Total
+             * @description Matching invoices across all pages in the caller's scope.
+             */
+            total: number;
+        };
+        /**
          * InvoiceOut
          * @description A stored invoice: who submitted it and when, and what the validator read from it.
          */
@@ -1618,19 +1636,6 @@ export interface components {
             sha256: string;
             /** @description None when the document is not a schema-valid invoice the validator can read. */
             summary: components["schemas"]["InvoiceSummary"] | null;
-        };
-        /**
-         * InvoicePage
-         * @description Stored invoices, the newest first.
-         */
-        InvoicePage: {
-            /** Invoices */
-            invoices: components["schemas"]["InvoiceOut"][];
-            /**
-             * Next
-             * @description Pass as `after` for the next page; null on the last page.
-             */
-            next: string | null;
         };
         /**
          * InvoiceSummary
@@ -3615,6 +3620,14 @@ export interface operations {
                 after?: string | null;
                 /** @description Only the invoices whose latest report is valid, or invalid. */
                 valid?: boolean | null;
+                /** @description Literal substring of the number, seller or buyer. */
+                q?: string | null;
+                /** @description Earliest issue date, inclusive. */
+                issued_from?: string | null;
+                /** @description Latest issue date, inclusive. */
+                issued_to?: string | null;
+                /** @description UBL document type. */
+                document_type?: ("Invoice" | "CreditNote") | null;
             };
             header?: never;
             path?: never;
@@ -3628,10 +3641,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvoicePage"];
+                    "application/json": components["schemas"]["InvoiceListPage"];
                 };
             };
-            /** @description `after` is not a cursor this API gave. */
+            /** @description An invalid cursor, filter or issue-date range. */
             422: {
                 headers: {
                     [name: string]: unknown;

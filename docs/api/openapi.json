@@ -927,7 +927,7 @@
           "invoices"
         ],
         "summary": "List stored invoices",
-        "description": "The organization's stored invoices, the newest first, a page at a time: what the validator read from each and whether it is valid, without the reports. A member without `invoices:manage` sees the invoices they submitted. `valid=false` lists only the invoices the validator last found invalid, `valid=true` only the valid ones.",
+        "description": "The organization's stored invoices, the newest first, a page at a time: what the validator read from each and whether it is valid, without the reports. A member without `invoices:manage` sees the invoices they submitted. `valid=false` lists only the invoices the validator last found invalid, `valid=true` only the valid ones. All supplied filters must match. A cursor continues the list that issued it; start from the first page without `after` when the filters change.",
         "operationId": "list_invoices_invoices_get",
         "security": [
           {
@@ -985,6 +985,86 @@
               "title": "Valid"
             },
             "description": "Only the invoices whose latest report is valid, or invalid."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Literal substring of the number, seller or buyer.",
+              "title": "Q"
+            },
+            "description": "Literal substring of the number, seller or buyer."
+          },
+          {
+            "name": "issued_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Earliest issue date, inclusive.",
+              "title": "Issued From"
+            },
+            "description": "Earliest issue date, inclusive."
+          },
+          {
+            "name": "issued_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Latest issue date, inclusive.",
+              "title": "Issued To"
+            },
+            "description": "Latest issue date, inclusive."
+          },
+          {
+            "name": "document_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Invoice",
+                    "CreditNote"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UBL document type.",
+              "title": "Document Type"
+            },
+            "description": "UBL document type."
           }
         ],
         "responses": {
@@ -993,13 +1073,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvoicePage"
+                  "$ref": "#/components/schemas/InvoiceListPage"
                 }
               }
             }
           },
           "422": {
-            "description": "`after` is not a cursor this API gave.",
+            "description": "An invalid cursor, filter or issue-date range.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5163,6 +5243,42 @@
         "title": "InvoiceFields",
         "description": "An invoice's fields as a document prints them; null where it does not show one."
       },
+      "InvoiceListPage": {
+        "properties": {
+          "invoices": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceOut"
+            },
+            "type": "array",
+            "title": "Invoices"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next",
+            "description": "Pass as `after` for the next page; null on the last page."
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Matching invoices across all pages in the caller's scope."
+          }
+        },
+        "type": "object",
+        "required": [
+          "invoices",
+          "next",
+          "total"
+        ],
+        "title": "InvoiceListPage",
+        "description": "A page and the total across the scoped and filtered list."
+      },
       "InvoiceOut": {
         "properties": {
           "id": {
@@ -5245,36 +5361,6 @@
         ],
         "title": "InvoiceOut",
         "description": "A stored invoice: who submitted it and when, and what the validator read from it."
-      },
-      "InvoicePage": {
-        "properties": {
-          "invoices": {
-            "items": {
-              "$ref": "#/components/schemas/InvoiceOut"
-            },
-            "type": "array",
-            "title": "Invoices"
-          },
-          "next": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next",
-            "description": "Pass as `after` for the next page; null on the last page."
-          }
-        },
-        "type": "object",
-        "required": [
-          "invoices",
-          "next"
-        ],
-        "title": "InvoicePage",
-        "description": "Stored invoices, the newest first."
       },
       "InvoiceSummary": {
         "properties": {

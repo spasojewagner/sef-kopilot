@@ -320,7 +320,7 @@ curl -s "localhost:8000/invoices?limit=20" -H "Authorization: Bearer $ACCESS_TOK
 
 | Endpoint | Answer |
 | --- | --- |
-| `GET /invoices?limit=&after=&valid=` | the newest invoices first, up to 100 a page (50 by default), without their reports; `next` is the `after` of the next page; `valid=false` lists only those whose latest report is invalid, `valid=true` only the valid ones |
+| `GET /invoices` | the newest invoices first, up to 100 a page (50 by default), without their reports, with a cursor and the total for the filtered list |
 | `GET /invoices/{id}` | one invoice with its report |
 | `GET /invoices/{id}/content` | the document byte for byte, as an attachment |
 | `POST /invoices/{id}/explanations?language=` | the explanations of the invoice's report (below), kept with it once every rule asked about is explained |
@@ -334,6 +334,19 @@ beyond it, and deleting makes room. Every answer is marked `Cache-Control: no-st
 invoice's report is its latest, and `validated_at` says when the validator made it: when the
 invoice was stored, or validated again. After a revalidation, `GET /invoices?valid=false`
 lists the invoices it found invalid.
+
+`GET /invoices` accepts `limit` and `after` for pagination and combines all supplied filters:
+
+- `q` is a trimmed search of 1 to 100 characters. It matches part of the invoice number,
+  seller or buyer, ignoring case. Characters such as `%` and `_` match literally.
+- `valid=true` or `valid=false` filters by the latest report's verdict.
+- `issued_from` and `issued_to` are inclusive issue dates in `YYYY-MM-DD` form. Either bound
+  excludes invoices without an issue date. A reversed range returns 422.
+- `document_type` selects `Invoice` or `CreditNote`.
+
+`total` counts all matches in the caller's scope, across pages. Members without
+`invoices:manage` can only search and count invoices they submitted. Use `next` as `after` to
+continue the same list and omit it when any filter changes.
 
 ## Credits
 

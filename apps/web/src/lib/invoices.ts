@@ -7,7 +7,7 @@ import { authorized } from "@/lib/session";
 
 export type Invoice = Schemas["InvoiceOut"];
 export type StoredInvoice = Schemas["StoredInvoiceOut"];
-export type InvoicePage = Schemas["InvoicePage"];
+export type InvoicePage = Omit<Schemas["InvoiceListPage"], "total">;
 export type Report = Schemas["ValidationReport"];
 export type Violation = Schemas["Violation"];
 export type Profile = Invoice["profile"];
