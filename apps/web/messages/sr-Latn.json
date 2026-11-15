@@ -110,7 +110,7 @@
     "description": "Nalog dobija i svoju organizaciju, čiji ste vlasnik.",
     "email": "Adresa e-pošte",
     "password": "Lozinka",
-    "passwordHint": "Od {min} do {max} znakova.",
+    "passwordHint": "Od {min} do {max} znakova, bez imena iz vaše adrese i naziva organizacije.",
     "organization": "Naziv organizacije",
     "submit": "Napravi nalog",
     "pending": "Pravljenje naloga…",
@@ -119,6 +119,7 @@
   },
   "authErrors": {
     "commonPassword": "Ova lozinka je među najčešćim lozinkama, pa je lako pogoditi. Izaberite drugu.",
+    "personalPassword": "Ova lozinka sadrži ime iz vaše adrese ili naziv organizacije, pa je lako pogoditi, a naziv organizacije vidi svaki član. Izaberite drugu.",
     "wrongCredentials": "Adresa ili lozinka nije tačna.",
     "notAMember": "Niste član te organizacije.",
     "emailTaken": "Za ovu adresu već postoji nalog.",
@@ -512,13 +513,15 @@
       "providers": {
         "groq": "Groq",
         "openai": "OpenAI",
-        "anthropic": "Anthropic"
+        "anthropic": "Anthropic",
+        "gemini": "Gemini"
       },
       "model": "Model (nije obavezno)",
       "defaults": {
         "groq": "openai/gpt-oss-120b",
         "openai": "gpt-6-luna",
-        "anthropic": "claude-haiku-5-5"
+        "anthropic": "claude-haiku-5-5",
+        "gemini": "gemini-3.1-flash-lite"
       },
       "modelHint": "Ostavite prazno za podrazumevani model dobavljača. Model mora da podržava strukturisane odgovore.",
       "label": "API ključ dobavljača",
@@ -663,10 +666,6 @@
     "missing": "Ovu stranicu otvara aplikacija koja traži dozvolu. Pokrenite povezivanje ponovo u toj aplikaciji.",
     "goneTitle": "Zahtev više ne čeka odluku",
     "gone": "Istekao je ili je već odlučen. Pokrenite povezivanje ponovo u aplikaciji."
-  },
-  "apiWaking": {
-    "title": "API se budi",
-    "description": "Server koji je neko vreme mirovao budi se za oko minut. Ono što pošaljete sačekaće i otići čim odgovori."
   },
   "reading": {
     "title": "{kind, select, pdf {Pročitano iz PDF-a} other {Pročitano sa slike}}",

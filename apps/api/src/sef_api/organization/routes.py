@@ -28,7 +28,7 @@ CanRead = Annotated[Principal, Depends(require(Permission.ORGANIZATION_READ))]
 CanManage = Annotated[Principal, Depends(require(Permission.ORGANIZATION_MANAGE))]
 
 
-Provider = Literal["groq", "openai", "anthropic"]
+Provider = Literal["groq", "openai", "anthropic", "gemini"]
 
 
 class ModelKeyState(BaseModel):
@@ -91,12 +91,13 @@ class ModelKeyChange(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    provider: Provider = Field(description="Whose model writes: Groq, OpenAI or Anthropic.")
+    provider: Provider = Field(description="Whose model writes: Groq, OpenAI, Anthropic or Gemini.")
     model: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$",
         description="The provider's model, which must support structured outputs; null for "
-        "its default (`openai/gpt-oss-120b`, `gpt-6-luna`, `claude-haiku-5-5`).",
+        "its default (`openai/gpt-oss-120b`, `gpt-6-luna`, `claude-haiku-5-5`, "
+        "`gemini-3.1-flash-lite`).",
     )
     api_key: SecretStr = Field(
         description=(
@@ -253,15 +254,15 @@ async def remove_sef_key(caller: CanManage, session: Session) -> None:
     "/model-key",
     summary="Set the organization's own key to a language model",
     description=(
-        "A key the organization holds with Groq, OpenAI or Anthropic (BYOK): from then on, its "
-        "explanations and the repairs its members ask for are written by that provider's model, "
-        "billed to the organization, instead of the server's. The model is sent what the "
-        "server's would be: each rule's first violation and the passages, or the fields around "
-        "the violations to repair. The key replaces the one the organization had, is sealed "
-        "with Fernet under `SEF_FERNET_KEY` (ADR-0058), and is never shown again, logged or "
-        "reported; the audit log records who set it, and for which provider. It is not tried "
-        "when it is set: a key the provider refuses shows in the first explanation. An owner, "
-        "signed in, sets it: no API key or MCP client may."
+        "A key the organization holds with Groq, OpenAI, Anthropic or Gemini (BYOK): from then "
+        "on, its explanations and the repairs its members ask for are written by that "
+        "provider's model, billed to the organization, instead of the server's. The model is "
+        "sent what the server's would be: each rule's first violation and the passages, or the "
+        "fields around the violations to repair. The key replaces the one the organization had, "
+        "is sealed with Fernet under `SEF_FERNET_KEY` (ADR-0058), and is never shown again, "
+        "logged or reported; the audit log records who set it, and for which provider. It is "
+        "not tried when it is set: a key the provider refuses shows in the first explanation. "
+        "An owner, signed in, sets it: no API key or MCP client may."
     ),
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {

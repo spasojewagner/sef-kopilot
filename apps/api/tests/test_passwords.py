@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from argon2 import PasswordHasher
 
 from sef_api.auth.passwords import (
@@ -10,6 +11,7 @@ from sef_api.auth.passwords import (
     _common,
     hash_password,
     is_common,
+    is_personal,
     needs_rehash,
     verify_password,
 )
@@ -58,3 +60,26 @@ def test_the_common_passwords_meet_the_length_a_new_one_needs_and_are_in_lower_c
     assert all(each == each.lower() for each in common)
     assert is_common("Qwerty123456")
     assert not is_common("kiseli kupus na pijaci u sredu")
+
+
+@pytest.mark.parametrize(
+    ("password", "personal"),
+    [
+        ("primer-racunovodstvo", True),
+        ("PRIMER Računovodstvo 2026", True),
+        ("p.r.i.m.e.r računovodstvo!", True),
+        ("ana.markovic.1987", True),
+        ("AnaMarkovic1987", True),
+        ("correct horse battery staple", False),
+        ("računovodstvo i primeri", False),
+    ],
+)
+def test_a_password_that_holds_the_address_or_the_organization_is_personal(
+    password: str, personal: bool
+) -> None:
+    assert is_personal(password, "ana.markovic", "Primer Računovodstvo") is personal
+
+
+def test_names_shorter_than_four_letters_or_digits_are_not_looked_for() -> None:
+    assert not is_personal("an ana of anas, ab", "ana", "A.B.")
+    assert is_personal("a long passphrase about Ogled", "x", "Ogled")

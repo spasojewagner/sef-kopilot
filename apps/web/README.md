@@ -169,7 +169,7 @@ nothing will be sent to SEF without one and that SEF's own key stays as it is.
 
 Every member sees there whose language model writes the organization's explanations and repairs:
 the server's, or the provider and model of the organization's own key, and since when
-(ADR-0058). The owner chooses the provider (Groq, OpenAI or Anthropic), names a model if not the
+(ADR-0058). The owner chooses the provider (Groq, OpenAI, Anthropic or Gemini, ADR-0066), names a model if not the
 provider's default, which the field shows, and gives the key, in a password field that forgets it
 once it is saved; a key of fewer than 8 or more than 300 visible characters or with a space, or a
 model's name the API would refuse, is not sent. The key is not tried when it is saved: a key the

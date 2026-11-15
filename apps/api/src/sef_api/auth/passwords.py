@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import gzip
 import secrets
+import unicodedata
 from functools import cache
 from importlib.resources import files
 from typing import Final
@@ -29,6 +30,7 @@ __all__ = [
     "MINIMUM_LENGTH",
     "hash_password",
     "is_common",
+    "is_personal",
     "needs_rehash",
     "verify_password",
 ]
@@ -87,3 +89,28 @@ def _common() -> frozenset[str]:
 def is_common(password: str) -> bool:
     """Whether ``password`` is among the most common passwords, whatever its case."""
     return password.lower() in _common()
+
+
+#: The shortest address or name a password is checked for: shorter ones are parts of many words.
+SHORTEST_PERSONAL: Final = 4
+
+
+def _letters_and_digits(text: str) -> str:
+    """``text``'s letters and digits in lower case, without their marks: č is c, and đ d."""
+    plain = unicodedata.normalize("NFKD", text.casefold().replace("đ", "d"))
+    return "".join(
+        character
+        for character in plain
+        if character.isalnum() and not unicodedata.combining(character)
+    )
+
+
+def is_personal(password: str, *words: str) -> bool:
+    """Whether ``password`` holds one of ``words`` of at least four letters and digits, such
+    as the name of the address it signs in with or its organization's, whatever the case and
+    whatever is between them (ASVS 6.2.11): a password that an organization's name gives away
+    is shown to every member, and one that the address gives away is guessed first."""
+    held = _letters_and_digits(password)
+    return any(
+        len(word) >= SHORTEST_PERSONAL and word in held for word in map(_letters_and_digits, words)
+    )

@@ -10,7 +10,7 @@ import json
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -20,8 +20,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sef_api import model_choice
 from sef_api.db import Database, get_session
+from sef_api.llm import PROVIDERS
 from sef_api.main import create_app
 from sef_api.models import AuditAction, AuditEvent, ModelKey
+from sef_api.organization.routes import Provider
 from sef_api.rag.explainer import Explainer
 from sef_api.repairs.repairer import Repairer
 from sef_api.sef import rotate
@@ -191,6 +193,27 @@ async def test_a_new_key_replaces_the_one_before_and_removing_it_twice_records_o
         ("model.key_set", {"provider": "anthropic", "model": None, "replaced": True}),
         ("model.key_removed", {"provider": "anthropic"}),
     )
+
+
+def test_the_providers_an_organization_may_name_are_those_the_server_can_ask() -> None:
+    assert set(get_args(Provider)) == set(PROVIDERS)
+
+
+@pytest.mark.parametrize("provider", ["groq", "openai", "anthropic", "gemini"])
+async def test_a_key_to_any_of_the_providers_is_kept(
+    api: AsyncClient, session: AsyncSession, primer: Office, provider: str
+) -> None:
+    response = await api.put(
+        "/organization/model-key",
+        json={"provider": provider, "api_key": KEY},
+        headers=primer.as_owner(),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["provider"] == provider
+    sealed = await session.get(ModelKey, primer.organization.id)
+    assert sealed is not None
+    assert (sealed.provider, sealed.model) == (provider, None)
 
 
 @pytest.mark.parametrize("role", ["accountant", "client"])

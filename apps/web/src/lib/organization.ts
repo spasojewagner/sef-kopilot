@@ -89,6 +89,7 @@ export const MODEL_PROVIDERS: readonly ModelProvider[] = [
   "groq",
   "openai",
   "anthropic",
+  "gemini",
 ];
 
 /** The characters a key to a model may hold, as the API accepts it: visible ASCII, no spaces. */

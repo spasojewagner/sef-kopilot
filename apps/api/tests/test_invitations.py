@@ -241,6 +241,19 @@ async def test_a_new_account_s_common_password_is_refused(
     assert await session.scalar(select(User).where(User.email == "nova@primer.example")) is None
 
 
+@pytest.mark.parametrize("password", ["Nova at Primer 2026", "Primer Računovodstvo 4711"])
+async def test_a_new_account_s_password_its_address_or_organization_gives_away_is_refused(
+    api: AsyncClient, session: AsyncSession, primer: Office, password: str
+) -> None:
+    issued = await invite(api, primer)
+
+    response = await accept(api, issued["code"], password=password)
+
+    assert response.status_code == 422
+    assert [problem["type"] for problem in response.json()["detail"]] == ["personal_password"]
+    assert await session.scalar(select(User).where(User.email == "nova@primer.example")) is None
+
+
 async def test_a_new_accounts_password_needs_twelve_characters(
     api: AsyncClient, session: AsyncSession, primer: Office
 ) -> None:

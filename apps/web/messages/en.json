@@ -110,7 +110,7 @@
     "description": "The account comes with an organization of its own, which you own.",
     "email": "E-mail address",
     "password": "Password",
-    "passwordHint": "{min} to {max} characters.",
+    "passwordHint": "{min} to {max} characters, holding neither your address's name nor your organization's.",
     "organization": "Organization name",
     "submit": "Create the account",
     "pending": "Creating the account…",
@@ -119,6 +119,7 @@
   },
   "authErrors": {
     "commonPassword": "This password is among the most common ones, which makes it easy to guess. Choose another.",
+    "personalPassword": "This password holds your address's name or your organization's, so it is easy to guess, and every member sees the organization's name. Choose another.",
     "wrongCredentials": "The address or the password is wrong.",
     "notAMember": "You are not a member of that organization.",
     "emailTaken": "An account with this address exists already.",
@@ -512,13 +513,15 @@
       "providers": {
         "groq": "Groq",
         "openai": "OpenAI",
-        "anthropic": "Anthropic"
+        "anthropic": "Anthropic",
+        "gemini": "Gemini"
       },
       "model": "Model (optional)",
       "defaults": {
         "groq": "openai/gpt-oss-120b",
         "openai": "gpt-6-luna",
-        "anthropic": "claude-haiku-5-5"
+        "anthropic": "claude-haiku-5-5",
+        "gemini": "gemini-3.1-flash-lite"
       },
       "modelHint": "Leave it empty for the provider's default. The model must support structured outputs.",
       "label": "API key from the provider",
@@ -663,10 +666,6 @@
     "missing": "This page is opened by an app that asks for permission. Start connecting again in that app.",
     "goneTitle": "The request no longer waits",
     "gone": "It expired, or was already decided. Start connecting again in the app."
-  },
-  "apiWaking": {
-    "title": "The API is waking up",
-    "description": "A server that has been idle for a while takes about a minute to wake. Whatever you send waits, and goes as soon as it answers."
   },
   "reading": {
     "title": "{kind, select, pdf {Read from a PDF} other {Read from a picture}}",
