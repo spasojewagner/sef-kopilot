@@ -15,6 +15,7 @@ from sef_api.db import Database
 from sef_api.extraction.draft import draft
 from sef_api.extraction.fields import InvoiceFields
 from sef_api.extraction.reader import Reader
+from sef_api.rate_limits import RateLimiter
 
 from .corpora import ScriptedModel
 from .documents import picture, scanned_pdf, text_pdf
@@ -146,6 +147,7 @@ async def test_readings_are_counted_with_the_routes(
         connected(served.app, served.key) as client,
         served.http(served.key.header()) as http,
     ):
+        served.app.state.limiter = RateLimiter(clock=lambda: 0)
         arguments = {"document": encoded(picture()), "media_type": "image/jpeg"}
         first = await client.call_tool("extract_from_pdf", arguments)
         routed = await http.post(
