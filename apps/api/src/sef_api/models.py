@@ -162,7 +162,9 @@ class ModelKey(Base):
     __tablename__ = "model_keys"
     __table_args__ = (
         CheckConstraint("token ~ '^gAAAAA[A-Za-z0-9_-]+={0,2}$'", name="token_is_fernet"),
-        CheckConstraint("provider IN ('groq', 'openai', 'anthropic')", name="provider_known"),
+        CheckConstraint(
+            "provider IN ('groq', 'openai', 'anthropic', 'gemini')", name="provider_known"
+        ),
         CheckConstraint(
             "model IS NULL OR model ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$'", name="model_named"
         ),

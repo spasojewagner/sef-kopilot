@@ -201,7 +201,7 @@ curl -s -X PUT localhost:8000/organization/model-key -H "Authorization: Bearer $
   -d '{"provider": "anthropic", "model": "claude-haiku-5-5", "api_key": "the key"}'
 ```
 
-`provider` is `groq`, `openai` or `anthropic`; `model` is optional (the provider's default). The
+`provider` is `groq`, `openai`, `anthropic` or `gemini` (ADR-0066); `model` is optional (the provider's default). The
 key is sealed as the SEF key is, for this organization and this purpose alone, rotated by the same
 command, and never shown: `GET /organization` shows every member the provider, the model and
 since when (`model_key`); the audit log records who set, replaced or removed it (`DELETE
@@ -898,7 +898,7 @@ src/sef_api/
                  (`python -m sef_api.billing.grant`), buying them through Stripe's sandbox
                  behind a provider's interface, `/billing` routes
   bodies.py      the limit on every request body other than an invoice or a document
-  llm.py         the language models behind an adapter (Groq, OpenAI, Anthropic), the pictures
+  llm.py         the language models behind an adapter (Groq, OpenAI, Anthropic, Gemini), the pictures
                  they are shown, and the languages they write in
   values.py      the dates and numbers a model's answer names, and those it made up
   jobs/          running a job, the inline runner, the Redis queue and its worker, `/jobs`

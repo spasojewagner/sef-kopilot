@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
@@ -149,6 +149,33 @@ describe("The organization's own language model", () => {
     );
     expect(sent(asked)).toEqual([
       { provider: "anthropic", model: "claude-y", api_key: KEY },
+    ]);
+  });
+
+  it("offers Gemini, with its default model, and sends its key", async () => {
+    keepSession();
+    const asked = api();
+    renderIn("en", <OrganizationSettings />);
+
+    const provider = await screen.findByLabelText("Provider");
+    expect(
+      within(provider)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Groq", "OpenAI", "Anthropic", "Gemini"]);
+    await user().selectOptions(provider, "gemini");
+    expect(screen.getByLabelText("Model (optional)")).toHaveAttribute(
+      "placeholder",
+      "gemini-3.1-flash-lite",
+    );
+    await user().type(screen.getByLabelText("API key from the provider"), KEY);
+    await press("Save the model key");
+
+    await screen.findByText(
+      "The key is saved: your provider's model writes from now on.",
+    );
+    expect(sent(asked)).toEqual([
+      { provider: "gemini", model: null, api_key: KEY },
     ]);
   });
 

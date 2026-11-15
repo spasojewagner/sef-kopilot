@@ -14,6 +14,9 @@ is tagged.
 - `apps/web`: the home page's headings enter word by word, and the report preview, route
   and cards reveal once as the page opens or scrolls. A visitor who asks for reduced motion
   sees them in place at once.
+- `apps/api`, `apps/web`: an organization's owner may also set its own key to Google's Gemini,
+  whose model, `gemini-3.1-flash-lite` by default, then writes the organization's explanations
+  and repairs and reads its documents (ADR-0066; migration `0026`).
 
 ### Changed
 

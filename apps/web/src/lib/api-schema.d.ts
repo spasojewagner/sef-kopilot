@@ -683,7 +683,7 @@ export interface paths {
         get?: never;
         /**
          * Set the organization's own key to a language model
-         * @description A key the organization holds with Groq, OpenAI or Anthropic (BYOK): from then on, its explanations and the repairs its members ask for are written by that provider's model, billed to the organization, instead of the server's. The model is sent what the server's would be: each rule's first violation and the passages, or the fields around the violations to repair. The key replaces the one the organization had, is sealed with Fernet under `SEF_FERNET_KEY` (ADR-0058), and is never shown again, logged or reported; the audit log records who set it, and for which provider. It is not tried when it is set: a key the provider refuses shows in the first explanation. An owner, signed in, sets it: no API key or MCP client may.
+         * @description A key the organization holds with Groq, OpenAI, Anthropic or Gemini (BYOK): from then on, its explanations and the repairs its members ask for are written by that provider's model, billed to the organization, instead of the server's. The model is sent what the server's would be: each rule's first violation and the passages, or the fields around the violations to repair. The key replaces the one the organization had, is sealed with Fernet under `SEF_FERNET_KEY` (ADR-0058), and is never shown again, logged or reported; the audit log records who set it, and for which provider. It is not tried when it is set: a key the provider refuses shows in the first explanation. An owner, signed in, sets it: no API key or MCP client may.
          */
         put: operations["set_model_key_organization_model_key_put"];
         post?: never;
@@ -1986,13 +1986,13 @@ export interface components {
         ModelKeyChange: {
             /**
              * Provider
-             * @description Whose model writes: Groq, OpenAI or Anthropic.
+             * @description Whose model writes: Groq, OpenAI, Anthropic or Gemini.
              * @enum {string}
              */
-            provider: "groq" | "openai" | "anthropic";
+            provider: "groq" | "openai" | "anthropic" | "gemini";
             /**
              * Model
-             * @description The provider's model, which must support structured outputs; null for its default (`openai/gpt-oss-120b`, `gpt-6-luna`, `claude-haiku-5-5`).
+             * @description The provider's model, which must support structured outputs; null for its default (`openai/gpt-oss-120b`, `gpt-6-luna`, `claude-haiku-5-5`, `gemini-3.1-flash-lite`).
              */
             model?: string | null;
             /**
@@ -2008,7 +2008,7 @@ export interface components {
              * Provider
              * @enum {string}
              */
-            provider: "groq" | "openai" | "anthropic";
+            provider: "groq" | "openai" | "anthropic" | "gemini";
             /**
              * Model
              * @description The provider's model; null for its default.

@@ -512,13 +512,15 @@
       "providers": {
         "groq": "Groq",
         "openai": "OpenAI",
-        "anthropic": "Anthropic"
+        "anthropic": "Anthropic",
+        "gemini": "Gemini"
       },
       "model": "Model (nije obavezno)",
       "defaults": {
         "groq": "openai/gpt-oss-120b",
         "openai": "gpt-6-luna",
-        "anthropic": "claude-haiku-5-5"
+        "anthropic": "claude-haiku-5-5",
+        "gemini": "gemini-3.1-flash-lite"
       },
       "modelHint": "Ostavite prazno za podrazumevani model dobavljača. Model mora da podržava strukturisane odgovore.",
       "label": "API ključ dobavljača",

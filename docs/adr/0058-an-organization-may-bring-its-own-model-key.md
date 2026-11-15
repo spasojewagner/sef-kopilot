@@ -1,6 +1,7 @@
 # 58. An organization may bring its own key to a model's provider, sealed as its SEF key
 
-- Status: accepted
+- Status: accepted; amended by [0066](0066-an-organization-s-own-model-key-may-be-to-gemini.md),
+  under which the key may also be to Google's Gemini
 - Date: 2026-11-09
 - Deciders: the team (milestone M6)
 - Technical story: milestone M6, branch `feat/api-organization-model-key`; the providers of

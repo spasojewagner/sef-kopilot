@@ -121,9 +121,10 @@ the system without a green validator.
 - **The language model:** untrusted, and asked only about violations layer 1 reported in the
   same request. It is sent the first violation of each rule and public passages, never the
   document; an embedder is sent what the rules say, never what the invoice holds. Nothing
-  leaves the server unless `LLM_PROVIDER` says so (ADR-0021): Groq, OpenAI or Anthropic, with the
-  operator's key (ADR-0057), or unless an organization's owner set a key of its own, and then
-  only to that provider, never to the server's instead (ADR-0058).
+  leaves the server unless `LLM_PROVIDER` says so (ADR-0021): Groq, OpenAI, Anthropic or Gemini,
+  with the operator's key (ADR-0057), or unless an organization's owner set a key of its own, to
+  one of the same four, and then only to that provider, never to the server's instead (ADR-0058,
+  ADR-0066).
 - **Configuration:** environment variables only (`.env.example` lists the names); secrets are
   never committed; tenants' SEF keys and keys to a model are encrypted at rest with Fernet.
 - **Observability:** structured JSON logs in a deployment, each line naming its request, and

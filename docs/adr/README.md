@@ -63,7 +63,7 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0055](0055-the-models-answers-are-recorded-once-and-replayed.md) | The model's explanations are measured on answers recorded once and replayed offline | accepted | 2026-11-09 |
 | [0056](0056-repairs-are-measured-on-held-out-invoices.md) | Repairs are measured on held-out invoices, and on invoices only a person may repair | accepted | 2026-11-09 |
 | [0057](0057-openai-and-anthropic-answer-through-the-same-client.md) | OpenAI and Anthropic answer through the same client, chosen by the operator | accepted | 2026-11-09 |
-| [0058](0058-an-organization-may-bring-its-own-model-key.md) | An organization may bring its own key to a model's provider, sealed as its SEF key | accepted | 2026-11-09 |
+| [0058](0058-an-organization-may-bring-its-own-model-key.md) | An organization may bring its own key to a model's provider, sealed as its SEF key | accepted, amended by 0066 | 2026-11-09 |
 | [0059](0059-credits-are-a-ledger-in-the-apis-own-database.md) | Credits are a ledger in the API's own database, spent one for each stored invoice, off by default | accepted | 2026-11-09 |
 | [0060](0060-credits-are-bought-through-stripes-sandbox-behind-an-interface.md) | Credits are bought through Stripe's sandbox, behind an interface, and counted once a payment | accepted | 2026-11-09 |
 | [0061](0061-the-evaluations-gate-ci-and-the-badge-reads-the-committed-report.md) | The evaluations gate CI as a job of their own, and the badge reads the committed report | accepted | 2026-11-09 |
@@ -71,3 +71,4 @@ Start a new record from [`template.md`](template.md) and number it sequentially.
 | [0063](0063-the-reading-is-measured-on-invoices-printed-three-ways.md) | The reading is measured on invoices printed three ways, by field, against thresholds | accepted | 2026-11-11 |
 | [0064](0064-an-assistant-sends-a-document-to-be-read-in-base64-within-the-limit-on-messages.md) | An assistant sends a document to be read in base64, within the limit on messages | accepted | 2026-11-11 |
 | [0065](0065-a-waking-api-is-told-in-the-footer-only.md) | A waking API is told in the footer only, not above every page | accepted | 2026-11-15 |
+| [0066](0066-an-organization-s-own-model-key-may-be-to-gemini.md) | An organization's own key to a model may be to Google's Gemini | accepted | 2026-11-15 |

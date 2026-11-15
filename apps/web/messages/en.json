@@ -512,13 +512,15 @@
       "providers": {
         "groq": "Groq",
         "openai": "OpenAI",
-        "anthropic": "Anthropic"
+        "anthropic": "Anthropic",
+        "gemini": "Gemini"
       },
       "model": "Model (optional)",
       "defaults": {
         "groq": "openai/gpt-oss-120b",
         "openai": "gpt-6-luna",
-        "anthropic": "claude-haiku-5-5"
+        "anthropic": "claude-haiku-5-5",
+        "gemini": "gemini-3.1-flash-lite"
       },
       "modelHint": "Leave it empty for the provider's default. The model must support structured outputs.",
       "label": "API key from the provider",
