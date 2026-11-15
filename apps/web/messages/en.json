@@ -14,7 +14,8 @@
     "signIn": "Sign in",
     "signOut": "Sign out",
     "invoices": "Invoices",
-    "organization": "Organization"
+    "organization": "Organization",
+    "changePassword": "Change password"
   },
   "home": {
     "title": "Check an <whole>e-invoice</whole> before you send it to SEF",
@@ -127,6 +128,20 @@
     "tooMany": "Too many attempts. Try again in {seconds} s.",
     "unreachable": "The API is not answering. Try again a little later.",
     "failed": "That did not work. Try again."
+  },
+  "passwordChange": {
+    "title": "Account",
+    "titleForm": "Change password",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "submit": "Change password",
+    "pending": "Changing password…",
+    "mismatch": "The new passwords do not match.",
+    "same": "Choose a password that differs from your current one.",
+    "wrongCurrent": "The current password is wrong.",
+    "signInAgain": "Sign in again to change your password.",
+    "saved": "Password changed. Other devices have been signed out."
   },
   "signedInOnly": {
     "title": "Sign in",
@@ -447,6 +462,12 @@
       "owner": "owner",
       "accountant": "accountant",
       "client": "client"
+    },
+    "rename": {
+      "save": "Save the name",
+      "saving": "Saving the name…",
+      "saved": "Organization name saved.",
+      "failed": "The organization name could not be saved. Try again."
     },
     "retention": {
       "title": "Keeping invoices",

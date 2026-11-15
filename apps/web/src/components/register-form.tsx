@@ -19,10 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { Link, useRouter } from "@/i18n/navigation";
-import { register } from "@/lib/session";
-
-/** The API's bounds on a new password (ADR-0012). */
-const PASSWORD = { min: 12, max: 128 };
+import { PASSWORD_BOUNDS, register } from "@/lib/session";
 
 /**
  * Creates an account, its organization with the visitor as owner, and signs in. As signing in
@@ -77,12 +74,12 @@ export function RegisterForm() {
               type="password"
               autoComplete="new-password"
               required
-              minLength={PASSWORD.min}
-              maxLength={PASSWORD.max}
+              minLength={PASSWORD_BOUNDS.min}
+              maxLength={PASSWORD_BOUNDS.max}
               aria-describedby="password-hint"
             />
             <p id="password-hint" className="text-sm text-muted-foreground">
-              {t("passwordHint", PASSWORD)}
+              {t("passwordHint", PASSWORD_BOUNDS)}
             </p>
           </div>
           <div className="grid gap-2">

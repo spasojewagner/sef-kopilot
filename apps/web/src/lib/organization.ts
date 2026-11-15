@@ -23,6 +23,15 @@ export function getOrganization(signal?: AbortSignal): Promise<Organization> {
   return authorized<Organization>("/organization", { signal });
 }
 
+/** Renames the organization; only an owner may. */
+export function renameOrganization(name: string): Promise<Organization> {
+  return authorized<Organization>("/organization", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
 /**
  * Has the organization keep each stored invoice ``days`` after it was stored, or every invoice
  * until a member deletes it with null; only an owner may. The answer is the organization.

@@ -5,7 +5,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ALICE, type Asked, json, keepSession, stubApi } from "@/test/api";
 import { renderIn } from "@/test/render";
 
+import { Account } from "./account";
 import { OrganizationSettings } from "./organization-settings";
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({}),
+  usePathname: () => "/sr-Latn/organization",
+}));
 
 const PRIMER = { id: "o-primer", name: "Primer d.o.o." };
 
@@ -24,9 +31,10 @@ function api({
   change?: (asked: Asked) => Response | Promise<Response>;
 } = {}): Asked[] {
   let kept = days;
+  let name = PRIMER.name;
   return stubApi((asked) => {
     if (asked.path === "/auth/me") {
-      return json(200, { ...ALICE, role });
+      return json(200, { ...ALICE, organization: { ...PRIMER, name }, role });
     }
     if (asked.path === "/api-keys") {
       return json(200, []);
@@ -35,9 +43,12 @@ function api({
       return change(asked);
     }
     if (asked.method === "PATCH") {
-      kept = JSON.parse(String(asked.body)).invoice_retention_days;
+      const patch = JSON.parse(String(asked.body));
+      if ("name" in patch) name = patch.name;
+      if ("invoice_retention_days" in patch)
+        kept = patch.invoice_retention_days;
     }
-    return json(200, { ...PRIMER, invoice_retention_days: kept });
+    return json(200, { ...PRIMER, name, invoice_retention_days: kept });
   });
 }
 
@@ -78,7 +89,45 @@ describe("The organization's page", () => {
     expect(
       screen.getByText("Rok čuvanja menja vlasnik organizacije."),
     ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Naziv")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Čuvaj fakture")).not.toBeInTheDocument();
+  });
+
+  it("lets the owner rename the organization and updates the header", async () => {
+    keepSession();
+    const asked = api();
+    const user = userEvent.setup();
+
+    renderIn(
+      "sr-Latn",
+      <>
+        <Account />
+        <OrganizationSettings />
+      </>,
+    );
+
+    const name = await screen.findByRole("textbox", { name: "Naziv" });
+    expect(name).toHaveValue("Primer d.o.o.");
+    await user.clear(name);
+    await user.type(name, "Ogledni ured");
+    await user.click(screen.getByRole("button", { name: "Sačuvaj naziv" }));
+
+    expect(
+      await screen.findByText("Naziv organizacije je sačuvan."),
+    ).toBeInTheDocument();
+    expect(changes(asked)).toEqual([{ name: "Ogledni ured" }]);
+    const menu = screen.getByRole("button", {
+      name: "Nalog alice@primer.example",
+    });
+    expect(menu).toHaveTextContent("Ogledni ured");
+    await user.click(menu);
+    expect(
+      await screen.findByText("Ogledni ured · vlasnik"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Promeni lozinku" }),
+    ).toHaveAttribute("href", "/sr-Latn/account");
+    await waitFor(() => expect(reads(asked)).toBeGreaterThan(1));
   });
 
   it.each([
@@ -225,7 +274,7 @@ describe("The organization's page", () => {
     let role = "owner";
     stubApi((asked) => {
       if (asked.path === "/auth/me") {
-        return json(200, { ...ALICE, role });
+        return json(200, { ...ALICE, organization: { ...PRIMER, name }, role });
       }
       if (asked.path === "/api-keys") {
         return json(200, []);
