@@ -35,6 +35,14 @@ is tagged.
 - `apps/web`: the notice that the API is waking up no longer appears above every page, where it
   pushed the page down under the header; the footer alone says so, as before (ADR-0065).
 
+### Security
+
+- `apps/api`, `apps/web`: a new password, on registration or for the account an invitation
+  creates, is refused when it holds the name of its address or its organization's name, whatever
+  the case, the marks and the punctuation, since the organization's name is shown to every member
+  (ASVS 6.2.11). The refusal is a 422 of type `personal_password`, and the page says why; the
+  password's hint says so before.
+
 ## [1.0.0] - 2026-11-14
 
 Reading invoices from PDFs and pictures, the case study, and the security review (milestone M7),

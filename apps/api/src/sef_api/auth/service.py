@@ -21,6 +21,7 @@ from sef_api.auth.passwords import (
     MINIMUM_LENGTH,
     hash_password,
     is_common,
+    is_personal,
     needs_rehash,
     verify_password,
 )
@@ -41,6 +42,7 @@ __all__ = [
     "NotAMemberError",
     "OrganizationRequiredError",
     "PasswordGuard",
+    "PersonalPasswordError",
     "SignedIn",
     "TokenSettings",
     "TooManyAttemptsError",
@@ -141,6 +143,10 @@ class CommonPasswordError(Exception):
     """The password for a new account is among the most common ones."""
 
 
+class PersonalPasswordError(Exception):
+    """The password for a new account holds the name of its address or of its organization."""
+
+
 def normalize_email(email: str) -> str:
     """E-mail addresses are compared and stored in lower case, without surrounding spaces."""
     return email.strip().lower()
@@ -234,12 +240,15 @@ async def login(
     return signed_in
 
 
-async def _new_account_hash(password: str) -> str:
-    """The hash of a new account's password, once it is long enough and not a common one."""
+async def _new_account_hash(password: str, email: str, organization_name: str) -> str:
+    """The hash of a new account's password, once it is long enough, not a common one, and
+    holds neither the name of its address nor its organization's."""
     if len(password) < MINIMUM_LENGTH:
         raise NewPasswordTooShortError
     if is_common(password):
         raise CommonPasswordError
+    if is_personal(password, email.partition("@")[0], organization_name):
+        raise PersonalPasswordError
     return await hash_password(password)
 
 
@@ -267,18 +276,18 @@ async def accept_invitation(
     digest = opaque_token_digest(code)
     found = (
         await session.execute(
-            select(Invitation.organization_id, Invitation.email).where(
-                Invitation.digest == digest, *_open(moment)
-            )
+            select(Invitation.organization_id, Invitation.email, Organization.name)
+            .join(Organization, Organization.id == Invitation.organization_id)
+            .where(Invitation.digest == digest, *_open(moment))
         )
     ).one_or_none()
     if found is None:
         raise InvalidInvitationError
-    organization_id, email = found
+    organization_id, email, organization_name = found
     user = await session.scalar(select(User).where(User.email == email))
     password_hash: str | None = None
     if user is None:
-        password_hash = await _new_account_hash(password)
+        password_hash = await _new_account_hash(password, email, organization_name)
     elif not await _verify(guard, email, user.password_hash, password) or not user.is_active:
         raise AuthenticationError
     elif needs_rehash(user.password_hash):

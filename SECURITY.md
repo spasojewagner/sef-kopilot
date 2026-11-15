@@ -203,6 +203,10 @@ ran, what it fixed and what it accepted in [`docs/SECURITY_REVIEW_1.0.md`](docs/
       a new password, on registration or for the account an invitation creates, is refused
       when it is among the 10,000 most common passwords that meet the length a new one needs,
       compared in lower case; the list ships with the API, from SecLists (tested).
+- [x] Context-specific words (ASVS 6.2.11): a new password, on registration or for the account an
+      invitation creates, is refused when it holds the name of its address (before the @) or its
+      organization's name, once that has four letters or digits, whatever the case, the marks
+      and what is between them (tested).
 - [x] Generic authentication error messages; an unknown address takes as long as a wrong password.
 - [x] Rate limiting on sign-in, registration, token refresh and accepting invitations, per
       address; wrong passwords counted per e-mail address before the next is checked, whether

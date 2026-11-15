@@ -21,7 +21,7 @@ from sef_api.auth.dependencies import (
     get_token_settings,
     no_longer_active,
 )
-from sef_api.auth.passwords import MAXIMUM_LENGTH, MINIMUM_LENGTH, is_common
+from sef_api.auth.passwords import MAXIMUM_LENGTH, MINIMUM_LENGTH, is_common, is_personal
 from sef_api.auth.service import SignedIn, TokenSettings
 from sef_api.db import get_session
 from sef_api.logs import security_event
@@ -58,6 +58,20 @@ COMMON_PASSWORD: Final = "common_password"
 _COMMON_MESSAGE: Final = "is among the most common passwords; choose another"
 
 
+#: The refusal of a new password that holds the name of its address or of its organization.
+PERSONAL_PASSWORD: Final = "personal_password"
+_PERSONAL_MESSAGE: Final = "holds the name of the address or of the organization; choose another"
+
+
+def _personal_refusal() -> HTTPException:
+    """The 422 of a password that its address or organization gives away, said of the password
+    as the request's model says a common one is."""
+    return HTTPException(
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        [{"type": PERSONAL_PASSWORD, "loc": ["body", "password"], "msg": _PERSONAL_MESSAGE}],
+    )
+
+
 def _not_common(password: str) -> str:
     if is_common(password):
         raise PydanticCustomError(COMMON_PASSWORD, _COMMON_MESSAGE)
@@ -89,7 +103,10 @@ NO_STORE = Depends(no_store)
 class RegisterRequest(BaseModel):
     email: EmailStr = Field(description="The address to sign in with; stored in lower case.")
     password: NewPassword = Field(
-        description="12 to 128 characters, not among the most common passwords."
+        description="12 to 128 characters, not among the most common passwords, and holding "
+        "neither the name of the address (before its @) nor the organization's, whatever the "
+        "case and whatever is between their letters, once they have four letters or digits: "
+        "an error of type `personal_password` otherwise."
     )
     organization_name: OrganizationName = Field(
         description="The organization this account starts with; the person becomes its owner."
@@ -197,6 +214,8 @@ def _tokens(signed_in: SignedIn) -> TokenResponse:
     | {status.HTTP_409_CONFLICT: {"model": Problem, "description": "E-mail taken."}},
 )
 async def register(body: RegisterRequest, session: Session, tokens: Tokens) -> TokenResponse:
+    if is_personal(body.password, body.email.partition("@")[0], body.organization_name):
+        raise _personal_refusal()
     try:
         signed_in = await service.register(
             session,
@@ -301,8 +320,9 @@ async def login(
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": Problem,
             "description": "The new account's password is too short; or it is among the most "
-            "common passwords, which `detail` says as registration's refusal does, an error of "
-            "type `common_password`.",
+            "common passwords, or holds the name of the address or of the organization, which "
+            "`detail` says as registration's refusal does, an error of type `common_password` "
+            "or `personal_password`.",
         },
     },
 )
@@ -336,6 +356,8 @@ async def accept_invitation(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             [{"type": COMMON_PASSWORD, "loc": ["body", "password"], "msg": _COMMON_MESSAGE}],
         ) from None
+    except service.PersonalPasswordError:
+        raise _personal_refusal() from None
     except service.EmailTakenError:
         raise HTTPException(
             status.HTTP_409_CONFLICT,

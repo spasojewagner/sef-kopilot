@@ -110,7 +110,7 @@
     "description": "Nalog dobija i svoju organizaciju, čiji ste vlasnik.",
     "email": "Adresa e-pošte",
     "password": "Lozinka",
-    "passwordHint": "Od {min} do {max} znakova.",
+    "passwordHint": "Od {min} do {max} znakova, bez imena iz vaše adrese i naziva organizacije.",
     "organization": "Naziv organizacije",
     "submit": "Napravi nalog",
     "pending": "Pravljenje naloga…",
@@ -119,6 +119,7 @@
   },
   "authErrors": {
     "commonPassword": "Ova lozinka je među najčešćim lozinkama, pa je lako pogoditi. Izaberite drugu.",
+    "personalPassword": "Ova lozinka sadrži ime iz vaše adrese ili naziv organizacije, pa je lako pogoditi, a naziv organizacije vidi svaki član. Izaberite drugu.",
     "wrongCredentials": "Adresa ili lozinka nije tačna.",
     "notAMember": "Niste član te organizacije.",
     "emailTaken": "Za ovu adresu već postoji nalog.",

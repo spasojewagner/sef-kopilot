@@ -23,7 +23,11 @@ export function useAuthErrorMessage(): (error: unknown) => string {
       case 409:
         return t("emailTaken");
       case 422:
-        return commonPassword(error) ? t("commonPassword") : t("invalid");
+        return refusedAs(error, "common_password")
+          ? t("commonPassword")
+          : refusedAs(error, "personal_password")
+            ? t("personalPassword")
+            : t("invalid");
       case 429:
         return t("tooMany", { seconds: error.retryAfter ?? 60 });
       default:
@@ -32,8 +36,11 @@ export function useAuthErrorMessage(): (error: unknown) => string {
   };
 }
 
-/** Whether the API refused a new password as among the most common ones. */
-function commonPassword(error: ApiError): boolean {
+/**
+ * Whether the API refused the request with an error of ``type``: a new password among the most
+ * common ones, or one that holds the name of its address or its organization.
+ */
+function refusedAs(error: ApiError, type: string): boolean {
   const detail = (error.body as { detail?: unknown } | null)?.detail;
   return (
     Array.isArray(detail) &&
@@ -41,7 +48,7 @@ function commonPassword(error: ApiError): boolean {
       (each) =>
         typeof each === "object" &&
         each !== null &&
-        (each as { type?: unknown }).type === "common_password",
+        (each as { type?: unknown }).type === type,
     )
   );
 }

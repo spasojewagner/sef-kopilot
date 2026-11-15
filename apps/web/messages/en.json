@@ -110,7 +110,7 @@
     "description": "The account comes with an organization of its own, which you own.",
     "email": "E-mail address",
     "password": "Password",
-    "passwordHint": "{min} to {max} characters.",
+    "passwordHint": "{min} to {max} characters, holding neither your address's name nor your organization's.",
     "organization": "Organization name",
     "submit": "Create the account",
     "pending": "Creating the account…",
@@ -119,6 +119,7 @@
   },
   "authErrors": {
     "commonPassword": "This password is among the most common ones, which makes it easy to guess. Choose another.",
+    "personalPassword": "This password holds your address's name or your organization's, so it is easy to guess, and every member sees the organization's name. Choose another.",
     "wrongCredentials": "The address or the password is wrong.",
     "notAMember": "You are not a member of that organization.",
     "emailTaken": "An account with this address exists already.",

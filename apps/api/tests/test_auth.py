@@ -125,6 +125,34 @@ async def test_a_common_password_is_refused_whatever_its_case(
     assert await session.scalar(select(User)) is None
 
 
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"password": "Primer Računovodstvo 2026"},
+        {"password": "my primer-racunovodstvo!"},
+        {"email": "ana.markovic@primer.example", "password": "Ana Marković, 1987."},
+    ],
+)
+async def test_a_password_its_address_or_organization_gives_away_is_refused(
+    api: AsyncClient, session: AsyncSession, change: dict[str, str]
+) -> None:
+    """The organization's name is shown to every member: a password that holds it, or the
+    name of the address, is refused, whatever the case, the marks and the punctuation."""
+    response = await api.post("/auth/register", json=REGISTRATION | change)
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": [
+            {
+                "type": "personal_password",
+                "loc": ["body", "password"],
+                "msg": "holds the name of the address or of the organization; choose another",
+            }
+        ]
+    }
+    assert await session.scalar(select(User)) is None
+
+
 # --- sign-in -----------------------------------------------------------------------------------
 
 

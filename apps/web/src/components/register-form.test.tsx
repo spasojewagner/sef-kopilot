@@ -140,13 +140,44 @@ describe("Registration form", () => {
     );
   });
 
+  it("says that a password its address or organization gives away is easy to guess", async () => {
+    stubRegister(
+      () =>
+        new Response(
+          JSON.stringify({
+            detail: [
+              {
+                type: "personal_password",
+                loc: ["body", "password"],
+                msg: "holds the name of the address or of the organization; choose another",
+              },
+            ],
+          }),
+          { status: 422, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    renderIn("sr-Latn", <RegisterForm />);
+
+    await registerAs(
+      "alice@primer.example",
+      "Primer d.o.o. 2026!",
+      "Primer d.o.o.",
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Ova lozinka sadrži ime iz vaše adrese ili naziv organizacije, pa je lako pogoditi, a naziv organizacije vidi svaki član. Izaberite drugu.",
+    );
+  });
+
   it("asks for a password of 12 to 128 characters, and says so", () => {
     renderIn("sr-Latn", <RegisterForm />);
 
     const password = screen.getByLabelText("Lozinka");
     expect(password).toHaveAttribute("minlength", "12");
     expect(password).toHaveAttribute("maxlength", "128");
-    expect(password).toHaveAccessibleDescription("Od 12 do 128 znakova.");
+    expect(password).toHaveAccessibleDescription(
+      "Od 12 do 128 znakova, bez imena iz vaše adrese i naziva organizacije.",
+    );
     expect(password).toHaveAttribute("autocomplete", "new-password");
   });
 });
