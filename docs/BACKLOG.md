@@ -166,6 +166,24 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] `chore/security-review-1.0` — the security review pass: every open item of the ASVS checklist walked, the audits run, four items fixed (the headers of the API and the web, the permissions in the schema, common passwords refused, no documentation in production), the rest verified or accepted (`docs/SECURITY_REVIEW_1.0.md`)
 - [x] `chore/release-1.0` — `v1.0.0`
 
+## 1.1 — the web application after 1.0 · tag `v1.1.0`
+
+Asked for by the maintainer after 1.0, from his own use of the demo.
+
+- [x] `feat/web-account-menu` — the header's account as a menu with the member's initials, the
+      languages as one control (#135)
+- [x] `feat/web-reading-review` — a reading opens on a summary of the invoice and folds its
+      fields away (#136)
+- [x] `feat/web-landing-motion` — the home page's headings and sections enter as it scrolls (#134)
+- [x] `fix/web-api-waking-in-footer` — the waking API told in the footer only (ADR-0065)
+- [x] `feat/gemini-own-model-key` — an organization's own key may be to Gemini (ADR-0066)
+- [x] `feat/api-password-not-the-name` — a password its address or organization gives away
+      is refused (ASVS 6.2.11)
+- [x] `feat/account-rename-and-password` — an owner renames the organization, a member changes
+      their password and ends their other sessions (ADR-0067, #140)
+- [x] `feat/invoice-list-search` — search, filters and pages for the checked invoices (#141)
+- [x] `chore/release-1.1`, `docs/demo-gif-1.1` — `v1.1.0`, and the demo recorded from it
+
 ## After 1.0 — waits for a SEF demo account
 
 The maintainer's decision of 2026-11-11: signing up for SEF's demo takes an eID registration with
