@@ -9,6 +9,12 @@ is tagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- `apps/api`: a 5xx the API answers on purpose, a language model that failed or was late (502,
+  504) or a busy validator (503), is no longer reported to Sentry as an error; an exception
+  nothing handled, and a line logged at error, still are (ADR-0048).
+
 ## [1.1.0] - 2026-11-15
 
 The web application after 1.0, and what an organization may change about itself. The header's
@@ -193,6 +199,7 @@ instruction, what its demo makes of the open questions) waits after 1.0.
   where it showed the old one until the fresh one came: the invoice and its repairs are read
   again before the approval is shown as made, and nothing else of the invoice as it was (its
   explanations, the list's verdict) is kept to be shown.
+
 ### Security
 
 - `apps/api`: every answer tells the browser to run, load and frame nothing it holds

@@ -17,7 +17,9 @@ from typing import Any, Final, cast
 from urllib.parse import urlsplit
 
 import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
 from sentry_sdk.transport import Transport
 from sentry_sdk.types import Event, Hint
 
@@ -56,8 +58,14 @@ def track_errors(settings: Settings, *, transport: Transport | None = None) -> b
         },
         max_breadcrumbs=0,
         traces_sample_rate=None,
-        # A line logged at error is reported; no line becomes a breadcrumb.
-        integrations=[LoggingIntegration(level=None, event_level=logging.ERROR)],
+        integrations=[
+            # A line logged at error is reported; no line becomes a breadcrumb.
+            LoggingIntegration(level=None, event_level=logging.ERROR),
+            # A 5xx the API answers on purpose (a model that failed or was late, a busy
+            # validator) is not reported; an exception nothing handled still is.
+            StarletteIntegration(failed_request_status_codes=set()),
+            FastApiIntegration(failed_request_status_codes=set()),
+        ],
         before_send=scrubbed,
         transport=transport,
     )
