@@ -200,7 +200,7 @@ its own key, instead of the server's model (ADR-0058). The key is sealed under t
 `SEF_FERNET_KEY` (section 9, steps 1 and 2) and rotated with the same command.
 
 1. As the organization's owner: `PUT /organization/model-key` with the provider (`groq`,
-   `openai` or `anthropic`), the model if not the provider's default, and the key. Check:
+   `openai`, `anthropic` or `gemini`, ADR-0066), the model if not the provider's default, and the key. Check:
    `GET /organization` shows `model_key` with the provider and the model, never the key.
 2. Explain a report: the answer's `model` names the organization's provider and model. A key the
    provider refuses shows there as the provider's error code (502); a key the server cannot open
