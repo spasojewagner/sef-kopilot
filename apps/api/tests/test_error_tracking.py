@@ -11,7 +11,7 @@ from typing import Any
 import httpx
 import pytest
 import sentry_sdk
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from sentry_sdk.envelope import Envelope
 from sentry_sdk.transport import Transport
 
@@ -88,6 +88,25 @@ async def test_an_unexpected_error_is_reported_with_where_but_nothing_sent(kept:
     reported = json.dumps(event)
     for sent in SENT:
         assert sent not in reported
+
+
+@pytest.mark.parametrize("status", [502, 503, 504])
+async def test_an_answer_the_api_gives_on_purpose_is_not_reported(kept: Kept, status: int) -> None:
+    """A model that fails or is late, or a validator that is busy, is answered with a 5xx on
+    purpose: the person is told, and nothing went wrong in the code (ADR-0048)."""
+    app = failing(kept)
+
+    async def answer_on_purpose() -> None:
+        raise HTTPException(status, "the language model proposed no repair within 20 s")
+
+    app.add_api_route("/late", answer_on_purpose, methods=["POST"])
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+        answer = await http.post("/late")
+    sentry_sdk.flush()
+
+    assert answer.status_code == status
+    assert kept.events == []
 
 
 async def test_a_line_logged_at_error_is_reported_without_what_it_was_given(kept: Kept) -> None:
