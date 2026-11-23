@@ -18,7 +18,7 @@ classifiers = [
 ]
 dependencies = [
   "lxml>=6.1",
-  "pydantic>=2.14",
+  "pydantic>=2.14.4",
   "saxonche>=13.1",
 ]
 
